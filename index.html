@@ -6,8 +6,88 @@
     <title>Manager Pagini Facebook - Transvortex LTD</title>
     <link rel="stylesheet" href="styles.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* Firebase Auth Bar */
+        .firebase-auth-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(135deg, #FF8A3D 0%, #F47C2C 100%);
+            padding: 0.75rem 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+            z-index: 1000;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+            color: white;
+            font-size: 0.9rem;
+        }
+
+        .firebase-auth-bar .user-info {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .firebase-auth-bar .user-info span {
+            font-weight: 500;
+        }
+
+        .firebase-auth-bar .user-info .badge {
+            background: rgba(255, 255, 255, 0.3);
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .firebase-auth-bar button {
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            color: white;
+            padding: 0.5rem 1.25rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .firebase-auth-bar button:hover {
+            background: rgba(255, 255, 255, 0.3);
+            border-color: rgba(255, 255, 255, 0.6);
+        }
+
+        .firebase-auth-bar button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .container {
+            margin-top: 60px;
+        }
+
+        /* Admin only elements */
+        [data-admin-only] {
+            display: none;
+        }
+
+        [data-admin-only].admin-visible {
+            display: block;
+        }
+    </style>
 </head>
 <body>
+    <!-- Firebase Authentication Bar -->
+    <div class="firebase-auth-bar" id="authBar">
+        <div class="user-info">
+            <span id="authStatus">🔒 Se verifică...</span>
+            <span class="badge" id="adminBadge" style="display: none;">👑 ADMIN</span>
+        </div>
+        <button id="authButton" onclick="handleAuthToggle()">Se încarcă...</button>
+    </div>
+
     <div class="container">
         <header>
             <div class="header-bg-glow"></div>
@@ -35,8 +115,8 @@
         </header>
 
         <main>
-            <!-- Formular adăugare pagină nouă -->
-            <section class="add-section">
+            <!-- Formular adăugare pagină nouă (ADMIN ONLY) -->
+            <section class="add-section" data-admin-only>
                 <h2><i class="fab fa-facebook"></i> Adaugă Pagină Nouă</h2>
                 <form id="pageForm">
                     <div class="form-group">
@@ -120,31 +200,6 @@
                     <p>Începe prin a adăuga prima ta pagină Facebook folosind formularul de mai sus</p>
                 </div>
             </section>
-
-            <!-- Secțiune Listă Invitați (Firebase) -->
-            <section class="add-section">
-                <h2><i class="fas fa-users"></i> Listă Invitați (Sincronizare Cloud)</h2>
-                <form id="guestForm">
-                    <div class="form-group">
-                        <label for="guestName">Nume Invitat:</label>
-                        <input type="text" id="guestName" placeholder="ex: Ion Popescu" required>
-                    </div>
-                    <button type="submit" class="btn-primary">
-                        <i class="fas fa-user-plus"></i> Adaugă Invitat
-                    </button>
-                </form>
-                
-                <div id="guestListContainer" style="margin-top: 2rem;">
-                    <h3 style="margin-bottom: 1rem; color: #1F1F1F;">
-                        <i class="fas fa-list"></i> Invitați Confirmați
-                    </h3>
-                    <ul id="guestList" style="list-style: none; padding: 0;">
-                        <li class="empty" style="text-align: center; color: #8A7F78; padding: 2rem;">
-                            <i class="fas fa-spinner fa-spin"></i> Se încarcă...
-                        </li>
-                    </ul>
-                </div>
-            </section>
         </main>
 
         <footer>
@@ -153,196 +208,5 @@
     </div>
 
     <script src="script.js"></script>
-
-    <!-- Firebase SDK - Guest List Sync -->
-    <script type="module">
-        // Import Firebase modules (browser modular SDK)
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import {
-            getFirestore,
-            collection,
-            addDoc,
-            getDocs,
-            query,
-            orderBy,
-            onSnapshot
-        } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-
-        // Firebase configuration
-        const firebaseConfig = {
-            apiKey: "AIzaSyDKyqAb198h6VdbHXZtciMdn_KIg-L2zzU",
-            authDomain: "transvortexltdcouk.firebaseapp.com",
-            projectId: "transvortexltdcouk",
-            storageBucket: "transvortexltdcouk.firebasestorage.app",
-            messagingSenderId: "980773899679",
-            appId: "1:980773899679:web:0880ca927f4ac348581aa",
-            measurementId: "G-D1QH23H9J8"
-        };
-
-        // Initialize Firebase
-        const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app);
-
-        // Get DOM elements
-        const form = document.getElementById('guestForm');
-        const input = document.getElementById('guestName');
-        const list = document.getElementById('guestList');
-
-        /**
-         * Render guests to the UI
-         * @param {Array} items - Array of guest objects
-         */
-        function renderGuests(items) {
-            list.innerHTML = '';
-            
-            if (!items || items.length === 0) {
-                list.innerHTML = `
-                    <li class="empty" style="text-align: center; color: #8A7F78; padding: 2rem;">
-                        <i class="fas fa-user-friends"></i><br>
-                        Niciun invitat adăugat încă.<br>
-                        <small>Adaugă primul invitat folosind formularul de mai sus.</small>
-                    </li>
-                `;
-                return;
-            }
-
-            items.forEach((guest, index) => {
-                const li = document.createElement('li');
-                li.style.cssText = `
-                    background: #FDEEE3;
-                    padding: 1rem 1.5rem;
-                    margin-bottom: 0.5rem;
-                    border-radius: 8px;
-                    border-left: 4px solid #FF8A3D;
-                    display: flex;
-                    align-items: center;
-                    gap: 1rem;
-                    font-size: 1rem;
-                    color: #1F1F1F;
-                    transition: transform 0.2s;
-                `;
-                
-                li.innerHTML = `
-                    <span style="background: #FF8A3D; color: white; width: 32px; height: 32px; 
-                                 border-radius: 50%; display: flex; align-items: center; 
-                                 justify-content: center; font-weight: bold; font-size: 0.9rem;">
-                        ${index + 1}
-                    </span>
-                    <span style="flex: 1; font-weight: 500;">${escapeHtml(guest.name)}</span>
-                    <span style="font-size: 0.85rem; color: #8A7F78;">
-                        <i class="fas fa-check-circle" style="color: #2ECC9A;"></i>
-                    </span>
-                `;
-                
-                // Hover effect
-                li.addEventListener('mouseenter', () => {
-                    li.style.transform = 'translateX(4px)';
-                });
-                li.addEventListener('mouseleave', () => {
-                    li.style.transform = 'translateX(0)';
-                });
-                
-                list.appendChild(li);
-            });
-        }
-
-        /**
-         * Escape HTML to prevent XSS
-         * @param {string} text - Text to escape
-         * @returns {string} - Escaped text
-         */
-        function escapeHtml(text) {
-            const div = document.createElement('div');
-            div.textContent = text;
-            return div.innerHTML;
-        }
-
-        /**
-         * Show error message
-         * @param {string} message - Error message
-         */
-        function showError(message) {
-            list.innerHTML = `
-                <li class="empty" style="text-align: center; color: #EF4444; padding: 2rem;">
-                    <i class="fas fa-exclamation-triangle"></i><br>
-                    ${escapeHtml(message)}<br>
-                    <small>Verifică conexiunea la internet și încearcă din nou.</small>
-                </li>
-            `;
-        }
-
-        /**
-         * Load guests from Firestore
-         * Uses real-time listener for instant sync across devices
-         */
-        function loadGuests() {
-            try {
-                const q = query(collection(db, 'guests'), orderBy('createdAt', 'desc'));
-                
-                // Real-time listener - updates instantly when data changes
-                onSnapshot(q, (snapshot) => {
-                    const items = snapshot.docs.map(doc => ({
-                        id: doc.id,
-                        ...doc.data()
-                    }));
-                    renderGuests(items);
-                }, (error) => {
-                    console.error('Error loading guests:', error);
-                    showError('Eroare la încărcarea invitaților.');
-                });
-            } catch (error) {
-                console.error('Error setting up listener:', error);
-                showError('Eroare la conectarea la baza de date.');
-            }
-        }
-
-        /**
-         * Add guest to Firestore
-         * @param {string} name - Guest name
-         */
-        async function addGuest(name) {
-            try {
-                await addDoc(collection(db, 'guests'), {
-                    name: name.trim(),
-                    createdAt: Date.now()
-                });
-                // onSnapshot will automatically update the UI
-            } catch (error) {
-                console.error('Error adding guest:', error);
-                alert('Eroare la adăugarea invitatului. Verifică conexiunea la internet.');
-            }
-        }
-
-        /**
-         * Form submit handler
-         */
-        form.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            
-            const name = input.value.trim();
-            if (!name) {
-                alert('Te rog introdu un nume.');
-                return;
-            }
-
-            // Disable form during submit
-            const submitBtn = form.querySelector('button[type="submit"]');
-            const originalText = submitBtn.innerHTML;
-            submitBtn.disabled = true;
-            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Se adaugă...';
-
-            try {
-                await addGuest(name);
-                input.value = ''; // Clear input on success
-            } finally {
-                // Re-enable form
-                submitBtn.disabled = false;
-                submitBtn.innerHTML = originalText;
-            }
-        });
-
-        // Start loading guests on page load
-        loadGuests();
-    </script>
 </body>
 </html>

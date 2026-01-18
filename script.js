@@ -1,107 +1,265 @@
-// Storage key pentru localStorage
-const STORAGE_KEY = 'transvortex_facebook_pages';
+// ==========================================
+// FIREBASE CONFIGURATION
+// ==========================================
+const firebaseConfig = {
+    apiKey: "AIzaSyDKyqAb198h6VdbHXZtciMdn_KIg-L2zzU",
+    authDomain: "transvortexltdcouk.firebaseapp.com",
+    projectId: "transvortexltdcouk",
+    storageBucket: "transvortexltdcouk.firebasestorage.app",
+    messagingSenderId: "980773899679",
+    appId: "1:980773899679:web:08800ca927f4ac348581aa",
+    measurementId: "G-D1QH23H9J8"
+};
 
-// Array-ul cu paginile
+// Admin UID
+const ADMIN_UID = "VhjWQiYKVGUrDVuOQUSJHA15Blk2";
+
+// Global variables
+let auth = null;
+let db = null;
+let currentUser = null;
+let isAdmin = false;
 let pages = [];
 
-// Încarcă paginile la pornirea aplicației
-document.addEventListener('DOMContentLoaded', () => {
-    loadPages();
-    renderPages();
-    updateStats();
-    setupEventListeners();
-});
+// ==========================================
+// FIREBASE INITIALIZATION
+// ==========================================
+async function initializeFirebase() {
+    try {
+        // Import Firebase modules
+        const { initializeApp } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js');
+        const { getAuth, onAuthStateChanged, signInWithPopup, GoogleAuthProvider, signOut } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js');
+        const { getFirestore } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
 
-// Setup event listeners
-function setupEventListeners() {
-    // Form submit
-    const form = document.getElementById('pageForm');
-    form.addEventListener('submit', handleAddPage);
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        auth = getAuth(app);
+        db = getFirestore(app);
+
+        // Setup auth listener
+        onAuthStateChanged(auth, (user) => {
+            currentUser = user;
+            isAdmin = user?.uid === ADMIN_UID;
+            updateAuthUI();
+            if (user) {
+                loadPages();
+                renderPages();
+                updateStats();
+                setupEventListeners();
+            }
+        });
+
+    } catch (error) {
+        console.error('Error initializing Firebase:', error);
+        updateAuthStatus('Eroare la conectare.');
+    }
 }
 
-// Handle adăugare pagină nouă
-function handleAddPage(e) {
+// ==========================================
+// AUTHENTICATION FUNCTIONS
+// ==========================================
+async function handleAuthToggle() {
+    if (currentUser) {
+        // Logout
+        try {
+            const { signOut } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js');
+            await signOut(auth);
+        } catch (error) {
+            console.error('Logout error:', error);
+        }
+    } else {
+        // Login
+        try {
+            const { signInWithPopup, GoogleAuthProvider } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js');
+            const provider = new GoogleAuthProvider();
+            await signInWithPopup(auth, provider);
+        } catch (error) {
+            console.error('Login error:', error);
+            if (error.code !== 'auth/popup-closed-by-user') {
+                updateAuthStatus('Eroare la autentificare.');
+            }
+        }
+    }
+}
+
+function updateAuthUI() {
+    const authStatus = document.getElementById('authStatus');
+    const authButton = document.getElementById('authButton');
+    const adminBadge = document.getElementById('adminBadge');
+
+    if (currentUser) {
+        authStatus.innerHTML = `✅ ${currentUser.displayName || 'Conectat'}`;
+        authButton.textContent = 'Deconectare';
+        authButton.disabled = false;
+
+        if (isAdmin) {
+            adminBadge.style.display = 'inline-block';
+            // Show admin-only sections
+            document.querySelectorAll('[data-admin-only]').forEach(el => {
+                el.classList.add('admin-visible');
+            });
+        } else {
+            adminBadge.style.display = 'none';
+            // Hide admin-only sections
+            document.querySelectorAll('[data-admin-only]').forEach(el => {
+                el.classList.remove('admin-visible');
+            });
+        }
+    } else {
+        authStatus.innerHTML = '🔓 Conectează-te pentru a continua';
+        authButton.textContent = 'Conectare cu Google';
+        authButton.disabled = false;
+        adminBadge.style.display = 'none';
+        // Hide admin sections
+        document.querySelectorAll('[data-admin-only]').forEach(el => {
+            el.classList.remove('admin-visible');
+        });
+    }
+}
+
+function updateAuthStatus(status) {
+    const authStatus = document.getElementById('authStatus');
+    authStatus.textContent = status;
+}
+
+// ==========================================
+// PAGE MANAGEMENT FUNCTIONS
+// ==========================================
+async function loadPages() {
+    if (!currentUser) return;
+
+    try {
+        const { collection, getDocs, query, orderBy } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+        
+        const q = query(collection(db, 'pages'), orderBy('addedDate', 'desc'));
+        const snapshot = await getDocs(q);
+        
+        pages = snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+        }));
+    } catch (error) {
+        console.error('Error loading pages:', error);
+        showNotification('Eroare la încărcarea datelor', 'error');
+    }
+}
+
+function setupEventListeners() {
+    const form = document.getElementById('pageForm');
+    if (form) {
+        form.addEventListener('submit', handleAddPage);
+    }
+}
+
+async function handleAddPage(e) {
+    if (!isAdmin) {
+        alert('Doar administratorii pot adăuga pagini.');
+        return;
+    }
+
     e.preventDefault();
 
     const pageName = document.getElementById('pageName').value.trim();
     const pageUrl = document.getElementById('pageUrl').value.trim();
     const pageAvatar = document.getElementById('pageAvatar').value.trim();
 
-    // Validare URL Facebook
     if (!pageUrl.includes('facebook.com')) {
         alert('Te rog introdu un URL valid de Facebook!');
         return;
     }
 
-    // Creează obiect pagină
-    const newPage = {
-        id: Date.now(),
-        name: pageName,
-        url: pageUrl,
-        avatar: pageAvatar || '',
-        postedToday: false,
-        lastPosted: null,
-        addedDate: new Date().toISOString()
-    };
+    try {
+        const { collection, addDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+        
+        await addDoc(collection(db, 'pages'), {
+            name: pageName,
+            url: pageUrl,
+            avatar: pageAvatar || '',
+            postedToday: false,
+            lastPosted: null,
+            addedDate: serverTimestamp(),
+            createdBy: currentUser.uid
+        });
 
-    // Adaugă în array
-    pages.push(newPage);
-
-    // Salvează
-    savePages();
-
-    // Re-renderizează
-    renderPages();
-    updateStats();
-
-    // Reset form
-    e.target.reset();
-
-    // Show success message
-    showNotification('Pagină adăugată cu succes!', 'success');
-}
-
-// Încarcă paginile din localStorage
-function loadPages() {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) {
-        pages = JSON.parse(stored);
-        // Reset posted status dacă e o nouă zi
-        checkAndResetDailyStatus();
+        e.target.reset();
+        await loadPages();
+        renderPages();
+        updateStats();
+        showNotification('Pagină adăugată cu succes!', 'success');
+    } catch (error) {
+        console.error('Error adding page:', error);
+        showNotification('Eroare la adăugarea paginii', 'error');
     }
 }
 
-// Salvează paginile în localStorage
-function savePages() {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(pages));
-}
+async function markAsPosted(docId) {
+    if (!isAdmin) return;
 
-// Verifică și resetează status zilnic
-function checkAndResetDailyStatus() {
-    const today = new Date().toDateString();
-    let needsUpdate = false;
+    try {
+        const { doc, updateDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+        
+        await updateDoc(doc(db, 'pages', docId), {
+            postedToday: true,
+            lastPosted: serverTimestamp()
+        });
 
-    pages.forEach(page => {
-        if (page.lastPosted) {
-            const lastPostedDate = new Date(page.lastPosted).toDateString();
-            if (lastPostedDate !== today && page.postedToday) {
-                page.postedToday = false;
-                needsUpdate = true;
-            }
-        }
-    });
-
-    if (needsUpdate) {
-        savePages();
+        await loadPages();
+        renderPages();
+        updateStats();
+        showNotification('Pagină marcată ca postată!', 'success');
+    } catch (error) {
+        console.error('Error marking as posted:', error);
+        showNotification('Eroare la actualizare', 'error');
     }
 }
 
-// Renderizează lista de pagini
+async function markAsUnposted(docId) {
+    if (!isAdmin) return;
+
+    try {
+        const { doc, updateDoc } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+        
+        await updateDoc(doc(db, 'pages', docId), {
+            postedToday: false
+        });
+
+        await loadPages();
+        renderPages();
+        updateStats();
+        showNotification('Pagină marcată ca nepostată', 'info');
+    } catch (error) {
+        console.error('Error marking as unposted:', error);
+        showNotification('Eroare la actualizare', 'error');
+    }
+}
+
+async function deletePage(docId) {
+    if (!isAdmin) return;
+
+    if (!confirm('Ești sigur că vrei să ștergi această pagină?')) return;
+
+    try {
+        const { doc, deleteDoc } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+        
+        await deleteDoc(doc(db, 'pages', docId));
+
+        await loadPages();
+        renderPages();
+        updateStats();
+        showNotification('Pagină ștearsă cu succes', 'success');
+    } catch (error) {
+        console.error('Error deleting page:', error);
+        showNotification('Eroare la ștergere', 'error');
+    }
+}
+
+// ==========================================
+// UI RENDERING FUNCTIONS
+// ==========================================
 function renderPages() {
     const pagesList = document.getElementById('pagesList');
     const emptyState = document.getElementById('emptyState');
 
-    // Verifică dacă lista e goală
     if (pages.length === 0) {
         pagesList.innerHTML = '';
         emptyState.classList.add('show');
@@ -109,44 +267,36 @@ function renderPages() {
     }
 
     emptyState.classList.remove('show');
-
-    // Creează HTML pentru fiecare pagină
     const pagesHTML = pages.map(page => createPageCard(page)).join('');
     pagesList.innerHTML = pagesHTML;
-
-    // Adaugă event listeners pentru butoane
     attachPageEventListeners();
 }
 
-// Crează card pentru o pagină
 function createPageCard(page) {
-    // Determină clasa de status: verde (postat), galben (pending), roșu (vechi - de șters)
-    const daysSinceAdded = Math.floor((new Date() - new Date(page.addedDate)) / (1000 * 60 * 60 * 24));
-    const daysSincePosted = page.lastPosted ? Math.floor((new Date() - new Date(page.lastPosted)) / (1000 * 60 * 60 * 24)) : 999;
+    const addedDate = page.addedDate?.toDate?.() || new Date(page.addedDate);
+    const daysSinceAdded = Math.floor((new Date() - addedDate) / (1000 * 60 * 60 * 24));
+    const lastPostedDate = page.lastPosted?.toDate?.() || (page.lastPosted ? new Date(page.lastPosted) : null);
+    const daysSincePosted = lastPostedDate ? Math.floor((new Date() - lastPostedDate) / (1000 * 60 * 60 * 24)) : 999;
     
-    let statusClass, cardClass, statusIcon, statusText;
+    let cardClass, statusClass, statusIcon, statusText;
     
     if (page.postedToday) {
-        // Verde - Postat astăzi
         cardClass = 'posted-today';
         statusClass = 'status-posted';
         statusIcon = 'fa-check-circle';
         statusText = 'Postat astăzi';
     } else if (daysSincePosted > 30 || (daysSinceAdded > 30 && !page.lastPosted)) {
-        // Roșu - Pagină veche, nepostată de mult timp (sugestie de ștergere)
         cardClass = 'to-delete';
         statusClass = 'status-delete';
         statusIcon = 'fa-exclamation-triangle';
         statusText = 'Neactivă - Sugestie ștergere';
     } else {
-        // Galben - De postat
         cardClass = 'pending';
         statusClass = 'status-pending';
         statusIcon = 'fa-clock';
         statusText = 'De postat';
     }
     
-    const postedClass = cardClass;
     const postButton = page.postedToday 
         ? `<button class="btn-action btn-unpost" data-id="${page.id}">
                 <i class="fas fa-undo"></i> Marchează ca nepostat
@@ -157,13 +307,11 @@ function createPageCard(page) {
 
     const deleteWarning = cardClass === 'to-delete' ? `<div style="background: var(--color-delete); color: white; padding: 8px; border-radius: 6px; margin-bottom: 10px; font-size: 0.85em; text-align: center; box-shadow: 0 0 10px var(--glow-red);"><i class="fas fa-exclamation-circle"></i> Pagină inactivă ${daysSincePosted < 999 ? daysSincePosted : daysSinceAdded} zile</div>` : '';
     
-    // Avatar sau placeholder
     const avatarHTML = page.avatar 
         ? `<img src="${page.avatar}" alt="${page.name}" class="page-avatar" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
            <div class="page-avatar-placeholder" style="display:none;">${page.name.charAt(0).toUpperCase()}</div>`
         : `<div class="page-avatar-placeholder">${page.name.charAt(0).toUpperCase()}</div>`;
     
-    // Mini-preview pentru pagini postate
     const miniPreview = page.postedToday && page.lastPosted ? `
         <div class="mini-preview">
             <div class="mini-preview-header">
@@ -171,13 +319,25 @@ function createPageCard(page) {
                 <span>Publicată cu succes</span>
             </div>
             <div class="mini-preview-text">
-                Ultima postare: ${new Date(page.lastPosted).toLocaleTimeString('ro-RO', { hour: '2-digit', minute: '2-digit' })}
+                Ultima postare: ${lastPostedDate.toLocaleTimeString('ro-RO', { hour: '2-digit', minute: '2-digit' })}
             </div>
+        </div>
+    ` : '';
+
+    const adminButtons = isAdmin ? `
+        <div class="page-actions">
+            ${postButton}
+            <button class="btn-action btn-visit" data-id="${page.id}">
+                <i class="fas fa-external-link-alt"></i>
+            </button>
+            <button class="btn-action btn-delete" data-id="${page.id}">
+                <i class="fas fa-trash"></i>
+            </button>
         </div>
     ` : '';
     
     return `
-        <div class="page-card ${postedClass}">
+        <div class="page-card ${cardClass}">
             ${deleteWarning}
             <div class="page-header">
                 <div class="page-header-left">
@@ -196,115 +356,57 @@ function createPageCard(page) {
                 <span>${statusText}</span>
             </div>
             ${miniPreview}
-            <div class="page-actions">
-                ${postButton}
-                <button class="btn-action btn-visit" data-id="${page.id}">
-                    <i class="fas fa-external-link-alt"></i>
-                </button>
-                <button class="btn-action btn-delete" data-id="${page.id}">
-                    <i class="fas fa-trash"></i>
-                </button>
-            </div>
+            ${adminButtons}
         </div>
     `;
 }
 
-// Atașează event listeners pentru butoanele din carduri
 function attachPageEventListeners() {
-    // Marchează ca postat
     document.querySelectorAll('.btn-post').forEach(btn => {
         btn.addEventListener('click', (e) => {
-            const id = parseInt(e.currentTarget.dataset.id);
-            markAsPosted(id);
+            markAsPosted(e.currentTarget.dataset.id);
         });
     });
 
-    // Marchează ca nepostat
     document.querySelectorAll('.btn-unpost').forEach(btn => {
         btn.addEventListener('click', (e) => {
-            const id = parseInt(e.currentTarget.dataset.id);
-            markAsUnposted(id);
+            markAsUnposted(e.currentTarget.dataset.id);
         });
     });
 
-    // Vizitează pagina
     document.querySelectorAll('.btn-visit').forEach(btn => {
         btn.addEventListener('click', (e) => {
-            const id = parseInt(e.currentTarget.dataset.id);
-            const page = pages.find(p => p.id === id);
+            const page = pages.find(p => p.id === e.currentTarget.dataset.id);
             if (page) {
-                // Deschide pagina
                 window.open(page.url, '_blank');
-                // Marchează automat ca postat
-                markAsPosted(id);
+                markAsPosted(e.currentTarget.dataset.id);
             }
         });
     });
 
-    // Șterge pagina
     document.querySelectorAll('.btn-delete').forEach(btn => {
         btn.addEventListener('click', (e) => {
-            const id = parseInt(e.currentTarget.dataset.id);
-            deletePage(id);
+            deletePage(e.currentTarget.dataset.id);
         });
     });
 }
 
-// Marchează pagina ca postată
-function markAsPosted(id) {
-    const page = pages.find(p => p.id === id);
-    if (page) {
-        page.postedToday = true;
-        page.lastPosted = new Date().toISOString();
-        savePages();
-        renderPages();
-        updateStats();
-        showNotification('Pagină marcată ca postată!', 'success');
-    }
-}
-
-// Marchează pagina ca nepostată
-function markAsUnposted(id) {
-    const page = pages.find(p => p.id === id);
-    if (page) {
-        page.postedToday = false;
-        savePages();
-        renderPages();
-        updateStats();
-        showNotification('Pagină marcată ca nepostată', 'info');
-    }
-}
-
-// Șterge o pagină
-function deletePage(id) {
-    if (confirm('Ești sigur că vrei să ștergi această pagină?')) {
-        pages = pages.filter(p => p.id !== id);
-        savePages();
-        renderPages();
-        updateStats();
-        showNotification('Pagină ștearsă cu succes', 'success');
-    }
-}
-
-// Update statistics
+// ==========================================
+// STATISTICS & UI UPDATES
+// ==========================================
 function updateStats() {
     const totalPages = pages.length;
     const postedToday = pages.filter(p => p.postedToday).length;
     const pendingPages = totalPages - postedToday;
 
-    // Animează numerele
     animateNumber('totalPages', totalPages);
     animateNumber('postedToday', postedToday);
     animateNumber('pendingPages', pendingPages);
     
-    // Update status live
     updateLiveStatus();
-    
-    // Update mesaj uman
     updateHumanMessage(postedToday, pendingPages);
 }
 
-// Animează numere de la 0 la valoare
 function animateNumber(elementId, targetValue) {
     const element = document.getElementById(elementId);
     const currentValue = parseInt(element.textContent) || 0;
@@ -332,19 +434,20 @@ function animateNumber(elementId, targetValue) {
     }, duration / steps);
 }
 
-// Update status în timp real
 function updateLiveStatus() {
     const lastPostElement = document.getElementById('lastPostTime');
     const nextPostElement = document.getElementById('nextPostTime');
     
-    // Găsește ultima postare
     const postedPages = pages.filter(p => p.lastPosted);
     if (postedPages.length > 0) {
-        const lastPosted = postedPages.reduce((latest, page) => 
-            new Date(page.lastPosted) > new Date(latest.lastPosted) ? page : latest
-        );
+        const lastPosted = postedPages.reduce((latest, page) => {
+            const latestDate = latest.lastPosted?.toDate?.() || new Date(latest.lastPosted);
+            const pageDate = page.lastPosted?.toDate?.() || new Date(page.lastPosted);
+            return pageDate > latestDate ? page : latest;
+        });
         
-        const timeDiff = Date.now() - new Date(lastPosted.lastPosted);
+        const postedDate = lastPosted.lastPosted?.toDate?.() || new Date(lastPosted.lastPosted);
+        const timeDiff = Date.now() - postedDate;
         const minutes = Math.floor(timeDiff / 60000);
         const hours = Math.floor(minutes / 60);
         
@@ -359,7 +462,6 @@ function updateLiveStatus() {
         lastPostElement.textContent = 'nicio postare încă';
     }
     
-    // Următoarea postare programată (estimare simplă)
     const pendingCount = pages.filter(p => !p.postedToday).length;
     if (pendingCount > 0) {
         const now = new Date();
@@ -370,36 +472,36 @@ function updateLiveStatus() {
     }
 }
 
-// Mesaje umane
 function updateHumanMessage(postedCount, pendingCount) {
-    const messageElement = document.getElementById('humanMessage').querySelector('span');
+    const messageElement = document.getElementById('humanMessage');
+    if (!messageElement) return;
+    
+    const span = messageElement.querySelector('span');
     
     if (pendingCount === 0) {
-        messageElement.innerHTML = '<i class="fas fa-party-horn"></i> Felicitări! Ai postat în toate paginile programate.';
+        span.innerHTML = '<i class="fas fa-party-horn"></i> Felicitări! Ai postat în toate paginile programate.';
     } else if (postedCount === 0) {
-        messageElement.innerHTML = `${pendingCount} ${pendingCount === 1 ? 'pagină necesită' : 'pagini necesită'} atenția ta.`;
+        span.innerHTML = `${pendingCount} ${pendingCount === 1 ? 'pagină necesită' : 'pagini necesită'} atenția ta.`;
     } else if (pendingCount === 1) {
-        messageElement.innerHTML = 'Aproape gata! Doar 1 pagină mai necesită atenția ta.';
+        span.innerHTML = 'Aproape gata! Doar 1 pagină mai necesită atenția ta.';
     } else {
-        messageElement.innerHTML = `Progres excelent! ${pendingCount} pagini mai așteaptă.`;
+        span.innerHTML = `Progres excelent! ${pendingCount} pagini mai așteaptă.`;
     }
 }
 
-// Show notification
 function showNotification(message, type = 'info') {
-    // Creează element notificare
     const notification = document.createElement('div');
     notification.className = `notification notification-${type}`;
     notification.style.cssText = `
         position: fixed;
-        top: 20px;
+        top: 80px;
         right: 20px;
         background: ${type === 'success' ? '#10b981' : type === 'error' ? '#ef4444' : '#3b82f6'};
         color: white;
         padding: 15px 25px;
         border-radius: 8px;
         box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
-        z-index: 1000;
+        z-index: 999;
         animation: slideIn 0.3s ease;
     `;
     notification.innerHTML = `
@@ -409,67 +511,16 @@ function showNotification(message, type = 'info') {
 
     document.body.appendChild(notification);
 
-    // Remove după 3 secunde
     setTimeout(() => {
         notification.style.animation = 'slideOut 0.3s ease';
         setTimeout(() => notification.remove(), 300);
     }, 3000);
 }
 
-// Adaugă stiluri pentru notificări
-const style = document.createElement('style');
-style.textContent = `
-    @keyframes slideIn {
-        from {
-            transform: translateX(400px);
-            opacity: 0;
-        }
-        to {
-            transform: translateX(0);
-            opacity: 1;
-        }
-    }
-    @keyframes slideOut {
-        from {
-            transform: translateX(0);
-            opacity: 1;
-        }
-        to {
-            transform: translateX(400px);
-            opacity: 0;
-        }
-    }
-    .notification i {
-        margin-right: 10px;
-    }
-`;
-document.head.appendChild(style);
+// ==========================================
+// INITIALIZE ON PAGE LOAD
+// ==========================================
+document.addEventListener('DOMContentLoaded', () => {
+    initializeFirebase();
+});
 
-// Export data (pentru backup)
-function exportData() {
-    const dataStr = JSON.stringify(pages, null, 2);
-    const blob = new Blob([dataStr], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `transvortex_facebook_pages_${new Date().toISOString().split('T')[0]}.json`;
-    link.click();
-}
-
-// Import data (din backup)
-function importData(file) {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-        try {
-            const imported = JSON.parse(e.target.result);
-            pages = imported;
-            savePages();
-            renderPages();
-            updateStats();
-            showNotification('Date importate cu succes!', 'success');
-        } catch (error) {
-            showNotification('Eroare la importul datelor!', 'error');
-        }
-    };
-    reader.readAsText(file);
-}
