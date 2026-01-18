@@ -75,7 +75,7 @@ async function initializeFirebase() {
         console.log("✅ Firestore initialized");
 
         // Setup authentication state listener
-        onAuthStateChanged(auth, (user) => {
+        onAuthStateChanged(auth, async (user) => {
             currentUser = user;
             isAdmin = user ? ADMIN_UIDS.includes(user.uid) : false;
             updateAuthUI();
@@ -85,12 +85,19 @@ async function initializeFirebase() {
                 if (isAdmin) {
                     console.log("👑 Admin access granted");
                 }
-                loadPages();
+                
+                // Load pages from Firestore and render
+                await loadPages();
                 renderPages();
                 updateStats();
                 setupEventListeners();
             } else {
                 console.log("🔓 User logged out");
+                
+                // Still load pages for public view (read-only)
+                await loadPages();
+                renderPages();
+                updateStats();
             }
         });
 
@@ -213,40 +220,50 @@ function updateAuthStatus(status) {
 // PAGE MANAGEMENT FUNCTIONS
 // ==========================================
 async function loadPages() {
-    if (!currentUser) {
-        console.log('⏳ Not logged in yet, skipping loadPages');
+    // Check if Firestore is initialized
+    if (!db) {
+        console.log('⏳ Firestore not initialized yet, skipping loadPages');
         return;
     }
 
     try {
         const { collection, getDocs, query, orderBy } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
         
-        console.log('📥 Loading pages from Firestore...');
-        const q = query(collection(db, 'pages'), orderBy('addedDate', 'desc'));
+        console.log('📥 Loading pages from Firestore collection "pages"...');
+        const pagesCollection = collection(db, 'pages');
+        const q = query(pagesCollection, orderBy('addedDate', 'desc'));
         const snapshot = await getDocs(q);
         
+        // Map Firestore documents to page objects
         pages = snapshot.docs.map(doc => ({
             id: doc.id,
             ...doc.data()
         }));
         
-        console.log(`✅ Loaded ${pages.length} pages from Firestore`);
+        console.log(`✅ Loaded ${pages.length} pages from Firestore:`, pages.map(p => p.name));
+        return pages;
     } catch (error) {
-        console.error('❌ Error loading pages:', error);
+        console.error('❌ Error loading pages from Firestore:', error);
         console.error('Error code:', error.code);
+        console.error('Error message:', error.message);
         
         // Specific error handling
         if (error.code === 'permission-denied') {
             console.error('🔴 PERMISSION DENIED! Firestore Rules issue:');
-            console.error('Solution: Go to Firebase Console > Firestore > Rules');
+            console.error('Solution: Go to Firebase Console > Firestore Database > Rules');
             console.error('Make sure you have: allow read: if true;');
-            showNotification('❌ Firestore Rules: Missing read permissions. Check console.', 'error');
+            showNotification('❌ Permission denied. Check Firestore Rules.', 'error');
         } else if (error.code === 'not-found') {
-            console.error('⚠️ Pages collection does not exist yet. Create it in Firebase Console.');
-            showNotification('⚠️ Firestore database not initialized. Please create "pages" collection.', 'error');
+            console.error('⚠️ Pages collection does not exist yet.');
+            console.error('Solution: Create the "pages" collection in Firebase Console');
+            showNotification('⚠️ Database not ready. Create "pages" collection.', 'error');
         } else {
-            showNotification('❌ Eroare la încărcarea datelor', 'error');
+            showNotification('❌ Error loading data. Check console.', 'error');
         }
+        
+        // Return empty array on error
+        pages = [];
+        return pages;
     }
 }
 
@@ -277,7 +294,10 @@ async function handleAddPage(e) {
     try {
         const { collection, addDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
         
-        await addDoc(collection(db, 'pages'), {
+        console.log('➕ Adding new page to Firestore...');
+        const pagesCollection = collection(db, 'pages');
+        
+        const newPage = {
             name: pageName,
             url: pageUrl,
             avatar: pageAvatar || '',
@@ -285,16 +305,33 @@ async function handleAddPage(e) {
             lastPosted: null,
             addedDate: serverTimestamp(),
             createdBy: currentUser.uid
-        });
+        };
+        
+        const docRef = await addDoc(pagesCollection, newPage);
+        console.log(`✅ Page added to Firestore with ID: ${docRef.id}`);
 
+        // Clear form
         e.target.reset();
+        
+        // Reload pages from Firestore (ensures we have the latest data)
+        console.log('🔄 Reloading pages from Firestore after add...');
         await loadPages();
+        
+        // Re-render UI with fresh data
         renderPages();
         updateStats();
+        
         showNotification('Pagină adăugată cu succes!', 'success');
     } catch (error) {
-        console.error('Error adding page:', error);
-        showNotification('Eroare la adăugarea paginii', 'error');
+        console.error('❌ Error adding page to Firestore:', error);
+        console.error('Error code:', error.code);
+        console.error('Error message:', error.message);
+        
+        if (error.code === 'permission-denied') {
+            showNotification('❌ Permission denied. Admin access required.', 'error');
+        } else {
+            showNotification('❌ Error adding page. Check console.', 'error');
+        }
     }
 }
 
