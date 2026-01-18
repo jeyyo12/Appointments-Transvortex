@@ -1281,6 +1281,9 @@ function loadLogoAsDataURL(path) {
 // Global services array for finalize modal
 let finalizeServices = [];
 
+// Flag to prevent duplicate event listeners
+let servicesTableListenerBound = false;
+
 // Add new service row
 function addServiceRow() {
     finalizeServices.push({ description: '', qty: 1, unitPrice: 0, lineTotal: 0 });
@@ -1293,7 +1296,7 @@ function removeServiceRow(idx) {
     renderServicesTable();
 }
 
-// Render services table (once, no re-render on input - uses delegation)
+// Render services table (render only, no event binding)
 function renderServicesTable() {
     const tbody = document.getElementById('servicesTbody');
     if (!tbody) return;
@@ -1305,63 +1308,65 @@ function renderServicesTable() {
             <td><input type="text" class="svc-desc" data-idx="${i}" value="${svc.description || ''}" placeholder="ex: Schimb ulei motor" /></td>
             <td><input type="number" class="svc-qty" data-idx="${i}" min="1" step="1" value="${svc.qty || 1}" /></td>
             <td><input type="number" class="svc-unit" data-idx="${i}" min="0" step="0.01" value="${svc.unitPrice || 0}" placeholder="£" /></td>
-            <td class="svc-total" data-idx="${i}" style="text-align:right;font-weight:600;">${formatGBP(svc.lineTotal || 0)}</td>
+            <td style="text-align:right;font-weight:600;" class="svc-total" data-idx="${i}">${formatGBP(svc.lineTotal || 0)}</td>
             <td><button type="button" class="btn-remove" data-idx="${i}"><i class="fas fa-times"></i></button></td>
         `;
         tbody.appendChild(tr);
     });
 
-    // Bind delegated event handlers (once per table render)
-    bindServicesTableDelegation();
     recalcInvoiceTotals();
 }
 
-// Event delegation for services table (no per-row listeners = no focus loss)
+// Bind delegated event listeners for services table (call once)
 function bindServicesTableDelegation() {
     const tbody = document.getElementById('servicesTbody');
-    if (!tbody || tbody.dataset.delegationBound) return;
+    if (!tbody || servicesTableListenerBound) return;
 
-    // Handle input changes on description, qty, unit price
+    // Single delegated input listener for all input fields
     tbody.addEventListener('input', (e) => {
         const idx = parseInt(e.target.dataset.idx);
-        if (isNaN(idx)) return;
+        if (isNaN(idx) || !finalizeServices[idx]) return;
 
         if (e.target.classList.contains('svc-desc')) {
+            // Description changed
             finalizeServices[idx].description = e.target.value;
         } else if (e.target.classList.contains('svc-qty')) {
+            // Quantity changed
             finalizeServices[idx].qty = parseFloat(e.target.value) || 1;
-            updateServiceRowTotal(idx);
+            finalizeServices[idx].lineTotal = finalizeServices[idx].qty * finalizeServices[idx].unitPrice;
+            
+            // Update only this row's total cell (no full re-render)
+            const totalCell = tbody.querySelector(`.svc-total[data-idx="${idx}"]`);
+            if (totalCell) {
+                totalCell.textContent = formatGBP(finalizeServices[idx].lineTotal);
+            }
+            recalcInvoiceTotals();
         } else if (e.target.classList.contains('svc-unit')) {
+            // Unit price changed
             finalizeServices[idx].unitPrice = parseFloat(e.target.value) || 0;
-            updateServiceRowTotal(idx);
+            finalizeServices[idx].lineTotal = finalizeServices[idx].qty * finalizeServices[idx].unitPrice;
+            
+            // Update only this row's total cell (no full re-render)
+            const totalCell = tbody.querySelector(`.svc-total[data-idx="${idx}"]`);
+            if (totalCell) {
+                totalCell.textContent = formatGBP(finalizeServices[idx].lineTotal);
+            }
+            recalcInvoiceTotals();
         }
     });
 
-    // Handle remove button clicks
+    // Single delegated click listener for remove buttons
     tbody.addEventListener('click', (e) => {
-        const btn = e.target.closest('.btn-remove');
-        if (!btn) return;
+        const removeBtn = e.target.closest('.btn-remove');
+        if (!removeBtn) return;
         
-        const idx = parseInt(btn.dataset.idx);
+        const idx = parseInt(removeBtn.dataset.idx);
         if (!isNaN(idx)) {
             removeServiceRow(idx);
         }
     });
 
-    tbody.dataset.delegationBound = true;
-}
-
-// Update only the line total for a specific row (no full re-render)
-function updateServiceRowTotal(idx) {
-    const svc = finalizeServices[idx];
-    svc.lineTotal = svc.qty * svc.unitPrice;
-    
-    const totalCell = document.querySelector(`.svc-total[data-idx="${idx}"]`);
-    if (totalCell) {
-        totalCell.textContent = formatGBP(svc.lineTotal || 0);
-    }
-    
-    recalcInvoiceTotals();
+    servicesTableListenerBound = true;
 }
 
 // Recalculate invoice totals
@@ -1387,6 +1392,9 @@ function bindFinalizeModalControls() {
     if (vatInput) {
         vatInput.addEventListener('input', recalcInvoiceTotals);
     }
+    
+    // Bind delegated events for services table
+    bindServicesTableDelegation();
 }
 
 // Open finalize modal with prices
