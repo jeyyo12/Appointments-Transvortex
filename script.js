@@ -1130,7 +1130,7 @@ function createAppointmentCard(apt, now) {
     
     const adminActions = isAdmin ? `
         <div class="appointment-actions">
-            <button class="btn-action-small btn-done" onclick="markAppointmentDone('${apt.id}')">
+            <button class="btn-action-small btn-done" onclick="openFinalizeModal('${apt.id}')">
                 <i class="fas fa-check"></i> Finalizează
             </button>
             <button class="btn-action-small btn-cancel-appointment" onclick="cancelAppointment('${apt.id}')">
