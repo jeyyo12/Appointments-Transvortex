@@ -738,43 +738,48 @@ document.addEventListener('DOMContentLoaded', () => {
         dateInput.value = today;
     }
     
-    // Initialize premium input wrappers
-    initializePremiumInputs();
+    // Setup premium input wrappers
+    setupPremiumInputWrappers();
 });
 
 // ==========================================
-// PREMIUM INPUT ENHANCEMENTS
+// PREMIUM INPUT WRAPPERS ENHANCEMENT
 // ==========================================
-function initializePremiumInputs() {
-    // Find all input-icon-wrapper elements
-    const wrappers = document.querySelectorAll('.input-icon-wrapper');
+function setupPremiumInputWrappers() {
+    // Find all input wrappers with data-input-target attribute
+    const wrappers = document.querySelectorAll('.input-wrapper[data-input-target]');
     
     wrappers.forEach(wrapper => {
-        const inputId = wrapper.getAttribute('data-input-wrapper');
+        const inputId = wrapper.getAttribute('data-input-target');
         const input = document.getElementById(inputId);
         
         if (!input) return;
         
-        // Click wrapper to focus input and show picker
+        // Make entire wrapper clickable
         wrapper.addEventListener('click', (e) => {
-            // Don't trigger if clicking directly on input or calendar icon
-            if (e.target === input || e.target.classList.contains('input-icon')) return;
+            // If clicking directly on input, textarea, select, or icon, don't interfere
+            if (e.target === input || 
+                e.target.tagName === 'TEXTAREA' || 
+                e.target.tagName === 'SELECT' ||
+                e.target.classList.contains('input-icon')) {
+                return;
+            }
             
             // Focus the input
             input.focus();
             
-            // Show native picker if available (modern browsers)
-            if (input.showPicker) {
+            // Trigger native picker if available (date/time inputs)
+            if ((input.type === 'date' || input.type === 'time') && 
+                input.showPicker && typeof input.showPicker === 'function') {
                 try {
                     input.showPicker();
                 } catch (error) {
-                    // showPicker() might fail on some browsers, silently ignore
-                    console.log('Picker not available or blocked');
+                    // showPicker() might fail in some browsers/contexts - silently ignore
                 }
             }
         });
         
-        // Add visual feedback on input interaction
+        // Visual feedback: add focused class to wrapper when input is focused
         input.addEventListener('focus', () => {
             wrapper.classList.add('focused');
         });
@@ -782,24 +787,9 @@ function initializePremiumInputs() {
         input.addEventListener('blur', () => {
             wrapper.classList.remove('focused');
         });
-        
-        // Enhance keyboard navigation
-        input.addEventListener('keydown', (e) => {
-            // Space or Enter opens picker
-            if (e.key === ' ' || e.key === 'Enter') {
-                if (input.showPicker) {
-                    try {
-                        e.preventDefault();
-                        input.showPicker();
-                    } catch (error) {
-                        // Ignore
-                    }
-                }
-            }
-        });
     });
     
-    console.log(`✨ Initialized ${wrappers.length} premium input wrappers`);
+    console.log(`✨ Premium input wrappers initialized: ${wrappers.length} wrappers`);
 }
 
 // ==========================================

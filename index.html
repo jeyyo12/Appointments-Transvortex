@@ -435,86 +435,128 @@
             background: #dc2626;
         }
 
-        /* Premium Input Icon Wrapper */
-        .input-icon-wrapper {
+        /* Premium Input Wrappers for Date/Time */
+        .input-wrapper {
             position: relative;
             display: flex;
             align-items: center;
-            background: linear-gradient(135deg, #ffffff 0%, #fafafa 100%);
+            background: linear-gradient(135deg, #ffffff 0%, #f9fafb 100%);
             border: 2px solid #e5e7eb;
             border-radius: 12px;
-            padding: 0;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
+            padding: 0.75rem 1rem;
+            transition: all 0.3s ease;
             cursor: pointer;
-            overflow: hidden;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
         }
 
-        .input-icon-wrapper:hover {
+        .input-wrapper:hover {
             border-color: #FF8A3D;
             box-shadow: 0 4px 12px rgba(255, 138, 61, 0.15);
-            transform: translateY(-1px);
+            background: linear-gradient(135deg, #ffffff 0%, #fff5f0 100%);
         }
 
-        .input-icon-wrapper:focus-within {
+        .input-wrapper:focus-within {
             border-color: #FF8A3D;
-            box-shadow: 0 0 0 4px rgba(255, 138, 61, 0.1), 0 4px 12px rgba(255, 138, 61, 0.2);
-            transform: translateY(-1px);
+            box-shadow: 0 0 0 3px rgba(255, 138, 61, 0.1), 0 4px 12px rgba(255, 138, 61, 0.2);
+            background: #ffffff;
         }
 
-        .input-icon-wrapper .input-icon {
-            position: absolute;
-            left: 1rem;
+        .input-wrapper .input-icon {
             color: #FF8A3D;
             font-size: 1.1rem;
+            margin-right: 0.75rem;
             pointer-events: none;
-            z-index: 1;
-            transition: all 0.3s;
+            transition: all 0.3s ease;
         }
 
-        .input-icon-wrapper:focus-within .input-icon {
+        .input-wrapper:focus-within .input-icon {
             color: #F47C2C;
             transform: scale(1.1);
         }
 
-        .input-icon-wrapper input[type="date"],
-        .input-icon-wrapper input[type="time"] {
-            flex: 1;
-            border: none !important;
+        .input-wrapper input[type="date"],
+        .input-wrapper input[type="time"] {
+            border: none;
             background: transparent;
-            padding: 0.875rem 1rem 0.875rem 3rem;
-            font-size: 0.95rem;
-            font-weight: 500;
+            padding: 0;
+            margin: 0;
+            flex: 1;
+            font-size: 1rem;
             color: #1f2937;
+            font-weight: 500;
             outline: none;
-            box-shadow: none !important;
             cursor: pointer;
         }
 
-        .input-icon-wrapper input[type="date"]::-webkit-calendar-picker-indicator,
-        .input-icon-wrapper input[type="time"]::-webkit-calendar-picker-indicator {
+        .input-wrapper input[type="text"],
+        .input-wrapper select {
+            border: none;
+            background: transparent;
+            padding: 0;
+            margin: 0;
+            flex: 1;
+            font-size: 1rem;
+            color: #1f2937;
+            font-weight: 500;
+            outline: none;
+        }
+
+        .input-wrapper.textarea-wrapper {
+            align-items: flex-start;
+            padding-top: 1rem;
+        }
+
+        .input-wrapper.textarea-wrapper .input-icon {
+            margin-top: 0.2rem;
+        }
+
+        .input-wrapper textarea {
+            border: none;
+            background: transparent;
+            padding: 0;
+            margin: 0;
+            flex: 1;
+            font-size: 1rem;
+            color: #1f2937;
+            font-weight: 500;
+            outline: none;
+            resize: vertical;
+            font-family: inherit;
+        }
+
+        .input-wrapper select {
             cursor: pointer;
-            opacity: 0.6;
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23FF8A3D' d='M10.293 3.293L6 7.586 1.707 3.293A1 1 0 00.293 4.707l5 5a1 1 0 001.414 0l5-5a1 1 0 10-1.414-1.414z'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 0.5rem center;
+            background-size: 1rem;
+            padding-right: 2rem;
+        }
+
+        .input-wrapper input[type="date"]::-webkit-calendar-picker-indicator,
+        .input-wrapper input[type="time"]::-webkit-calendar-picker-indicator {
+            cursor: pointer;
+            opacity: 0.7;
             transition: opacity 0.3s;
         }
 
-        .input-icon-wrapper:hover input[type="date"]::-webkit-calendar-picker-indicator,
-        .input-icon-wrapper:hover input[type="time"]::-webkit-calendar-picker-indicator {
+        .input-wrapper:hover input[type="date"]::-webkit-calendar-picker-indicator,
+        .input-wrapper:hover input[type="time"]::-webkit-calendar-picker-indicator {
             opacity: 1;
         }
 
-        /* Premium focus effect */
-        @keyframes glow-pulse {
-            0%, 100% {
-                box-shadow: 0 0 0 4px rgba(255, 138, 61, 0.1), 0 4px 12px rgba(255, 138, 61, 0.2);
-            }
-            50% {
-                box-shadow: 0 0 0 6px rgba(255, 138, 61, 0.15), 0 6px 16px rgba(255, 138, 61, 0.25);
-            }
+        /* Premium enhancement for all form inputs to match */
+        .form-group input:not([type="date"]):not([type="time"]),
+        .form-group select,
+        .form-group textarea {
+            transition: all 0.3s ease;
         }
 
-        .input-icon-wrapper:focus-within {
-            animation: glow-pulse 2s ease-in-out infinite;
+        .form-group input:focus:not([type="date"]):not([type="time"]),
+        .form-group select:focus,
+        .form-group textarea:focus {
+            box-shadow: 0 0 0 3px rgba(255, 138, 61, 0.1), 0 2px 8px rgba(255, 138, 61, 0.15);
         }
     </style>
 </head>
@@ -669,24 +711,30 @@
                         <div class="form-row">
                             <div class="form-group">
                                 <label for="customerName">Nume Client: *</label>
-                                <input type="text" id="customerName" placeholder="ex: Ion Popescu" required>
+                                <div class="input-wrapper" data-input-target="customerName">
+                                    <i class="fas fa-user input-icon"></i>
+                                    <input type="text" id="customerName" placeholder="ex: Ion Popescu" required>
+                                </div>
                             </div>
                             <div class="form-group">
                                 <label for="car">Mașină (marcă/model/înmatriculare): *</label>
-                                <input type="text" id="car" placeholder="ex: Dacia Logan, AB-12-XYZ" required>
+                                <div class="input-wrapper" data-input-target="car">
+                                    <i class="fas fa-car input-icon"></i>
+                                    <input type="text" id="car" placeholder="ex: Dacia Logan, AB-12-XYZ" required>
+                                </div>
                             </div>
                         </div>
                         <div class="form-row">
                             <div class="form-group">
                                 <label for="appointmentDate">Data: *</label>
-                                <div class="input-icon-wrapper" data-input-wrapper="appointmentDate">
+                                <div class="input-wrapper" data-input-target="appointmentDate">
                                     <i class="fas fa-calendar-alt input-icon"></i>
                                     <input type="date" id="appointmentDate" required>
                                 </div>
                             </div>
                             <div class="form-group">
                                 <label for="appointmentTime">Ora: *</label>
-                                <div class="input-icon-wrapper" data-input-wrapper="appointmentTime">
+                                <div class="input-wrapper" data-input-target="appointmentTime">
                                     <i class="fas fa-clock input-icon"></i>
                                     <input type="time" id="appointmentTime" required>
                                 </div>
@@ -694,19 +742,28 @@
                         </div>
                         <div class="form-group">
                             <label for="address">Adresă (opțional):</label>
-                            <input type="text" id="address" placeholder="ex: Str. Principală nr. 10">
+                            <div class="input-wrapper" data-input-target="address">
+                                <i class="fas fa-map-marker-alt input-icon"></i>
+                                <input type="text" id="address" placeholder="ex: Str. Principală nr. 10">
+                            </div>
                         </div>
                         <div class="form-group">
                             <label for="notes">Notițe (opțional):</label>
-                            <textarea id="notes" rows="3" placeholder="Detalii suplimentare..."></textarea>
+                            <div class="input-wrapper textarea-wrapper" data-input-target="notes">
+                                <i class="fas fa-sticky-note input-icon"></i>
+                                <textarea id="notes" rows="3" placeholder="Detalii suplimentare..."></textarea>
+                            </div>
                         </div>
                         <div class="form-group">
                             <label for="status">Status:</label>
-                            <select id="status">
-                                <option value="scheduled" selected>Programat</option>
-                                <option value="done">Finalizat</option>
-                                <option value="canceled">Anulat</option>
-                            </select>
+                            <div class="input-wrapper" data-input-target="status">
+                                <i class="fas fa-info-circle input-icon"></i>
+                                <select id="status">
+                                    <option value="scheduled" selected>Programat</option>
+                                    <option value="done">Finalizat</option>
+                                    <option value="canceled">Anulat</option>
+                                </select>
+                            </div>
                         </div>
                         <button type="submit" class="btn-primary">
                             <i class="fas fa-plus"></i> Adaugă Programare
