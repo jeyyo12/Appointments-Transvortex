@@ -737,7 +737,70 @@ document.addEventListener('DOMContentLoaded', () => {
     if (dateInput) {
         dateInput.value = today;
     }
+    
+    // Initialize premium input wrappers
+    initializePremiumInputs();
 });
+
+// ==========================================
+// PREMIUM INPUT ENHANCEMENTS
+// ==========================================
+function initializePremiumInputs() {
+    // Find all input-icon-wrapper elements
+    const wrappers = document.querySelectorAll('.input-icon-wrapper');
+    
+    wrappers.forEach(wrapper => {
+        const inputId = wrapper.getAttribute('data-input-wrapper');
+        const input = document.getElementById(inputId);
+        
+        if (!input) return;
+        
+        // Click wrapper to focus input and show picker
+        wrapper.addEventListener('click', (e) => {
+            // Don't trigger if clicking directly on input or calendar icon
+            if (e.target === input || e.target.classList.contains('input-icon')) return;
+            
+            // Focus the input
+            input.focus();
+            
+            // Show native picker if available (modern browsers)
+            if (input.showPicker) {
+                try {
+                    input.showPicker();
+                } catch (error) {
+                    // showPicker() might fail on some browsers, silently ignore
+                    console.log('Picker not available or blocked');
+                }
+            }
+        });
+        
+        // Add visual feedback on input interaction
+        input.addEventListener('focus', () => {
+            wrapper.classList.add('focused');
+        });
+        
+        input.addEventListener('blur', () => {
+            wrapper.classList.remove('focused');
+        });
+        
+        // Enhance keyboard navigation
+        input.addEventListener('keydown', (e) => {
+            // Space or Enter opens picker
+            if (e.key === ' ' || e.key === 'Enter') {
+                if (input.showPicker) {
+                    try {
+                        e.preventDefault();
+                        input.showPicker();
+                    } catch (error) {
+                        // Ignore
+                    }
+                }
+            }
+        });
+    });
+    
+    console.log(`✨ Initialized ${wrappers.length} premium input wrappers`);
+}
 
 // ==========================================
 // TAB SWITCHING
