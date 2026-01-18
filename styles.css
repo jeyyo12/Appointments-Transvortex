@@ -1159,106 +1159,96 @@ footer p {
   box-shadow: 0 18px 50px rgba(0,0,0,0.12);
 }
 
-/* Services Table (Finalize Modal Invoice) */
+/* Services table and invoice totals */
 .services-toolbar {
-  margin-bottom: 12px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
+  margin-bottom: 15px;
 }
-
 .services-table-wrap {
-  max-height: 300px;
-  overflow-y: auto;
-  border: 1px solid var(--border-color);
+  border: 1px solid #ddd;
   border-radius: 8px;
-  background: #fff;
-  margin-bottom: 16px;
+  overflow: auto;
+  max-height: 300px;
+  margin-bottom: 15px;
 }
-
 .services-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.9rem;
+  font-size: 14px;
 }
-
 .services-table thead {
+  background: linear-gradient(135deg, #ff6348 0%, #ff8c42 100%);
+  color: #fff;
   position: sticky;
   top: 0;
-  background: linear-gradient(135deg, #f7f7f7 0%, #ececec 100%);
-  z-index: 1;
+  z-index: 10;
 }
-
 .services-table thead th {
+  padding: 12px 10px;
   text-align: left;
-  padding: 10px 8px;
   font-weight: 600;
-  color: #333;
-  border-bottom: 2px solid var(--border-color);
-  white-space: nowrap;
 }
-
 .services-table tbody tr {
-  border-bottom: 1px solid var(--border-color);
+  border-bottom: 1px solid #eee;
 }
-
 .services-table tbody tr:hover {
-  background: #fafafa;
+  background: rgba(255,99,72,0.04);
 }
-
-.services-table td {
-  padding: 8px;
-  vertical-align: middle;
+.services-table tbody td {
+  padding: 10px;
 }
-
-.services-table td input {
+.services-table input[type="text"],
+.services-table input[type="number"] {
   width: 100%;
+  padding: 6px 8px;
   border: 1px solid #ddd;
   border-radius: 4px;
-  padding: 6px 8px;
-  font-size: 0.9rem;
-  transition: border-color 0.2s;
+  font-size: 14px;
+  transition: border-color 0.2s ease;
 }
-
-.services-table td input:focus {
+.services-table input[type="text"]:focus,
+.services-table input[type="number"]:focus {
   outline: none;
-  border-color: var(--primary-color);
+  border-color: #ff6348;
+  box-shadow: 0 0 0 3px rgba(255,99,72,0.1);
 }
-
-.services-table .btn-remove-service {
-  background: #e74c3c;
-  color: #fff;
+.services-table .btn-remove {
+  background: rgba(255,71,87,0.1);
+  color: #ff4757;
   border: none;
   padding: 6px 10px;
   border-radius: 4px;
   cursor: pointer;
-  font-size: 0.85rem;
-  transition: background 0.2s;
+  font-size: 12px;
+  transition: all 0.2s ease;
 }
-
-.services-table .btn-remove-service:hover {
-  background: #c0392b;
+.services-table .btn-remove:hover {
+  background: #ff4757;
+  color: #fff;
 }
-
 .invoice-totals {
-  border-top: 2px solid var(--border-color);
-  padding-top: 12px;
+  background: linear-gradient(135deg, rgba(255,99,72,0.05) 0%, rgba(255,140,66,0.05) 100%);
+  border: 2px solid rgba(255,99,72,0.15);
+  border-radius: 8px;
+  padding: 15px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
 }
-
 .tot-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 1rem;
+  font-size: 14px;
+  color: #555;
 }
-
 .tot-row.grand {
-  font-size: 1.2rem;
-  font-weight: 700;
-  color: var(--primary-color);
-  padding-top: 8px;
-  border-top: 2px solid var(--primary-color);
+  font-size: 18px;
+  font-weight: bold;
+  color: #ff6348;
+  border-top: 2px solid rgba(255,99,72,0.2);
+  padding-top: 10px;
+  margin-top: 5px;
+}
+.tot-row strong {
+  font-weight: 600;
 }

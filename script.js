@@ -746,6 +746,13 @@ document.addEventListener('DOMContentLoaded', () => {
     bindAppointmentsModalControls();
     bindFinalizeModalControls();
     
+    // Finalize form submit
+    const finalizeForm = document.getElementById('finalizeForm');
+    if (finalizeForm && !finalizeForm.dataset.bound) {
+        finalizeForm.addEventListener('submit', finalizeAppointmentWithPrices);
+        finalizeForm.dataset.bound = "true";
+    }
+    
     // Bind stats cards (needs card IDs in HTML)
     bindStatsPopupButtons();
 });
@@ -1129,6 +1136,9 @@ function createAppointmentCard(apt, now) {
             <button class="btn-action-small btn-cancel-appointment" onclick="cancelAppointment('${apt.id}')">
                 <i class="fas fa-ban"></i> Anulează
             </button>
+            <button class="btn-action-small btn-invoice" onclick="downloadInvoicePDF('${apt.id}')">
+                <i class="fas fa-file-invoice"></i> Invoice
+            </button>
             <button class="btn-action-small btn-delete-appointment" onclick="deleteAppointment('${apt.id}')">
                 <i class="fas fa-trash"></i> Șterge
             </button>
@@ -1216,6 +1226,205 @@ async function handleRefreshAppointments() {
             refreshButton.classList.remove('refreshing');
             refreshButton.disabled = false;
         }
+    }
+}
+
+// ========================================
+// INVOICE SYSTEM WITH PRICES & SERVICES
+// ========================================
+
+// Currency formatter for GBP
+function formatGBP(n) {
+    return '£' + parseFloat(n || 0).toFixed(2);
+}
+
+// Load logo image and convert to Base64
+function loadLogoAsDataURL(path) {
+    return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.crossOrigin = 'Anonymous';
+        img.onload = () => {
+            const canvas = document.createElement('canvas');
+            canvas.width = img.width;
+            canvas.height = img.height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0);
+            try {
+                resolve(canvas.toDataURL('image/png'));
+            } catch (err) {
+                reject(err);
+            }
+        };
+        img.onerror = () => reject(new Error('Failed to load logo'));
+        img.src = path;
+    });
+}
+
+// Global services array for finalize modal
+let finalizeServices = [];
+
+// Add new service row
+function addServiceRow() {
+    finalizeServices.push({ description: '', qty: 1, unitPrice: 0, lineTotal: 0 });
+    renderServicesTable();
+}
+
+// Remove service row
+function removeServiceRow(idx) {
+    finalizeServices.splice(idx, 1);
+    renderServicesTable();
+}
+
+// Render services table
+function renderServicesTable() {
+    const tbody = document.getElementById('servicesTbody');
+    if (!tbody) return;
+
+    tbody.innerHTML = '';
+    finalizeServices.forEach((svc, i) => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td><input type="text" class="svc-desc" data-idx="${i}" value="${svc.description || ''}" placeholder="ex: Schimb ulei motor" /></td>
+            <td><input type="number" class="svc-qty" data-idx="${i}" min="1" step="1" value="${svc.qty || 1}" /></td>
+            <td><input type="number" class="svc-unit" data-idx="${i}" min="0" step="0.01" value="${svc.unitPrice || 0}" placeholder="£" /></td>
+            <td style="text-align:right;font-weight:600;">${formatGBP(svc.lineTotal || 0)}</td>
+            <td><button type="button" class="btn-remove" data-idx="${i}"><i class="fas fa-times"></i></button></td>
+        `;
+        tbody.appendChild(tr);
+    });
+
+    // Bind input events
+    tbody.querySelectorAll('.svc-desc').forEach(inp => {
+        inp.addEventListener('input', e => {
+            const idx = parseInt(e.target.dataset.idx);
+            finalizeServices[idx].description = e.target.value;
+        });
+    });
+    tbody.querySelectorAll('.svc-qty').forEach(inp => {
+        inp.addEventListener('input', e => {
+            const idx = parseInt(e.target.dataset.idx);
+            finalizeServices[idx].qty = parseFloat(e.target.value) || 1;
+            finalizeServices[idx].lineTotal = finalizeServices[idx].qty * finalizeServices[idx].unitPrice;
+            renderServicesTable();
+            recalcInvoiceTotals();
+        });
+    });
+    tbody.querySelectorAll('.svc-unit').forEach(inp => {
+        inp.addEventListener('input', e => {
+            const idx = parseInt(e.target.dataset.idx);
+            finalizeServices[idx].unitPrice = parseFloat(e.target.value) || 0;
+            finalizeServices[idx].lineTotal = finalizeServices[idx].qty * finalizeServices[idx].unitPrice;
+            renderServicesTable();
+            recalcInvoiceTotals();
+        });
+    });
+    tbody.querySelectorAll('.btn-remove').forEach(btn => {
+        btn.addEventListener('click', e => {
+            const idx = parseInt(e.currentTarget.dataset.idx);
+            removeServiceRow(idx);
+            recalcInvoiceTotals();
+        });
+    });
+
+    recalcInvoiceTotals();
+}
+
+// Recalculate invoice totals
+function recalcInvoiceTotals() {
+    const subtotal = finalizeServices.reduce((sum, s) => sum + (s.lineTotal || 0), 0);
+    const vatRate = parseFloat(document.getElementById('finalizeVatRate')?.value || 0) / 100;
+    const vatAmount = subtotal * vatRate;
+    const total = subtotal + vatAmount;
+
+    document.getElementById('invSubtotal').textContent = formatGBP(subtotal);
+    document.getElementById('invVat').textContent = formatGBP(vatAmount);
+    document.getElementById('invTotal').textContent = formatGBP(total);
+}
+
+// Bind finalize modal controls
+function bindFinalizeModalControls() {
+    const addBtn = document.getElementById('addServiceRowBtn');
+    const vatInput = document.getElementById('finalizeVatRate');
+    
+    if (addBtn) {
+        addBtn.addEventListener('click', addServiceRow);
+    }
+    if (vatInput) {
+        vatInput.addEventListener('input', recalcInvoiceTotals);
+    }
+}
+
+// Open finalize modal with prices
+window.openFinalizeModal = function(appointmentId) {
+    const modal = document.getElementById('finalizeModal');
+    if (!modal) return;
+
+    const appt = appointments.find(a => a.id === appointmentId);
+    if (!appt) return;
+
+    // Load existing services or create default
+    finalizeServices = appt.services && appt.services.length > 0
+        ? JSON.parse(JSON.stringify(appt.services))
+        : [{ description: 'Service auto', qty: 1, unitPrice: 0, lineTotal: 0 }];
+
+    document.getElementById('finalizeAppointmentId').value = appointmentId;
+    document.getElementById('finalizeMileage').value = appt.mileage || '';
+    document.getElementById('finalizeVatRate').value = (appt.vatRate !== undefined ? appt.vatRate : 0);
+    document.getElementById('generateInvoiceNow').checked = true;
+
+    renderServicesTable();
+    openModal(modal);
+};
+
+// Finalize appointment with prices
+async function finalizeAppointmentWithPrices(e) {
+    e.preventDefault();
+    
+    const appointmentId = document.getElementById('finalizeAppointmentId').value;
+    const mileage = parseInt(document.getElementById('finalizeMileage').value);
+    const vatRate = parseFloat(document.getElementById('finalizeVatRate').value) || 0;
+    const generateNow = document.getElementById('generateInvoiceNow').checked;
+
+    if (!appointmentId) return;
+    if (!mileage || mileage < 0) {
+        showNotification('⚠️ Mile obligatorii!', 'warning');
+        return;
+    }
+
+    // Calculate totals
+    const subtotal = finalizeServices.reduce((sum, s) => sum + (s.lineTotal || 0), 0);
+    const vatAmount = subtotal * (vatRate / 100);
+    const total = subtotal + vatAmount;
+
+    try {
+        const { doc, updateDoc, Timestamp } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+        const appointmentRef = doc(db, 'appointments', appointmentId);
+
+        await updateDoc(appointmentRef, {
+            status: 'efectuat',
+            mileage,
+            services: finalizeServices,
+            subtotal,
+            vatRate,
+            vatAmount,
+            total,
+            doneAt: Timestamp.now(),
+            updatedAt: Timestamp.now()
+        });
+
+        showNotification('✅ Programare finalizată cu succes!', 'success');
+        console.log(`✅ Appointment ${appointmentId} finalized with pricing`);
+
+        closeModal(document.getElementById('finalizeModal'));
+
+        // Generate invoice if checked
+        if (generateNow) {
+            setTimeout(() => downloadInvoicePDF(appointmentId), 500);
+        }
+
+    } catch (error) {
+        console.error('❌ Error finalizing appointment:', error);
+        showNotification('❌ Eroare la finalizare', 'error');
     }
 }
 
@@ -1525,100 +1734,118 @@ async function getAppointmentById(id) {
 }
 
 window.downloadInvoicePDF = async function(appointmentId) {
-    const appt = await getAppointmentById(appointmentId);
+    const appt = appointments.find(a => a.id === appointmentId);
     if (!appt) {
-        showNotification('⚠️ Nu găsesc programarea pentru invoice', 'error');
+        showNotification('⚠️ Programare negăsită', 'warning');
         return;
     }
 
-    // Check if jsPDF is loaded
-    if (!window.jspdf || !window.jspdf.jsPDF) {
-        showNotification('❌ jsPDF library not loaded', 'error');
+    // Load jsPDF if not already loaded
+    if (typeof window.jspdf === 'undefined') {
+        showNotification('⚠️ jsPDF library not loaded', 'error');
         return;
     }
 
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF();
 
-    // --- Header
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(18);
-    doc.text('INVOICE', 14, 18);
-
-    doc.setFontSize(12);
-    doc.setFont('helvetica', 'normal');
-
-    // Company info
-    doc.setFont('helvetica', 'bold');
-    doc.text('Transvortex LTD', 14, 28);
-    doc.setFont('helvetica', 'normal');
-    doc.text('Email: transvortexltd@gmail.com', 14, 36);
-    doc.text('Website: transvortexltdcouk.web.app', 14, 43);
-    doc.text('Facebook: Transvortex Official', 14, 50);
-
-    // --- Invoice meta
-    doc.setFont('helvetica', 'bold');
-    doc.text('Invoice #:', 140, 28);
-    doc.setFont('helvetica', 'normal');
-    doc.text(String(appt.id).substring(0, 12), 165, 28);
-
-    const now = new Date().toISOString().split('T')[0];
-    doc.setFont('helvetica', 'bold');
-    doc.text('Date:', 140, 36);
-    doc.setFont('helvetica', 'normal');
-    doc.text(now, 165, 36);
-
-    // --- Client / Appointment details
-    doc.setDrawColor(230);
-    doc.line(14, 58, 196, 58);
-
-    doc.setFont('helvetica', 'bold');
-    doc.text('Client:', 14, 68);
-    doc.setFont('helvetica', 'normal');
-    doc.text(appt.customerName || '-', 40, 68);
-
-    doc.setFont('helvetica', 'bold');
-    doc.text('Car:', 14, 76);
-    doc.setFont('helvetica', 'normal');
-    doc.text(appt.car || '-', 40, 76);
-
-    doc.setFont('helvetica', 'bold');
-    doc.text('Date/Time:', 14, 84);
-    doc.setFont('helvetica', 'normal');
-    doc.text(`${appt.dateStr || '-'} ${appt.timeStr || ''}`, 40, 84);
-
-    if (appt.address) {
-        doc.setFont('helvetica', 'bold');
-        doc.text('Address:', 14, 92);
-        doc.setFont('helvetica', 'normal');
-        doc.text(appt.address, 40, 92);
+    // --- Logo
+    let logoDataURL = null;
+    try {
+        logoDataURL = await loadLogoAsDataURL('Images/Logo.png');
+        doc.addImage(logoDataURL, 'PNG', 14, 10, 40, 20);
+    } catch (err) {
+        console.warn('⚠️ Could not load logo:', err);
     }
 
-    let yPos = appt.address ? 100 : 92;
+    // --- Company Header
+    doc.setFontSize(20);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Transvortex LTD', logoDataURL ? 60 : 14, 18);
+    
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.text('www.transvortex.co.uk', logoDataURL ? 60 : 14, 24);
+    doc.text('contact@transvortex.co.uk', logoDataURL ? 60 : 14, 29);
 
-    if (appt.mileage != null) {
+    // --- Invoice Title
+    let yPos = 45;
+    doc.setFontSize(24);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(255, 99, 72);
+    doc.text('INVOICE', 14, yPos);
+    doc.setTextColor(0, 0, 0);
+    yPos += 12;
+
+    // --- Invoice Info
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    const now = new Date().toLocaleDateString('ro-RO');
+    doc.text(`Date: ${appt.dateStr || now}`, 14, yPos);
+    yPos += 6;
+    doc.text(`Customer: ${appt.customerName || 'N/A'}`, 14, yPos);
+    yPos += 6;
+    doc.text(`Vehicle: ${appt.car || 'N/A'}`, 14, yPos);
+    yPos += 6;
+    doc.text(`Mileage: ${appt.mileage || 'N/A'} miles`, 14, yPos);
+    yPos += 10;
+
+    // --- Services Table
+    if (appt.services && appt.services.length > 0) {
         doc.setFont('helvetica', 'bold');
-        doc.text('Mileage:', 14, yPos);
+        doc.setFillColor(255, 99, 72);
+        doc.rect(14, yPos, 182, 8, 'F');
+        doc.setTextColor(255, 255, 255);
+        doc.text('Description', 16, yPos + 5);
+        doc.text('Qty', 130, yPos + 5);
+        doc.text('Unit Price', 150, yPos + 5);
+        doc.text('Total', 180, yPos + 5);
+        doc.setTextColor(0, 0, 0);
+        yPos += 10;
+
         doc.setFont('helvetica', 'normal');
-        doc.text(String(appt.mileage) + ' km', 40, yPos);
+        appt.services.forEach(svc => {
+            doc.text(svc.description || '', 16, yPos);
+            doc.text(String(svc.qty || 1), 130, yPos);
+            doc.text(formatGBP(svc.unitPrice || 0), 150, yPos);
+            doc.text(formatGBP(svc.lineTotal || 0), 180, yPos);
+            yPos += 6;
+        });
+
+        yPos += 5;
+        
+        // --- Totals
+        doc.setFont('helvetica', 'bold');
+        doc.text('Subtotal:', 150, yPos);
+        doc.text(formatGBP(appt.subtotal || 0), 180, yPos);
+        yPos += 6;
+
+        if (appt.vatRate > 0) {
+            doc.setFont('helvetica', 'normal');
+            doc.text(`VAT (${appt.vatRate}%):`, 150, yPos);
+            doc.text(formatGBP(appt.vatAmount || 0), 180, yPos);
+            yPos += 6;
+        }
+
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(12);
+        doc.setTextColor(255, 99, 72);
+        doc.text('TOTAL:', 150, yPos);
+        doc.text(formatGBP(appt.total || 0), 180, yPos);
+        doc.setTextColor(0, 0, 0);
+        doc.setFontSize(10);
+        yPos += 10;
+
+    } else {
+        // No services - show basic notes
+        doc.setFont('helvetica', 'bold');
+        doc.text('Services / Notes:', 14, yPos);
         yPos += 8;
+        doc.setFont('helvetica', 'normal');
+        const notes = appt.notes || 'Service auto (detalii la cerere).';
+        const splitNotes = doc.splitTextToSize(notes, 180);
+        doc.text(splitNotes, 14, yPos);
     }
-
-    doc.setFont('helvetica', 'bold');
-    doc.text('Status:', 14, yPos);
-    doc.setFont('helvetica', 'normal');
-    const statusText = appt.status === 'done' ? 'Finalizat' : appt.status === 'canceled' ? 'Anulat' : 'Programat';
-    doc.text(statusText, 40, yPos);
-    yPos += 14;
-
-    // --- Services section
-    doc.setFont('helvetica', 'bold');
-    doc.text('Services / Notes:', 14, yPos);
-    yPos += 8;
-    doc.setFont('helvetica', 'normal');
-    const notes = appt.notes || 'Service auto (detalii la cerere).';
-    const splitNotes = doc.splitTextToSize(notes, 180);
-    doc.text(splitNotes, 14, yPos);
 
     // --- Footer
     doc.setDrawColor(230);
@@ -1633,422 +1860,4 @@ window.downloadInvoicePDF = async function(appointmentId) {
     console.log(`📄 Invoice PDF generated for appointment ${appt.id}`);
 }
 
-// Redirect all downloadInvoicePDF calls to the enhanced version below
-const downloadInvoicePDFOld = window.downloadInvoicePDF;
 
-// =============================================
-// ✨ INVOICE ENHANCEMENTS WITH PRICING & LOGO
-// =============================================
-
-/**
- * Format number as GBP currency
- */
-function formatGBP(n) {
-  return `£${parseFloat(n || 0).toFixed(2)}`;
-}
-
-/**
- * Load logo from Images/Logo.png and convert to Base64 data URL
- */
-async function loadLogoAsDataURL(path) {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.crossOrigin = 'Anonymous';
-    
-    img.onload = () => {
-      const canvas = document.createElement('canvas');
-      canvas.width = img.width;
-      canvas.height = img.height;
-      const ctx = canvas.getContext('2d');
-      ctx.drawImage(img, 0, 0);
-      const dataURL = canvas.toDataURL('image/png');
-      resolve(dataURL);
-    };
-    
-    img.onerror = () => {
-      console.warn('⚠️ Could not load logo from', path);
-      resolve(null);
-    };
-    
-    img.src = path;
-  });
-}
-
-/**
- * Global services array for finalize modal
- */
-let finalizeServices = [];
-
-/**
- * Add a new service row
- */
-function addServiceRow() {
-  finalizeServices.push({
-    description: '',
-    qty: 1,
-    unitPrice: 0,
-    lineTotal: 0
-  });
-  renderServicesTable();
-}
-
-/**
- * Remove service row by index
- */
-function removeServiceRow(idx) {
-  finalizeServices.splice(idx, 1);
-  renderServicesTable();
-}
-
-/**
- * Render the services table with input bindings
- */
-function renderServicesTable() {
-  const tbody = document.getElementById('servicesTbody');
-  if (!tbody) return;
-
-  tbody.innerHTML = '';
-
-  finalizeServices.forEach((svc, idx) => {
-    const tr = document.createElement('tr');
-
-    // Description cell
-    const tdDesc = document.createElement('td');
-    const inputDesc = document.createElement('input');
-    inputDesc.type = 'text';
-    inputDesc.value = svc.description || '';
-    inputDesc.placeholder = 'ex: Schimb ulei motor';
-    inputDesc.addEventListener('input', (e) => {
-      finalizeServices[idx].description = e.target.value;
-    });
-    tdDesc.appendChild(inputDesc);
-    tr.appendChild(tdDesc);
-
-    // Qty cell
-    const tdQty = document.createElement('td');
-    const inputQty = document.createElement('input');
-    inputQty.type = 'number';
-    inputQty.min = '0';
-    inputQty.step = '1';
-    inputQty.value = svc.qty || 1;
-    inputQty.addEventListener('input', (e) => {
-      const val = parseFloat(e.target.value) || 0;
-      finalizeServices[idx].qty = val;
-      finalizeServices[idx].lineTotal = val * finalizeServices[idx].unitPrice;
-      renderServicesTable();
-      recalcInvoiceTotals();
-    });
-    tdQty.appendChild(inputQty);
-    tr.appendChild(tdQty);
-
-    // Unit Price cell
-    const tdPrice = document.createElement('td');
-    const inputPrice = document.createElement('input');
-    inputPrice.type = 'number';
-    inputPrice.min = '0';
-    inputPrice.step = '0.01';
-    inputPrice.value = svc.unitPrice || 0;
-    inputPrice.addEventListener('input', (e) => {
-      const val = parseFloat(e.target.value) || 0;
-      finalizeServices[idx].unitPrice = val;
-      finalizeServices[idx].lineTotal = finalizeServices[idx].qty * val;
-      renderServicesTable();
-      recalcInvoiceTotals();
-    });
-    tdPrice.appendChild(inputPrice);
-    tr.appendChild(tdPrice);
-
-    // Line Total cell (read-only)
-    const tdTotal = document.createElement('td');
-    const inputTotal = document.createElement('input');
-    inputTotal.type = 'text';
-    inputTotal.value = formatGBP(svc.lineTotal);
-    inputTotal.disabled = true;
-    inputTotal.style.background = '#f9f9f9';
-    inputTotal.style.cursor = 'not-allowed';
-    tdTotal.appendChild(inputTotal);
-    tr.appendChild(tdTotal);
-
-    // Remove button cell
-    const tdRemove = document.createElement('td');
-    const btnRemove = document.createElement('button');
-    btnRemove.type = 'button';
-    btnRemove.className = 'btn-remove-service';
-    btnRemove.innerHTML = '<i class="fas fa-trash"></i>';
-    btnRemove.addEventListener('click', () => removeServiceRow(idx));
-    tdRemove.appendChild(btnRemove);
-    tr.appendChild(tdRemove);
-
-    tbody.appendChild(tr);
-  });
-
-  recalcInvoiceTotals();
-}
-
-/**
- * Recalculate invoice totals (subtotal, VAT, total)
- */
-function recalcInvoiceTotals() {
-  const subtotal = finalizeServices.reduce((sum, svc) => sum + (svc.lineTotal || 0), 0);
-  const vatRate = parseFloat(document.getElementById('finalizeVatRate')?.value || 0);
-  const vatAmount = subtotal * (vatRate / 100);
-  const total = subtotal + vatAmount;
-
-  document.getElementById('invSubtotal').textContent = formatGBP(subtotal);
-  document.getElementById('invVat').textContent = formatGBP(vatAmount);
-  document.getElementById('invTotal').textContent = formatGBP(total);
-}
-
-/**
- * Override openFinalizeModal to reset services
- */
-window.openFinalizeModal = function (apptId) {
-  const appt = allAppointments.find(a => a.id === apptId);
-  if (!appt) return;
-
-  // Reset services array
-  finalizeServices = [];
-  
-  // Pre-populate if already finalized
-  if (appt.services && Array.isArray(appt.services)) {
-    finalizeServices = JSON.parse(JSON.stringify(appt.services));
-  }
-
-  renderServicesTable();
-
-  document.getElementById('finalizeAppointmentId').value = apptId;
-  document.getElementById('finalizeMileage').value = appt.mileage || '';
-  document.getElementById('finalizeVatRate').value = appt.vatRate || 0;
-  document.getElementById('generateInvoiceNow').checked = true;
-
-  openModal('finalizeModal');
-  recalcInvoiceTotals();
-};
-
-/**
- * Bind finalize modal controls (Add Service, VAT input)
- */
-function bindFinalizeModalControls() {
-  const addBtn = document.getElementById('addServiceRowBtn');
-  if (addBtn) {
-    addBtn.addEventListener('click', addServiceRow);
-  }
-
-  const vatInput = document.getElementById('finalizeVatRate');
-  if (vatInput) {
-    vatInput.addEventListener('input', recalcInvoiceTotals);
-  }
-
-  const cancelBtn = document.getElementById('finalizeCancelBtn');
-  if (cancelBtn) {
-    cancelBtn.addEventListener('click', () => closeModal('finalizeModal'));
-  }
-
-  const form = document.getElementById('finalizeForm');
-  if (form) {
-    form.addEventListener('submit', finalizeAppointmentWithPrices);
-  }
-}
-
-/**
- * Finalize appointment with prices (replaces finalizeAppointmentWithMileage)
- */
-async function finalizeAppointmentWithPrices(e) {
-  e.preventDefault();
-
-  const apptId = document.getElementById('finalizeAppointmentId').value.trim();
-  const mileage = parseInt(document.getElementById('finalizeMileage').value, 10);
-  const vatRate = parseFloat(document.getElementById('finalizeVatRate').value || 0);
-  const generateNow = document.getElementById('generateInvoiceNow').checked;
-
-  if (!apptId || isNaN(mileage)) {
-    showNotification('⚠️ ID programare sau mile invalid!', 'error');
-    return;
-  }
-
-  const subtotal = finalizeServices.reduce((sum, svc) => sum + (svc.lineTotal || 0), 0);
-  const vatAmount = subtotal * (vatRate / 100);
-  const total = subtotal + vatAmount;
-
-  try {
-    const apptRef = doc(db, 'appointments', apptId);
-    await updateDoc(apptRef, {
-      status: 'done',
-      mileage,
-      services: finalizeServices,
-      subtotal,
-      vatRate,
-      vatAmount,
-      total,
-      doneAt: new Date(),
-      updatedAt: new Date()
-    });
-
-    showNotification('✅ Programare finalizată cu succes!', 'success');
-    console.log(`✅ Appointment ${apptId} finalized with pricing`);
-
-    closeModal('finalizeModal');
-
-    // Generate invoice if requested
-    if (generateNow) {
-      setTimeout(() => downloadInvoicePDF(apptId), 500);
-    }
-  } catch (err) {
-    console.error('❌ Error finalizing appointment:', err);
-    showNotification('❌ Eroare la finalizare: ' + err.message, 'error');
-  }
-}
-
-/**
- * Enhanced PDF generation with logo and pricing table
- */
-async function downloadInvoicePDFEnhanced(apptId) {
-  const appt = allAppointments.find(a => a.id === apptId);
-  if (!appt) {
-    showNotification('⚠️ Appointment not found!', 'error');
-    return;
-  }
-
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF();
-
-  // Load logo
-  const logoData = await loadLogoAsDataURL('Images/Logo.png');
-
-  // --- Header with logo
-  if (logoData) {
-    doc.addImage(logoData, 'PNG', 14, 10, 30, 30);
-  }
-
-  doc.setFontSize(20);
-  doc.setFont('helvetica', 'bold');
-  doc.text('TRANSVORTEX LTD', logoData ? 50 : 14, 20);
-
-  doc.setFontSize(10);
-  doc.setFont('helvetica', 'normal');
-  doc.text('Email: transvortexltd@gmail.com', logoData ? 50 : 14, 28);
-  doc.text('Website: transvortexltdcouk.web.app', logoData ? 50 : 14, 34);
-  doc.text('Facebook: Transvortex Official', logoData ? 50 : 14, 40);
-
-  // --- Invoice meta
-  doc.setFont('helvetica', 'bold');
-  doc.text('Invoice #:', 140, 20);
-  doc.setFont('helvetica', 'normal');
-  doc.text(String(appt.id).substring(0, 12), 165, 20);
-
-  doc.setFont('helvetica', 'bold');
-  doc.text('Date:', 140, 28);
-  doc.setFont('helvetica', 'normal');
-  const dateStr = appt.doneAt 
-    ? new Date(appt.doneAt.toDate ? appt.doneAt.toDate() : appt.doneAt).toLocaleDateString('ro-RO')
-    : (appt.dateStr || new Date().toLocaleDateString('ro-RO'));
-  doc.text(dateStr, 165, 28);
-
-  // --- Customer details
-  let yPos = 55;
-  doc.setDrawColor(200);
-  doc.line(14, yPos - 5, 196, yPos - 5);
-
-  doc.setFontSize(12);
-  doc.setFont('helvetica', 'bold');
-  doc.text('Bill To:', 14, yPos);
-
-  doc.setFontSize(11);
-  doc.setFont('helvetica', 'normal');
-  yPos += 8;
-  doc.text(appt.customerName || 'N/A', 14, yPos);
-  yPos += 6;
-  doc.text(`Car: ${appt.car || 'N/A'}`, 14, yPos);
-  yPos += 6;
-  doc.text(`Address: ${appt.address || 'N/A'}`, 14, yPos);
-  yPos += 6;
-  doc.text(`Mileage: ${appt.mileage ? appt.mileage.toLocaleString() + ' km' : 'N/A'}`, 14, yPos);
-
-  // --- Services table
-  yPos += 12;
-  doc.setDrawColor(200);
-  doc.line(14, yPos, 196, yPos);
-  yPos += 8;
-
-  doc.setFontSize(12);
-  doc.setFont('helvetica', 'bold');
-  doc.text('Description', 14, yPos);
-  doc.text('Qty', 120, yPos);
-  doc.text('Unit Price', 140, yPos);
-  doc.text('Total', 175, yPos);
-
-  yPos += 2;
-  doc.setDrawColor(200);
-  doc.line(14, yPos, 196, yPos);
-  yPos += 8;
-
-  doc.setFontSize(10);
-  doc.setFont('helvetica', 'normal');
-
-  const services = appt.services || [];
-  if (services.length === 0) {
-    doc.text('No services recorded', 14, yPos);
-    yPos += 8;
-  } else {
-    services.forEach(svc => {
-      const desc = svc.description || 'Service';
-      const qty = svc.qty || 0;
-      const unitPrice = svc.unitPrice || 0;
-      const lineTotal = svc.lineTotal || 0;
-
-      doc.text(desc, 14, yPos);
-      doc.text(String(qty), 120, yPos);
-      doc.text(formatGBP(unitPrice), 140, yPos);
-      doc.text(formatGBP(lineTotal), 175, yPos, { align: 'right' });
-      yPos += 7;
-
-      if (yPos > 250) {
-        doc.addPage();
-        yPos = 20;
-      }
-    });
-  }
-
-  // --- Totals
-  yPos += 5;
-  doc.setDrawColor(200);
-  doc.line(120, yPos, 196, yPos);
-  yPos += 8;
-
-  doc.setFont('helvetica', 'bold');
-  doc.text('Subtotal:', 140, yPos);
-  doc.setFont('helvetica', 'normal');
-  doc.text(formatGBP(appt.subtotal || 0), 175, yPos, { align: 'right' });
-  yPos += 7;
-
-  doc.setFont('helvetica', 'bold');
-  doc.text(`VAT (${appt.vatRate || 0}%):`, 140, yPos);
-  doc.setFont('helvetica', 'normal');
-  doc.text(formatGBP(appt.vatAmount || 0), 175, yPos, { align: 'right' });
-  yPos += 7;
-
-  doc.setDrawColor(0);
-  doc.line(120, yPos, 196, yPos);
-  yPos += 8;
-
-  doc.setFontSize(12);
-  doc.setFont('helvetica', 'bold');
-  doc.text('TOTAL:', 140, yPos);
-  doc.text(formatGBP(appt.total || 0), 175, yPos, { align: 'right' });
-
-  // --- Footer
-  doc.setDrawColor(230);
-  doc.line(14, 270, 196, 270);
-  doc.setFontSize(10);
-  doc.setFont('helvetica', 'normal');
-  doc.text('Thank you for your business! — Transvortex LTD', 14, 278);
-
-  const fileName = `invoice_${appt.customerName?.replace(/[^a-zA-Z0-9]/g, '_') || 'client'}_${dateStr.replace(/\//g, '-')}.pdf`;
-  doc.save(fileName);
-
-  showNotification('✅ Invoice PDF descărcat cu success!', 'success');
-  console.log(`📄 Enhanced invoice PDF generated for appointment ${apptId}`);
-}
-
-// Override window.downloadInvoicePDF to use enhanced version
-window.downloadInvoicePDF = downloadInvoicePDFEnhanced;
