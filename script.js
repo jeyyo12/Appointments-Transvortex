@@ -40,6 +40,14 @@ let currentUser = null;
 let isAdmin = false;
 let pages = [];
 
+// Appointments global variables
+let appointments = [];
+let filteredAppointments = [];
+let appointmentsUnsubscribe = null;
+
+// Current active tab
+let currentTab = 'pages';
+
 // ==========================================
 // FIREBASE INITIALIZATION (Web SDK only)
 // ==========================================
@@ -92,11 +100,21 @@ async function initializeFirebase() {
                 // Load pages from Firestore (this will also render)
                 await loadPages();
                 
+                // Subscribe to appointments if on appointments tab
+                subscribeToAppointments();
+                
             } else {
                 console.log("🔓 User logged out");
                 pages = [];
+                appointments = [];
                 renderPages();
                 updateStats();
+                
+                // Unsubscribe from appointments
+                if (appointmentsUnsubscribe) {
+                    appointmentsUnsubscribe();
+                    appointmentsUnsubscribe = null;
+                }
             }
         });
 
@@ -712,5 +730,494 @@ function showNotification(message, type = 'info') {
 // ==========================================
 document.addEventListener('DOMContentLoaded', () => {
     initializeFirebase();
+    
+    // Set today's date as default in appointment form
+    const today = new Date().toISOString().split('T')[0];
+    const dateInput = document.getElementById('appointmentDate');
+    if (dateInput) {
+        dateInput.value = today;
+    }
 });
+
+// ==========================================
+// TAB SWITCHING
+// ==========================================
+function switchTab(tabName) {
+    currentTab = tabName;
+    
+    // Update tab buttons
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
+    
+    // Update tab content
+    document.querySelectorAll('.tab-content').forEach(content => {
+        content.classList.remove('active');
+        content.style.display = 'none';
+    });
+    
+    const activeTab = document.getElementById(`${tabName}Tab`);
+    if (activeTab) {
+        activeTab.classList.add('active');
+        activeTab.style.display = 'block';
+    }
+    
+    console.log(`📑 Switched to tab: ${tabName}`);
+}
+
+// ==========================================
+// APPOINTMENTS MANAGEMENT
+// ==========================================
+
+// Subscribe to appointments real-time updates
+function subscribeToAppointments() {
+    if (!currentUser || !db) {
+        console.log('⏳ Not ready to subscribe to appointments yet');
+        return;
+    }
+    
+    import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js')
+        .then(({ collection, query, orderBy, onSnapshot }) => {
+            console.log('📥 Subscribing to appointments collection...');
+            
+            const q = query(collection(db, 'appointments'), orderBy('startAt', 'asc'));
+            
+            appointmentsUnsubscribe = onSnapshot(q, (snapshot) => {
+                appointments = snapshot.docs.map(doc => ({
+                    id: doc.id,
+                    ...doc.data()
+                }));
+                
+                console.log(`✅ Appointments loaded: ${appointments.length}`);
+                
+                // Filter and render
+                filterAppointments();
+                updateAppointmentStats();
+            }, (error) => {
+                console.error('❌ Error loading appointments:', error);
+                showNotification('❌ Eroare la încărcarea programărilor', 'error');
+            });
+        })
+        .catch(error => {
+            console.error('❌ Error importing Firestore:', error);
+        });
+}
+
+// Add new appointment
+async function handleAddAppointment(e) {
+    e.preventDefault();
+    
+    if (!isAdmin) {
+        showNotification('⚠️ Doar administratorii pot adăuga programări', 'error');
+        return;
+    }
+    
+    const customerName = document.getElementById('customerName').value.trim();
+    const car = document.getElementById('car').value.trim();
+    const dateStr = document.getElementById('appointmentDate').value;
+    const timeStr = document.getElementById('appointmentTime').value;
+    const address = document.getElementById('address').value.trim();
+    const notes = document.getElementById('notes').value.trim();
+    const status = document.getElementById('status').value;
+    
+    if (!customerName || !car || !dateStr || !timeStr) {
+        showNotification('⚠️ Completează toate câmpurile obligatorii', 'error');
+        return;
+    }
+    
+    try {
+        const { collection, addDoc, serverTimestamp, Timestamp } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+        
+        // Create combined datetime
+        const [year, month, day] = dateStr.split('-').map(Number);
+        const [hours, minutes] = timeStr.split(':').map(Number);
+        const startDate = new Date(year, month - 1, day, hours, minutes);
+        
+        console.log('📝 Adding appointment...');
+        
+        const docRef = await addDoc(collection(db, 'appointments'), {
+            customerName,
+            car,
+            address: address || '',
+            notes: notes || '',
+            status,
+            startAt: Timestamp.fromDate(startDate),
+            dateStr,
+            timeStr,
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+            createdBy: currentUser.uid
+        });
+        
+        console.log(`✅ Appointment added with ID: ${docRef.id}`);
+        
+        // Reset form
+        e.target.reset();
+        const today = new Date().toISOString().split('T')[0];
+        document.getElementById('appointmentDate').value = today;
+        document.getElementById('status').value = 'scheduled';
+        
+        showNotification('✅ Programare adăugată cu succes!', 'success');
+        
+    } catch (error) {
+        console.error('❌ Error adding appointment:', error);
+        showNotification('❌ Eroare la adăugarea programării: ' + error.message, 'error');
+    }
+}
+
+// Delete appointment
+async function deleteAppointment(id) {
+    if (!isAdmin) return;
+    
+    if (!confirm('Ești sigur că vrei să ștergi această programare?')) return;
+    
+    try {
+        const { doc, deleteDoc } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+        
+        console.log(`🗑️ Deleting appointment ${id}...`);
+        
+        await deleteDoc(doc(db, 'appointments', id));
+        
+        console.log(`✅ Appointment ${id} deleted`);
+        showNotification('✅ Programare ștearsă cu succes', 'success');
+        
+    } catch (error) {
+        console.error('❌ Error deleting appointment:', error);
+        showNotification('❌ Eroare la ștergere: ' + error.message, 'error');
+    }
+}
+
+// Mark appointment as done
+async function markAppointmentDone(id) {
+    if (!isAdmin) return;
+    
+    try {
+        const { doc, updateDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+        
+        console.log(`✅ Marking appointment ${id} as done...`);
+        
+        await updateDoc(doc(db, 'appointments', id), {
+            status: 'done',
+            updatedAt: serverTimestamp()
+        });
+        
+        console.log(`✅ Appointment ${id} marked as done`);
+        showNotification('✅ Programare marcată ca finalizată!', 'success');
+        
+    } catch (error) {
+        console.error('❌ Error updating appointment:', error);
+        showNotification('❌ Eroare la actualizare: ' + error.message, 'error');
+    }
+}
+
+// Mark appointment as canceled
+async function cancelAppointment(id) {
+    if (!isAdmin) return;
+    
+    try {
+        const { doc, updateDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+        
+        console.log(`❌ Canceling appointment ${id}...`);
+        
+        await updateDoc(doc(db, 'appointments', id), {
+            status: 'canceled',
+            updatedAt: serverTimestamp()
+        });
+        
+        console.log(`✅ Appointment ${id} canceled`);
+        showNotification('✅ Programare anulată', 'info');
+        
+    } catch (error) {
+        console.error('❌ Error canceling appointment:', error);
+        showNotification('❌ Eroare la anulare: ' + error.message, 'error');
+    }
+}
+
+// Filter appointments
+function filterAppointments() {
+    const filterStatus = document.getElementById('filterStatus')?.value || 'all';
+    const searchTerm = document.getElementById('searchAppointments')?.value.toLowerCase() || '';
+    
+    const now = new Date();
+    const todayStr = now.toISOString().split('T')[0];
+    
+    filteredAppointments = appointments.filter(apt => {
+        // Search filter
+        const matchesSearch = !searchTerm || 
+            apt.customerName.toLowerCase().includes(searchTerm) ||
+            apt.car.toLowerCase().includes(searchTerm);
+        
+        if (!matchesSearch) return false;
+        
+        // Status filter
+        if (filterStatus === 'all') return true;
+        if (filterStatus === 'today') return apt.dateStr === todayStr;
+        if (filterStatus === 'upcoming') {
+            const aptDate = apt.startAt.toDate();
+            return aptDate > now && apt.status === 'scheduled';
+        }
+        if (filterStatus === 'overdue') {
+            const aptDate = apt.startAt.toDate();
+            return aptDate < now && apt.status === 'scheduled';
+        }
+        return apt.status === filterStatus;
+    });
+    
+    renderAppointments();
+}
+
+// Render appointments grouped by day
+function renderAppointments() {
+    const container = document.getElementById('appointmentsList');
+    const emptyState = document.getElementById('emptyStateAppointments');
+    
+    if (!filteredAppointments || filteredAppointments.length === 0) {
+        container.innerHTML = '';
+        emptyState.style.display = 'block';
+        return;
+    }
+    
+    emptyState.style.display = 'none';
+    
+    // Group by date
+    const grouped = {};
+    filteredAppointments.forEach(apt => {
+        const dateKey = apt.dateStr || apt.startAt.toDate().toISOString().split('T')[0];
+        if (!grouped[dateKey]) {
+            grouped[dateKey] = [];
+        }
+        grouped[dateKey].push(apt);
+    });
+    
+    // Sort dates
+    const sortedDates = Object.keys(grouped).sort();
+    
+    // Render
+    const now = new Date();
+    const todayStr = now.toISOString().split('T')[0];
+    const tomorrowStr = new Date(now.getTime() + 24*60*60*1000).toISOString().split('T')[0];
+    
+    let html = '';
+    
+    sortedDates.forEach(dateStr => {
+        let dayLabel = dateStr;
+        if (dateStr === todayStr) dayLabel = '🗓️ Astăzi (' + dateStr + ')';
+        else if (dateStr === tomorrowStr) dayLabel = '📅 Mâine (' + dateStr + ')';
+        else {
+            const dayDate = new Date(dateStr + 'T00:00:00');
+            const dayName = dayDate.toLocaleDateString('ro-RO', { weekday: 'long' });
+            dayLabel = dayName.charAt(0).toUpperCase() + dayName.slice(1) + ' (' + dateStr + ')';
+        }
+        
+        html += `<div class="day-group">`;
+        html += `<div class="day-header"><i class="fas fa-calendar-day"></i> ${dayLabel}</div>`;
+        
+        grouped[dateStr].forEach(apt => {
+            html += createAppointmentCard(apt, now);
+        });
+        
+        html += `</div>`;
+    });
+    
+    container.innerHTML = html;
+}
+
+// Create appointment card HTML
+function createAppointmentCard(apt, now) {
+    const aptDate = apt.startAt.toDate();
+    const timeDiff = aptDate - now;
+    const minutesDiff = Math.floor(timeDiff / 60000);
+    
+    // Check reminders
+    let reminderBadge = '';
+    if (apt.status === 'scheduled') {
+        if (minutesDiff <= 30 && minutesDiff > 0) {
+            reminderBadge = `<span class="reminder-badge reminder-soon"><i class="fas fa-bell"></i> În curând (≤30 min)</span>`;
+        } else if (minutesDiff < 0) {
+            reminderBadge = `<span class="reminder-badge reminder-overdue"><i class="fas fa-exclamation-triangle"></i> Întârziat</span>`;
+        }
+    }
+    
+    // Status badge
+    let statusClass = 'status-scheduled';
+    let statusIcon = 'fa-clock';
+    let statusText = 'Programat';
+    
+    if (apt.status === 'done') {
+        statusClass = 'status-done';
+        statusIcon = 'fa-check-circle';
+        statusText = 'Finalizat';
+    } else if (apt.status === 'canceled') {
+        statusClass = 'status-canceled';
+        statusIcon = 'fa-times-circle';
+        statusText = 'Anulat';
+    }
+    
+    const addressRow = apt.address ? `
+        <div class="detail-row">
+            <i class="fas fa-map-marker-alt"></i>
+            <span>${apt.address}</span>
+        </div>
+    ` : '';
+    
+    const notesRow = apt.notes ? `
+        <div class="detail-row">
+            <i class="fas fa-sticky-note"></i>
+            <span>${apt.notes}</span>
+        </div>
+    ` : '';
+    
+    const adminActions = isAdmin ? `
+        <div class="appointment-actions">
+            <button class="btn-action-small btn-done" onclick="markAppointmentDone('${apt.id}')">
+                <i class="fas fa-check"></i> Finalizează
+            </button>
+            <button class="btn-action-small btn-cancel-appointment" onclick="cancelAppointment('${apt.id}')">
+                <i class="fas fa-ban"></i> Anulează
+            </button>
+            <button class="btn-action-small btn-delete-appointment" onclick="deleteAppointment('${apt.id}')">
+                <i class="fas fa-trash"></i> Șterge
+            </button>
+        </div>
+    ` : '';
+    
+    return `
+        <div class="appointment-card">
+            <div class="appointment-header">
+                <div>
+                    <div class="appointment-title">${apt.customerName}</div>
+                    <div class="appointment-time">
+                        <i class="fas fa-clock"></i> ${apt.timeStr || aptDate.toLocaleTimeString('ro-RO', {hour: '2-digit', minute: '2-digit'})}
+                    </div>
+                </div>
+                <div>
+                    <span class="status-badge ${statusClass}">
+                        <i class="fas ${statusIcon}"></i> ${statusText}
+                    </span>
+                    ${reminderBadge}
+                </div>
+            </div>
+            <div class="appointment-details">
+                <div class="detail-row">
+                    <i class="fas fa-car"></i>
+                    <span><strong>Mașină:</strong> ${apt.car}</span>
+                </div>
+                ${addressRow}
+                ${notesRow}
+            </div>
+            ${adminActions}
+        </div>
+    `;
+}
+
+// Update appointment statistics
+function updateAppointmentStats() {
+    const now = new Date();
+    const todayStr = now.toISOString().split('T')[0];
+    
+    const total = appointments.length;
+    const today = appointments.filter(apt => apt.dateStr === todayStr).length;
+    const upcoming = appointments.filter(apt => {
+        const aptDate = apt.startAt.toDate();
+        return aptDate > now && apt.status === 'scheduled';
+    }).length;
+    const done = appointments.filter(apt => apt.status === 'done').length;
+    
+    document.getElementById('totalAppointments').textContent = total;
+    document.getElementById('todayAppointments').textContent = today;
+    document.getElementById('upcomingAppointments').textContent = upcoming;
+    document.getElementById('doneAppointments').textContent = done;
+}
+
+// Refresh appointments manually
+async function handleRefreshAppointments() {
+    const refreshButton = document.getElementById('refreshAppointmentsButton');
+    
+    if (!currentUser) {
+        showNotification('⚠️ Conectează-te pentru a reîncărca programările', 'info');
+        return;
+    }
+    
+    try {
+        if (refreshButton) {
+            refreshButton.classList.add('refreshing');
+            refreshButton.disabled = true;
+        }
+        
+        console.log('🔄 Manual refresh appointments triggered...');
+        
+        // Re-subscribe
+        if (appointmentsUnsubscribe) {
+            appointmentsUnsubscribe();
+        }
+        subscribeToAppointments();
+        
+        showNotification(`✅ Reîncărcat! ${appointments.length} ${appointments.length === 1 ? 'programare găsită' : 'programări găsite'}`, 'success');
+        
+    } catch (error) {
+        console.error('❌ Error refreshing:', error);
+        showNotification('❌ Eroare la reîncărcare', 'error');
+    } finally {
+        if (refreshButton) {
+            refreshButton.classList.remove('refreshing');
+            refreshButton.disabled = false;
+        }
+    }
+}
+
+// Export appointments to CSV
+function exportAppointmentsCSV() {
+    if (filteredAppointments.length === 0) {
+        showNotification('⚠️ Nicio programare de exportat', 'info');
+        return;
+    }
+    
+    // CSV Header
+    let csv = 'Data,Ora,Client,Mașină,Adresă,Status,Notițe\n';
+    
+    // CSV Rows
+    filteredAppointments.forEach(apt => {
+        const row = [
+            apt.dateStr || '',
+            apt.timeStr || '',
+            apt.customerName || '',
+            apt.car || '',
+            apt.address || '',
+            apt.status || '',
+            (apt.notes || '').replace(/"/g, '""') // Escape quotes
+        ];
+        csv += row.map(field => `"${field}"`).join(',') + '\n';
+    });
+    
+    // Create download
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    
+    const today = new Date().toISOString().split('T')[0];
+    link.setAttribute('href', url);
+    link.setAttribute('download', `appointments_${today}.csv`);
+    link.style.visibility = 'hidden';
+    
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    showNotification(`✅ Export CSV: ${filteredAppointments.length} programări`, 'success');
+    console.log(`📄 Exported ${filteredAppointments.length} appointments to CSV`);
+}
+
+// Setup appointment form listener
+function setupEventListeners() {
+    const pageForm = document.getElementById('pageForm');
+    if (pageForm) {
+        pageForm.addEventListener('submit', handleAddPage);
+    }
+    
+    const appointmentForm = document.getElementById('appointmentForm');
+    if (appointmentForm) {
+        appointmentForm.addEventListener('submit', handleAddAppointment);
+    }
+}
 
