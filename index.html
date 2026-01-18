@@ -435,128 +435,94 @@
             background: #dc2626;
         }
 
-        /* Premium Input Wrappers for Date/Time */
-        .input-wrapper {
+        /* ===== Modern form layout ===== */
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 18px;
+            margin-bottom: 1rem;
+        }
+
+        @media (max-width: 900px) {
+            .grid-2 { grid-template-columns: 1fr; }
+        }
+
+        .field label {
+            display: block;
+            font-weight: 700;
+            margin-bottom: 8px;
+            color: rgba(0,0,0,0.75);
+            font-size: 0.95rem;
+        }
+
+        .req { color: #ff4d4d; }
+
+        .input-wrap {
             position: relative;
             display: flex;
             align-items: center;
-            background: linear-gradient(135deg, #ffffff 0%, #f9fafb 100%);
-            border: 2px solid #e5e7eb;
+            background: rgba(255,255,255,0.85);
+            border: 1px solid rgba(255,140,0,0.20);
+            border-radius: 14px;
+            padding: 12px 14px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.06);
+            transition: 0.2s ease;
+            cursor: pointer;
+        }
+
+        .input-wrap:hover {
+            border-color: rgba(255,140,0,0.45);
+            box-shadow: 0 14px 40px rgba(0,0,0,0.08);
+        }
+
+        .input-wrap:focus-within {
+            border-color: rgba(255,140,0,0.70);
+            box-shadow: 0 0 0 4px rgba(255,140,0,0.18), 0 18px 55px rgba(0,0,0,0.12);
+            transform: translateY(-1px);
+        }
+
+        .input-icon {
+            width: 38px;
+            height: 38px;
             border-radius: 12px;
-            padding: 0.75rem 1rem;
-            transition: all 0.3s ease;
-            cursor: pointer;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
-        }
-
-        .input-wrapper:hover {
-            border-color: #FF8A3D;
-            box-shadow: 0 4px 12px rgba(255, 138, 61, 0.15);
-            background: linear-gradient(135deg, #ffffff 0%, #fff5f0 100%);
-        }
-
-        .input-wrapper:focus-within {
-            border-color: #FF8A3D;
-            box-shadow: 0 0 0 3px rgba(255, 138, 61, 0.1), 0 4px 12px rgba(255, 138, 61, 0.2);
-            background: #ffffff;
-        }
-
-        .input-wrapper .input-icon {
-            color: #FF8A3D;
-            font-size: 1.1rem;
-            margin-right: 0.75rem;
+            display: grid;
+            place-items: center;
+            background: linear-gradient(180deg, rgba(255,140,0,0.18), rgba(255,140,0,0.08));
+            color: rgba(255,140,0,0.95);
+            margin-right: 10px;
+            flex: 0 0 auto;
             pointer-events: none;
-            transition: all 0.3s ease;
         }
 
-        .input-wrapper:focus-within .input-icon {
-            color: #F47C2C;
-            transform: scale(1.1);
-        }
-
-        .input-wrapper input[type="date"],
-        .input-wrapper input[type="time"] {
+        .input-wrap input,
+        .input-wrap select,
+        .input-wrap textarea {
+            width: 100%;
             border: none;
-            background: transparent;
-            padding: 0;
-            margin: 0;
-            flex: 1;
-            font-size: 1rem;
-            color: #1f2937;
-            font-weight: 500;
             outline: none;
-            cursor: pointer;
-        }
-
-        .input-wrapper input[type="text"],
-        .input-wrapper select {
-            border: none;
             background: transparent;
-            padding: 0;
-            margin: 0;
-            flex: 1;
-            font-size: 1rem;
-            color: #1f2937;
-            font-weight: 500;
-            outline: none;
-        }
-
-        .input-wrapper.textarea-wrapper {
-            align-items: flex-start;
-            padding-top: 1rem;
-        }
-
-        .input-wrapper.textarea-wrapper .input-icon {
-            margin-top: 0.2rem;
-        }
-
-        .input-wrapper textarea {
-            border: none;
-            background: transparent;
-            padding: 0;
-            margin: 0;
-            flex: 1;
-            font-size: 1rem;
-            color: #1f2937;
-            font-weight: 500;
-            outline: none;
-            resize: vertical;
+            font-size: 16px;
+            color: rgba(0,0,0,0.85);
             font-family: inherit;
         }
 
-        .input-wrapper select {
+        /* Make date/time feel clickable */
+        .input-wrap input[type="date"],
+        .input-wrap input[type="time"] {
             cursor: pointer;
-            appearance: none;
-            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23FF8A3D' d='M10.293 3.293L6 7.586 1.707 3.293A1 1 0 00.293 4.707l5 5a1 1 0 001.414 0l5-5a1 1 0 10-1.414-1.414z'/%3E%3C/svg%3E");
-            background-repeat: no-repeat;
-            background-position: right 0.5rem center;
-            background-size: 1rem;
-            padding-right: 2rem;
+            padding-right: 6px;
         }
 
-        .input-wrapper input[type="date"]::-webkit-calendar-picker-indicator,
-        .input-wrapper input[type="time"]::-webkit-calendar-picker-indicator {
+        /* Improve native date/time indicator visibility */
+        .input-wrap input[type="date"]::-webkit-calendar-picker-indicator,
+        .input-wrap input[type="time"]::-webkit-calendar-picker-indicator {
+            opacity: 0.35;
             cursor: pointer;
-            opacity: 0.7;
-            transition: opacity 0.3s;
         }
 
-        .input-wrapper:hover input[type="date"]::-webkit-calendar-picker-indicator,
-        .input-wrapper:hover input[type="time"]::-webkit-calendar-picker-indicator {
-            opacity: 1;
-        }
-
-        /* Premium enhancement for all form inputs to match */
-        .form-group input:not([type="date"]):not([type="time"]),
-        .form-group select,
-        .form-group textarea {
-            transition: all 0.3s ease;
-        }
-
-        .form-group input:focus:not([type="date"]):not([type="time"]),
-        .form-group select:focus,
-        .form-group textarea:focus {
-            box-shadow: 0 0 0 3px rgba(255, 138, 61, 0.1), 0 2px 8px rgba(255, 138, 61, 0.15);
+        .input-wrap input[type="date"]:hover::-webkit-calendar-picker-indicator,
+        .input-wrap input[type="time"]:hover::-webkit-calendar-picker-indicator {
+            opacity: 0.6;
         }
     </style>
 </head>
@@ -711,59 +677,44 @@
                         <div class="form-row">
                             <div class="form-group">
                                 <label for="customerName">Nume Client: *</label>
-                                <div class="input-wrapper" data-input-target="customerName">
-                                    <i class="fas fa-user input-icon"></i>
-                                    <input type="text" id="customerName" placeholder="ex: Ion Popescu" required>
-                                </div>
+                                <input type="text" id="customerName" placeholder="ex: Ion Popescu" required>
                             </div>
                             <div class="form-group">
                                 <label for="car">Mașină (marcă/model/înmatriculare): *</label>
-                                <div class="input-wrapper" data-input-target="car">
-                                    <i class="fas fa-car input-icon"></i>
-                                    <input type="text" id="car" placeholder="ex: Dacia Logan, AB-12-XYZ" required>
-                                </div>
+                                <input type="text" id="car" placeholder="ex: Dacia Logan, AB-12-XYZ" required>
                             </div>
                         </div>
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label for="appointmentDate">Data: *</label>
-                                <div class="input-wrapper" data-input-target="appointmentDate">
-                                    <i class="fas fa-calendar-alt input-icon"></i>
-                                    <input type="date" id="appointmentDate" required>
+                        <div class="grid-2">
+                            <div class="field">
+                                <label for="appointmentDate">Data: <span class="req">*</span></label>
+                                <div class="input-wrap" id="dateWrap">
+                                    <span class="input-icon"><i class="fas fa-calendar-alt"></i></span>
+                                    <input id="appointmentDate" type="date" required />
                                 </div>
                             </div>
-                            <div class="form-group">
-                                <label for="appointmentTime">Ora: *</label>
-                                <div class="input-wrapper" data-input-target="appointmentTime">
-                                    <i class="fas fa-clock input-icon"></i>
-                                    <input type="time" id="appointmentTime" required>
+                            <div class="field">
+                                <label for="appointmentTime">Ora: <span class="req">*</span></label>
+                                <div class="input-wrap" id="timeWrap">
+                                    <span class="input-icon"><i class="fas fa-clock"></i></span>
+                                    <input id="appointmentTime" type="time" required />
                                 </div>
                             </div>
                         </div>
                         <div class="form-group">
                             <label for="address">Adresă (opțional):</label>
-                            <div class="input-wrapper" data-input-target="address">
-                                <i class="fas fa-map-marker-alt input-icon"></i>
-                                <input type="text" id="address" placeholder="ex: Str. Principală nr. 10">
-                            </div>
+                            <input type="text" id="address" placeholder="ex: Str. Principală nr. 10">
                         </div>
                         <div class="form-group">
                             <label for="notes">Notițe (opțional):</label>
-                            <div class="input-wrapper textarea-wrapper" data-input-target="notes">
-                                <i class="fas fa-sticky-note input-icon"></i>
-                                <textarea id="notes" rows="3" placeholder="Detalii suplimentare..."></textarea>
-                            </div>
+                            <textarea id="notes" rows="3" placeholder="Detalii suplimentare..."></textarea>
                         </div>
                         <div class="form-group">
                             <label for="status">Status:</label>
-                            <div class="input-wrapper" data-input-target="status">
-                                <i class="fas fa-info-circle input-icon"></i>
-                                <select id="status">
-                                    <option value="scheduled" selected>Programat</option>
-                                    <option value="done">Finalizat</option>
-                                    <option value="canceled">Anulat</option>
-                                </select>
-                            </div>
+                            <select id="status">
+                                <option value="scheduled" selected>Programat</option>
+                                <option value="done">Finalizat</option>
+                                <option value="canceled">Anulat</option>
+                            </select>
                         </div>
                         <button type="submit" class="btn-primary">
                             <i class="fas fa-plus"></i> Adaugă Programare

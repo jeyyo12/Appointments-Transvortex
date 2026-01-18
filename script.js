@@ -738,58 +738,50 @@ document.addEventListener('DOMContentLoaded', () => {
         dateInput.value = today;
     }
     
-    // Setup premium input wrappers
-    setupPremiumInputWrappers();
+    // Enhance native date/time pickers
+    enhanceNativePickers();
 });
 
 // ==========================================
-// PREMIUM INPUT WRAPPERS ENHANCEMENT
+// ENHANCE NATIVE DATE/TIME PICKERS
 // ==========================================
-function setupPremiumInputWrappers() {
-    // Find all input wrappers with data-input-target attribute
-    const wrappers = document.querySelectorAll('.input-wrapper[data-input-target]');
-    
-    wrappers.forEach(wrapper => {
-        const inputId = wrapper.getAttribute('data-input-target');
-        const input = document.getElementById(inputId);
-        
-        if (!input) return;
-        
-        // Make entire wrapper clickable
-        wrapper.addEventListener('click', (e) => {
-            // If clicking directly on input, textarea, select, or icon, don't interfere
-            if (e.target === input || 
-                e.target.tagName === 'TEXTAREA' || 
-                e.target.tagName === 'SELECT' ||
-                e.target.classList.contains('input-icon')) {
-                return;
-            }
-            
-            // Focus the input
-            input.focus();
-            
-            // Trigger native picker if available (date/time inputs)
-            if ((input.type === 'date' || input.type === 'time') && 
-                input.showPicker && typeof input.showPicker === 'function') {
+function enhanceNativePickers() {
+    const dateInput = document.getElementById('appointmentDate');
+    const timeInput = document.getElementById('appointmentTime');
+
+    // Click anywhere on wrapper => focus input and open picker
+    const dateWrap = document.getElementById('dateWrap');
+    const timeWrap = document.getElementById('timeWrap');
+
+    if (dateWrap && dateInput && !dateWrap.dataset.bound) {
+        dateWrap.addEventListener('click', () => {
+            dateInput.focus();
+            // Opens native picker in modern browsers (Chrome/Edge/Safari)
+            if (dateInput.showPicker) {
                 try {
-                    input.showPicker();
-                } catch (error) {
-                    // showPicker() might fail in some browsers/contexts - silently ignore
+                    dateInput.showPicker();
+                } catch (err) {
+                    // Fallback: just focus (some browsers require user gesture)
+                    console.log('showPicker not available or blocked');
                 }
             }
         });
-        
-        // Visual feedback: add focused class to wrapper when input is focused
-        input.addEventListener('focus', () => {
-            wrapper.classList.add('focused');
+        dateWrap.dataset.bound = "true";
+    }
+
+    if (timeWrap && timeInput && !timeWrap.dataset.bound) {
+        timeWrap.addEventListener('click', () => {
+            timeInput.focus();
+            if (timeInput.showPicker) {
+                try {
+                    timeInput.showPicker();
+                } catch (err) {
+                    console.log('showPicker not available or blocked');
+                }
+            }
         });
-        
-        input.addEventListener('blur', () => {
-            wrapper.classList.remove('focused');
-        });
-    });
-    
-    console.log(`✨ Premium input wrappers initialized: ${wrappers.length} wrappers`);
+        timeWrap.dataset.bound = "true";
+    }
 }
 
 // ==========================================
