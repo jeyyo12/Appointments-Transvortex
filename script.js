@@ -210,11 +210,15 @@ function updateAuthStatus(status) {
 // PAGE MANAGEMENT FUNCTIONS
 // ==========================================
 async function loadPages() {
-    if (!currentUser) return;
+    if (!currentUser) {
+        console.log('⏳ Not logged in yet, skipping loadPages');
+        return;
+    }
 
     try {
         const { collection, getDocs, query, orderBy } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
         
+        console.log('📥 Loading pages from Firestore...');
         const q = query(collection(db, 'pages'), orderBy('addedDate', 'desc'));
         const snapshot = await getDocs(q);
         
@@ -222,9 +226,24 @@ async function loadPages() {
             id: doc.id,
             ...doc.data()
         }));
+        
+        console.log(`✅ Loaded ${pages.length} pages from Firestore`);
     } catch (error) {
-        console.error('Error loading pages:', error);
-        showNotification('Eroare la încărcarea datelor', 'error');
+        console.error('❌ Error loading pages:', error);
+        console.error('Error code:', error.code);
+        
+        // Specific error handling
+        if (error.code === 'permission-denied') {
+            console.error('🔴 PERMISSION DENIED! Firestore Rules issue:');
+            console.error('Solution: Go to Firebase Console > Firestore > Rules');
+            console.error('Make sure you have: allow read: if true;');
+            showNotification('❌ Firestore Rules: Missing read permissions. Check console.', 'error');
+        } else if (error.code === 'not-found') {
+            console.error('⚠️ Pages collection does not exist yet. Create it in Firebase Console.');
+            showNotification('⚠️ Firestore database not initialized. Please create "pages" collection.', 'error');
+        } else {
+            showNotification('❌ Eroare la încărcarea datelor', 'error');
+        }
     }
 }
 
