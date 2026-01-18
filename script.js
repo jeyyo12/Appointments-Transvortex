@@ -1,20 +1,41 @@
 // ==========================================
-// FIREBASE CONFIGURATION
+// 🔴 FIREBASE CONFIGURATION - INSTRUCȚIUNI 🔴
 // ==========================================
+// 1. Mergi la: https://console.firebase.google.com/project/transvortexltdcouk
+// 2. Apasă "Project Settings" (roata dințată)
+// 3. Sub "Your apps" găsește "Web App" (trebuie să existe)
+// 4. Copiază obiectul config și înlocuiește de mai jos
+// 5. ⚠️ IMPORTANT: Folosește doar firebaseConfig din Firebase Console, nu alte surse
+// ==========================================
+
 const firebaseConfig = {
-    apiKey: "AIzaSyDKyqAb198h6VdbHXZtciMdn_KIg-L2zzU",
-    authDomain: "transvortexltdcouk.firebaseapp.com",
-    projectId: "transvortexltdcouk",
-    storageBucket: "transvortexltdcouk.firebasestorage.app",
-    messagingSenderId: "980773899679",
-    appId: "1:980773899679:web:08800ca927f4ac348581aa",
-    measurementId: "G-D1QH23H9J8"
+    // TODO: REPLACE ME - COPY FROM FIREBASE CONSOLE
+    // Firebase Console > Project Settings > Web App > firebaseConfig object
+    // Exemple de câmpuri (valorile vor fi diferite):
+// For Firebase JS SDK v7.20.0 and later, measurementId is optional
+const firebaseConfig = {
+  apiKey: "AIzaSyDKyqAb198h6VdbHXZtciMdn_KIg-L2zZU",
+  authDomain: "transvortexltdcouk.firebaseapp.com",
+  projectId: "transvortexltdcouk",
+  storageBucket: "transvortexltdcouk.firebasestorage.app",
+  messagingSenderId: "980773899679",
+  appId: "1:980773899679:web:08800ca927f4ac348581aa",
+  measurementId: "G-D1QH23H9J8"
 };
+};
+
+// Validation check
+if (firebaseConfig.apiKey === "AIzaSy..." || !firebaseConfig.appId.includes(":web:")) {
+    console.error("❌ FIREBASE CONFIG NOT SET! Follow instructions above.");
+    console.error("apiKey must start with 'AIzaSy' (not placeholder)");
+    console.error("appId must contain ':web:' (this indicates Web App, not Android)");
+}
 
 // Admin UID
 const ADMIN_UID = "VhjWQiYKVGUrDVuOQUSJHA15Blk2";
 
-// Global variables
+// Global variables for Firebase
+let app = null;
 let auth = null;
 let db = null;
 let currentUser = null;
@@ -22,61 +43,129 @@ let isAdmin = false;
 let pages = [];
 
 // ==========================================
-// FIREBASE INITIALIZATION
+// FIREBASE INITIALIZATION (Web SDK only)
 // ==========================================
 async function initializeFirebase() {
     try {
-        // Import Firebase modules
+        // Import Firebase App module
         const { initializeApp } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js');
-        const { getAuth, onAuthStateChanged, signInWithPopup, GoogleAuthProvider, signOut } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js');
+        
+        // Import Firebase Auth module (Web SDK)
+        const { 
+            getAuth, 
+            onAuthStateChanged, 
+            signInWithPopup, 
+            GoogleAuthProvider, 
+            signOut 
+        } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js');
+        
+        // Import Firestore module
         const { getFirestore } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
 
-        // Initialize Firebase
-        const app = initializeApp(firebaseConfig);
+        console.log("🔥 Firebase SDK: Initializing...");
+        
+        // Initialize Firebase App with Web config
+        app = initializeApp(firebaseConfig);
+        console.log("✅ Firebase App initialized");
+        
+        // Get Auth instance (Web SDK)
         auth = getAuth(app);
+        console.log("✅ Firebase Auth initialized");
+        
+        // Get Firestore instance
         db = getFirestore(app);
+        console.log("✅ Firestore initialized");
 
-        // Setup auth listener
+        // Setup authentication state listener
         onAuthStateChanged(auth, (user) => {
             currentUser = user;
             isAdmin = user?.uid === ADMIN_UID;
             updateAuthUI();
+            
             if (user) {
+                console.log(`✅ User authenticated: ${user.email}`);
+                if (isAdmin) {
+                    console.log("👑 Admin access granted");
+                }
                 loadPages();
                 renderPages();
                 updateStats();
                 setupEventListeners();
+            } else {
+                console.log("🔓 User logged out");
             }
         });
 
     } catch (error) {
-        console.error('Error initializing Firebase:', error);
-        updateAuthStatus('Eroare la conectare.');
+        console.error("❌ Firebase initialization error:", error);
+        console.error("Error code:", error.code);
+        console.error("Error message:", error.message);
+        
+        // Provide helpful error messages
+        if (error.code === "auth/api-key-not-valid") {
+            updateAuthStatus("❌ API Key invalid. Check Firebase Console config.");
+            console.error("SOLUTION: Go to Firebase Console > Project Settings > Copy Web firebaseConfig");
+        } else if (error.code === "auth/network-request-failed") {
+            updateAuthStatus("❌ Network error. Check internet connection.");
+        } else {
+            updateAuthStatus("❌ Firebase error. Check console.");
+        }
     }
 }
 
 // ==========================================
-// AUTHENTICATION FUNCTIONS
+// AUTHENTICATION FUNCTIONS (Google Sign-In)
 // ==========================================
 async function handleAuthToggle() {
     if (currentUser) {
-        // Logout
+        // User logged in → Logout
         try {
-            const { signOut } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js');
-            await signOut(auth);
+            const { signOut: firebaseSignOut } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js');
+            await firebaseSignOut(auth);
+            console.log("✅ User logged out successfully");
         } catch (error) {
-            console.error('Logout error:', error);
+            console.error("❌ Logout error:", error);
+            updateAuthStatus("Eroare la deconectare.");
         }
     } else {
-        // Login
+        // User not logged in → Google Sign-In
         try {
             const { signInWithPopup, GoogleAuthProvider } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js');
+            
+            // Create Google provider
             const provider = new GoogleAuthProvider();
-            await signInWithPopup(auth, provider);
+            
+            // Set language to Romanian
+            auth.languageCode = 'ro';
+            
+            // Request scopes (optional - for accessing more user data)
+            provider.addScope('profile');
+            provider.addScope('email');
+            
+            console.log("🔐 Initiating Google Sign-In...");
+            
+            // Sign in with popup
+            const result = await signInWithPopup(auth, provider);
+            console.log("✅ Google Sign-In successful:", result.user.email);
+            
         } catch (error) {
-            console.error('Login error:', error);
-            if (error.code !== 'auth/popup-closed-by-user') {
-                updateAuthStatus('Eroare la autentificare.');
+            console.error("❌ Login error:", error);
+            console.error("Error code:", error.code);
+            
+            // Handle specific error codes
+            if (error.code === "auth/popup-closed-by-user") {
+                console.log("ℹ️ User closed sign-in popup");
+                return;
+            } else if (error.code === "auth/api-key-not-valid") {
+                updateAuthStatus("❌ API Key invalid - check Firebase Console.");
+                console.error("SOLUTION: Verify firebaseConfig in script.js matches Console");
+            } else if (error.code === "auth/unauthorized-domain") {
+                updateAuthStatus("❌ Domain not authorized - add to Firebase Console.");
+                console.error("SOLUTION: Firebase Console > Auth > Settings > Authorized domains");
+            } else if (error.code === "auth/network-request-failed") {
+                updateAuthStatus("❌ Network error - check internet connection.");
+            } else {
+                updateAuthStatus("❌ Sign-in error. Try again.");
             }
         }
     }
