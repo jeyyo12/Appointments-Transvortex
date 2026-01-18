@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manager Pagini Facebook - Transvortex LTD</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="header-bg-glow"></div>
+            <div class="header-noise"></div>
+            <div class="header-wrapper">
+                <div class="logo-container">
+                    <div class="logo-glow"></div>
+                    <img src="Images/Logo.png" alt="Transvortex LTD Logo" class="logo-large">
+                </div>
+                <div class="header-content">
+                    <div class="title-wrapper">
+                        <h1 class="header-title">
+                            <span class="glow-text">Manager</span>
+                            <span class="highlight-orange">Pagini</span>
+                            <span class="glow-text">Facebook</span>
+                        </h1>
+                        <div class="accent-line"></div>
+                    </div>
+                    <p class="header-subtitle">
+                        <span class="subtitle-highlight">Organizează-ți</span> postările zilnice 
+                        <span class="subtitle-bold">pentru compania ta</span>
+                    </p>
+                </div>
+            </div>
+        </header>
+
+        <main>
+            <!-- Formular adăugare pagină nouă -->
+            <section class="add-section">
+                <h2><i class="fab fa-facebook"></i> Adaugă Pagină Nouă</h2>
+                <form id="pageForm">
+                    <div class="form-group">
+                        <label for="pageName">Nume Pagină:</label>
+                        <input type="text" id="pageName" placeholder="ex: Transvortex LTD Official" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="pageUrl">URL Pagină Facebook:</label>
+                        <input type="url" id="pageUrl" placeholder="https://facebook.com/..." required>
+                    </div>
+                    <div class="form-group">
+                        <label for="pageAvatar">URL Avatar (opțional):</label>
+                        <input type="url" id="pageAvatar" placeholder="https://... (logo sau poză de profil)">
+                    </div>
+                    <button type="submit" class="btn-primary">
+                        <i class="fas fa-plus"></i> Adaugă Pagină
+                    </button>
+                </form>
+            </section>
+
+            <!-- Status în timp real -->
+            <section class="live-status">
+                <div class="status-item">
+                    <span class="status-indicator active"></span>
+                    <div class="status-content">
+                        <strong>Ultima postare:</strong>
+                        <span id="lastPostTime">-</span>
+                    </div>
+                </div>
+                <div class="status-item">
+                    <span class="status-indicator pending"></span>
+                    <div class="status-content">
+                        <strong>Următoarea postare:</strong>
+                        <span id="nextPostTime">-</span>
+                    </div>
+                </div>
+                <div class="human-message" id="humanMessage">
+                    <i class="fas fa-heart"></i>
+                    <span>Totul este pregătit pentru astăzi.</span>
+                </div>
+            </section>
+
+            <!-- Statistici rapide -->
+            <section class="stats-section">
+                <div class="stat-card">
+                    <i class="fas fa-list"></i>
+                    <div class="stat-content">
+                        <h3 id="totalPages">0</h3>
+                        <p>Pagini Totale</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <i class="fas fa-calendar-check"></i>
+                    <div class="stat-content">
+                        <h3 id="postedToday">0</h3>
+                        <p>Postat Astăzi</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <i class="fas fa-clock"></i>
+                    <div class="stat-content">
+                        <h3 id="pendingPages">0</h3>
+                        <p>De Postat</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Lista de pagini -->
+            <section class="pages-section">
+                <div class="section-header">
+                    <h2><i class="fas fa-th-list"></i> Paginile Mele Facebook</h2>
+                </div>
+                
+                <div id="pagesList" class="pages-grid">
+                    <!-- Paginile vor fi adăugate dinamic aici -->
+                </div>
+
+                <div id="emptyState" class="empty-state">
+                    <i class="fas fa-folder-open"></i>
+                    <h3>Nicio pagină adăugată încă</h3>
+                    <p>Începe prin a adăuga prima ta pagină Facebook folosind formularul de mai sus</p>
+                </div>
+            </section>
+        </main>
+
+        <footer>
+            <p>&copy; 2026 Transvortex LTD. Toate drepturile rezervate.</p>
+        </footer>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

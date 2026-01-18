@@ -1,0 +1,151 @@
+# PROPRIETARY LICENSE AGREEMENT
+
+**Transvortex Facebook Pages Manager**  
+© 2024 Transvortex LTD. All rights reserved.
+
+---
+
+## 1. GRANT OF LICENSE
+
+Transvortex LTD ("Licensor") grants you a limited, non-exclusive, non-transferable license to:
+- Use this software for authorized internal purposes only
+- Deploy this software on authorized hosting platforms (Vercel, Render, Railway, etc.)
+- Modify the code for your own internal use
+- Maintain a private GitHub repository for version control
+
+## 2. RESTRICTIONS
+
+You may **NOT**:
+- ❌ Redistribute, sell, or license the software to third parties
+- ❌ Use this software for commercial purposes without written permission
+- ❌ Publish the source code publicly (GitHub repository must remain PRIVATE)
+- ❌ Modify and resell the software as your own product
+- ❌ Remove or alter copyright notices or licenses
+- ❌ Lease, rent, or transfer rights to others
+- ❌ Reverse engineer, decompile, or disassemble the software
+- ❌ Share the code with competitors or unauthorized parties
+
+## 3. INTELLECTUAL PROPERTY
+
+All intellectual property, including but not limited to:
+- Source code
+- Architecture and design patterns
+- Database schema
+- UI/UX design
+- Branding and color systems
+- Documentation
+
+...remains the exclusive property of Transvortex LTD.
+
+## 4. LIMITATION OF LIABILITY
+
+**THIS SOFTWARE IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND.**
+
+Transvortex LTD disclaims all warranties, express or implied, including but not limited to:
+- Warranties of merchantability or fitness for a particular purpose
+- Warranties of non-infringement or title
+- Warranties of accuracy or completeness
+
+In no event shall Transvortex LTD be liable for:
+- Any damages (direct, indirect, incidental, special, or consequential)
+- Loss of data, revenue, or business interruption
+- Security breaches or unauthorized access
+- Third-party claims or actions
+
+## 5. SECURITY RESPONSIBILITY
+
+**You are responsible for:**
+- ✓ Securely managing environment variables and secrets
+- ✓ Rotating JWT secrets every 90 days
+- ✓ Maintaining database backups
+- ✓ Implementing additional security measures for your deployment
+- ✓ Keeping dependencies up-to-date
+- ✓ Monitoring and responding to security vulnerabilities
+- ✓ Following responsible disclosure procedures
+
+Transvortex LTD is not responsible for:
+- ❌ Compromised secrets or leaked credentials
+- ❌ Insecure deployment practices
+- ❌ Failure to rotate credentials
+- ❌ Custom modifications that introduce vulnerabilities
+- ❌ Third-party service outages or attacks
+
+## 6. SUPPORT & MAINTENANCE
+
+- Transvortex LTD provides the software **AS IS** with no guaranteed support
+- No service level agreement (SLA) or uptime guarantees
+- No obligation to provide bug fixes or feature updates
+- Security patches provided at Transvortex LTD's discretion
+- Users responsible for self-support and community resources
+
+## 7. TERMINATION
+
+This license is effective until terminated. Your rights are automatically terminated if you:
+- Violate any terms of this agreement
+- Redistribute, publish, or share the code
+- Use the software for unauthorized commercial purposes
+- Fail to comply with security requirements
+
+Upon termination:
+- You must cease all use of the software
+- You must delete all copies in your possession
+- You remain liable for any violations committed during the license term
+
+## 8. GOVERNING LAW
+
+This license is governed by the laws of [YOUR_JURISDICTION], without regard to conflicts of law principles.
+
+## 9. CONTACT & AMENDMENTS
+
+For licensing inquiries, permissions, or to report violations:
+- **Email**: legal@transvortex.com
+- **Address**: [Your Business Address]
+
+Transvortex LTD reserves the right to modify this license at any time. Continued use of the software constitutes acceptance of amendments.
+
+## 10. THIRD-PARTY LICENSES
+
+This software incorporates the following open-source components:
+
+### Frontend
+- **Font Awesome** (https://fontawesome.com) - CC BY 4.0
+- **HTML5 Boilerplate** (https://html5boilerplate.com) - MIT
+
+### Backend
+- **Express.js** (https://expressjs.com) - MIT
+- **Helmet** (https://helmetjs.org) - MIT
+- **bcryptjs** (https://github.com/dcodeIO/bcrypt.js) - MIT
+- **jsonwebtoken** (https://github.com/auth0/node-jsonwebtoken) - MIT
+- **Zod** (https://zod.dev) - MIT
+- **PostgreSQL** (https://postgresql.org) - PostgreSQL License
+- **Node.js** (https://nodejs.org) - MIT
+
+All third-party licenses are compatible with this proprietary license.
+
+## 11. SECURITY INCIDENTS
+
+**If a security vulnerability is discovered:**
+1. Report immediately to: security@transvortex.com
+2. Do NOT publicly disclose the vulnerability
+3. Provide detailed reproduction steps
+4. Allow Transvortex LTD reasonable time to respond (typically 48 hours)
+
+See [SECURITY.md](./SECURITY.md) for detailed vulnerability reporting procedures.
+
+---
+
+## ACKNOWLEDGMENT
+
+By using this software, you acknowledge that you have read, understood, and agree to be bound by the terms of this Proprietary License Agreement.
+
+**You are NOT required to accept this license** - if you do not agree to the terms, do not use this software.
+
+---
+
+**Version**: 1.0  
+**Effective Date**: 2024  
+**Last Updated**: 2024  
+
+**© 2024 Transvortex LTD. All rights reserved.**
+
+For questions: legal@transvortex.com

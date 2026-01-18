@@ -1,0 +1,61 @@
+# Environment variables - NEVER commit secrets
+.env
+.env.local
+.env.*.local
+.env.production
+
+# Node dependencies
+node_modules/
+npm-debug.log
+yarn-error.log
+package-lock.json
+yarn.lock
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Build outputs
+dist/
+build/
+.next/
+out/
+
+# Logs
+logs/
+*.log
+
+# OS
+Thumbs.db
+.env.*.swp
+
+# Sensitive files
+*.pem
+*.key
+*.crt
+.ssh/
+
+# Testing
+coverage/
+.nyc_output/
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Cache
+.cache/
+.eslintcache
+
+# Temp
+tmp/
+temp/
+
+# Docker
+.dockerignore
+docker-compose.override.yml

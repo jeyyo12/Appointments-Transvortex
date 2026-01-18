@@ -1,0 +1,39 @@
+name: Dependabot Configuration
+
+# Automatically update dependencies and create pull requests
+# Review and merge PRs to keep packages up-to-date and secure
+
+version: 2
+updates:
+  # NPM dependencies
+  - package-ecosystem: npm
+    directory: "/backend"
+    schedule:
+      interval: daily
+      time: "04:00"
+    open-pull-requests-limit: 5
+    reviewers:
+      - "your-github-username"
+    allow:
+      - dependency-type: all
+    pull-request-branch-name:
+      separator: "/"
+    commit-message:
+      prefix: "chore: "
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "npm"
+
+  # GitHub Actions
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "04:00"
+    reviewers:
+      - "your-github-username"
+    labels:
+      - "ci"
+      - "github-actions"
