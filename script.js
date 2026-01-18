@@ -741,8 +741,19 @@ document.addEventListener('DOMContentLoaded', () => {
     // Enhance native date/time pickers
     enhanceNativePickers();
     
-    // Initialize modals
-    initializeModals();
+    // Bind modal behaviors
+    bindModalCloseBehavior();
+    bindAppointmentsModalControls();
+    
+    // Finalize form submit
+    const finalizeForm = document.getElementById('finalizeForm');
+    if (finalizeForm && !finalizeForm.dataset.bound) {
+        finalizeForm.addEventListener('submit', finalizeAppointmentWithMileage);
+        finalizeForm.dataset.bound = "true";
+    }
+    
+    // Bind stats cards (needs card IDs in HTML)
+    bindStatsPopupButtons();
 });
 
 // ==========================================
@@ -1276,14 +1287,12 @@ function openModal(id) {
     const el = document.getElementById(id);
     if (!el) return;
     el.style.display = 'flex';
-    document.body.style.overflow = 'hidden'; // Prevent background scroll
 }
 
 function closeModal(id) {
     const el = document.getElementById(id);
     if (!el) return;
     el.style.display = 'none';
-    document.body.style.overflow = ''; // Restore scroll
 }
 
 // Close modals on backdrop click + ESC
@@ -1395,7 +1404,7 @@ function renderAppointmentsModalList() {
     });
 
     if (!list.length) {
-        body.innerHTML = `<div style="padding:16px;opacity:0.7;text-align:center;">Nicio programare găsită.</div>`;
+        body.innerHTML = `<div style="padding:16px;opacity:0.7;">Nicio programare găsită.</div>`;
         return;
     }
 
@@ -1403,7 +1412,7 @@ function renderAppointmentsModalList() {
     const grouped = {};
     list.forEach(a => {
         const key = a.dateStr || (a.startAt?.toDate?.()?.toISOString?.().split('T')[0]) || 'unknown';
-        (grouped[key] = grouped[key] || []).push(a);
+        (grouped[key] ||= []).push(a);
     });
 
     const dates = Object.keys(grouped).sort();
@@ -1427,7 +1436,7 @@ function renderAppointmentsModalList() {
                             <span class="status-badge ${statusClass}">
                                 <i class="fas ${statusIcon}"></i> ${statusText}
                             </span>
-                            <button class="btn-action-small" onclick="downloadInvoicePDF('${a.id}')" style="background:#3b82f6;color:white;">
+                            <button class="btn-action-small" onclick="downloadInvoicePDF('${a.id}')" title="Descarcă factură PDF">
                                 <i class="fas fa-file-invoice"></i> Invoice
                             </button>
                         </div>
@@ -1468,29 +1477,18 @@ function openFinalizeModal(appointmentId) {
     document.getElementById('finalizeAppointmentId').value = appointmentId;
     document.getElementById('finalizeMileage').value = '';
     document.getElementById('finalizeNotes').value = '';
-    
-    // Find appointment to pre-fill notes if exists
-    const apt = (appointments || []).find(a => a.id === appointmentId);
-    if (apt && apt.notes) {
-        document.getElementById('finalizeNotes').value = apt.notes;
-    }
-    
     openModal('finalizeModal');
 }
 
 async function finalizeAppointmentWithMileage(e) {
     e.preventDefault();
-    
-    if (!isAdmin) {
-        showNotification('⚠️ Doar administratorii pot finaliza programări', 'error');
-        return;
-    }
+    if (!isAdmin) return;
 
     const id = document.getElementById('finalizeAppointmentId').value;
     const mileage = Number(document.getElementById('finalizeMileage').value);
     const extraNotes = document.getElementById('finalizeNotes').value.trim();
 
-    if (!id || Number.isNaN(mileage) || mileage < 0) {
+    if (!id || Number.isNaN(mileage)) {
         showNotification('⚠️ Completează milele corect', 'error');
         return;
     }
@@ -1498,27 +1496,28 @@ async function finalizeAppointmentWithMileage(e) {
     try {
         const { doc, updateDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
         
-        console.log(`✅ Finalizing appointment ${id} with mileage ${mileage}...`);
+        // Get existing appointment to preserve original notes if needed
+        const apt = appointments.find(a => a.id === id);
+        const combinedNotes = extraNotes || apt?.notes || '';
         
         await updateDoc(doc(db, 'appointments', id), {
             status: 'done',
             mileage,
-            notes: extraNotes || '',
+            notes: combinedNotes,
             doneAt: serverTimestamp(),
             updatedAt: serverTimestamp()
         });
 
-        console.log(`✅ Appointment ${id} finalized`);
         closeModal('finalizeModal');
         showNotification('✅ Programare finalizată + mile salvate', 'success');
 
     } catch (err) {
-        console.error('❌ Error finalizing appointment:', err);
+        console.error(err);
         showNotification('❌ Eroare la finalizare: ' + err.message, 'error');
     }
 }
 
-// Override existing markAppointmentDone to use modal
+// Replace existing markAppointmentDone to use modal
 window.markAppointmentDone = function(id) {
     if (!isAdmin) return;
     openFinalizeModal(id);
@@ -1538,130 +1537,105 @@ window.downloadInvoicePDF = async function(appointmentId) {
         return;
     }
 
-    try {
-        const { jsPDF } = window.jspdf;
-        const doc = new jsPDF();
-
-        // --- Header
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(20);
-        doc.text('INVOICE', 14, 20);
-
-        doc.setFontSize(11);
-        doc.setFont('helvetica', 'normal');
-
-        // Company info
-        doc.setFont('helvetica', 'bold');
-        doc.text('Transvortex LTD', 14, 32);
-        doc.setFont('helvetica', 'normal');
-        doc.setFontSize(10);
-        doc.text('Email: transvortexltd@gmail.com', 14, 39);
-        doc.text('Website: transvortexltdcouk.web.app', 14, 45);
-        doc.text('Facebook: facebook.com/transvortex', 14, 51);
-
-        // --- Invoice meta
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(10);
-        doc.text('Invoice #:', 140, 32);
-        doc.setFont('helvetica', 'normal');
-        doc.text(String(appt.id).substring(0, 12), 165, 32);
-
-        const now = new Date().toISOString().split('T')[0];
-        doc.setFont('helvetica', 'bold');
-        doc.text('Date:', 140, 39);
-        doc.setFont('helvetica', 'normal');
-        doc.text(now, 165, 39);
-
-        // --- Client / Appointment details
-        doc.setDrawColor(230);
-        doc.line(14, 60, 196, 60);
-
-        let yPos = 70;
-        doc.setFont('helvetica', 'bold');
-        doc.text('Client:', 14, yPos);
-        doc.setFont('helvetica', 'normal');
-        doc.text(appt.customerName || '-', 40, yPos);
-
-        yPos += 7;
-        doc.setFont('helvetica', 'bold');
-        doc.text('Car:', 14, yPos);
-        doc.setFont('helvetica', 'normal');
-        doc.text(appt.car || '-', 40, yPos);
-
-        yPos += 7;
-        doc.setFont('helvetica', 'bold');
-        doc.text('Date/Time:', 14, yPos);
-        doc.setFont('helvetica', 'normal');
-        doc.text(`${appt.dateStr || '-'} ${appt.timeStr || ''}`, 40, yPos);
-
-        if (appt.address) {
-            yPos += 7;
-            doc.setFont('helvetica', 'bold');
-            doc.text('Address:', 14, yPos);
-            doc.setFont('helvetica', 'normal');
-            doc.text(appt.address, 40, yPos);
-        }
-
-        if (appt.mileage != null) {
-            yPos += 7;
-            doc.setFont('helvetica', 'bold');
-            doc.text('Mileage:', 14, yPos);
-            doc.setFont('helvetica', 'normal');
-            doc.text(String(appt.mileage), 40, yPos);
-        }
-
-        yPos += 7;
-        doc.setFont('helvetica', 'bold');
-        doc.text('Status:', 14, yPos);
-        doc.setFont('helvetica', 'normal');
-        const statusText = appt.status === 'done' ? 'Finalizat' : appt.status === 'canceled' ? 'Anulat' : 'Programat';
-        doc.text(statusText, 40, yPos);
-
-        // --- Services section
-        yPos += 15;
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(11);
-        doc.text('Services / Notes:', 14, yPos);
-        
-        yPos += 7;
-        doc.setFont('helvetica', 'normal');
-        doc.setFontSize(10);
-        const notes = appt.notes || 'Service auto (detalii la cerere).';
-        const splitNotes = doc.splitTextToSize(notes, 180);
-        doc.text(splitNotes, 14, yPos);
-
-        // --- Footer
-        doc.setDrawColor(230);
-        doc.line(14, 270, 196, 270);
-        doc.setFontSize(9);
-        doc.setFont('helvetica', 'italic');
-        doc.text('Mulțumim! Transvortex LTD', 14, 278);
-
-        // Save PDF
-        const filename = `invoice_${(appt.customerName || 'client').replace(/\s+/g, '_')}_${appt.dateStr || now}.pdf`;
-        doc.save(filename);
-        
-        console.log(`📄 Invoice PDF generated: ${filename}`);
-        showNotification('✅ Invoice descărcat cu succes', 'success');
-
-    } catch (error) {
-        console.error('❌ Error generating PDF:', error);
-        showNotification('❌ Eroare la generarea PDF: ' + error.message, 'error');
+    // Check if jsPDF is loaded
+    if (!window.jspdf || !window.jspdf.jsPDF) {
+        showNotification('❌ jsPDF library not loaded', 'error');
+        return;
     }
+
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+
+    // --- Header
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(18);
+    doc.text('INVOICE', 14, 18);
+
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'normal');
+
+    // Company info
+    doc.setFont('helvetica', 'bold');
+    doc.text('Transvortex LTD', 14, 28);
+    doc.setFont('helvetica', 'normal');
+    doc.text('Email: transvortexltd@gmail.com', 14, 36);
+    doc.text('Website: transvortexltdcouk.web.app', 14, 43);
+    doc.text('Facebook: Transvortex Official', 14, 50);
+
+    // --- Invoice meta
+    doc.setFont('helvetica', 'bold');
+    doc.text('Invoice #:', 140, 28);
+    doc.setFont('helvetica', 'normal');
+    doc.text(String(appt.id).substring(0, 12), 165, 28);
+
+    const now = new Date().toISOString().split('T')[0];
+    doc.setFont('helvetica', 'bold');
+    doc.text('Date:', 140, 36);
+    doc.setFont('helvetica', 'normal');
+    doc.text(now, 165, 36);
+
+    // --- Client / Appointment details
+    doc.setDrawColor(230);
+    doc.line(14, 58, 196, 58);
+
+    doc.setFont('helvetica', 'bold');
+    doc.text('Client:', 14, 68);
+    doc.setFont('helvetica', 'normal');
+    doc.text(appt.customerName || '-', 40, 68);
+
+    doc.setFont('helvetica', 'bold');
+    doc.text('Car:', 14, 76);
+    doc.setFont('helvetica', 'normal');
+    doc.text(appt.car || '-', 40, 76);
+
+    doc.setFont('helvetica', 'bold');
+    doc.text('Date/Time:', 14, 84);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`${appt.dateStr || '-'} ${appt.timeStr || ''}`, 40, 84);
+
+    if (appt.address) {
+        doc.setFont('helvetica', 'bold');
+        doc.text('Address:', 14, 92);
+        doc.setFont('helvetica', 'normal');
+        doc.text(appt.address, 40, 92);
+    }
+
+    let yPos = appt.address ? 100 : 92;
+
+    if (appt.mileage != null) {
+        doc.setFont('helvetica', 'bold');
+        doc.text('Mileage:', 14, yPos);
+        doc.setFont('helvetica', 'normal');
+        doc.text(String(appt.mileage) + ' km', 40, yPos);
+        yPos += 8;
+    }
+
+    doc.setFont('helvetica', 'bold');
+    doc.text('Status:', 14, yPos);
+    doc.setFont('helvetica', 'normal');
+    const statusText = appt.status === 'done' ? 'Finalizat' : appt.status === 'canceled' ? 'Anulat' : 'Programat';
+    doc.text(statusText, 40, yPos);
+    yPos += 14;
+
+    // --- Services section
+    doc.setFont('helvetica', 'bold');
+    doc.text('Services / Notes:', 14, yPos);
+    yPos += 8;
+    doc.setFont('helvetica', 'normal');
+    const notes = appt.notes || 'Service auto (detalii la cerere).';
+    const splitNotes = doc.splitTextToSize(notes, 180);
+    doc.text(splitNotes, 14, yPos);
+
+    // --- Footer
+    doc.setDrawColor(230);
+    doc.line(14, 270, 196, 270);
+    doc.setFontSize(10);
+    doc.text('Mulțumim! Transvortex LTD', 14, 278);
+
+    const fileName = `invoice_${appt.customerName?.replace(/[^a-zA-Z0-9]/g, '_') || 'client'}_${appt.dateStr || now}.pdf`;
+    doc.save(fileName);
+    
+    showNotification('✅ Invoice PDF descărcat!', 'success');
+    console.log(`📄 Invoice PDF generated for appointment ${appt.id}`);
 }
 
-// ==============================
-// Initialize modal bindings
-// ==============================
-function initializeModals() {
-    bindModalCloseBehavior();
-    bindAppointmentsModalControls();
-    bindStatsPopupButtons();
-
-    // Finalize form submit
-    const f = document.getElementById('finalizeForm');
-    if (f && !f.dataset.bound) {
-        f.addEventListener('submit', finalizeAppointmentWithMileage);
-        f.dataset.bound = "true";
-    }
-}
