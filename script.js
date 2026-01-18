@@ -746,6 +746,9 @@ document.addEventListener('DOMContentLoaded', () => {
     bindAppointmentsModalControls();
     bindFinalizeModalControls();
     
+    // Bind appointment action buttons via event delegation
+    bindAppointmentsClickDelegation();
+    
     // Finalize form submit
     const finalizeForm = document.getElementById('finalizeForm');
     if (finalizeForm && !finalizeForm.dataset.bound) {
@@ -949,27 +952,7 @@ async function deleteAppointment(id) {
 }
 
 // Mark appointment as done
-async function markAppointmentDone(id) {
-    if (!isAdmin) return;
-    
-    try {
-        const { doc, updateDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
-        
-        console.log(`✅ Marking appointment ${id} as done...`);
-        
-        await updateDoc(doc(db, 'appointments', id), {
-            status: 'done',
-            updatedAt: serverTimestamp()
-        });
-        
-        console.log(`✅ Appointment ${id} marked as done`);
-        showNotification('✅ Programare marcată ca finalizată!', 'success');
-        
-    } catch (error) {
-        console.error('❌ Error updating appointment:', error);
-        showNotification('❌ Eroare la actualizare: ' + error.message, 'error');
-    }
-}
+// markAppointmentDone - removed, now opens finalize modal with pricing
 
 // Mark appointment as canceled
 async function cancelAppointment(id) {
@@ -1028,6 +1011,42 @@ function filterAppointments() {
 }
 
 // Render appointments grouped by day
+// Flag to prevent duplicate event delegation binding
+let appointmentsClicksBound = false;
+
+// Event delegation for appointment action buttons
+function bindAppointmentsClickDelegation() {
+    const container = document.getElementById('appointmentsList');
+    if (!container) return;
+    
+    // Prevent duplicate listeners
+    if (appointmentsClicksBound) return;
+    
+    container.addEventListener('click', (e) => {
+        const btn = e.target.closest('button[data-apt-id]');
+        if (!btn) return;
+        
+        const aptId = btn.dataset.aptId;
+        
+        if (btn.classList.contains('btn-done')) {
+            console.log('✅ Click Finalizează', aptId);
+            markAppointmentDone(aptId);
+        } else if (btn.classList.contains('btn-cancel-appointment')) {
+            console.log('🟠 Click Anulează', aptId);
+            cancelAppointment(aptId);
+        } else if (btn.classList.contains('btn-delete-appointment')) {
+            console.log('🗑️ Click Șterge', aptId);
+            deleteAppointment(aptId);
+        } else if (btn.classList.contains('btn-invoice')) {
+            console.log('📄 Click Invoice', aptId);
+            downloadInvoicePDF(aptId);
+        }
+    });
+    
+    appointmentsClicksBound = true;
+    console.log('✅ Appointments click delegation bound');
+}
+
 function renderAppointments() {
     const container = document.getElementById('appointmentsList');
     const emptyState = document.getElementById('emptyStateAppointments');
@@ -1081,6 +1100,9 @@ function renderAppointments() {
     });
     
     container.innerHTML = html;
+    
+    // Re-bind click delegation (safe - prevents duplicates)
+    bindAppointmentsClickDelegation();
 }
 
 // Create appointment card HTML
@@ -1130,16 +1152,16 @@ function createAppointmentCard(apt, now) {
     
     const adminActions = isAdmin ? `
         <div class="appointment-actions">
-            <button class="btn-action-small btn-done" onclick="openFinalizeModal('${apt.id}')">
+            <button class="btn-action-small btn-done" data-apt-id="${apt.id}">
                 <i class="fas fa-check"></i> Finalizează
             </button>
-            <button class="btn-action-small btn-cancel-appointment" onclick="cancelAppointment('${apt.id}')">
+            <button class="btn-action-small btn-cancel-appointment" data-apt-id="${apt.id}">
                 <i class="fas fa-ban"></i> Anulează
             </button>
-            <button class="btn-action-small btn-invoice" onclick="downloadInvoicePDF('${apt.id}')">
+            <button class="btn-action-small btn-invoice" data-apt-id="${apt.id}">
                 <i class="fas fa-file-invoice"></i> Invoice
             </button>
-            <button class="btn-action-small btn-delete-appointment" onclick="deleteAppointment('${apt.id}')">
+            <button class="btn-action-small btn-delete-appointment" data-apt-id="${apt.id}">
                 <i class="fas fa-trash"></i> Șterge
             </button>
         </div>
@@ -1373,7 +1395,7 @@ window.openFinalizeModal = function(appointmentId) {
     document.getElementById('generateInvoiceNow').checked = true;
 
     renderServicesTable();
-    openModal(modal);
+    openModal('finalizeModal');
 };
 
 // Finalize appointment with prices
