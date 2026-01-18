@@ -1293,7 +1293,7 @@ function removeServiceRow(idx) {
     renderServicesTable();
 }
 
-// Render services table
+// Render services table (once, no re-render on input - uses delegation)
 function renderServicesTable() {
     const tbody = document.getElementById('servicesTbody');
     if (!tbody) return;
@@ -1305,45 +1305,62 @@ function renderServicesTable() {
             <td><input type="text" class="svc-desc" data-idx="${i}" value="${svc.description || ''}" placeholder="ex: Schimb ulei motor" /></td>
             <td><input type="number" class="svc-qty" data-idx="${i}" min="1" step="1" value="${svc.qty || 1}" /></td>
             <td><input type="number" class="svc-unit" data-idx="${i}" min="0" step="0.01" value="${svc.unitPrice || 0}" placeholder="£" /></td>
-            <td style="text-align:right;font-weight:600;">${formatGBP(svc.lineTotal || 0)}</td>
+            <td class="svc-total" data-idx="${i}" style="text-align:right;font-weight:600;">${formatGBP(svc.lineTotal || 0)}</td>
             <td><button type="button" class="btn-remove" data-idx="${i}"><i class="fas fa-times"></i></button></td>
         `;
         tbody.appendChild(tr);
     });
 
-    // Bind input events
-    tbody.querySelectorAll('.svc-desc').forEach(inp => {
-        inp.addEventListener('input', e => {
-            const idx = parseInt(e.target.dataset.idx);
+    // Bind delegated event handlers (once per table render)
+    bindServicesTableDelegation();
+    recalcInvoiceTotals();
+}
+
+// Event delegation for services table (no per-row listeners = no focus loss)
+function bindServicesTableDelegation() {
+    const tbody = document.getElementById('servicesTbody');
+    if (!tbody || tbody.dataset.delegationBound) return;
+
+    // Handle input changes on description, qty, unit price
+    tbody.addEventListener('input', (e) => {
+        const idx = parseInt(e.target.dataset.idx);
+        if (isNaN(idx)) return;
+
+        if (e.target.classList.contains('svc-desc')) {
             finalizeServices[idx].description = e.target.value;
-        });
-    });
-    tbody.querySelectorAll('.svc-qty').forEach(inp => {
-        inp.addEventListener('input', e => {
-            const idx = parseInt(e.target.dataset.idx);
+        } else if (e.target.classList.contains('svc-qty')) {
             finalizeServices[idx].qty = parseFloat(e.target.value) || 1;
-            finalizeServices[idx].lineTotal = finalizeServices[idx].qty * finalizeServices[idx].unitPrice;
-            renderServicesTable();
-            recalcInvoiceTotals();
-        });
-    });
-    tbody.querySelectorAll('.svc-unit').forEach(inp => {
-        inp.addEventListener('input', e => {
-            const idx = parseInt(e.target.dataset.idx);
+            updateServiceRowTotal(idx);
+        } else if (e.target.classList.contains('svc-unit')) {
             finalizeServices[idx].unitPrice = parseFloat(e.target.value) || 0;
-            finalizeServices[idx].lineTotal = finalizeServices[idx].qty * finalizeServices[idx].unitPrice;
-            renderServicesTable();
-            recalcInvoiceTotals();
-        });
-    });
-    tbody.querySelectorAll('.btn-remove').forEach(btn => {
-        btn.addEventListener('click', e => {
-            const idx = parseInt(e.currentTarget.dataset.idx);
-            removeServiceRow(idx);
-            recalcInvoiceTotals();
-        });
+            updateServiceRowTotal(idx);
+        }
     });
 
+    // Handle remove button clicks
+    tbody.addEventListener('click', (e) => {
+        const btn = e.target.closest('.btn-remove');
+        if (!btn) return;
+        
+        const idx = parseInt(btn.dataset.idx);
+        if (!isNaN(idx)) {
+            removeServiceRow(idx);
+        }
+    });
+
+    tbody.dataset.delegationBound = true;
+}
+
+// Update only the line total for a specific row (no full re-render)
+function updateServiceRowTotal(idx) {
+    const svc = finalizeServices[idx];
+    svc.lineTotal = svc.qty * svc.unitPrice;
+    
+    const totalCell = document.querySelector(`.svc-total[data-idx="${idx}"]`);
+    if (totalCell) {
+        totalCell.textContent = formatGBP(svc.lineTotal || 0);
+    }
+    
     recalcInvoiceTotals();
 }
 
