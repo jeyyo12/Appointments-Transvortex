@@ -295,12 +295,7 @@ async function loadPages() {
     }
 }
 
-function setupEventListeners() {
-    const form = document.getElementById('pageForm');
-    if (form) {
-        form.addEventListener('submit', handleAddPage);
-    }
-}
+// setupEventListeners is defined later in the file with both page and appointment forms
 
 // ==========================================
 // REFRESH FUNCTION
@@ -1397,8 +1392,8 @@ function bindFinalizeModalControls() {
     bindServicesTableDelegation();
 }
 
-// Open finalize modal with prices
-window.openFinalizeModal = function(appointmentId) {
+// Open finalize modal with prices and services
+window.openFinalizePricesModal = function(appointmentId) {
     const modal = document.getElementById('finalizeModal');
     if (!modal) return;
 
@@ -1444,7 +1439,7 @@ async function finalizeAppointmentWithPrices(e) {
         const appointmentRef = doc(db, 'appointments', appointmentId);
 
         await updateDoc(appointmentRef, {
-            status: 'efectuat',
+            status: 'done',
             mileage,
             services: finalizeServices,
             subtotal,
@@ -1513,16 +1508,18 @@ function exportAppointmentsCSV() {
     console.log(`📄 Exported ${filteredAppointments.length} appointments to CSV`);
 }
 
-// Setup appointment form listener
+// Setup form listeners (called once after auth)
 function setupEventListeners() {
     const pageForm = document.getElementById('pageForm');
-    if (pageForm) {
+    if (pageForm && !pageForm.dataset.bound) {
         pageForm.addEventListener('submit', handleAddPage);
+        pageForm.dataset.bound = 'true';
     }
     
     const appointmentForm = document.getElementById('appointmentForm');
-    if (appointmentForm) {
+    if (appointmentForm && !appointmentForm.dataset.bound) {
         appointmentForm.addEventListener('submit', handleAddAppointment);
+        appointmentForm.dataset.bound = 'true';
     }
 }
 
@@ -1530,13 +1527,13 @@ function setupEventListeners() {
 // MODALS - open/close helpers
 // ==============================
 function openModal(id) {
-    const el = document.getElementById(id);
+    const el = typeof id === 'string' ? document.getElementById(id) : id;
     if (!el) return;
     el.style.display = 'flex';
 }
 
 function closeModal(id) {
-    const el = document.getElementById(id);
+    const el = typeof id === 'string' ? document.getElementById(id) : id;
     if (!el) return;
     el.style.display = 'none';
 }
@@ -1717,56 +1714,13 @@ function bindAppointmentsModalControls() {
 }
 
 // ==============================
-// Finalize with mileage modal
+// Old finalize functions removed - now using openFinalizePricesModal
 // ==============================
-function openFinalizeModal(appointmentId) {
-    document.getElementById('finalizeAppointmentId').value = appointmentId;
-    document.getElementById('finalizeMileage').value = '';
-    document.getElementById('finalizeNotes').value = '';
-    openModal('finalizeModal');
-}
 
-async function finalizeAppointmentWithMileage(e) {
-    e.preventDefault();
-    if (!isAdmin) return;
-
-    const id = document.getElementById('finalizeAppointmentId').value;
-    const mileage = Number(document.getElementById('finalizeMileage').value);
-    const extraNotes = document.getElementById('finalizeNotes').value.trim();
-
-    if (!id || Number.isNaN(mileage)) {
-        showNotification('⚠️ Completează milele corect', 'error');
-        return;
-    }
-
-    try {
-        const { doc, updateDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
-        
-        // Get existing appointment to preserve original notes if needed
-        const apt = appointments.find(a => a.id === id);
-        const combinedNotes = extraNotes || apt?.notes || '';
-        
-        await updateDoc(doc(db, 'appointments', id), {
-            status: 'done',
-            mileage,
-            notes: combinedNotes,
-            doneAt: serverTimestamp(),
-            updatedAt: serverTimestamp()
-        });
-
-        closeModal('finalizeModal');
-        showNotification('✅ Programare finalizată + mile salvate', 'success');
-
-    } catch (err) {
-        console.error(err);
-        showNotification('❌ Eroare la finalizare: ' + err.message, 'error');
-    }
-}
-
-// Replace existing markAppointmentDone to use modal
+// Mark appointment as done - opens finalize modal with pricing
 window.markAppointmentDone = function(id) {
     if (!isAdmin) return;
-    openFinalizeModal(id);
+    openFinalizePricesModal(id);
 }
 
 // ==============================
