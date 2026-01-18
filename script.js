@@ -740,6 +740,9 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Enhance native date/time pickers
     enhanceNativePickers();
+    
+    // Initialize modals
+    initializeModals();
 });
 
 // ==========================================
@@ -1266,3 +1269,399 @@ function setupEventListeners() {
     }
 }
 
+// ==============================
+// MODALS - open/close helpers
+// ==============================
+function openModal(id) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.style.display = 'flex';
+    document.body.style.overflow = 'hidden'; // Prevent background scroll
+}
+
+function closeModal(id) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.style.display = 'none';
+    document.body.style.overflow = ''; // Restore scroll
+}
+
+// Close modals on backdrop click + ESC
+function bindModalCloseBehavior() {
+    const modalIds = ['appointmentsModal', 'finalizeModal'];
+
+    modalIds.forEach(mid => {
+        const backdrop = document.getElementById(mid);
+        if (!backdrop || backdrop.dataset.bound) return;
+
+        backdrop.addEventListener('click', (e) => {
+            if (e.target === backdrop) closeModal(mid);
+        });
+
+        backdrop.dataset.bound = "true";
+    });
+
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            closeModal('appointmentsModal');
+            closeModal('finalizeModal');
+        }
+    });
+
+    // Close buttons
+    const aClose = document.getElementById('appointmentsModalClose');
+    if (aClose && !aClose.dataset.bound) {
+        aClose.addEventListener('click', () => closeModal('appointmentsModal'));
+        aClose.dataset.bound = "true";
+    }
+
+    const fClose = document.getElementById('finalizeModalClose');
+    if (fClose && !fClose.dataset.bound) {
+        fClose.addEventListener('click', () => closeModal('finalizeModal'));
+        fClose.dataset.bound = "true";
+    }
+
+    const fCancel = document.getElementById('finalizeCancelBtn');
+    if (fCancel && !fCancel.dataset.bound) {
+        fCancel.addEventListener('click', () => closeModal('finalizeModal'));
+        fCancel.dataset.bound = "true";
+    }
+}
+
+// ==============================
+// STAT CARDS -> open popups
+// ==============================
+function bindStatsPopupButtons() {
+    const totalCard = document.getElementById('totalAppointmentsCard');
+    const doneCard = document.getElementById('doneAppointmentsCard');
+
+    if (totalCard && !totalCard.dataset.bound) {
+        totalCard.classList.add('clickable');
+        totalCard.addEventListener('click', () => openAppointmentsPopup('all'));
+        totalCard.dataset.bound = "true";
+    }
+
+    if (doneCard && !doneCard.dataset.bound) {
+        doneCard.classList.add('clickable');
+        doneCard.addEventListener('click', () => openAppointmentsPopup('done'));
+        doneCard.dataset.bound = "true";
+    }
+}
+
+// ==============================
+// OPEN appointments popup
+// ==============================
+function openAppointmentsPopup(mode = 'all') {
+    const title = document.getElementById('appointmentsModalTitle');
+    const subtitle = document.getElementById('appointmentsModalSubtitle');
+
+    if (mode === 'done') {
+        title.textContent = 'Programări finalizate';
+        subtitle.textContent = 'Toate programările cu status "Finalizat"';
+    } else {
+        title.textContent = 'Toate programările';
+        subtitle.textContent = 'Lista completă a programărilor';
+    }
+
+    // Set default filter based on mode
+    const statusFilter = document.getElementById('modalStatusFilter');
+    const search = document.getElementById('modalSearch');
+    if (search) search.value = '';
+    if (statusFilter) statusFilter.value = (mode === 'done') ? 'done' : 'all';
+
+    renderAppointmentsModalList();
+    openModal('appointmentsModal');
+}
+
+function renderAppointmentsModalList() {
+    const body = document.getElementById('appointmentsModalBody');
+    const statusFilter = document.getElementById('modalStatusFilter')?.value || 'all';
+    const searchTerm = (document.getElementById('modalSearch')?.value || '').toLowerCase();
+
+    let list = appointments || [];
+
+    // Filter
+    list = list.filter(a => {
+        const matchesSearch =
+            !searchTerm ||
+            (a.customerName || '').toLowerCase().includes(searchTerm) ||
+            (a.car || '').toLowerCase().includes(searchTerm) ||
+            (a.address || '').toLowerCase().includes(searchTerm);
+
+        if (!matchesSearch) return false;
+
+        if (statusFilter === 'all') return true;
+        return a.status === statusFilter;
+    });
+
+    if (!list.length) {
+        body.innerHTML = `<div style="padding:16px;opacity:0.7;text-align:center;">Nicio programare găsită.</div>`;
+        return;
+    }
+
+    // Group by dateStr
+    const grouped = {};
+    list.forEach(a => {
+        const key = a.dateStr || (a.startAt?.toDate?.()?.toISOString?.().split('T')[0]) || 'unknown';
+        (grouped[key] = grouped[key] || []).push(a);
+    });
+
+    const dates = Object.keys(grouped).sort();
+
+    let html = '';
+    dates.forEach(d => {
+        html += `<div class="day-group"><div class="day-header"><i class="fas fa-calendar-day"></i> ${d}</div>`;
+        grouped[d].forEach(a => {
+            const statusClass = a.status === 'done' ? 'status-done' : a.status === 'canceled' ? 'status-canceled' : 'status-scheduled';
+            const statusIcon = a.status === 'done' ? 'fa-check-circle' : a.status === 'canceled' ? 'fa-times-circle' : 'fa-clock';
+            const statusText = a.status === 'done' ? 'Finalizat' : a.status === 'canceled' ? 'Anulat' : 'Programat';
+            
+            html += `
+                <div class="appointment-card">
+                    <div class="appointment-header">
+                        <div>
+                            <div class="appointment-title">${a.customerName || '-'}</div>
+                            <div class="appointment-time"><i class="fas fa-clock"></i> ${a.timeStr || '-'}</div>
+                        </div>
+                        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+                            <span class="status-badge ${statusClass}">
+                                <i class="fas ${statusIcon}"></i> ${statusText}
+                            </span>
+                            <button class="btn-action-small" onclick="downloadInvoicePDF('${a.id}')" style="background:#3b82f6;color:white;">
+                                <i class="fas fa-file-invoice"></i> Invoice
+                            </button>
+                        </div>
+                    </div>
+                    <div class="appointment-details">
+                        <div class="detail-row"><i class="fas fa-car"></i> <span><strong>Mașină:</strong> ${a.car || '-'}</span></div>
+                        ${a.address ? `<div class="detail-row"><i class="fas fa-map-marker-alt"></i> <span>${a.address}</span></div>` : ''}
+                        ${a.mileage != null ? `<div class="detail-row"><i class="fas fa-road"></i> <span><strong>Mile:</strong> ${a.mileage}</span></div>` : ''}
+                        ${a.notes ? `<div class="detail-row"><i class="fas fa-sticky-note"></i> <span>${a.notes}</span></div>` : ''}
+                    </div>
+                </div>
+            `;
+        });
+        html += `</div>`;
+    });
+
+    body.innerHTML = html;
+}
+
+// Bind modal controls events
+function bindAppointmentsModalControls() {
+    const s = document.getElementById('modalSearch');
+    const f = document.getElementById('modalStatusFilter');
+    if (s && !s.dataset.bound) {
+        s.addEventListener('input', renderAppointmentsModalList);
+        s.dataset.bound = "true";
+    }
+    if (f && !f.dataset.bound) {
+        f.addEventListener('change', renderAppointmentsModalList);
+        f.dataset.bound = "true";
+    }
+}
+
+// ==============================
+// Finalize with mileage modal
+// ==============================
+function openFinalizeModal(appointmentId) {
+    document.getElementById('finalizeAppointmentId').value = appointmentId;
+    document.getElementById('finalizeMileage').value = '';
+    document.getElementById('finalizeNotes').value = '';
+    
+    // Find appointment to pre-fill notes if exists
+    const apt = (appointments || []).find(a => a.id === appointmentId);
+    if (apt && apt.notes) {
+        document.getElementById('finalizeNotes').value = apt.notes;
+    }
+    
+    openModal('finalizeModal');
+}
+
+async function finalizeAppointmentWithMileage(e) {
+    e.preventDefault();
+    
+    if (!isAdmin) {
+        showNotification('⚠️ Doar administratorii pot finaliza programări', 'error');
+        return;
+    }
+
+    const id = document.getElementById('finalizeAppointmentId').value;
+    const mileage = Number(document.getElementById('finalizeMileage').value);
+    const extraNotes = document.getElementById('finalizeNotes').value.trim();
+
+    if (!id || Number.isNaN(mileage) || mileage < 0) {
+        showNotification('⚠️ Completează milele corect', 'error');
+        return;
+    }
+
+    try {
+        const { doc, updateDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+        
+        console.log(`✅ Finalizing appointment ${id} with mileage ${mileage}...`);
+        
+        await updateDoc(doc(db, 'appointments', id), {
+            status: 'done',
+            mileage,
+            notes: extraNotes || '',
+            doneAt: serverTimestamp(),
+            updatedAt: serverTimestamp()
+        });
+
+        console.log(`✅ Appointment ${id} finalized`);
+        closeModal('finalizeModal');
+        showNotification('✅ Programare finalizată + mile salvate', 'success');
+
+    } catch (err) {
+        console.error('❌ Error finalizing appointment:', err);
+        showNotification('❌ Eroare la finalizare: ' + err.message, 'error');
+    }
+}
+
+// Override existing markAppointmentDone to use modal
+window.markAppointmentDone = function(id) {
+    if (!isAdmin) return;
+    openFinalizeModal(id);
+}
+
+// ==============================
+// Invoice PDF (jsPDF)
+// ==============================
+async function getAppointmentById(id) {
+    return (appointments || []).find(a => a.id === id);
+}
+
+window.downloadInvoicePDF = async function(appointmentId) {
+    const appt = await getAppointmentById(appointmentId);
+    if (!appt) {
+        showNotification('⚠️ Nu găsesc programarea pentru invoice', 'error');
+        return;
+    }
+
+    try {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+
+        // --- Header
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(20);
+        doc.text('INVOICE', 14, 20);
+
+        doc.setFontSize(11);
+        doc.setFont('helvetica', 'normal');
+
+        // Company info
+        doc.setFont('helvetica', 'bold');
+        doc.text('Transvortex LTD', 14, 32);
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(10);
+        doc.text('Email: transvortexltd@gmail.com', 14, 39);
+        doc.text('Website: transvortexltdcouk.web.app', 14, 45);
+        doc.text('Facebook: facebook.com/transvortex', 14, 51);
+
+        // --- Invoice meta
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(10);
+        doc.text('Invoice #:', 140, 32);
+        doc.setFont('helvetica', 'normal');
+        doc.text(String(appt.id).substring(0, 12), 165, 32);
+
+        const now = new Date().toISOString().split('T')[0];
+        doc.setFont('helvetica', 'bold');
+        doc.text('Date:', 140, 39);
+        doc.setFont('helvetica', 'normal');
+        doc.text(now, 165, 39);
+
+        // --- Client / Appointment details
+        doc.setDrawColor(230);
+        doc.line(14, 60, 196, 60);
+
+        let yPos = 70;
+        doc.setFont('helvetica', 'bold');
+        doc.text('Client:', 14, yPos);
+        doc.setFont('helvetica', 'normal');
+        doc.text(appt.customerName || '-', 40, yPos);
+
+        yPos += 7;
+        doc.setFont('helvetica', 'bold');
+        doc.text('Car:', 14, yPos);
+        doc.setFont('helvetica', 'normal');
+        doc.text(appt.car || '-', 40, yPos);
+
+        yPos += 7;
+        doc.setFont('helvetica', 'bold');
+        doc.text('Date/Time:', 14, yPos);
+        doc.setFont('helvetica', 'normal');
+        doc.text(`${appt.dateStr || '-'} ${appt.timeStr || ''}`, 40, yPos);
+
+        if (appt.address) {
+            yPos += 7;
+            doc.setFont('helvetica', 'bold');
+            doc.text('Address:', 14, yPos);
+            doc.setFont('helvetica', 'normal');
+            doc.text(appt.address, 40, yPos);
+        }
+
+        if (appt.mileage != null) {
+            yPos += 7;
+            doc.setFont('helvetica', 'bold');
+            doc.text('Mileage:', 14, yPos);
+            doc.setFont('helvetica', 'normal');
+            doc.text(String(appt.mileage), 40, yPos);
+        }
+
+        yPos += 7;
+        doc.setFont('helvetica', 'bold');
+        doc.text('Status:', 14, yPos);
+        doc.setFont('helvetica', 'normal');
+        const statusText = appt.status === 'done' ? 'Finalizat' : appt.status === 'canceled' ? 'Anulat' : 'Programat';
+        doc.text(statusText, 40, yPos);
+
+        // --- Services section
+        yPos += 15;
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(11);
+        doc.text('Services / Notes:', 14, yPos);
+        
+        yPos += 7;
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(10);
+        const notes = appt.notes || 'Service auto (detalii la cerere).';
+        const splitNotes = doc.splitTextToSize(notes, 180);
+        doc.text(splitNotes, 14, yPos);
+
+        // --- Footer
+        doc.setDrawColor(230);
+        doc.line(14, 270, 196, 270);
+        doc.setFontSize(9);
+        doc.setFont('helvetica', 'italic');
+        doc.text('Mulțumim! Transvortex LTD', 14, 278);
+
+        // Save PDF
+        const filename = `invoice_${(appt.customerName || 'client').replace(/\s+/g, '_')}_${appt.dateStr || now}.pdf`;
+        doc.save(filename);
+        
+        console.log(`📄 Invoice PDF generated: ${filename}`);
+        showNotification('✅ Invoice descărcat cu succes', 'success');
+
+    } catch (error) {
+        console.error('❌ Error generating PDF:', error);
+        showNotification('❌ Eroare la generarea PDF: ' + error.message, 'error');
+    }
+}
+
+// ==============================
+// Initialize modal bindings
+// ==============================
+function initializeModals() {
+    bindModalCloseBehavior();
+    bindAppointmentsModalControls();
+    bindStatsPopupButtons();
+
+    // Finalize form submit
+    const f = document.getElementById('finalizeForm');
+    if (f && !f.dataset.bound) {
+        f.addEventListener('submit', finalizeAppointmentWithMileage);
+        f.dataset.bound = "true";
+    }
+}
