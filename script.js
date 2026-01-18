@@ -48,6 +48,9 @@ let appointmentsUnsubscribe = null;
 // Current active tab
 let currentTab = 'pages';
 
+// Appointment buttons delegation flag
+let appointmentsClicksBound = false;
+
 // ==========================================
 // FIREBASE INITIALIZATION (Web SDK only)
 // ==========================================
@@ -746,7 +749,7 @@ document.addEventListener('DOMContentLoaded', () => {
     bindAppointmentsModalControls();
     bindFinalizeModalControls();
     
-    // Bind appointment action buttons via event delegation
+    // Bind appointment action buttons (delegated event handling)
     bindAppointmentsClickDelegation();
     
     // Finalize form submit
@@ -1011,42 +1014,6 @@ function filterAppointments() {
 }
 
 // Render appointments grouped by day
-// Flag to prevent duplicate event delegation binding
-let appointmentsClicksBound = false;
-
-// Event delegation for appointment action buttons
-function bindAppointmentsClickDelegation() {
-    const container = document.getElementById('appointmentsList');
-    if (!container) return;
-    
-    // Prevent duplicate listeners
-    if (appointmentsClicksBound) return;
-    
-    container.addEventListener('click', (e) => {
-        const btn = e.target.closest('button[data-apt-id]');
-        if (!btn) return;
-        
-        const aptId = btn.dataset.aptId;
-        
-        if (btn.classList.contains('btn-done')) {
-            console.log('✅ Click Finalizează', aptId);
-            markAppointmentDone(aptId);
-        } else if (btn.classList.contains('btn-cancel-appointment')) {
-            console.log('🟠 Click Anulează', aptId);
-            cancelAppointment(aptId);
-        } else if (btn.classList.contains('btn-delete-appointment')) {
-            console.log('🗑️ Click Șterge', aptId);
-            deleteAppointment(aptId);
-        } else if (btn.classList.contains('btn-invoice')) {
-            console.log('📄 Click Invoice', aptId);
-            downloadInvoicePDF(aptId);
-        }
-    });
-    
-    appointmentsClicksBound = true;
-    console.log('✅ Appointments click delegation bound');
-}
-
 function renderAppointments() {
     const container = document.getElementById('appointmentsList');
     const emptyState = document.getElementById('emptyStateAppointments');
@@ -1101,7 +1068,7 @@ function renderAppointments() {
     
     container.innerHTML = html;
     
-    // Re-bind click delegation (safe - prevents duplicates)
+    // Bind delegation handler for appointment actions
     bindAppointmentsClickDelegation();
 }
 
@@ -1158,7 +1125,7 @@ function createAppointmentCard(apt, now) {
             <button class="btn-action-small btn-cancel-appointment" data-apt-id="${apt.id}">
                 <i class="fas fa-ban"></i> Anulează
             </button>
-            <button class="btn-action-small btn-invoice" data-apt-id="${apt.id}">
+            <button class="btn-action-small btn-invoice" onclick="downloadInvoicePDF('${apt.id}')">
                 <i class="fas fa-file-invoice"></i> Invoice
             </button>
             <button class="btn-action-small btn-delete-appointment" data-apt-id="${apt.id}">
@@ -1194,6 +1161,35 @@ function createAppointmentCard(apt, now) {
             ${adminActions}
         </div>
     `;
+}
+
+// Event delegation for appointment action buttons
+function bindAppointmentsClickDelegation() {
+    const container = document.getElementById('appointmentsList');
+    if (!container) return;
+    
+    // Prevent duplicate listeners
+    if (appointmentsClicksBound) return;
+    
+    container.addEventListener('click', (e) => {
+        const btn = e.target.closest('button[data-apt-id]');
+        if (!btn) return;
+        
+        const id = btn.dataset.aptId;
+        
+        if (btn.classList.contains('btn-done')) {
+            console.log('✅ Click Finalizează', id);
+            markAppointmentDone(id);
+        } else if (btn.classList.contains('btn-cancel-appointment')) {
+            console.log('🟠 Click Anulează', id);
+            cancelAppointment(id);
+        } else if (btn.classList.contains('btn-delete-appointment')) {
+            console.log('🗑️ Click Șterge', id);
+            deleteAppointment(id);
+        }
+    });
+    
+    appointmentsClicksBound = true;
 }
 
 // Update appointment statistics
