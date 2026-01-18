@@ -86,16 +86,15 @@ async function initializeFirebase() {
                     console.log("👑 Admin access granted");
                 }
                 
-                // Load pages from Firestore and render
-                await loadPages();
-                renderPages();
-                updateStats();
+                // Setup event listeners first
                 setupEventListeners();
+                
+                // Load pages from Firestore (this will also render)
+                await loadPages();
+                
             } else {
                 console.log("🔓 User logged out");
-                
-                // Still load pages for public view (read-only)
-                await loadPages();
+                pages = [];
                 renderPages();
                 updateStats();
             }
@@ -220,50 +219,58 @@ function updateAuthStatus(status) {
 // PAGE MANAGEMENT FUNCTIONS
 // ==========================================
 async function loadPages() {
-    // Check if Firestore is initialized
+    if (!currentUser) {
+        console.log('⏳ Not logged in yet, skipping loadPages');
+        pages = [];
+        renderPages();
+        return;
+    }
+
     if (!db) {
-        console.log('⏳ Firestore not initialized yet, skipping loadPages');
+        console.error('❌ Firestore not initialized yet');
         return;
     }
 
     try {
         const { collection, getDocs, query, orderBy } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
         
-        console.log('📥 Loading pages from Firestore collection "pages"...');
-        const pagesCollection = collection(db, 'pages');
-        const q = query(pagesCollection, orderBy('addedDate', 'desc'));
+        console.log('📥 Loading pages from Firestore collection: "pages"...');
+        const q = query(collection(db, 'pages'), orderBy('addedDate', 'desc'));
         const snapshot = await getDocs(q);
         
-        // Map Firestore documents to page objects
+        // Map Firestore documents to pages array
         pages = snapshot.docs.map(doc => ({
             id: doc.id,
             ...doc.data()
         }));
         
-        console.log(`✅ Loaded ${pages.length} pages from Firestore:`, pages.map(p => p.name));
-        return pages;
+        console.log(`✅ Loaded ${pages.length} pages from Firestore`);
+        
+        // IMPORTANT: Render pages immediately after loading
+        renderPages();
+        updateStats();
+        
     } catch (error) {
-        console.error('❌ Error loading pages from Firestore:', error);
+        console.error('❌ Error loading pages:', error);
         console.error('Error code:', error.code);
         console.error('Error message:', error.message);
+        
+        // Reset to empty array on error
+        pages = [];
+        renderPages();
         
         // Specific error handling
         if (error.code === 'permission-denied') {
             console.error('🔴 PERMISSION DENIED! Firestore Rules issue:');
-            console.error('Solution: Go to Firebase Console > Firestore Database > Rules');
+            console.error('Solution: Go to Firebase Console > Firestore > Rules');
             console.error('Make sure you have: allow read: if true;');
-            showNotification('❌ Permission denied. Check Firestore Rules.', 'error');
+            showNotification('❌ Firestore Rules: Missing read permissions. Check console.', 'error');
         } else if (error.code === 'not-found') {
-            console.error('⚠️ Pages collection does not exist yet.');
-            console.error('Solution: Create the "pages" collection in Firebase Console');
-            showNotification('⚠️ Database not ready. Create "pages" collection.', 'error');
+            console.error('⚠️ Pages collection does not exist yet. Create it in Firebase Console.');
+            showNotification('⚠️ Firestore database not initialized. Please create "pages" collection.', 'error');
         } else {
-            showNotification('❌ Error loading data. Check console.', 'error');
+            showNotification('❌ Eroare la încărcarea datelor: ' + error.message, 'error');
         }
-        
-        // Return empty array on error
-        pages = [];
-        return pages;
     }
 }
 
@@ -294,10 +301,9 @@ async function handleAddPage(e) {
     try {
         const { collection, addDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
         
-        console.log('➕ Adding new page to Firestore...');
-        const pagesCollection = collection(db, 'pages');
+        console.log('📝 Adding page to Firestore collection: "pages"...');
         
-        const newPage = {
+        const docRef = await addDoc(collection(db, 'pages'), {
             name: pageName,
             url: pageUrl,
             avatar: pageAvatar || '',
@@ -305,33 +311,22 @@ async function handleAddPage(e) {
             lastPosted: null,
             addedDate: serverTimestamp(),
             createdBy: currentUser.uid
-        };
-        
-        const docRef = await addDoc(pagesCollection, newPage);
-        console.log(`✅ Page added to Firestore with ID: ${docRef.id}`);
+        });
 
-        // Clear form
+        console.log(`✅ Page added with ID: ${docRef.id}`);
+        
+        // Reset form
         e.target.reset();
         
-        // Reload pages from Firestore (ensures we have the latest data)
-        console.log('🔄 Reloading pages from Firestore after add...');
+        // Reload pages from Firestore (this will also render and update stats)
         await loadPages();
-        
-        // Re-render UI with fresh data
-        renderPages();
-        updateStats();
         
         showNotification('Pagină adăugată cu succes!', 'success');
     } catch (error) {
-        console.error('❌ Error adding page to Firestore:', error);
+        console.error('❌ Error adding page:', error);
         console.error('Error code:', error.code);
         console.error('Error message:', error.message);
-        
-        if (error.code === 'permission-denied') {
-            showNotification('❌ Permission denied. Admin access required.', 'error');
-        } else {
-            showNotification('❌ Error adding page. Check console.', 'error');
-        }
+        showNotification('❌ Eroare la adăugarea paginii: ' + error.message, 'error');
     }
 }
 
@@ -341,18 +336,23 @@ async function markAsPosted(docId) {
     try {
         const { doc, updateDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
         
+        console.log(`📝 Marking page ${docId} as posted...`);
+        
         await updateDoc(doc(db, 'pages', docId), {
             postedToday: true,
             lastPosted: serverTimestamp()
         });
 
+        console.log(`✅ Page ${docId} marked as posted`);
+        
+        // Reload pages from Firestore (this will also render and update stats)
         await loadPages();
-        renderPages();
-        updateStats();
+        
         showNotification('Pagină marcată ca postată!', 'success');
     } catch (error) {
-        console.error('Error marking as posted:', error);
-        showNotification('Eroare la actualizare', 'error');
+        console.error('❌ Error marking as posted:', error);
+        console.error('Error code:', error.code);
+        showNotification('❌ Eroare la actualizare: ' + error.message, 'error');
     }
 }
 
@@ -362,17 +362,22 @@ async function markAsUnposted(docId) {
     try {
         const { doc, updateDoc } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
         
+        console.log(`📝 Marking page ${docId} as unposted...`);
+        
         await updateDoc(doc(db, 'pages', docId), {
             postedToday: false
         });
 
+        console.log(`✅ Page ${docId} marked as unposted`);
+        
+        // Reload pages from Firestore (this will also render and update stats)
         await loadPages();
-        renderPages();
-        updateStats();
+        
         showNotification('Pagină marcată ca nepostată', 'info');
     } catch (error) {
-        console.error('Error marking as unposted:', error);
-        showNotification('Eroare la actualizare', 'error');
+        console.error('❌ Error marking as unposted:', error);
+        console.error('Error code:', error.code);
+        showNotification('❌ Eroare la actualizare: ' + error.message, 'error');
     }
 }
 
@@ -384,15 +389,20 @@ async function deletePage(docId) {
     try {
         const { doc, deleteDoc } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
         
+        console.log(`🗑️ Deleting page ${docId}...`);
+        
         await deleteDoc(doc(db, 'pages', docId));
 
+        console.log(`✅ Page ${docId} deleted`);
+        
+        // Reload pages from Firestore (this will also render and update stats)
         await loadPages();
-        renderPages();
-        updateStats();
+        
         showNotification('Pagină ștearsă cu succes', 'success');
     } catch (error) {
-        console.error('Error deleting page:', error);
-        showNotification('Eroare la ștergere', 'error');
+        console.error('❌ Error deleting page:', error);
+        console.error('Error code:', error.code);
+        showNotification('❌ Eroare la ștergere: ' + error.message, 'error');
     }
 }
 
