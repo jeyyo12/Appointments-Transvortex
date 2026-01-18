@@ -744,13 +744,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Bind modal behaviors
     bindModalCloseBehavior();
     bindAppointmentsModalControls();
-    
-    // Finalize form submit
-    const finalizeForm = document.getElementById('finalizeForm');
-    if (finalizeForm && !finalizeForm.dataset.bound) {
-        finalizeForm.addEventListener('submit', finalizeAppointmentWithMileage);
-        finalizeForm.dataset.bound = "true";
-    }
+    bindFinalizeModalControls();
     
     // Bind stats cards (needs card IDs in HTML)
     bindStatsPopupButtons();
@@ -1639,3 +1633,422 @@ window.downloadInvoicePDF = async function(appointmentId) {
     console.log(`📄 Invoice PDF generated for appointment ${appt.id}`);
 }
 
+// Redirect all downloadInvoicePDF calls to the enhanced version below
+const downloadInvoicePDFOld = window.downloadInvoicePDF;
+
+// =============================================
+// ✨ INVOICE ENHANCEMENTS WITH PRICING & LOGO
+// =============================================
+
+/**
+ * Format number as GBP currency
+ */
+function formatGBP(n) {
+  return `£${parseFloat(n || 0).toFixed(2)}`;
+}
+
+/**
+ * Load logo from Images/Logo.png and convert to Base64 data URL
+ */
+async function loadLogoAsDataURL(path) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = 'Anonymous';
+    
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = img.width;
+      canvas.height = img.height;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0);
+      const dataURL = canvas.toDataURL('image/png');
+      resolve(dataURL);
+    };
+    
+    img.onerror = () => {
+      console.warn('⚠️ Could not load logo from', path);
+      resolve(null);
+    };
+    
+    img.src = path;
+  });
+}
+
+/**
+ * Global services array for finalize modal
+ */
+let finalizeServices = [];
+
+/**
+ * Add a new service row
+ */
+function addServiceRow() {
+  finalizeServices.push({
+    description: '',
+    qty: 1,
+    unitPrice: 0,
+    lineTotal: 0
+  });
+  renderServicesTable();
+}
+
+/**
+ * Remove service row by index
+ */
+function removeServiceRow(idx) {
+  finalizeServices.splice(idx, 1);
+  renderServicesTable();
+}
+
+/**
+ * Render the services table with input bindings
+ */
+function renderServicesTable() {
+  const tbody = document.getElementById('servicesTbody');
+  if (!tbody) return;
+
+  tbody.innerHTML = '';
+
+  finalizeServices.forEach((svc, idx) => {
+    const tr = document.createElement('tr');
+
+    // Description cell
+    const tdDesc = document.createElement('td');
+    const inputDesc = document.createElement('input');
+    inputDesc.type = 'text';
+    inputDesc.value = svc.description || '';
+    inputDesc.placeholder = 'ex: Schimb ulei motor';
+    inputDesc.addEventListener('input', (e) => {
+      finalizeServices[idx].description = e.target.value;
+    });
+    tdDesc.appendChild(inputDesc);
+    tr.appendChild(tdDesc);
+
+    // Qty cell
+    const tdQty = document.createElement('td');
+    const inputQty = document.createElement('input');
+    inputQty.type = 'number';
+    inputQty.min = '0';
+    inputQty.step = '1';
+    inputQty.value = svc.qty || 1;
+    inputQty.addEventListener('input', (e) => {
+      const val = parseFloat(e.target.value) || 0;
+      finalizeServices[idx].qty = val;
+      finalizeServices[idx].lineTotal = val * finalizeServices[idx].unitPrice;
+      renderServicesTable();
+      recalcInvoiceTotals();
+    });
+    tdQty.appendChild(inputQty);
+    tr.appendChild(tdQty);
+
+    // Unit Price cell
+    const tdPrice = document.createElement('td');
+    const inputPrice = document.createElement('input');
+    inputPrice.type = 'number';
+    inputPrice.min = '0';
+    inputPrice.step = '0.01';
+    inputPrice.value = svc.unitPrice || 0;
+    inputPrice.addEventListener('input', (e) => {
+      const val = parseFloat(e.target.value) || 0;
+      finalizeServices[idx].unitPrice = val;
+      finalizeServices[idx].lineTotal = finalizeServices[idx].qty * val;
+      renderServicesTable();
+      recalcInvoiceTotals();
+    });
+    tdPrice.appendChild(inputPrice);
+    tr.appendChild(tdPrice);
+
+    // Line Total cell (read-only)
+    const tdTotal = document.createElement('td');
+    const inputTotal = document.createElement('input');
+    inputTotal.type = 'text';
+    inputTotal.value = formatGBP(svc.lineTotal);
+    inputTotal.disabled = true;
+    inputTotal.style.background = '#f9f9f9';
+    inputTotal.style.cursor = 'not-allowed';
+    tdTotal.appendChild(inputTotal);
+    tr.appendChild(tdTotal);
+
+    // Remove button cell
+    const tdRemove = document.createElement('td');
+    const btnRemove = document.createElement('button');
+    btnRemove.type = 'button';
+    btnRemove.className = 'btn-remove-service';
+    btnRemove.innerHTML = '<i class="fas fa-trash"></i>';
+    btnRemove.addEventListener('click', () => removeServiceRow(idx));
+    tdRemove.appendChild(btnRemove);
+    tr.appendChild(tdRemove);
+
+    tbody.appendChild(tr);
+  });
+
+  recalcInvoiceTotals();
+}
+
+/**
+ * Recalculate invoice totals (subtotal, VAT, total)
+ */
+function recalcInvoiceTotals() {
+  const subtotal = finalizeServices.reduce((sum, svc) => sum + (svc.lineTotal || 0), 0);
+  const vatRate = parseFloat(document.getElementById('finalizeVatRate')?.value || 0);
+  const vatAmount = subtotal * (vatRate / 100);
+  const total = subtotal + vatAmount;
+
+  document.getElementById('invSubtotal').textContent = formatGBP(subtotal);
+  document.getElementById('invVat').textContent = formatGBP(vatAmount);
+  document.getElementById('invTotal').textContent = formatGBP(total);
+}
+
+/**
+ * Override openFinalizeModal to reset services
+ */
+window.openFinalizeModal = function (apptId) {
+  const appt = allAppointments.find(a => a.id === apptId);
+  if (!appt) return;
+
+  // Reset services array
+  finalizeServices = [];
+  
+  // Pre-populate if already finalized
+  if (appt.services && Array.isArray(appt.services)) {
+    finalizeServices = JSON.parse(JSON.stringify(appt.services));
+  }
+
+  renderServicesTable();
+
+  document.getElementById('finalizeAppointmentId').value = apptId;
+  document.getElementById('finalizeMileage').value = appt.mileage || '';
+  document.getElementById('finalizeVatRate').value = appt.vatRate || 0;
+  document.getElementById('generateInvoiceNow').checked = true;
+
+  openModal('finalizeModal');
+  recalcInvoiceTotals();
+};
+
+/**
+ * Bind finalize modal controls (Add Service, VAT input)
+ */
+function bindFinalizeModalControls() {
+  const addBtn = document.getElementById('addServiceRowBtn');
+  if (addBtn) {
+    addBtn.addEventListener('click', addServiceRow);
+  }
+
+  const vatInput = document.getElementById('finalizeVatRate');
+  if (vatInput) {
+    vatInput.addEventListener('input', recalcInvoiceTotals);
+  }
+
+  const cancelBtn = document.getElementById('finalizeCancelBtn');
+  if (cancelBtn) {
+    cancelBtn.addEventListener('click', () => closeModal('finalizeModal'));
+  }
+
+  const form = document.getElementById('finalizeForm');
+  if (form) {
+    form.addEventListener('submit', finalizeAppointmentWithPrices);
+  }
+}
+
+/**
+ * Finalize appointment with prices (replaces finalizeAppointmentWithMileage)
+ */
+async function finalizeAppointmentWithPrices(e) {
+  e.preventDefault();
+
+  const apptId = document.getElementById('finalizeAppointmentId').value.trim();
+  const mileage = parseInt(document.getElementById('finalizeMileage').value, 10);
+  const vatRate = parseFloat(document.getElementById('finalizeVatRate').value || 0);
+  const generateNow = document.getElementById('generateInvoiceNow').checked;
+
+  if (!apptId || isNaN(mileage)) {
+    showNotification('⚠️ ID programare sau mile invalid!', 'error');
+    return;
+  }
+
+  const subtotal = finalizeServices.reduce((sum, svc) => sum + (svc.lineTotal || 0), 0);
+  const vatAmount = subtotal * (vatRate / 100);
+  const total = subtotal + vatAmount;
+
+  try {
+    const apptRef = doc(db, 'appointments', apptId);
+    await updateDoc(apptRef, {
+      status: 'done',
+      mileage,
+      services: finalizeServices,
+      subtotal,
+      vatRate,
+      vatAmount,
+      total,
+      doneAt: new Date(),
+      updatedAt: new Date()
+    });
+
+    showNotification('✅ Programare finalizată cu succes!', 'success');
+    console.log(`✅ Appointment ${apptId} finalized with pricing`);
+
+    closeModal('finalizeModal');
+
+    // Generate invoice if requested
+    if (generateNow) {
+      setTimeout(() => downloadInvoicePDF(apptId), 500);
+    }
+  } catch (err) {
+    console.error('❌ Error finalizing appointment:', err);
+    showNotification('❌ Eroare la finalizare: ' + err.message, 'error');
+  }
+}
+
+/**
+ * Enhanced PDF generation with logo and pricing table
+ */
+async function downloadInvoicePDFEnhanced(apptId) {
+  const appt = allAppointments.find(a => a.id === apptId);
+  if (!appt) {
+    showNotification('⚠️ Appointment not found!', 'error');
+    return;
+  }
+
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+
+  // Load logo
+  const logoData = await loadLogoAsDataURL('Images/Logo.png');
+
+  // --- Header with logo
+  if (logoData) {
+    doc.addImage(logoData, 'PNG', 14, 10, 30, 30);
+  }
+
+  doc.setFontSize(20);
+  doc.setFont('helvetica', 'bold');
+  doc.text('TRANSVORTEX LTD', logoData ? 50 : 14, 20);
+
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'normal');
+  doc.text('Email: transvortexltd@gmail.com', logoData ? 50 : 14, 28);
+  doc.text('Website: transvortexltdcouk.web.app', logoData ? 50 : 14, 34);
+  doc.text('Facebook: Transvortex Official', logoData ? 50 : 14, 40);
+
+  // --- Invoice meta
+  doc.setFont('helvetica', 'bold');
+  doc.text('Invoice #:', 140, 20);
+  doc.setFont('helvetica', 'normal');
+  doc.text(String(appt.id).substring(0, 12), 165, 20);
+
+  doc.setFont('helvetica', 'bold');
+  doc.text('Date:', 140, 28);
+  doc.setFont('helvetica', 'normal');
+  const dateStr = appt.doneAt 
+    ? new Date(appt.doneAt.toDate ? appt.doneAt.toDate() : appt.doneAt).toLocaleDateString('ro-RO')
+    : (appt.dateStr || new Date().toLocaleDateString('ro-RO'));
+  doc.text(dateStr, 165, 28);
+
+  // --- Customer details
+  let yPos = 55;
+  doc.setDrawColor(200);
+  doc.line(14, yPos - 5, 196, yPos - 5);
+
+  doc.setFontSize(12);
+  doc.setFont('helvetica', 'bold');
+  doc.text('Bill To:', 14, yPos);
+
+  doc.setFontSize(11);
+  doc.setFont('helvetica', 'normal');
+  yPos += 8;
+  doc.text(appt.customerName || 'N/A', 14, yPos);
+  yPos += 6;
+  doc.text(`Car: ${appt.car || 'N/A'}`, 14, yPos);
+  yPos += 6;
+  doc.text(`Address: ${appt.address || 'N/A'}`, 14, yPos);
+  yPos += 6;
+  doc.text(`Mileage: ${appt.mileage ? appt.mileage.toLocaleString() + ' km' : 'N/A'}`, 14, yPos);
+
+  // --- Services table
+  yPos += 12;
+  doc.setDrawColor(200);
+  doc.line(14, yPos, 196, yPos);
+  yPos += 8;
+
+  doc.setFontSize(12);
+  doc.setFont('helvetica', 'bold');
+  doc.text('Description', 14, yPos);
+  doc.text('Qty', 120, yPos);
+  doc.text('Unit Price', 140, yPos);
+  doc.text('Total', 175, yPos);
+
+  yPos += 2;
+  doc.setDrawColor(200);
+  doc.line(14, yPos, 196, yPos);
+  yPos += 8;
+
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'normal');
+
+  const services = appt.services || [];
+  if (services.length === 0) {
+    doc.text('No services recorded', 14, yPos);
+    yPos += 8;
+  } else {
+    services.forEach(svc => {
+      const desc = svc.description || 'Service';
+      const qty = svc.qty || 0;
+      const unitPrice = svc.unitPrice || 0;
+      const lineTotal = svc.lineTotal || 0;
+
+      doc.text(desc, 14, yPos);
+      doc.text(String(qty), 120, yPos);
+      doc.text(formatGBP(unitPrice), 140, yPos);
+      doc.text(formatGBP(lineTotal), 175, yPos, { align: 'right' });
+      yPos += 7;
+
+      if (yPos > 250) {
+        doc.addPage();
+        yPos = 20;
+      }
+    });
+  }
+
+  // --- Totals
+  yPos += 5;
+  doc.setDrawColor(200);
+  doc.line(120, yPos, 196, yPos);
+  yPos += 8;
+
+  doc.setFont('helvetica', 'bold');
+  doc.text('Subtotal:', 140, yPos);
+  doc.setFont('helvetica', 'normal');
+  doc.text(formatGBP(appt.subtotal || 0), 175, yPos, { align: 'right' });
+  yPos += 7;
+
+  doc.setFont('helvetica', 'bold');
+  doc.text(`VAT (${appt.vatRate || 0}%):`, 140, yPos);
+  doc.setFont('helvetica', 'normal');
+  doc.text(formatGBP(appt.vatAmount || 0), 175, yPos, { align: 'right' });
+  yPos += 7;
+
+  doc.setDrawColor(0);
+  doc.line(120, yPos, 196, yPos);
+  yPos += 8;
+
+  doc.setFontSize(12);
+  doc.setFont('helvetica', 'bold');
+  doc.text('TOTAL:', 140, yPos);
+  doc.text(formatGBP(appt.total || 0), 175, yPos, { align: 'right' });
+
+  // --- Footer
+  doc.setDrawColor(230);
+  doc.line(14, 270, 196, 270);
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'normal');
+  doc.text('Thank you for your business! — Transvortex LTD', 14, 278);
+
+  const fileName = `invoice_${appt.customerName?.replace(/[^a-zA-Z0-9]/g, '_') || 'client'}_${dateStr.replace(/\//g, '-')}.pdf`;
+  doc.save(fileName);
+
+  showNotification('✅ Invoice PDF descărcat cu success!', 'success');
+  console.log(`📄 Enhanced invoice PDF generated for appointment ${apptId}`);
+}
+
+// Override window.downloadInvoicePDF to use enhanced version
+window.downloadInvoicePDF = downloadInvoicePDFEnhanced;

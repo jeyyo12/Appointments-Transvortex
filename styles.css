@@ -1158,3 +1158,107 @@ footer p {
   transform: translateY(-2px);
   box-shadow: 0 18px 50px rgba(0,0,0,0.12);
 }
+
+/* Services Table (Finalize Modal Invoice) */
+.services-toolbar {
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.services-table-wrap {
+  max-height: 300px;
+  overflow-y: auto;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: #fff;
+  margin-bottom: 16px;
+}
+
+.services-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.services-table thead {
+  position: sticky;
+  top: 0;
+  background: linear-gradient(135deg, #f7f7f7 0%, #ececec 100%);
+  z-index: 1;
+}
+
+.services-table thead th {
+  text-align: left;
+  padding: 10px 8px;
+  font-weight: 600;
+  color: #333;
+  border-bottom: 2px solid var(--border-color);
+  white-space: nowrap;
+}
+
+.services-table tbody tr {
+  border-bottom: 1px solid var(--border-color);
+}
+
+.services-table tbody tr:hover {
+  background: #fafafa;
+}
+
+.services-table td {
+  padding: 8px;
+  vertical-align: middle;
+}
+
+.services-table td input {
+  width: 100%;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  padding: 6px 8px;
+  font-size: 0.9rem;
+  transition: border-color 0.2s;
+}
+
+.services-table td input:focus {
+  outline: none;
+  border-color: var(--primary-color);
+}
+
+.services-table .btn-remove-service {
+  background: #e74c3c;
+  color: #fff;
+  border: none;
+  padding: 6px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: background 0.2s;
+}
+
+.services-table .btn-remove-service:hover {
+  background: #c0392b;
+}
+
+.invoice-totals {
+  border-top: 2px solid var(--border-color);
+  padding-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.tot-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 1rem;
+}
+
+.tot-row.grand {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--primary-color);
+  padding-top: 8px;
+  border-top: 2px solid var(--primary-color);
+}
