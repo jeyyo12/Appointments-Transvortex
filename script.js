@@ -26,8 +26,11 @@ if (firebaseConfig.apiKey === "AIzaSy..." || !firebaseConfig.appId.includes(":we
     console.error("appId must contain ':web:' (this indicates Web App, not Android)");
 }
 
-// Admin UID
-const ADMIN_UID = "VhjWQiYKVGUrDVuOQUSJHA15Blk2";
+// Admin UIDs - Two administrators
+const ADMIN_UIDS = [
+    "VhjWQiYKVGUrDVuOQUSJHA15Blk2", // Admin 1
+    "9tcBBsCcdqOWHc06otNpHq8XAxW2"  // Admin 2
+];
 
 // Global variables for Firebase
 let app = null;
@@ -74,7 +77,7 @@ async function initializeFirebase() {
         // Setup authentication state listener
         onAuthStateChanged(auth, (user) => {
             currentUser = user;
-            isAdmin = user?.uid === ADMIN_UID;
+            isAdmin = user ? ADMIN_UIDS.includes(user.uid) : false;
             updateAuthUI();
             
             if (user) {
