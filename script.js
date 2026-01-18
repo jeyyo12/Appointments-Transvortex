@@ -8,10 +8,6 @@
 // 5. ⚠️ IMPORTANT: Folosește doar firebaseConfig din Firebase Console, nu alte surse
 // ==========================================
 
-const firebaseConfig = {
-    // TODO: REPLACE ME - COPY FROM FIREBASE CONSOLE
-    // Firebase Console > Project Settings > Web App > firebaseConfig object
-    // Exemple de câmpuri (valorile vor fi diferite):
 // For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
   apiKey: "AIzaSyDKyqAb198h6VdbHXZtciMdn_KIg-L2zZU",
@@ -21,7 +17,6 @@ const firebaseConfig = {
   messagingSenderId: "980773899679",
   appId: "1:980773899679:web:08800ca927f4ac348581aa",
   measurementId: "G-D1QH23H9J8"
-};
 };
 
 // Validation check
