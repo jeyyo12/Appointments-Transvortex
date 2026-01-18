@@ -103,6 +103,54 @@ See [DEPLOYMENT.md](./DEPLOYMENT.md) for complete step-by-step instructions incl
 git push origin main  # Triggers auto-deploy to Vercel + Render
 ```
 
+### Deploy with GitHub Pages (FREE - Static Site Only)
+
+If you only need the static frontend (HTML/CSS/JS) without a Node backend, use **GitHub Pages**:
+
+**Prerequisites:**
+- Public GitHub repository
+- Static HTML in repository root (`index.html`)
+- All assets use **relative paths** (e.g., `./styles.css`, `./Images/Logo.png`, `./script.js`)
+
+**Step 1: Verify Relative Paths**
+```html
+<!-- ✅ CORRECT: Relative paths -->
+<link rel="stylesheet" href="styles.css">
+<img src="Images/Logo.png">
+<script src="script.js"></script>
+
+<!-- ❌ WRONG: Absolute paths (won't work on GitHub Pages) -->
+<link rel="stylesheet" href="/styles.css">
+<img src="/Images/Logo.png">
+```
+
+**Step 2: Enable GitHub Pages in Repository Settings**
+1. Go to: **Settings** > **Pages**
+2. Select: **Deploy from a branch**
+3. Choose: **main** (or your default branch)
+4. Choose: **/(root)** as the directory
+5. Click **Save**
+
+**Step 3: Push Code to GitHub**
+```bash
+git add .
+git commit -m "Enable GitHub Pages deployment"
+git push origin main
+```
+
+**Step 4: Verify Deployment**
+- Go to: **Settings** > **Pages**
+- Look for: "Your site is live at `https://yourusername.github.io/Appointments-Transvortex/`"
+- Visit the URL (may take 1-2 minutes to deploy)
+- Hard refresh: `Ctrl+Shift+R` (Windows/Linux) or `Cmd+Shift+R` (Mac)
+
+**Troubleshooting:**
+- If assets don't load: Check that paths are relative (no `/` at start)
+- If 404 appears: Verify `index.html` is in repository root
+- Still loading old version: Hard refresh or clear browser cache
+
+**Cost:** ✅ **100% FREE** - No credit card needed
+
 ## 📁 Project Structure
 
 ```
