@@ -76,6 +76,53 @@
         [data-admin-only].admin-visible {
             display: block;
         }
+
+        /* Refresh Button */
+        .btn-refresh {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            border: none;
+            color: white;
+            padding: 0.6rem 1.2rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.9rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 8px rgba(16, 185, 129, 0.2);
+        }
+
+        .btn-refresh:hover {
+            background: linear-gradient(135deg, #059669 0%, #047857 100%);
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+            transform: translateY(-2px);
+        }
+
+        .btn-refresh:active {
+            transform: translateY(0);
+        }
+
+        .btn-refresh i {
+            transition: transform 0.6s ease;
+        }
+
+        .btn-refresh.refreshing i {
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        .section-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 1.5rem;
+        }
     </style>
 </head>
 <body>
@@ -188,6 +235,9 @@
             <section class="pages-section">
                 <div class="section-header">
                     <h2><i class="fas fa-th-list"></i> Paginile Mele Facebook</h2>
+                    <button id="refreshButton" class="btn-refresh" onclick="handleRefresh()" title="Reîncarcă paginile">
+                        <i class="fas fa-sync-alt"></i> Refresh
+                    </button>
                 </div>
                 
                 <div id="pagesList" class="pages-grid">

@@ -281,6 +281,43 @@ function setupEventListeners() {
     }
 }
 
+// ==========================================
+// REFRESH FUNCTION
+// ==========================================
+async function handleRefresh() {
+    const refreshButton = document.getElementById('refreshButton');
+    
+    if (!currentUser) {
+        showNotification('⚠️ Conectează-te pentru a reîncărca paginile', 'info');
+        return;
+    }
+    
+    try {
+        // Add spinning animation
+        if (refreshButton) {
+            refreshButton.classList.add('refreshing');
+            refreshButton.disabled = true;
+        }
+        
+        console.log('🔄 Manual refresh triggered...');
+        
+        // Reload pages from Firestore
+        await loadPages();
+        
+        showNotification(`✅ Reîncărcat! ${pages.length} ${pages.length === 1 ? 'pagină găsită' : 'pagini găsite'}`, 'success');
+        
+    } catch (error) {
+        console.error('❌ Error refreshing:', error);
+        showNotification('❌ Eroare la reîncărcare', 'error');
+    } finally {
+        // Remove spinning animation
+        if (refreshButton) {
+            refreshButton.classList.remove('refreshing');
+            refreshButton.disabled = false;
+        }
+    }
+}
+
 async function handleAddPage(e) {
     if (!isAdmin) {
         alert('Doar administratorii pot adăuga pagini.');
