@@ -3,25 +3,25 @@ import { formatGBP } from '../shared/formatters.js';
 export function mapAppointmentToInvoiceModel(appointment) {
   const services = Array.isArray(appointment.services) ? appointment.services : [];
   const subtotal = services.reduce((sum, s) => sum + (Number(s.unitPrice) || 0) * (Number(s.qty) || 0), 0);
-  const vatRate = appointment.vatRate ?? 0.2; // Default 20% VAT
+  const vatRate = appointment.vatRate ?? 0;
   const vatAmount = subtotal * vatRate;
   const total = subtotal + vatAmount;
 
   return {
     company: {
-      name: appointment.companyName || 'Transvortex Ltd',
-      website: appointment.companyWebsite || 'https://transvortexltd.co.uk',
-      email: appointment.companyEmail || 'office@transvortexltd.co.uk',
+      name: appointment.companyName || 'Transvortex',
+      website: appointment.companyWebsite || 'https://transvortex.com',
+      email: appointment.companyEmail || 'office@transvortex.com',
     },
     invoice: {
-      number: appointment.invoiceNumber || appointment.pin || `TVX-${appointment.id?.slice(0, 6).toUpperCase()}`,
+      number: appointment.invoiceNumber || `INV-${appointment.id}`,
       date: appointment.completedAt || appointment.date || new Date().toISOString().slice(0, 10),
     },
     customer: {
-      name: appointment.customerName || appointment.name || '',
+      name: appointment.customerName || '',
       vehicle: appointment.vehicle || '',
       mileage: appointment.mileage || '',
-      address: appointment.customerAddress || appointment.address || '',
+      address: appointment.customerAddress || '',
     },
     services: services.length
       ? services.map((s, idx) => ({
