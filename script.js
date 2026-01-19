@@ -1861,6 +1861,30 @@ document.addEventListener('DOMContentLoaded', () => {
     TimeSheetPicker.init();
 });
 
+function updateAppointmentStats() {
+    const totalAppointments = appointments.length;
+    const doneAppointments = appointments.filter(a => a.status === 'done').length;
+    const canceledAppointments = appointments.filter(a => a.status === 'canceled').length;
+    const upcomingAppointments = appointments.filter(a => a.status === 'scheduled').length;
+    
+    document.getElementById('totalAppointments').textContent = totalAppointments;
+    document.getElementById('doneAppointments').textContent = doneAppointments;
+    document.getElementById('canceledAppointments').textContent = canceledAppointments;
+    document.getElementById('upcomingAppointments').textContent = upcomingAppointments;
+    
+    // Update progress ring
+    const progressRing = document.getElementById('appointmentsProgressRing');
+    if (progressRing) {
+        const percentage = totalAppointments > 0 ? (doneAppointments / totalAppointments) * 100 : 0;
+        progressRing.style.setProperty('--percentage', `${percentage}%`);
+    }
+}
+
+// Initial call to update stats display
+updateAppointmentStats();
+
+window.updateAppointmentStats = updateAppointmentStats;
+
 
 
 

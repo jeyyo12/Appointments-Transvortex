@@ -31,10 +31,8 @@ async function deliverPdf(doc, fileName) {
 }
 
 export async function downloadInvoicePDF(appointmentId) {
-  console.log('[InvoiceController] Invoice button clicked for appointment:', appointmentId);
+  if (!appointmentId) throw new Error('appointmentId missing');
   try {
-    if (!appointmentId) throw new Error('appointmentId missing');
-
     let appointmentData = appointmentId;
     if (typeof appointmentId === 'string') {
       appointmentData = await getAppointmentById(appointmentId);
