@@ -96,36 +96,16 @@ function parseTimeTo24h(timeStr) {
 // ==========================================
 async function initializeFirebase() {
     try {
-        // Import Firebase App module
-        const { initializeApp } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js');
-        
-        // Import Firebase Auth module (Web SDK)
-        const { 
-            getAuth, 
-            onAuthStateChanged, 
-            signInWithPopup, 
-            GoogleAuthProvider, 
-            signOut 
-        } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js');
-        
-        // Import Firestore module
+        const { onAuthStateChanged, signInWithPopup, GoogleAuthProvider, signOut } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js');
         const { getFirestore } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+        const { app: sharedApp, auth: sharedAuth, db: sharedDb } = await import('./src/firebase/firebase-init.js');
 
         console.log("🔥 Firebase SDK: Initializing...");
-        
-        // Initialize Firebase App with Web config
-        app = initializeApp(firebaseConfig);
-        console.log("✅ Firebase App initialized");
-        
-        // Get Auth instance (Web SDK)
-        auth = getAuth(app);
-        console.log("✅ Firebase Auth initialized");
-        
-        // Get Firestore instance
-        db = getFirestore(app);
-        console.log("✅ Firestore initialized");
+        app = sharedApp;
+        auth = sharedAuth;
+        db = sharedDb;
+        console.log("✅ Firebase App/Auth/Firestore initialized via shared module");
 
-        // Setup authentication state listener
         onAuthStateChanged(auth, async (user) => {
             currentUser = user;
             isAdmin = user ? ADMIN_UIDS.includes(user.uid) : false;
@@ -1227,7 +1207,8 @@ function createAppointmentCard(apt) {
         if (btn.classList.contains('btn-invoice')) {
             e.preventDefault();
             try {
-                await window.downloadInvoicePDF(id);
+                const { downloadInvoicePDF } = await import('./src/features/invoice/invoiceController.js');
+                await downloadInvoicePDF(id);
             } catch (err) {
                 console.error('[Main] Invoice generation failed:', err);
                 showNotification('Eroare la generarea facturii: ' + err.message, 'error');
@@ -1861,18 +1842,6 @@ const TimeSheetPicker = {
 document.addEventListener('DOMContentLoaded', () => {
     TimeSheetPicker.init();
 });
-
-// === INVOICE INTEGRATION ===
-// Global hook for invoice buttons
-window.downloadInvoicePDF = async (appointmentId) => {
-  console.log('[Main] Global invoice hook called for:', appointmentId);
-  if (!appointmentId) {
-    showNotification('Programarea nu are ID - vă rugăm să reîmprospătați pagina', 'error');
-    return;
-  }
-  const { downloadInvoicePDF: controllerDownload } = await import('./src/features/invoice/invoiceController.js');
-  return controllerDownload(appointmentId);
-};
 
 
 

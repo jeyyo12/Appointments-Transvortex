@@ -1,18 +1,17 @@
+import { db } from '../firebase/firebase-init.js';
+import { doc, getDoc } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+
 // ...existing code...
 
 export async function getAppointmentById(id) {
   console.log('[AppointmentsService] Fetching appointment:', id);
-  // Your existing Firebase/database fetch logic
-  // Return the appointment object or null
-  
-  // Example implementation (adjust to your actual data source):
   try {
-    const doc = await firebase.firestore().collection('appointments').doc(id).get();
-    if (!doc.exists) {
+    const snap = await getDoc(doc(db, 'appointments', id));
+    if (!snap.exists()) {
       console.warn('[AppointmentsService] Appointment not found:', id);
       return null;
     }
-    const data = { id: doc.id, ...doc.data() };
+    const data = { id: snap.id, ...snap.data() };
     console.log('[AppointmentsService] Appointment fetched:', data);
     return data;
   } catch (err) {

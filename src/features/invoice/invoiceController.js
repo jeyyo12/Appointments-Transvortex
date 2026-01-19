@@ -1,5 +1,6 @@
 import { mapAppointmentToInvoiceModel } from './invoiceMapper.js';
 import { buildInvoicePdf } from './invoicePdf.js';
+import { getAppointmentById } from '../../services/appointmentsService.js';
 
 function isMobileDevice() {
   return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || window.matchMedia('(max-width: 768px)').matches;
@@ -30,16 +31,13 @@ async function deliverPdf(doc, fileName) {
 }
 
 export async function downloadInvoicePDF(appointment) {
-  console.log('[InvoiceController] Invoice button clicked for appointment:', appointment?.id || appointment);
-  try {
-    if (!appointment) throw new Error('Appointment ID or data is missing');
+  const appointmentId = typeof appointment === 'string' ? appointment : appointment?.id;
+  if (!appointmentId) throw new Error('appointmentId missing');
+  console.log('[InvoiceController] Invoice button clicked for appointment:', appointmentId);
 
-    let appointmentData = appointment;
-    if (typeof appointment === 'string') {
-      const { getAppointmentById } = await import('../../services/appointmentsService.js');
-      appointmentData = await getAppointmentById(appointment);
-      if (!appointmentData) throw new Error(`Appointment with ID ${appointment} not found in database`);
-    }
+  try {
+    const appointmentData = typeof appointment === 'string' ? await getAppointmentById(appointmentId) : appointment;
+    if (!appointmentData) throw new Error(`Appointment with ID ${appointmentId} not found in database`);
     if (!appointmentData.id) throw new Error('Appointment data is invalid (missing ID)');
 
     const invoiceModel = mapAppointmentToInvoiceModel(appointmentData);
