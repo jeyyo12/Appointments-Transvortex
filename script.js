@@ -2106,7 +2106,7 @@ wrapper?.addEventListener('click', (e) => {
   this.openPopover();
 });
 
-        // Close on outside click - but NOT when clicking inside popover/wrapper
+        // Close on outside click
         document.addEventListener('click', (e) => {
             if (!this.isOpen) return;
 
@@ -2114,10 +2114,10 @@ wrapper?.addEventListener('click', (e) => {
             const overlayEl = document.getElementById('tpSheetOverlay');
 
             const clickedInside =
-              wrapper?.contains(e.target) ||
-              popoverEl?.contains(e.target);
+                wrapper?.contains(e.target) ||
+                popoverEl?.contains(e.target);
 
-            // Dacă e click direct pe overlay, închide
+            // dacă ai overlay activ, click pe overlay închide; click pe popover NU închide
             const clickedOverlay = overlayEl && e.target === overlayEl;
 
             if (clickedOverlay) {
@@ -2125,7 +2125,6 @@ wrapper?.addEventListener('click', (e) => {
                 return;
             }
 
-            // Dacă e click în afara wrapper + popover, închide
             if (!clickedInside) {
                 this.closePopover();
             }
@@ -2279,11 +2278,6 @@ wrapper?.addEventListener('click', (e) => {
         const popover = document.getElementById('timePickerPopover');
         if (!popover) return;
 
-        // Stop propagation on popover clicks - fără {once: true} ca să funcționeze la fiecare click
-        popover.addEventListener('click', (e) => {
-            e.stopPropagation();
-        });
-
         // Parse current time or use default
         const hiddenInput = document.getElementById('appointmentTimeValue');
         const displayInput = document.getElementById('appointmentTime');
@@ -2320,6 +2314,11 @@ wrapper?.addEventListener('click', (e) => {
 
         // Mount popover to body if mobile (for fixed positioning)
         this.mountPopoverToBodyIfMobile();
+
+        // Stop propagation on popover clicks to prevent closing
+        popover.addEventListener('click', (e) => {
+            e.stopPropagation();
+        });
 
         // Show overlay
         const overlay = this.ensureOverlay();
