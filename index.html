@@ -705,42 +705,41 @@
                             </div>
                             <div class="field">
                                 <label for="appointmentTime">Ora: <span class="req">*</span></label>
-                                <div class="input-wrap time-picker-trigger" id="timeWrap">
+                                <div class="input-wrap time-picker-wrapper" id="timePickerWrapper" style="position: relative;">
                                     <span class="input-icon"><i class="fas fa-clock"></i></span>
-                                    <input id="appointmentTime" type="hidden" name="appointmentTime" autocomplete="off" required />
-                                    <div class="time-display" id="timeDisplay">
-                                        <i class="fas fa-clock"></i>
-                                        <span id="timeDisplayText">Selectează ora</span>
-                                    </div>
-                                </div>
-                                <!-- Custom inline time picker panel -->
-                                <div id="timePickerPanel" class="time-picker-panel" style="display: none;">
-                                    <div class="tp-header">
-                                        <h4>Selectează ora</h4>
-                                        <button type="button" class="tp-close-btn" aria-label="Închide">&times;</button>
-                                    </div>
-                                    <div class="tp-body">
-                                        <!-- AM/PM toggle -->
-                                        <div class="tp-ampm-group">
-                                            <button type="button" class="tp-period-btn active" data-period="AM">AM</button>
-                                            <button type="button" class="tp-period-btn" data-period="PM">PM</button>
+                                    <input 
+                                        id="appointmentTime" 
+                                        type="text" 
+                                        name="appointmentTime" 
+                                        autocomplete="off" 
+                                        readonly 
+                                        placeholder="HH:MM AM/PM"
+                                        required 
+                                    />
+                                    <input id="appointmentTimeValue" type="hidden" name="appointmentTimeValue" />
+                                    
+                                    <!-- Popover Time Picker -->
+                                    <div id="timePickerPopover" class="time-picker-popover" style="display: none;">
+                                        <!-- AM/PM Toggle at top -->
+                                        <div class="tp-popover-header">
+                                            <button type="button" class="tp-period-toggle" data-period="AM">AM</button>
+                                            <button type="button" class="tp-period-toggle" data-period="PM">PM</button>
                                         </div>
                                         
-                                        <!-- Hours and Minutes columns -->
-                                        <div class="tp-columns">
-                                            <div class="tp-column">
-                                                <div class="tp-label">Ore</div>
+                                        <!-- Scrollable columns -->
+                                        <div class="tp-popover-body">
+                                            <div class="tp-column-group">
                                                 <div class="tp-items" id="hoursContainer"></div>
-                                            </div>
-                                            <div class="tp-separator">:</div>
-                                            <div class="tp-column">
-                                                <div class="tp-label">Minute</div>
+                                                <span class="tp-separator">:</span>
                                                 <div class="tp-items" id="minutesContainer"></div>
                                             </div>
                                         </div>
-                                    </div>
-                                    <div class="tp-footer">
-                                        <span id="tpPreview" class="tp-preview">09:00 AM</span>
+                                        
+                                        <!-- Action buttons -->
+                                        <div class="tp-popover-footer">
+                                            <button type="button" class="tp-btn-cancel">Anulează</button>
+                                            <button type="button" class="tp-btn-ok">OK</button>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
