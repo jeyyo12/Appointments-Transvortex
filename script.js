@@ -916,7 +916,8 @@ async function handleAddAppointment(e) {
     
     const address = document.getElementById('address').value.trim();
     const notes = document.getElementById('notes').value.trim();
-    const status = document.getElementById('status').value;
+    const statusRaw = document.getElementById('status').value;
+    const status = ['scheduled', 'done', 'canceled'].includes(statusRaw) ? statusRaw : 'scheduled';
     
     if (!customerName || !car || !dateStr || !timeStr) {
         showNotification('⚠️ Completează toate câmpurile obligatorii', 'error');
@@ -1309,6 +1310,99 @@ function loadLogoAsDataURL(path) {
     });
 }
 
+// Generic image loader (used for invoice background)
+function loadImageAsDataURL(path) {
+    return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.crossOrigin = 'Anonymous';
+        img.onload = () => {
+            const canvas = document.createElement('canvas');
+            canvas.width = img.width;
+            canvas.height = img.height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0);
+            try {
+                resolve(canvas.toDataURL('image/png'));
+            } catch (err) {
+                reject(err);
+            }
+        };
+        img.onerror = () => reject(new Error('Failed to load image: ' + path));
+        img.src = path;
+    });
+}
+
+function generateInvoicePin() {
+    const chars = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+    let code = '';
+    for (let i = 0; i < 6; i++) {
+        code += chars[Math.floor(Math.random() * chars.length)];
+    }
+    return `TVX-${code}`;
+}
+
+function generateInvoiceNumber() {
+    const now = new Date();
+    const stamp = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
+    return `INV-${stamp}-${Math.floor(10000 + Math.random() * 90000)}`;
+}
+
+function computeTotals(services = [], vatRate = 0) {
+    const subtotal = services.reduce((sum, s) => sum + (s.lineTotal || 0), 0);
+    const vatAmount = subtotal * (vatRate / 100);
+    const total = subtotal + vatAmount;
+    return { subtotal, vatAmount, total };
+}
+
+function buildInvoicePayload({
+    appointmentId,
+    appt,
+    services,
+    mileage,
+    vatRate,
+    pin,
+    invoiceNumber,
+    totals
+}) {
+    return {
+        pin,
+        invoiceNumber,
+        appointmentId,
+        customerName: appt?.customerName || '',
+        vehicle: appt?.car || '',
+        mileage: mileage ?? appt?.mileage ?? 0,
+        services,
+        subtotal: totals.subtotal,
+        vatRate,
+        vatAmount: totals.vatAmount,
+        total: totals.total,
+        dateStr: appt?.dateStr || new Date().toISOString().split('T')[0],
+        timeStr: appt?.timeStr || '',
+        pdfUrl: null
+    };
+}
+
+async function fetchInvoiceByAppointment(appointmentId) {
+    try {
+        const { collection, query, where, getDocs, limit } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+        const invoicesCol = collection(db, 'invoices');
+        const q = query(invoicesCol, where('appointmentId', '==', appointmentId), limit(1));
+        const snap = await getDocs(q);
+        if (!snap.empty) {
+            const docSnap = snap.docs[0];
+            return { id: docSnap.id, ...docSnap.data() };
+        }
+        return null;
+    } catch (err) {
+        console.error('❌ Error fetching invoice by appointment:', err);
+        return null;
+    }
+}
+
+function isMobileDevice() {
+    return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || window.matchMedia('(max-width: 768px)').matches;
+}
+
 // Global services array for finalize modal
 let finalizeServices = [];
 
@@ -1471,6 +1565,26 @@ async function finalizeAppointmentWithPrices(e) {
         return;
     }
 
+    // Normalize and validate services
+    const servicesClean = finalizeServices
+        .map(s => {
+            const desc = (s.description || '').trim();
+            const qty = Math.max(1, parseFloat(s.qty) || 1);
+            const unitPrice = Math.max(0, parseFloat(s.unitPrice) || 0);
+            return {
+                description: desc,
+                qty,
+                unitPrice,
+                lineTotal: qty * unitPrice
+            };
+        })
+        .filter(s => s.description);
+
+    if (!servicesClean.length) {
+        showNotification('⚠️ Adaugă cel puțin un serviciu cu descriere și preț.', 'warning');
+        return;
+    }
+
     // Disable submit button to prevent double-submit
     if (submitBtn) {
         submitBtn.disabled = true;
@@ -1478,12 +1592,23 @@ async function finalizeAppointmentWithPrices(e) {
     }
 
     // Calculate totals
-    const subtotal = finalizeServices.reduce((sum, s) => sum + (s.lineTotal || 0), 0);
-    const vatAmount = subtotal * (vatRate / 100);
-    const total = subtotal + vatAmount;
+    const totals = computeTotals(servicesClean, vatRate);
+    const pin = generateInvoicePin();
+    const invoiceNumber = generateInvoiceNumber();
+    const appt = appointments.find(a => a.id === appointmentId) || {};
+    const invoicePayload = buildInvoicePayload({
+        appointmentId,
+        appt,
+        services: servicesClean,
+        mileage,
+        vatRate,
+        pin,
+        invoiceNumber,
+        totals
+    });
 
     try {
-        const { doc, updateDoc, Timestamp } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+        const { doc, updateDoc, Timestamp, addDoc, collection, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
         const appointmentRef = doc(db, 'appointments', appointmentId);
 
         console.log('💾 Saving to Firestore...', { appointmentId, mileage, status: 'done' });
@@ -1491,13 +1616,26 @@ async function finalizeAppointmentWithPrices(e) {
         await updateDoc(appointmentRef, {
             status: 'done',
             mileage,
-            services: finalizeServices,
-            subtotal,
+            services: servicesClean,
+            subtotal: totals.subtotal,
             vatRate,
-            vatAmount,
-            total,
+            vatAmount: totals.vatAmount,
+            total: totals.total,
+            invoicePin: pin,
+            invoiceNumber,
             doneAt: Timestamp.now(),
             updatedAt: Timestamp.now()
+        });
+
+        const invoiceDocRef = await addDoc(collection(db, 'invoices'), {
+            ...invoicePayload,
+            appointmentId,
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp()
+        });
+
+        await updateDoc(appointmentRef, {
+            invoiceId: invoiceDocRef.id
         });
 
         console.log('✅ Firestore update successful');
@@ -1509,7 +1647,7 @@ async function finalizeAppointmentWithPrices(e) {
         // Generate invoice if checked (after modal closed)
         if (generateNow) {
             console.log('📄 Generating invoice...');
-            setTimeout(() => downloadInvoicePDF(appointmentId), 300);
+            downloadInvoicePDF(appointmentId);
         }
 
     } catch (error) {
@@ -1788,6 +1926,114 @@ async function getAppointmentById(id) {
     return (appointments || []).find(a => a.id === id);
 }
 
+async function createInvoicePdfDocument(invoice) {
+    if (typeof window.jspdf === 'undefined') {
+        showNotification('⚠️ jsPDF library not loaded', 'error');
+        throw new Error('jsPDF missing');
+    }
+
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF('p', 'mm', 'a4');
+
+    // Background template
+    try {
+        const bg = await loadImageAsDataURL('Images/Invoice.png');
+        doc.addImage(bg, 'PNG', 0, 0, 210, 297);
+    } catch (err) {
+        console.warn('⚠️ Could not load invoice template:', err);
+    }
+
+    const positions = {
+        pin: { x: 160, y: 20 },
+        date: { x: 160, y: 35 },
+        customer: { x: 30, y: 60 },
+        vehicle: { x: 30, y: 68 },
+        mileage: { x: 30, y: 76 },
+        vatRate: { x: 160, y: 76 },
+        servicesStartY: 100,
+        rowHeight: 8,
+        cols: { desc: 20, qty: 140, unit: 160, total: 190 },
+        subtotal: { x: 190, y: 230 },
+        vat: { x: 190, y: 238 },
+        total: { x: 190, y: 246 }
+    };
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(10);
+
+    doc.text(`PIN: ${invoice.pin || '-'}`, positions.pin.x, positions.pin.y, { align: 'right' });
+    doc.text(`Date: ${invoice.dateStr || new Date().toISOString().split('T')[0]}`, positions.date.x, positions.date.y, { align: 'right' });
+    doc.text(`Customer: ${invoice.customerName || '-'}`, positions.customer.x, positions.customer.y);
+    doc.text(`Vehicle: ${invoice.vehicle || '-'}`, positions.vehicle.x, positions.vehicle.y);
+    doc.text(`Mileage: ${invoice.mileage ?? '-'} miles`, positions.mileage.x, positions.mileage.y);
+    doc.text(`VAT: ${invoice.vatRate || 0}%`, positions.vatRate.x, positions.vatRate.y, { align: 'right' });
+
+    // Services
+    const services = invoice.services || [];
+    let y = positions.servicesStartY;
+    services.forEach((svc) => {
+        if (y > 255) {
+            doc.addPage();
+            y = 30;
+        }
+        const desc = doc.splitTextToSize(svc.description || '', 100);
+        doc.text(desc, positions.cols.desc, y);
+        doc.text(String(svc.qty || 1), positions.cols.qty, y, { align: 'right' });
+        doc.text(formatGBP(svc.unitPrice || 0), positions.cols.unit, y, { align: 'right' });
+        doc.text(formatGBP(svc.lineTotal || 0), positions.cols.total, y, { align: 'right' });
+        y += positions.rowHeight;
+    });
+
+    // Totals
+    doc.setFont('helvetica', 'bold');
+    doc.text('Subtotal', positions.subtotal.x - 20, positions.subtotal.y);
+    doc.text(formatGBP(invoice.subtotal || 0), positions.subtotal.x, positions.subtotal.y, { align: 'right' });
+
+    doc.setFont('helvetica', 'normal');
+    doc.text(`VAT (${invoice.vatRate || 0}%)`, positions.vat.x - 20, positions.vat.y);
+    doc.text(formatGBP(invoice.vatAmount || 0), positions.vat.x, positions.vat.y, { align: 'right' });
+
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(255, 99, 72);
+    doc.text('TOTAL', positions.total.x - 20, positions.total.y);
+    doc.text(formatGBP(invoice.total || 0), positions.total.x, positions.total.y, { align: 'right' });
+    doc.setTextColor(0, 0, 0);
+
+    doc.setFontSize(9);
+    doc.text(`Invoice PIN: ${invoice.pin || '-'}`, 20, 280);
+    return doc;
+}
+
+async function shareOrOpenInvoicePdf(invoice) {
+    const doc = await createInvoicePdfDocument(invoice);
+    const fileName = `invoice_${(invoice.customerName || 'client').replace(/[^a-zA-Z0-9]/g, '_')}_${invoice.dateStr || new Date().toISOString().split('T')[0]}.pdf`;
+
+    if (isMobileDevice()) {
+        // Try Web Share API
+        if (navigator.share && navigator.canShare) {
+            try {
+                const pdfBlob = doc.output('blob');
+                const file = new File([pdfBlob], fileName, { type: 'application/pdf' });
+                if (navigator.canShare({ files: [file] })) {
+                    await navigator.share({ files: [file], title: 'Invoice', text: `Invoice ${invoice.pin || ''}` });
+                    showNotification('✅ Invoice partajat!', 'success');
+                    return;
+                }
+            } catch (err) {
+                console.warn('Share failed, using blob URL fallback', err);
+            }
+        }
+
+        const blobUrl = doc.output('bloburl');
+        window.open(blobUrl, '_blank');
+        showNotification('✅ Invoice deschis în tab nou!', 'success');
+        return;
+    }
+
+    doc.save(fileName);
+    showNotification('✅ Invoice PDF descărcat!', 'success');
+}
+
 window.downloadInvoicePDF = async function(appointmentId) {
     const appt = appointments.find(a => a.id === appointmentId);
     if (!appt) {
@@ -1795,160 +2041,38 @@ window.downloadInvoicePDF = async function(appointmentId) {
         return;
     }
 
-    // Load jsPDF if not already loaded
-    if (typeof window.jspdf === 'undefined') {
-        showNotification('⚠️ jsPDF library not loaded', 'error');
-        return;
-    }
+    const vatRate = parseFloat(appt.vatRate || 0);
+    const servicesSafe = (appt.services || []).map(s => {
+        const desc = (s.description || '').trim();
+        const qty = Math.max(1, parseFloat(s.qty) || 1);
+        const unitPrice = Math.max(0, parseFloat(s.unitPrice) || 0);
+        return {
+            description: desc,
+            qty,
+            unitPrice,
+            lineTotal: qty * unitPrice
+        };
+    }).filter(s => s.description);
 
-    const { jsPDF } = window.jspdf;
-    const doc = new jsPDF();
-
-    // --- Logo
-    let logoDataURL = null;
-    try {
-        logoDataURL = await loadLogoAsDataURL('Images/Logo.png');
-        doc.addImage(logoDataURL, 'PNG', 14, 10, 40, 20);
-    } catch (err) {
-        console.warn('⚠️ Could not load logo:', err);
-    }
-
-    // --- Company Header
-    doc.setFontSize(20);
-    doc.setFont('helvetica', 'bold');
-    doc.text('Transvortex LTD', logoDataURL ? 60 : 14, 18);
-    
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'normal');
-    doc.text('www.transvortex.co.uk', logoDataURL ? 60 : 14, 24);
-    doc.text('contact@transvortex.co.uk', logoDataURL ? 60 : 14, 29);
-
-    // --- Invoice Title
-    let yPos = 45;
-    doc.setFontSize(24);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(255, 99, 72);
-    doc.text('INVOICE', 14, yPos);
-    doc.setTextColor(0, 0, 0);
-    yPos += 12;
-
-    // --- Invoice Info
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'normal');
-    const now = new Date().toLocaleDateString('ro-RO');
-    doc.text(`Date: ${appt.dateStr || now}`, 14, yPos);
-    yPos += 6;
-    doc.text(`Customer: ${appt.customerName || 'N/A'}`, 14, yPos);
-    yPos += 6;
-    doc.text(`Vehicle: ${appt.car || 'N/A'}`, 14, yPos);
-    yPos += 6;
-    doc.text(`Mileage: ${appt.mileage || 'N/A'} miles`, 14, yPos);
-    yPos += 10;
-
-    // --- Services Table
-    if (appt.services && appt.services.length > 0) {
-        doc.setFont('helvetica', 'bold');
-        doc.setFillColor(255, 99, 72);
-        doc.rect(14, yPos, 182, 8, 'F');
-        doc.setTextColor(255, 255, 255);
-        doc.text('Description', 16, yPos + 5);
-        doc.text('Qty', 130, yPos + 5);
-        doc.text('Unit Price', 150, yPos + 5);
-        doc.text('Total', 180, yPos + 5);
-        doc.setTextColor(0, 0, 0);
-        yPos += 10;
-
-        doc.setFont('helvetica', 'normal');
-        appt.services.forEach(svc => {
-            doc.text(svc.description || '', 16, yPos);
-            doc.text(String(svc.qty || 1), 130, yPos);
-            doc.text(formatGBP(svc.unitPrice || 0), 150, yPos);
-            doc.text(formatGBP(svc.lineTotal || 0), 180, yPos);
-            yPos += 6;
+    let invoiceData = await fetchInvoiceByAppointment(appointmentId);
+    if (!invoiceData) {
+        const totals = computeTotals(servicesSafe, vatRate);
+        const pin = appt.invoicePin || generateInvoicePin();
+        const invoiceNumber = appt.invoiceNumber || generateInvoiceNumber();
+        invoiceData = buildInvoicePayload({
+            appointmentId,
+            appt,
+            services: servicesSafe,
+            mileage: appt.mileage || 0,
+            vatRate,
+            pin,
+            invoiceNumber,
+            totals
         });
-
-        yPos += 5;
-        
-        // --- Totals
-        doc.setFont('helvetica', 'bold');
-        doc.text('Subtotal:', 150, yPos);
-        doc.text(formatGBP(appt.subtotal || 0), 180, yPos);
-        yPos += 6;
-
-        if (appt.vatRate > 0) {
-            doc.setFont('helvetica', 'normal');
-            doc.text(`VAT (${appt.vatRate}%):`, 150, yPos);
-            doc.text(formatGBP(appt.vatAmount || 0), 180, yPos);
-            yPos += 6;
-        }
-
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(12);
-        doc.setTextColor(255, 99, 72);
-        doc.text('TOTAL:', 150, yPos);
-        doc.text(formatGBP(appt.total || 0), 180, yPos);
-        doc.setTextColor(0, 0, 0);
-        doc.setFontSize(10);
-        yPos += 10;
-
-    } else {
-        // No services - show basic notes
-        doc.setFont('helvetica', 'bold');
-        doc.text('Services / Notes:', 14, yPos);
-        yPos += 8;
-        doc.setFont('helvetica', 'normal');
-        const notes = appt.notes || 'Service auto (detalii la cerere).';
-        const splitNotes = doc.splitTextToSize(notes, 180);
-        doc.text(splitNotes, 14, yPos);
     }
 
-    // --- Footer
-    doc.setDrawColor(230);
-    doc.line(14, 270, 196, 270);
-    doc.setFontSize(10);
-    doc.text('Mulțumim! Transvortex LTD', 14, 278);
-
-    const fileName = `invoice_${appt.customerName?.replace(/[^a-zA-Z0-9]/g, '_') || 'client'}_${appt.dateStr || now}.pdf`;
-    
-    // Mobile-friendly invoice handling
-    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-    
-    if (isMobile) {
-        console.log('📱 Mobile detected - using share/blob URL');
-        
-        // Try to use Web Share API with PDF blob
-        if (navigator.share && navigator.canShare) {
-            try {
-                const pdfBlob = doc.output('blob');
-                const file = new File([pdfBlob], fileName, { type: 'application/pdf' });
-                
-                if (navigator.canShare({ files: [file] })) {
-                    await navigator.share({
-                        files: [file],
-                        title: 'Invoice',
-                        text: `Invoice for ${appt.customerName}`
-                    });
-                    showNotification('✅ Invoice partajat!', 'success');
-                    console.log('✅ Invoice shared via Web Share API');
-                    return;
-                }
-            } catch (shareError) {
-                console.log('ℹ️ Share failed, falling back to blob URL:', shareError.message);
-            }
-        }
-        
-        // Fallback: Open in new tab using blob URL
-        const blobUrl = doc.output('bloburl');
-        window.open(blobUrl, '_blank');
-        showNotification('✅ Invoice deschis în tab nou!', 'success');
-        console.log('✅ Invoice opened in new tab (mobile)');
-    } else {
-        // Desktop: use traditional download
-        doc.save(fileName);
-        showNotification('✅ Invoice PDF descărcat!', 'success');
-        console.log('✅ Invoice PDF downloaded (desktop)');
-    }
-}
+    await shareOrOpenInvoicePdf(invoiceData);
+};
 
 // ==========================================
 // CUSTOM TIME PICKER - INLINE PANEL

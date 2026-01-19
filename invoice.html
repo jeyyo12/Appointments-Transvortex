@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Invoice Viewer</title>
+  <style>
+    :root {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      color: #111;
+      background: #f7f7fb;
+    }
+    body { margin: 0; padding: 0; }
+    .container {
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 1.5rem;
+    }
+    .card {
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+      padding: 1.25rem 1.5rem;
+      margin-top: 1rem;
+    }
+    h1 { margin: 0 0 0.25rem; font-size: 1.4rem; }
+    .muted { color: #666; font-size: 0.95rem; }
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin: 0.4rem 0; }
+    .row strong { display: block; margin-bottom: 0.25rem; color: #333; }
+    .services { margin-top: 0.75rem; border-top: 1px solid #eee; padding-top: 0.75rem; }
+    .service-row { display: grid; grid-template-columns: 1fr 60px 100px 100px; gap: 0.5rem; font-size: 0.95rem; padding: 0.35rem 0; border-bottom: 1px solid #f1f1f1; }
+    .totals { margin-top: 0.75rem; text-align: right; }
+    .totals div { margin: 0.2rem 0; }
+    .pill { display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.35rem 0.65rem; border-radius: 999px; background: #eef2ff; color: #4338ca; font-weight: 600; }
+    button {
+      background: linear-gradient(135deg, #FF8A3D, #F47C2C);
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      padding: 0.8rem 1.2rem;
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: 0 10px 25px rgba(255,138,61,0.25);
+      width: 100%;
+      margin-top: 1rem;
+    }
+    button:disabled { opacity: 0.6; cursor: not-allowed; box-shadow: none; }
+    .error { color: #b91c1c; background: #fee2e2; border: 1px solid #fecaca; padding: 0.75rem 1rem; border-radius: 10px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="card">
+      <h1>Factura</h1>
+      <div id="status" class="muted">Se încarcă...</div>
+      <div id="error" class="error" style="display:none;"></div>
+      <div id="invoice" style="display:none;">
+        <div class="row">
+          <div><strong>PIN</strong><span id="invPin" class="pill"></span></div>
+          <div style="text-align:right;"><strong>Data</strong><span id="invDate" class="muted"></span></div>
+        </div>
+        <div class="row">
+          <div><strong>Client</strong><span id="invCustomer" class="muted"></span></div>
+          <div><strong>Mașină</strong><span id="invVehicle" class="muted"></span></div>
+        </div>
+        <div class="row">
+          <div><strong>Mile</strong><span id="invMileage" class="muted"></span></div>
+          <div><strong>VAT</strong><span id="invVatRate" class="muted"></span></div>
+        </div>
+        <div class="services" id="services"></div>
+        <div class="totals">
+          <div>Subtotal: <strong id="invSubtotal"></strong></div>
+          <div>VAT: <strong id="invVat"></strong></div>
+          <div style="font-size:1.05rem;">Total: <strong id="invTotal"></strong></div>
+        </div>
+        <button id="downloadBtn">Descarcă / Share PDF</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+  <script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+    import { getFirestore, collection, query, where, limit, getDocs } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyDKyqAb198h6VdbHXZtciMdn_KIg-L2zZU",
+      authDomain: "transvortexltdcouk.firebaseapp.com",
+      projectId: "transvortexltdcouk",
+      storageBucket: "transvortexltdcouk.firebasestorage.app",
+      messagingSenderId: "980773899679",
+      appId: "1:980773899679:web:1d741dd11f75cd238581aa",
+      measurementId: "G-RL8PTZS34D"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    const statusEl = document.getElementById('status');
+    const errorEl = document.getElementById('error');
+    const invoiceEl = document.getElementById('invoice');
+    const servicesEl = document.getElementById('services');
+    const downloadBtn = document.getElementById('downloadBtn');
+
+    let invoiceData = null;
+
+    function formatGBP(n) {
+      return '£' + parseFloat(n || 0).toFixed(2);
+    }
+
+    function isMobileDevice() {
+      return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || window.matchMedia('(max-width: 768px)').matches;
+    }
+
+    function loadImageAsDataURL(path) {
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.crossOrigin = 'Anonymous';
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          canvas.width = img.width;
+          canvas.height = img.height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0);
+          try {
+            resolve(canvas.toDataURL('image/png'));
+          } catch (err) { reject(err); }
+        };
+        img.onerror = () => reject(new Error('Failed to load image: ' + path));
+        img.src = path;
+      });
+    }
+
+    async function createInvoicePdfDocument(invoice) {
+      if (typeof window.jspdf === 'undefined') {
+        throw new Error('jsPDF missing');
+      }
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF('p', 'mm', 'a4');
+      try {
+        const bg = await loadImageAsDataURL('Images/Invoice.png');
+        doc.addImage(bg, 'PNG', 0, 0, 210, 297);
+      } catch (err) {
+        console.warn('Could not load invoice template', err);
+      }
+      const positions = {
+        pin: { x: 160, y: 20 },
+        date: { x: 160, y: 35 },
+        customer: { x: 30, y: 60 },
+        vehicle: { x: 30, y: 68 },
+        mileage: { x: 30, y: 76 },
+        vatRate: { x: 160, y: 76 },
+        servicesStartY: 100,
+        rowHeight: 8,
+        cols: { desc: 20, qty: 140, unit: 160, total: 190 },
+        subtotal: { x: 190, y: 230 },
+        vat: { x: 190, y: 238 },
+        total: { x: 190, y: 246 }
+      };
+
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(10);
+      doc.text(`PIN: ${invoice.pin || '-'}`, positions.pin.x, positions.pin.y, { align: 'right' });
+      doc.text(`Date: ${invoice.dateStr || new Date().toISOString().split('T')[0]}`, positions.date.x, positions.date.y, { align: 'right' });
+      doc.text(`Customer: ${invoice.customerName || '-'}`, positions.customer.x, positions.customer.y);
+      doc.text(`Vehicle: ${invoice.vehicle || '-'}`, positions.vehicle.x, positions.vehicle.y);
+      doc.text(`Mileage: ${invoice.mileage ?? '-'} miles`, positions.mileage.x, positions.mileage.y);
+      doc.text(`VAT: ${invoice.vatRate || 0}%`, positions.vatRate.x, positions.vatRate.y, { align: 'right' });
+
+      const services = invoice.services || [];
+      let y = positions.servicesStartY;
+      services.forEach((svc) => {
+        if (y > 255) { doc.addPage(); y = 30; }
+        const desc = doc.splitTextToSize(svc.description || '', 100);
+        doc.text(desc, positions.cols.desc, y);
+        doc.text(String(svc.qty || 1), positions.cols.qty, y, { align: 'right' });
+        doc.text(formatGBP(svc.unitPrice || 0), positions.cols.unit, y, { align: 'right' });
+        doc.text(formatGBP(svc.lineTotal || 0), positions.cols.total, y, { align: 'right' });
+        y += positions.rowHeight;
+      });
+
+      doc.setFont('helvetica', 'bold');
+      doc.text('Subtotal', positions.subtotal.x - 20, positions.subtotal.y);
+      doc.text(formatGBP(invoice.subtotal || 0), positions.subtotal.x, positions.subtotal.y, { align: 'right' });
+      doc.setFont('helvetica', 'normal');
+      doc.text(`VAT (${invoice.vatRate || 0}%)`, positions.vat.x - 20, positions.vat.y);
+      doc.text(formatGBP(invoice.vatAmount || 0), positions.vat.x, positions.vat.y, { align: 'right' });
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(255, 99, 72);
+      doc.text('TOTAL', positions.total.x - 20, positions.total.y);
+      doc.text(formatGBP(invoice.total || 0), positions.total.x, positions.total.y, { align: 'right' });
+      doc.setTextColor(0, 0, 0);
+      doc.setFontSize(9);
+      doc.text(`Invoice PIN: ${invoice.pin || '-'}`, 20, 280);
+      return doc;
+    }
+
+    async function shareOrOpenInvoicePdf(invoice) {
+      const doc = await createInvoicePdfDocument(invoice);
+      const fileName = `invoice_${(invoice.customerName || 'client').replace(/[^a-zA-Z0-9]/g, '_')}_${invoice.dateStr || new Date().toISOString().split('T')[0]}.pdf`;
+      if (isMobileDevice() && navigator.share && navigator.canShare) {
+        try {
+          const pdfBlob = doc.output('blob');
+          const file = new File([pdfBlob], fileName, { type: 'application/pdf' });
+          if (navigator.canShare({ files: [file] })) {
+            await navigator.share({ files: [file], title: 'Invoice', text: `Invoice ${invoice.pin || ''}` });
+            return;
+          }
+        } catch (err) { console.warn('Share failed', err); }
+      }
+      const blobUrl = doc.output('bloburl');
+      window.open(blobUrl, '_blank');
+    }
+
+    async function fetchInvoiceByPin(pin) {
+      const q = query(collection(db, 'invoices'), where('pin', '==', pin), limit(1));
+      const snap = await getDocs(q);
+      if (snap.empty) return null;
+      const d = snap.docs[0];
+      return { id: d.id, ...d.data() };
+    }
+
+    function render(invoice) {
+      invoiceData = invoice;
+      statusEl.style.display = 'none';
+      errorEl.style.display = 'none';
+      invoiceEl.style.display = 'block';
+      document.getElementById('invPin').textContent = invoice.pin;
+      document.getElementById('invDate').textContent = invoice.dateStr;
+      document.getElementById('invCustomer').textContent = invoice.customerName;
+      document.getElementById('invVehicle').textContent = invoice.vehicle;
+      document.getElementById('invMileage').textContent = invoice.mileage;
+      document.getElementById('invVatRate').textContent = `${invoice.vatRate || 0}%`;
+      document.getElementById('invSubtotal').textContent = formatGBP(invoice.subtotal);
+      document.getElementById('invVat').textContent = formatGBP(invoice.vatAmount);
+      document.getElementById('invTotal').textContent = formatGBP(invoice.total);
+      servicesEl.innerHTML = '';
+      (invoice.services || []).forEach(svc => {
+        const row = document.createElement('div');
+        row.className = 'service-row';
+        row.innerHTML = `
+          <div>${svc.description || ''}</div>
+          <div style="text-align:right;">${svc.qty || 1}</div>
+          <div style="text-align:right;">${formatGBP(svc.unitPrice || 0)}</div>
+          <div style="text-align:right;font-weight:600;">${formatGBP(svc.lineTotal || 0)}</div>
+        `;
+        servicesEl.appendChild(row);
+      });
+    }
+
+    async function init() {
+      const pin = new URLSearchParams(location.search).get('pin');
+      if (!pin) {
+        statusEl.style.display = 'none';
+        errorEl.style.display = 'block';
+        errorEl.textContent = 'PIN lipsă în URL (ex: /invoice.html?pin=TVX-XXXXXX)';
+        return;
+      }
+      statusEl.textContent = `Se caută factura ${pin}...`;
+      try {
+        const inv = await fetchInvoiceByPin(pin);
+        if (!inv) {
+          statusEl.style.display = 'none';
+          errorEl.style.display = 'block';
+          errorEl.textContent = 'Factura nu a fost găsită.';
+          return;
+        }
+        render(inv);
+      } catch (err) {
+        statusEl.style.display = 'none';
+        errorEl.style.display = 'block';
+        errorEl.textContent = 'Eroare la încărcare: ' + err.message;
+      }
+    }
+
+    downloadBtn.addEventListener('click', async () => {
+      if (!invoiceData) return;
+      downloadBtn.disabled = true;
+      try {
+        await shareOrOpenInvoicePdf(invoiceData);
+      } finally {
+        downloadBtn.disabled = false;
+      }
+    });
+
+    init();
+  </script>
+</body>
+</html>
