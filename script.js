@@ -1418,15 +1418,27 @@ window.openFinalizePricesModal = function(appointmentId) {
 async function finalizeAppointmentWithPrices(e) {
     e.preventDefault();
     
+    console.log('🔄 Starting finalize appointment...');
+    
     const appointmentId = document.getElementById('finalizeAppointmentId').value;
     const mileage = parseInt(document.getElementById('finalizeMileage').value);
     const vatRate = parseFloat(document.getElementById('finalizeVatRate').value) || 0;
     const generateNow = document.getElementById('generateInvoiceNow').checked;
+    const submitBtn = e.target.querySelector('button[type="submit"]');
 
-    if (!appointmentId) return;
+    if (!appointmentId) {
+        console.error('❌ No appointment ID');
+        return;
+    }
     if (!mileage || mileage < 0) {
         showNotification('⚠️ Mile obligatorii!', 'warning');
         return;
+    }
+
+    // Disable submit button to prevent double-submit
+    if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Se salvează...';
     }
 
     // Calculate totals
@@ -1437,6 +1449,8 @@ async function finalizeAppointmentWithPrices(e) {
     try {
         const { doc, updateDoc, Timestamp } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
         const appointmentRef = doc(db, 'appointments', appointmentId);
+
+        console.log('💾 Saving to Firestore...', { appointmentId, mileage, status: 'done' });
 
         await updateDoc(appointmentRef, {
             status: 'done',
@@ -1450,19 +1464,27 @@ async function finalizeAppointmentWithPrices(e) {
             updatedAt: Timestamp.now()
         });
 
+        console.log('✅ Firestore update successful');
         showNotification('✅ Programare finalizată cu succes!', 'success');
-        console.log(`✅ Appointment ${appointmentId} finalized with pricing`);
 
-        closeModal(document.getElementById('finalizeModal'));
+        // Close modal BEFORE invoice generation
+        closeModal('finalizeModal');
 
-        // Generate invoice if checked
+        // Generate invoice if checked (after modal closed)
         if (generateNow) {
-            setTimeout(() => downloadInvoicePDF(appointmentId), 500);
+            console.log('📄 Generating invoice...');
+            setTimeout(() => downloadInvoicePDF(appointmentId), 300);
         }
 
     } catch (error) {
         console.error('❌ Error finalizing appointment:', error);
-        showNotification('❌ Eroare la finalizare', 'error');
+        showNotification('❌ Eroare la finalizare: ' + error.message, 'error');
+        
+        // Re-enable button on error
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<i class="fas fa-check"></i> Finalizează + Salvează';
+        }
     }
 }
 
@@ -1851,10 +1873,45 @@ window.downloadInvoicePDF = async function(appointmentId) {
     doc.text('Mulțumim! Transvortex LTD', 14, 278);
 
     const fileName = `invoice_${appt.customerName?.replace(/[^a-zA-Z0-9]/g, '_') || 'client'}_${appt.dateStr || now}.pdf`;
-    doc.save(fileName);
     
-    showNotification('✅ Invoice PDF descărcat!', 'success');
-    console.log(`📄 Invoice PDF generated for appointment ${appt.id}`);
+    // Mobile-friendly invoice handling
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    
+    if (isMobile) {
+        console.log('📱 Mobile detected - using share/blob URL');
+        
+        // Try to use Web Share API with PDF blob
+        if (navigator.share && navigator.canShare) {
+            try {
+                const pdfBlob = doc.output('blob');
+                const file = new File([pdfBlob], fileName, { type: 'application/pdf' });
+                
+                if (navigator.canShare({ files: [file] })) {
+                    await navigator.share({
+                        files: [file],
+                        title: 'Invoice',
+                        text: `Invoice for ${appt.customerName}`
+                    });
+                    showNotification('✅ Invoice partajat!', 'success');
+                    console.log('✅ Invoice shared via Web Share API');
+                    return;
+                }
+            } catch (shareError) {
+                console.log('ℹ️ Share failed, falling back to blob URL:', shareError.message);
+            }
+        }
+        
+        // Fallback: Open in new tab using blob URL
+        const blobUrl = doc.output('bloburl');
+        window.open(blobUrl, '_blank');
+        showNotification('✅ Invoice deschis în tab nou!', 'success');
+        console.log('✅ Invoice opened in new tab (mobile)');
+    } else {
+        // Desktop: use traditional download
+        doc.save(fileName);
+        showNotification('✅ Invoice PDF descărcat!', 'success');
+        console.log('✅ Invoice PDF downloaded (desktop)');
+    }
 }
 
 
