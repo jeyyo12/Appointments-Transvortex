@@ -717,31 +717,6 @@
                                         required 
                                     />
                                     <input id="appointmentTimeValue" type="hidden" name="appointmentTimeValue" />
-                                    <div id="tpOverlay" class="tp-overlay" style="display:none;"></div>
-                                    
-                                    <!-- Popover Time Picker -->
-                                    <div id="timePickerPopover" class="time-picker-popover" style="display: none;">
-                                        <!-- AM/PM Toggle at top -->
-                                        <div class="tp-popover-header">
-                                            <button type="button" class="tp-period-toggle" data-period="AM">AM</button>
-                                            <button type="button" class="tp-period-toggle" data-period="PM">PM</button>
-                                        </div>
-                                        
-                                        <!-- Scrollable columns -->
-                                        <div class="tp-popover-body">
-                                            <div class="tp-column-group">
-                                                <div class="tp-items" id="hoursContainer"></div>
-                                                <span class="tp-separator">:</span>
-                                                <div class="tp-items" id="minutesContainer"></div>
-                                            </div>
-                                        </div>
-                                        
-                                        <!-- Action buttons -->
-                                        <div class="tp-popover-footer">
-                                            <button type="button" class="tp-btn-cancel">Anulează</button>
-                                            <button type="button" class="tp-btn-ok">OK</button>
-                                        </div>
-                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -961,6 +936,33 @@
             </button>
           </div>
         </form>
+      </div>
+    </div>
+
+    <!-- Time Sheet Modal -->
+    <div id="timeSheet" class="time-sheet" aria-hidden="true">
+      <div class="time-sheet__overlay"></div>
+      <div class="time-sheet__panel" role="dialog" aria-modal="true">
+        <div class="time-sheet__header">
+          <div class="time-sheet__title">Selectează ora</div>
+          <button type="button" id="timeSheetClose" class="time-sheet__close" aria-label="Închide">✕</button>
+        </div>
+
+        <div class="time-sheet__period">
+          <button type="button" class="period-btn" data-period="AM">AM</button>
+          <button type="button" class="period-btn" data-period="PM">PM</button>
+        </div>
+
+        <div class="time-sheet__body">
+          <div class="wheel" id="wheelHours"></div>
+          <div class="sep">:</div>
+          <div class="wheel" id="wheelMinutes"></div>
+        </div>
+
+        <div class="time-sheet__footer">
+          <button type="button" id="timeSheetCancel" class="btn-cancel">Anulează</button>
+          <button type="button" id="timeSheetOk" class="btn-ok">OK</button>
+        </div>
       </div>
     </div>
 

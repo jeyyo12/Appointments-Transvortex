@@ -150,18 +150,13 @@
         vehicle: { x: 30, y: 68 },
         mileage: { x: 30, y: 76 },
         vatRate: { x: 160, y: 76 },
+        contacts: { x: 20, y: 260 },
         servicesStartY: 100,
         rowHeight: 8,
         cols: { desc: 20, qty: 140, unit: 160, total: 190 },
         subtotal: { x: 190, y: 230 },
         vat: { x: 190, y: 238 },
-        total: { x: 190, y: 246 },
-        contacts: {
-            callUs: { x: 20, y: 265 },
-            emergency: { x: 20, y: 270 },
-            website: { x: 20, y: 275 },
-            facebook: { x: 20, y: 280 }
-        }
+        total: { x: 190, y: 246 }
       };
 
       doc.setFont('helvetica', 'normal');
@@ -197,16 +192,17 @@
       doc.text(formatGBP(invoice.total || 0), positions.total.x, positions.total.y, { align: 'right' });
       doc.setTextColor(0, 0, 0);
       
-      // Contact information
-      doc.setFont('helvetica', 'normal');
+      // Contact details footer
       doc.setFontSize(8);
-      doc.text('Call us: Mihai +44 7440787527', positions.contacts.callUs.x, positions.contacts.callUs.y);
-      doc.text('Emergency: Iulian +44 7478280954', positions.contacts.emergency.x, positions.contacts.emergency.y);
-      doc.text('Website: https://transvortexltd.co.uk/', positions.contacts.website.x, positions.contacts.website.y);
-      doc.text('Facebook: https://www.facebook.com/profile.php?id=61586007316302', positions.contacts.facebook.x, positions.contacts.facebook.y);
+      doc.setFont('helvetica', 'normal');
+      const contactY = positions.contacts.y;
+      doc.text('Call us: Mihai +44 7440787527', positions.contacts.x, contactY);
+      doc.text('Emergency: Iulian +44 7478280954', positions.contacts.x, contactY + 5);
+      doc.text('Website: https://transvortexltd.co.uk/', positions.contacts.x, contactY + 10);
+      doc.text('Facebook: https://www.facebook.com/profile.php?id=61586007316302', positions.contacts.x, contactY + 15);
       
       doc.setFontSize(9);
-      doc.text(`Invoice PIN: ${invoice.pin || '-'}`, 20, 287);
+      doc.text(`Invoice PIN: ${invoice.pin || '-'}`, 20, 285);
       return doc;
     }
 

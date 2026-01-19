@@ -1319,224 +1319,280 @@ footer p {
 }
 
 /* ==========================================
-   CUSTOM TIME PICKER - POPOVER STYLE
+   TIME SHEET MODAL - BOTTOM SHEET PICKER
    ========================================== */
 
-/* Overlay fullscreen */
-#tpSheetOverlay {
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.35);
-    backdrop-filter: blur(6px);
-    -webkit-backdrop-filter: blur(6px);
-    z-index: 10000;
-    display: none;
+/* Modal container */
+.time-sheet {
+  position: fixed;
+  inset: 0;
+  z-index: 20000;
+  display: none;
+  pointer-events: none;
 }
 
-#tpSheetOverlay.show {
-    display: block;
+.time-sheet[aria-hidden="false"] {
+  display: block;
+  pointer-events: auto;
 }
 
-.time-picker-wrapper {
-  position: relative !important;
+/* Overlay with blur */
+.time-sheet__overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  cursor: pointer;
+  animation: fadeIn 0.2s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Bottom sheet panel */
+.time-sheet__panel {
+  position: fixed;
+  left: 12px;
+  right: 12px;
+  bottom: 12px;
+  max-height: 80vh;
+  background: #fff;
+  border-radius: 20px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  display: flex;
+  flex-direction: column;
+  animation: slideUp 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  overflow: hidden;
+}
+
+@keyframes slideUp {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+
+@media (min-width: 640px) {
+  .time-sheet__panel {
+    left: 50%;
+    transform: translateX(-50%);
+    max-width: 480px;
+    bottom: 24px;
+  }
+}
+
+/* Header */
+.time-sheet__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px;
+  border-bottom: 1px solid #eee;
+  background: linear-gradient(135deg, #FF8A3D, #F47C2C);
+}
+
+.time-sheet__title {
+  font-size: 18px;
+  font-weight: 700;
+  color: white;
+}
+
+.time-sheet__close {
+  width: 36px;
+  height: 36px;
+  border: none;
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  border-radius: 50%;
+  font-size: 20px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.time-sheet__close:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: scale(1.1);
+}
+
+/* AM/PM Period selector */
+.time-sheet__period {
+  display: flex;
+  gap: 12px;
+  padding: 16px 20px;
+  background: #fafafa;
+  border-bottom: 1px solid #eee;
+}
+
+.period-btn {
+  flex: 1;
+  padding: 12px;
+  border: 2px solid #ddd;
+  background: white;
+  color: #666;
+  border-radius: 10px;
+  font-weight: 700;
+  font-size: 16px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-height: 44px;
+}
+
+.period-btn:hover {
+  border-color: #FF8A3D;
+  color: #FF8A3D;
+}
+
+.period-btn.active {
+  background: linear-gradient(135deg, #FF8A3D, #F47C2C);
+  color: white;
+  border-color: #FF8A3D;
+  box-shadow: 0 4px 12px rgba(255, 138, 61, 0.3);
+}
+
+/* Scrollable wheels body */
+.time-sheet__body {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 24px 20px;
+  overflow: hidden;
+  flex: 1;
+  min-height: 280px;
+  max-height: 400px;
+}
+
+.wheel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow-y: auto;
+  scroll-behavior: smooth;
+  padding: 12px;
+  background: #f9f9f9;
+  border-radius: 12px;
+  border: 1px solid #e0e0e0;
+  min-width: 80px;
+  max-height: 320px;
+  scrollbar-width: thin;
+  scrollbar-color: #FF8A3D #f0f0f0;
+}
+
+.wheel::-webkit-scrollbar {
+  width: 6px;
+}
+
+.wheel::-webkit-scrollbar-track {
+  background: #f0f0f0;
+  border-radius: 10px;
+}
+
+.wheel::-webkit-scrollbar-thumb {
+  background: #FF8A3D;
+  border-radius: 10px;
+}
+
+.wheel-item {
+  padding: 12px 16px;
+  background: white;
+  border: 2px solid #ddd;
+  border-radius: 8px;
+  color: #666;
+  font-weight: 600;
+  font-size: 16px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.wheel-item:hover {
+  border-color: #FF8A3D;
+  color: #FF8A3D;
+  background: #fff9f6;
+  transform: scale(1.05);
+}
+
+.wheel-item.selected {
+  background: linear-gradient(135deg, #FF8A3D, #F47C2C);
+  color: white;
+  border-color: #FF8A3D;
+  font-weight: 700;
+  box-shadow: 0 4px 12px rgba(255, 138, 61, 0.4);
+  transform: scale(1.1);
+}
+
+.sep {
+  font-size: 32px;
+  font-weight: 700;
+  color: #333;
+  line-height: 1;
+  align-self: center;
+}
+
+/* Footer actions */
+.time-sheet__footer {
+  display: flex;
+  gap: 12px;
+  padding: 16px 20px;
+  border-top: 1px solid #eee;
+  background: #fafafa;
+}
+
+.btn-cancel,
+.btn-ok {
+  flex: 1;
+  padding: 14px 20px;
+  border: none;
+  border-radius: 10px;
+  font-weight: 700;
+  font-size: 16px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-height: 48px;
+}
+
+.btn-cancel {
+  background: white;
+  color: #666;
+  border: 2px solid #ddd;
+}
+
+.btn-cancel:hover {
+  background: #f5f5f5;
+  border-color: #999;
+  color: #333;
+}
+
+.btn-ok {
+  background: linear-gradient(135deg, #FF8A3D, #F47C2C);
+  color: white;
+  box-shadow: 0 4px 12px rgba(255, 138, 61, 0.3);
+}
+
+.btn-ok:hover {
+  box-shadow: 0 6px 16px rgba(255, 138, 61, 0.5);
+  transform: translateY(-2px);
+}
+
+.btn-ok:active {
+  transform: translateY(0);
 }
 
 #timePickerWrapper {
+  position: relative;
   cursor: pointer;
 }
 
 #timePickerWrapper input {
   cursor: pointer;
-}
-
-/* Popover default (desktop) */
-#timePickerPopover.time-picker-popover {
-  position: absolute;
-  top: calc(100% + 10px);
-  left: 0;
-  width: min(520px, 100%);
-  background: #fff;
-  border-radius: 16px;
-  box-shadow: 0 18px 50px rgba(0,0,0,0.18);
-  overflow: hidden;
-  display: none;
-  z-index: 10001;
-  padding: 0;
-}
-
-/* Header: AM/PM Toggle */
-.tp-popover-header {
-  display: flex;
-  gap: clamp(0.25rem, 1vw, 0.5rem);
-  padding: clamp(0.75rem, 2vw, 1rem);
-  border-bottom: 1px solid #eee;
-  background: #fafafa;
-}
-
-.tp-period-toggle {
-  flex: 1;
-  padding: clamp(0.5rem, 1.5vw, 0.75rem) clamp(1rem, 3vw, 1.5rem);
-  border: 2px solid #ddd;
-  background: white;
-  color: #666;
-  border-radius: 0.4rem;
-  font-weight: 600;
-  font-size: clamp(0.875rem, 2vw, 1rem);
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.tp-period-toggle:hover {
-  border-color: #FF8A3D;
-  color: #FF8A3D;
-}
-
-.tp-period-toggle.active {
-  background: linear-gradient(135deg, #FF8A3D, #F47C2C);
-  color: white;
-  border-color: #FF8A3D;
-}
-
-/* Body: Scrollable columns */
-.tp-popover-body {
-  padding: clamp(0.75rem, 2vw, 1rem);
-}
-
-.tp-column-group {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: clamp(0.5rem, 1vw, 0.75rem);
-}
-
-.tp-items {
-  display: flex;
-  flex-direction: column;
-  gap: clamp(0.25rem, 0.5vw, 0.5rem);
-  max-height: clamp(200px, 40vh, 300px);
-  overflow-y: auto;
-  padding: clamp(0.5rem, 1vw, 0.75rem);
-  background: #f9f9f9;
-  border-radius: 0.4rem;
-  border: 1px solid #eee;
-  min-width: clamp(3rem, 8vw, 3.5rem);
-  scroll-behavior: smooth;
-}
-
-/* Hour/Minute items */
-.tp-items .tp-item {
-  padding: clamp(0.5rem, 1.2vw, 0.75rem) clamp(0.5rem, 1vw, 0.75rem);
-  background: white;
-  border: 1px solid #ddd;
-  border-radius: 0.3rem;
-  color: #666;
-  font-weight: 500;
-  font-size: clamp(0.875rem, 1.8vw, 1rem);
-  cursor: pointer;
-  text-align: center;
-  transition: all 0.15s ease;
-  user-select: none;
-  white-space: nowrap;
-}
-
-.tp-items .tp-item:hover {
-  border-color: #FF8A3D;
-  color: #FF8A3D;
-  background: #fff9f6;
-  transform: translateY(-2px);
-}
-
-.tp-items .tp-item.selected {
-  background: linear-gradient(135deg, #FF8A3D, #F47C2C);
-  color: white;
-  border-color: #FF8A3D;
-  font-weight: 700;
-  box-shadow: 0 2px 8px rgba(255, 138, 61, 0.3);
-}
-
-/* Separator between hours and minutes */
-.tp-separator {
-  font-size: clamp(1.25rem, 2.5vw, 1.5rem);
-  font-weight: 700;
-  color: #333;
-  line-height: 1;
-  padding-bottom: 0.25rem;
-}
-
-/* Footer: Action buttons */
-.tp-popover-footer {
-  display: flex;
-  gap: clamp(0.5rem, 1vw, 0.75rem);
-  padding: clamp(0.75rem, 2vw, 1rem);
-  border-top: 1px solid #eee;
-  background: #fafafa;
-}
-
-.tp-btn-cancel,
-.tp-btn-ok {
-  flex: 1;
-  padding: clamp(0.6rem, 1.5vw, 0.75rem) clamp(1rem, 2vw, 1.5rem);
-  border: none;
-  border-radius: 0.4rem;
-  font-weight: 600;
-  font-size: clamp(0.875rem, 1.8vw, 1rem);
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.tp-btn-cancel {
-  background: white;
-  color: #666;
-  border: 1px solid #ddd;
-}
-
-.tp-btn-cancel:hover {
-  background: #f9f9f9;
-  border-color: #999;
-  color: #333;
-}
-
-.tp-btn-ok {
-  background: linear-gradient(135deg, #FF8A3D, #F47C2C);
-  color: white;
-}
-
-.tp-btn-ok:hover {
-  box-shadow: 0 4px 12px rgba(255, 138, 61, 0.4);
-  transform: translateY(-1px);
-}
-
-.tp-btn-ok:active {
-  transform: translateY(0);
-}
-
-/* Responsive adjustments */
-@media (max-width: 640px) {
-  #timePickerPopover.time-picker-popover {
-    min-width: calc(100% - 2rem);
-    margin-left: 1rem;
-    margin-right: 1rem;
-  }
-
-  .tp-items {
-    max-height: clamp(150px, 35vh, 250px);
-  }
-}
-
-/* Make the whole wrapper clearly clickable - cursor already set via #timePickerWrapper in popover section */
-@media (max-width: 768px) {
-  #timePickerPopover.time-picker-popover {
-    position: fixed;
-    left: 12px;
-    right: 12px;
-    bottom: 12px;
-    top: auto;
-    width: auto;
-    max-width: none;
-    max-height: 78vh;
-    margin: 0;
-    z-index: 10001;              /* above overlay (10000) */
-    border-radius: 18px;
-  }
 }
 

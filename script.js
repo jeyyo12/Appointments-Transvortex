@@ -889,7 +889,8 @@ function subscribeToAppointments() {
                 .catch((error) => {
                     console.error('❌ Error importing Firestore modules:', error);
                 });
-        }
+}
+
 // Add new appointment
 async function handleAddAppointment(e) {
     e.preventDefault();
@@ -1950,18 +1951,13 @@ async function createInvoicePdfDocument(invoice) {
         vehicle: { x: 30, y: 68 },
         mileage: { x: 30, y: 76 },
         vatRate: { x: 160, y: 76 },
+        contacts: { x: 20, y: 260 },
         servicesStartY: 100,
         rowHeight: 8,
         cols: { desc: 20, qty: 140, unit: 160, total: 190 },
         subtotal: { x: 190, y: 230 },
         vat: { x: 190, y: 238 },
-        total: { x: 190, y: 246 },
-        contacts: {
-            callUs: { x: 20, y: 265 },
-            emergency: { x: 20, y: 270 },
-            website: { x: 20, y: 275 },
-            facebook: { x: 20, y: 280 }
-        }
+        total: { x: 190, y: 246 }
     };
 
     doc.setFont('helvetica', 'normal');
@@ -2005,16 +2001,17 @@ async function createInvoicePdfDocument(invoice) {
     doc.text(formatGBP(invoice.total || 0), positions.total.x, positions.total.y, { align: 'right' });
     doc.setTextColor(0, 0, 0);
 
-    // Contact information
-    doc.setFont('helvetica', 'normal');
+    // Contact details footer
     doc.setFontSize(8);
-    doc.text('Call us: Mihai +44 7440787527', positions.contacts.callUs.x, positions.contacts.callUs.y);
-    doc.text('Emergency: Iulian +44 7478280954', positions.contacts.emergency.x, positions.contacts.emergency.y);
-    doc.text('Website: https://transvortexltd.co.uk/', positions.contacts.website.x, positions.contacts.website.y);
-    doc.text('Facebook: https://www.facebook.com/profile.php?id=61586007316302', positions.contacts.facebook.x, positions.contacts.facebook.y);
+    doc.setFont('helvetica', 'normal');
+    const contactY = positions.contacts.y;
+    doc.text('Call us: Mihai +44 7440787527', positions.contacts.x, contactY);
+    doc.text('Emergency: Iulian +44 7478280954', positions.contacts.x, contactY + 5);
+    doc.text('Website: https://transvortexltd.co.uk/', positions.contacts.x, contactY + 10);
+    doc.text('Facebook: https://www.facebook.com/profile.php?id=61586007316302', positions.contacts.x, contactY + 15);
     
     doc.setFontSize(9);
-    doc.text(`Invoice PIN: ${invoice.pin || '-'}`, 20, 287);
+    doc.text(`Invoice PIN: ${invoice.pin || '-'}`, 20, 285);
     return doc;
 }
 
@@ -2089,301 +2086,178 @@ window.downloadInvoicePDF = async function(appointmentId) {
 };
 
 // ==========================================
-// CUSTOM TIME PICKER - INLINE PANEL
+// TIME SHEET PICKER - BOTTOM SHEET MODAL
 // ==========================================
-// Time Picker Popover Handler
-const TimePickerPopover = {
-    selectedHour: 12,
+const TimeSheetPicker = {
+    selectedHour: 9,
     selectedMinute: 0,
     selectedPeriod: 'AM',
     isOpen: false,
-    tempHour: 12,
-    tempMinute: 0,
-    tempPeriod: 'AM',
-    bodyScrollLocked: false,
-    prevBodyOverflow: '',
 
     init() {
-        this.renderOptions();
+        if (this.initialized) return;
+        this.initialized = true;
         this.attachEvents();
     },
 
     attachEvents() {
-                const input = document.getElementById('appointmentTime');
-        const popover = document.getElementById('timePickerPopover');
+        const modal = document.getElementById('timeSheet');
         const wrapper = document.getElementById('timePickerWrapper');
+        const input = document.getElementById('appointmentTime');
+        const overlay = modal?.querySelector('.time-sheet__overlay');
+        const closeBtn = document.getElementById('timeSheetClose');
+        const cancelBtn = document.getElementById('timeSheetCancel');
+        const okBtn = document.getElementById('timeSheetOk');
+        const periodBtns = modal?.querySelectorAll('.period-btn');
+        const wheelHours = document.getElementById('wheelHours');
+        const wheelMinutes = document.getElementById('wheelMinutes');
 
-     // Open popover when clicking anywhere on the wrapper (icon + input area)
-wrapper?.addEventListener('click', (e) => {
-  e.preventDefault();
-  e.stopPropagation();
-  this.openPopover();
-});
+        // Open modal on wrapper/input click
+        const openHandler = (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            this.open();
+        };
 
-        // Close on outside click
-        document.addEventListener('click', (e) => {
-            if (!this.isOpen) return;
+        if (wrapper && !wrapper.dataset.bound) {
+            wrapper.addEventListener('click', openHandler);
+            wrapper.dataset.bound = 'true';
+        }
 
-            const popoverEl = document.getElementById('timePickerPopover');
-            const overlayEl = document.getElementById('tpSheetOverlay');
+        if (input && !input.dataset.bound) {
+            input.addEventListener('click', openHandler);
+            input.dataset.bound = 'true';
+        }
 
-            const clickedInside =
-                wrapper?.contains(e.target) ||
-                popoverEl?.contains(e.target);
+        // Close on overlay click
+        if (overlay && !overlay.dataset.bound) {
+            overlay.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.close();
+            });
+            overlay.dataset.bound = 'true';
+        }
 
-            // dacă ai overlay activ, click pe overlay închide; click pe popover NU închide
-            const clickedOverlay = overlayEl && e.target === overlayEl;
+        // Close on X button
+        if (closeBtn && !closeBtn.dataset.bound) {
+            closeBtn.addEventListener('click', () => this.close());
+            closeBtn.dataset.bound = 'true';
+        }
 
-            if (clickedOverlay) {
-                this.closePopover();
-                return;
-            }
+        // Close on Cancel
+        if (cancelBtn && !cancelBtn.dataset.bound) {
+            cancelBtn.addEventListener('click', () => this.close());
+            cancelBtn.dataset.bound = 'true';
+        }
 
-            if (!clickedInside) {
-                this.closePopover();
+        // Confirm on OK
+        if (okBtn && !okBtn.dataset.bound) {
+            okBtn.addEventListener('click', () => this.confirm());
+            okBtn.dataset.bound = 'true';
+        }
+
+        // AM/PM period buttons (event delegation)
+        periodBtns?.forEach(btn => {
+            if (!btn.dataset.bound) {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this.selectedPeriod = btn.dataset.period;
+                    this.updatePeriodButtons();
+                });
+                btn.dataset.bound = 'true';
             }
         });
 
-        // Close on ESC
+        // Wheel hours (event delegation)
+        if (wheelHours && !wheelHours.dataset.bound) {
+            wheelHours.addEventListener('click', (e) => {
+                const item = e.target.closest('.wheel-item');
+                if (item) {
+                    this.selectedHour = parseInt(item.dataset.value);
+                    this.renderWheels();
+                }
+            });
+            wheelHours.dataset.bound = 'true';
+        }
+
+        // Wheel minutes (event delegation)
+        if (wheelMinutes && !wheelMinutes.dataset.bound) {
+            wheelMinutes.addEventListener('click', (e) => {
+                const item = e.target.closest('.wheel-item');
+                if (item) {
+                    this.selectedMinute = parseInt(item.dataset.value);
+                    this.renderWheels();
+                }
+            });
+            wheelMinutes.dataset.bound = 'true';
+        }
+
+        // ESC key to close
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape' && this.isOpen) {
-                this.closePopover();
+                this.close();
             }
         });
-
-        // AM/PM buttons
-        popover?.querySelectorAll('.tp-period-toggle').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                this.tempPeriod = btn.dataset.period;
-                this.updatePeriodButtonStates();
-            });
-        });
-
-        // Hour selection via event delegation
-        const hoursContainer = document.getElementById('hoursContainer');
-        hoursContainer?.addEventListener('click', (e) => {
-            const item = e.target.closest('.tp-item');
-            if (item) {
-                this.tempHour = parseInt(item.textContent);
-                this.renderOptions();
-            }
-        });
-
-        // Minute selection via event delegation
-        const minutesContainer = document.getElementById('minutesContainer');
-        minutesContainer?.addEventListener('click', (e) => {
-            const item = e.target.closest('.tp-item');
-            if (item) {
-                this.tempMinute = parseInt(item.textContent);
-                this.renderOptions();
-            }
-        });
-
-        // Cancel button
-        popover?.querySelector('.tp-btn-cancel')?.addEventListener('click', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            this.closePopover();
-        });
-
-        // OK button - saves selection
-        popover?.querySelector('.tp-btn-ok')?.addEventListener('click', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            this.confirmSelection();
-        });
     },
 
-    isMobile() {
-        return window.matchMedia('(max-width: 768px)').matches;
-    },
+    open() {
+        const modal = document.getElementById('timeSheet');
+        if (!modal) return;
 
-    ensureOverlay() {
-        let overlay = document.getElementById('tpSheetOverlay');
-        if (!overlay) {
-            overlay = document.createElement('div');
-            overlay.id = 'tpSheetOverlay';
-            document.body.appendChild(overlay);
-            
-            // Close popover when clicking overlay
-            overlay.addEventListener('click', (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                this.closePopover();
-            });
-        }
-        return overlay;
-    },
-
-    originalParent: null,
-    originalNextSibling: null,
-
-    mountPopoverToBodyIfMobile() {
-        if (!this.isMobile()) return;
-        
-        const popover = document.getElementById('timePickerPopover');
-        if (!popover) return;
-
-        // Store original parent/position for later restore
-        if (!this.originalParent) {
-            this.originalParent = popover.parentElement;
-            this.originalNextSibling = popover.nextElementSibling;
-        }
-
-        // Move popover to body for mobile fixed positioning
-        document.body.appendChild(popover);
-    },
-
-    restorePopoverParent() {
-        const popover = document.getElementById('timePickerPopover');
-        if (!popover || !this.originalParent) return;
-
-        // Restore to original position in DOM
-        if (this.originalNextSibling) {
-            this.originalParent.insertBefore(popover, this.originalNextSibling);
-        } else {
-            this.originalParent.appendChild(popover);
-        }
-    },
-
-    renderOptions() {
-        const hoursContainer = document.getElementById('hoursContainer');
-        const minutesContainer = document.getElementById('minutesContainer');
-
-        // Clear containers
-        hoursContainer.innerHTML = '';
-        minutesContainer.innerHTML = '';
-
-        // Render hours 1-12
-        for (let i = 1; i <= 12; i++) {
-            const item = document.createElement('div');
-            item.className = 'tp-item';
-            item.textContent = i.toString().padStart(2, '0');
-            if (i === this.tempHour) {
-                item.classList.add('selected');
-            }
-            hoursContainer.appendChild(item);
-        }
-
-        // Render minutes 0-55 (every 5 minutes)
-        for (let i = 0; i < 60; i += 5) {
-            const item = document.createElement('div');
-            item.className = 'tp-item';
-            item.textContent = i.toString().padStart(2, '0');
-            if (i === this.tempMinute) {
-                item.classList.add('selected');
-            }
-            minutesContainer.appendChild(item);
-        }
-
-        this.updatePeriodButtonStates();
-    },
-
-    updatePeriodButtonStates() {
-        const popover = document.getElementById('timePickerPopover');
-        popover?.querySelectorAll('.tp-period-toggle').forEach(btn => {
-            btn.classList.toggle('active', btn.dataset.period === this.tempPeriod);
-        });
-    },
-
-    openPopover() {
-        const popover = document.getElementById('timePickerPopover');
-        if (!popover) return;
-
-        // Parse current time or use default
+        // Parse current value from hidden input (24h format)
         const hiddenInput = document.getElementById('appointmentTimeValue');
-        const displayInput = document.getElementById('appointmentTime');
-        
-        let timeStr24h = null;
-        
-        // Primary source: hidden input with 24h format
-        if (hiddenInput?.value) {
-            timeStr24h = parseTimeTo24h(hiddenInput.value);
-        }
-        
-        // Fallback: parse display input (12h format)
-        if (!timeStr24h && displayInput?.value) {
-            timeStr24h = parseTimeTo24h(displayInput.value);
-        }
-        
-        // Default if no valid time found
-        if (!timeStr24h) {
-            this.tempHour = 9;
-            this.tempMinute = 0;
-            this.tempPeriod = 'AM';
-        } else {
-            // Parse 24h format
-            const [h24Str, mStr] = timeStr24h.split(':');
-            const h24 = parseInt(h24Str);
+        const value24h = hiddenInput?.value?.trim();
+
+        if (value24h && /^\d{1,2}:\d{2}$/.test(value24h)) {
+            const [hStr, mStr] = value24h.split(':');
+            let h24 = parseInt(hStr);
             const m = parseInt(mStr);
-            
-            // Convert 24h to 12h display
-            this.tempHour = h24 > 12 ? h24 - 12 : (h24 === 0 ? 12 : h24);
-            this.tempMinute = m;
-            this.tempPeriod = h24 >= 12 ? 'PM' : 'AM';
-        }
-        this.renderOptions();
 
-        // Mount popover to body if mobile (for fixed positioning)
-        this.mountPopoverToBodyIfMobile();
-
-        // Stop propagation on popover clicks to prevent closing
-        popover.addEventListener('click', (e) => {
-            e.stopPropagation();
-        });
-
-        // Show overlay
-        const overlay = this.ensureOverlay();
-        overlay.classList.add('show');
-
-        // Lock body scroll on mobile
-        if (this.isMobile()) {
-            this.prevBodyOverflow = document.body.style.overflow;
-            document.body.style.overflow = 'hidden';
-            this.bodyScrollLocked = true;
+            // Convert 24h to 12h
+            if (h24 === 0) {
+                this.selectedHour = 12;
+                this.selectedPeriod = 'AM';
+            } else if (h24 === 12) {
+                this.selectedHour = 12;
+                this.selectedPeriod = 'PM';
+            } else if (h24 > 12) {
+                this.selectedHour = h24 - 12;
+                this.selectedPeriod = 'PM';
+            } else {
+                this.selectedHour = h24;
+                this.selectedPeriod = 'AM';
+            }
+            this.selectedMinute = m;
+        } else {
+            // Default: 9:00 AM
+            this.selectedHour = 9;
+            this.selectedMinute = 0;
+            this.selectedPeriod = 'AM';
         }
 
-        // Show popover
-        popover.style.display = 'block';
+        this.renderWheels();
+        this.updatePeriodButtons();
+
+        // Show modal
+        modal.setAttribute('aria-hidden', 'false');
+        document.body.style.overflow = 'hidden';
         this.isOpen = true;
 
-        // Auto-scroll to selected time
-        setTimeout(() => this.scrollToSelected(), 100);
+        // Auto-scroll to selected
+        setTimeout(() => this.scrollToSelected(), 150);
     },
 
-    closePopover() {
-        // Hide overlay
-        const overlay = document.getElementById('tpSheetOverlay');
-        if (overlay) {
-            overlay.classList.remove('show');
-        }
+    close() {
+        const modal = document.getElementById('timeSheet');
+        if (!modal) return;
 
-        // Unlock body scroll
-        if (this.bodyScrollLocked) {
-            document.body.style.overflow = this.prevBodyOverflow;
-            this.bodyScrollLocked = false;
-        }
-
-        // Hide popover
-        const popover = document.getElementById('timePickerPopover');
-        if (popover) {
-            popover.style.display = 'none';
-            this.isOpen = false;
-            
-            // Restore popover to original parent (undo mobile mount)
-            this.restorePopoverParent();
-        }
+        modal.setAttribute('aria-hidden', 'true');
+        document.body.style.overflow = '';
+        this.isOpen = false;
     },
 
-    confirmSelection() {
-        // Save temporary values
-        this.selectedHour = this.tempHour;
-        this.selectedMinute = this.tempMinute;
-        this.selectedPeriod = this.tempPeriod;
-
-        // Convert to 24h format for storage
+    confirm() {
+        // Convert 12h to 24h
         let h24 = this.selectedHour;
         if (this.selectedPeriod === 'PM' && h24 !== 12) {
             h24 += 12;
@@ -2395,39 +2269,78 @@ wrapper?.addEventListener('click', (e) => {
         const displayValue = `${this.selectedHour.toString().padStart(2, '0')}:${this.selectedMinute.toString().padStart(2, '0')} ${this.selectedPeriod}`;
 
         // Update inputs
-        const input = document.getElementById('appointmentTime');
+        const displayInput = document.getElementById('appointmentTime');
         const hiddenInput = document.getElementById('appointmentTimeValue');
 
-        if (input) {
-            input.value = displayValue;
-            input.dispatchEvent(new Event('change', { bubbles: true }));
+        if (displayInput) {
+            displayInput.value = displayValue;
+            displayInput.dispatchEvent(new Event('change', { bubbles: true }));
         }
 
         if (hiddenInput) {
             hiddenInput.value = timeValue24h;
         }
 
-        console.log('✅ Time selected:', { display: displayValue, value: timeValue24h });
+        console.log('✅ Time selected:', { display: displayValue, value24h: timeValue24h });
 
-        // Close popover
-        this.closePopover();
+        this.close();
+    },
+
+    renderWheels() {
+        const wheelHours = document.getElementById('wheelHours');
+        const wheelMinutes = document.getElementById('wheelMinutes');
+
+        if (!wheelHours || !wheelMinutes) return;
+
+        // Hours 1-12
+        wheelHours.innerHTML = '';
+        for (let i = 1; i <= 12; i++) {
+            const item = document.createElement('div');
+            item.className = 'wheel-item';
+            item.dataset.value = i;
+            item.textContent = i.toString().padStart(2, '0');
+            if (i === this.selectedHour) {
+                item.classList.add('selected');
+            }
+            wheelHours.appendChild(item);
+        }
+
+        // Minutes 0-55 (step 5)
+        wheelMinutes.innerHTML = '';
+        for (let i = 0; i < 60; i += 5) {
+            const item = document.createElement('div');
+            item.className = 'wheel-item';
+            item.dataset.value = i;
+            item.textContent = i.toString().padStart(2, '0');
+            if (i === this.selectedMinute) {
+                item.classList.add('selected');
+            }
+            wheelMinutes.appendChild(item);
+        }
+    },
+
+    updatePeriodButtons() {
+        const modal = document.getElementById('timeSheet');
+        modal?.querySelectorAll('.period-btn').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.period === this.selectedPeriod);
+        });
     },
 
     scrollToSelected() {
-        const hoursContainer = document.getElementById('hoursContainer');
-        const minutesContainer = document.getElementById('minutesContainer');
+        const wheelHours = document.getElementById('wheelHours');
+        const wheelMinutes = document.getElementById('wheelMinutes');
 
-        const selectedHour = hoursContainer?.querySelector('.tp-item.selected');
-        const selectedMinute = minutesContainer?.querySelector('.tp-item.selected');
+        const selectedHour = wheelHours?.querySelector('.wheel-item.selected');
+        const selectedMinute = wheelMinutes?.querySelector('.wheel-item.selected');
 
-        selectedHour?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-        selectedMinute?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        selectedHour?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        selectedMinute?.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
 };
 
 // Initialize on DOM ready
 document.addEventListener('DOMContentLoaded', () => {
-    TimePickerPopover.init();
+    TimeSheetPicker.init();
 });
 
 
