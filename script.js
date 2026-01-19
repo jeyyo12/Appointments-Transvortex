@@ -2137,26 +2137,26 @@ document.addEventListener('DOMContentLoaded', () => {
 
 import { downloadInvoicePDF } from './src/features/invoice/invoiceController.js';
 
-// Global invoice hook
-window.downloadInvoicePDF = (appointmentId) => {
-  console.log('[App] Invoice button clicked for:', appointmentId);
-  downloadInvoicePDF(appointmentId);
+// Global hook for Invoice buttons
+window.downloadInvoicePDF = async (appointmentId) => {
+  console.log('[Main] Invoice button clicked for:', appointmentId);
+  await downloadInvoicePDF(appointmentId);
 };
 
-// Event delegation for invoice buttons
-document.addEventListener('click', (e) => {
+// Event delegation for .btn-invoice
+document.addEventListener('click', async (e) => {
   const btn = e.target.closest('.btn-invoice');
   if (!btn) return;
   
-  e.preventDefault();
   const appointmentId = btn.dataset.id || btn.getAttribute('data-appointment-id');
-  
-  if (appointmentId) {
-    console.log('[App] Invoice button clicked via delegation:', appointmentId);
-    downloadInvoicePDF(appointmentId);
-  } else {
-    console.error('[App] Invoice button missing appointment ID');
+  if (!appointmentId) {
+    console.error('[Main] Invoice button missing data-id');
+    alert('Cannot generate invoice: missing appointment ID');
+    return;
   }
+  
+  console.log('[Main] Invoice button clicked (delegation) for:', appointmentId);
+  await downloadInvoicePDF(appointmentId);
 });
 
 
