@@ -1142,7 +1142,6 @@ footer p {
     border-bottom: 0.0625rem solid rgba(0,0,0,0.06);
 }
 
-@media (max-width: 700px) {
 @media (max-width: 43.75rem) {
   .modal-controls { 
     grid-template-columns: 1fr; 

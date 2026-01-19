@@ -52,6 +52,46 @@ let currentTab = 'pages';
 let appointmentsClicksBound = false;
 
 // ==========================================
+// Utility: Parse time to 24h format
+// ==========================================
+function parseTimeTo24h(timeStr) {
+    if (!timeStr || typeof timeStr !== 'string') return null;
+
+    timeStr = timeStr.trim();
+
+    // Check if already 24h format (HH:mm)
+    const match24h = /^(\d{1,2}):(\d{2})$/.exec(timeStr);
+    if (match24h) {
+        const h = parseInt(match24h[1]);
+        const m = parseInt(match24h[2]);
+        if (h >= 0 && h <= 23 && m >= 0 && m <= 59) {
+            return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+        }
+        return null;
+    }
+
+    // Check if 12h format (hh:mm AM/PM)
+    const match12h = /^(\d{1,2}):(\d{2})\s*(AM|PM)$/i.exec(timeStr);
+    if (match12h) {
+        let h = parseInt(match12h[1]);
+        const m = parseInt(match12h[2]);
+        const period = match12h[3].toUpperCase();
+
+        if (h < 1 || h > 12 || m < 0 || m > 59) return null;
+
+        if (period === 'AM') {
+            h = h === 12 ? 0 : h;
+        } else {
+            h = h === 12 ? 12 : h + 12;
+        }
+
+        return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+    }
+
+    return null;
+}
+
+// ==========================================
 // FIREBASE INITIALIZATION (Web SDK only)
 // ==========================================
 async function initializeFirebase() {
@@ -846,11 +886,12 @@ function subscribeToAppointments() {
                 showNotification('❌ Eroare la încărcarea programărilor', 'error');
             });
         })
-        .catch(error => {
-            console.error('❌ Error importing Firestore:', error);
-        });
-}
 
+
+        // ==========================================
+        // ENHANCE NATIVE DATE/TIME PICKERS
+        // ==========================================
+        function enhanceNativePickers() {
 // Add new appointment
 async function handleAddAppointment(e) {
     e.preventDefault();
@@ -863,7 +904,18 @@ async function handleAddAppointment(e) {
     const customerName = document.getElementById('customerName').value.trim();
     const car = document.getElementById('car').value.trim();
     const dateStr = document.getElementById('appointmentDate').value;
-    const timeStr = document.getElementById('appointmentTimeValue').value || document.getElementById('appointmentTime').value;
+    let timeStr = document.getElementById('appointmentTimeValue').value;
+    if (!timeStr) {
+        timeStr = parseTimeTo24h(document.getElementById('appointmentTime').value);
+    } else {
+        timeStr = parseTimeTo24h(timeStr);
+    }
+    
+    if (!timeStr) {
+        showNotification('⚠️ Ora invalidă', 'error');
+        return;
+    }
+    
     const address = document.getElementById('address').value.trim();
     const notes = document.getElementById('notes').value.trim();
     const status = document.getElementById('status').value;
@@ -1141,13 +1193,13 @@ function createAppointmentCard(apt, now) {
             </div>
             ${adminActions}
         </div>
-    `;
-}
-
-// Event delegation for appointment action buttons
-function bindAppointmentsClickDelegation() {
-    const container = document.getElementById('appointmentsList');
-    if (!container) return;
+        `;
+    }
+    
+    // Bind appointment action buttons using event delegation
+    function bindAppointmentsClickDelegation() {
+        const container = document.getElementById('appointmentsList');
+        if (!container) return;
     
     // Prevent duplicate listeners
     if (appointmentsClicksBound) return;
@@ -2029,24 +2081,40 @@ const TimePickerPopover = {
     },
 
     openPopover() {
-        const input = document.getElementById('appointmentTime');
-        const timeValue = input?.value;
 
-        // Parse existing value or use defaults
-        if (timeValue && timeValue.includes(':')) {
-            const [h24Str, mStr] = timeValue.split(':');
-            const h24 = parseInt(h24Str);
-            const m = parseInt(mStr);
 
-            this.tempHour = h24 > 12 ? h24 - 12 : (h24 === 0 ? 12 : h24);
-            this.tempMinute = m;
-            this.tempPeriod = h24 >= 12 ? 'PM' : 'AM';
-        } else {
+
+        const hiddenInput = document.getElementById('appointmentTimeValue');
+        const displayInput = document.getElementById('appointmentTime');
+        
+        let timeStr24h = null;
+        
+        // Primary source: hidden input with 24h format
+        if (hiddenInput?.value) {
+            timeStr24h = parseTimeTo24h(hiddenInput.value);
+        }
+        
+        // Fallback: parse display input (12h format)
+        if (!timeStr24h && displayInput?.value) {
+            timeStr24h = parseTimeTo24h(displayInput.value);
+        }
+        
+        // Default if no valid time found
+        if (!timeStr24h) {
             this.tempHour = 9;
             this.tempMinute = 0;
             this.tempPeriod = 'AM';
+        } else {
+            // Parse 24h format
+            const [h24Str, mStr] = timeStr24h.split(':');
+            const h24 = parseInt(h24Str);
+            const m = parseInt(mStr);
+            
+            // Convert 24h to 12h display
+            this.tempHour = h24 > 12 ? h24 - 12 : (h24 === 0 ? 12 : h24);
+            this.tempMinute = m;
+            this.tempPeriod = h24 >= 12 ? 'PM' : 'AM';
         }
-
         this.renderOptions();
 
         const popover = document.getElementById('timePickerPopover');
