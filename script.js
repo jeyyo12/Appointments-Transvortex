@@ -1205,10 +1205,8 @@ function createAppointmentCard(apt) {
         const container = document.getElementById('appointmentsList');
         if (!container) return;
 
-        // Prevent duplicate listeners
         if (appointmentsClicksBound) return;
 
-        // Single handler for all appointment buttons
         container.addEventListener('click', async (e) => {
             const btn = e.target.closest('button[data-apt-id]');
             if (!btn) return;
@@ -1234,14 +1232,12 @@ function createAppointmentCard(apt) {
                 return;
             }
 
-            // Handle Done/Finalize button
             if (btn.classList.contains('btn-done')) {
                 e.preventDefault();
                 openFinalizeModal(id);
                 return;
             }
-            
-            // Handle Delete button
+
             if (btn.classList.contains('btn-delete-appointment')) {
                 e.preventDefault();
                 if (confirm('Sigur doriți să ștergeți această programare?')) {
@@ -1251,8 +1247,7 @@ function createAppointmentCard(apt) {
                 }
                 return;
             }
-            
-            // Handle Visit button
+
             if (btn.classList.contains('btn-visit')) {
                 e.preventDefault();
                 const appointment = appointments.find(a => a.id === id);
@@ -1371,7 +1366,8 @@ async function finalizeAppointmentWithPrices(e) {
         // Generate invoice if checked (after modal closed)
         if (generateNow) {
             console.log('📄 Generating invoice...');
-            downloadInvoicePDF(appointmentId);
+            const { downloadInvoicePDF } = await import('./src/features/invoice/invoiceController.js');
+            await downloadInvoicePDF(appointmentId);
         }
 
     } catch (error) {
@@ -1593,296 +1589,43 @@ function bindAppointmentsModalControls() {
     }
 }
 
-// ==============================
-// Old finalize functions removed - now using openFinalizePricesModal
-// ==============================
+// Ensure finalize modal controls are bound (single place)
+function bindFinalizeModalControls() {
+    const finalizeModal = document.getElementById('finalizeModal');
+    if (!finalizeModal || finalizeModal.dataset.bound === 'true') return;
 
-// Mark appointment as done - opens finalize modal with pricing
-window.markAppointmentDone = function(id) {
-    if (!isAdmin) return;
-    openFinalizePricesModal(id);
+    const closeBtn = document.getElementById('finalizeModalClose');
+    const cancelBtn = document.getElementById('finalizeCancelBtn');
+
+    closeBtn?.addEventListener('click', () => closeModal('finalizeModal'));
+    cancelBtn?.addEventListener('click', () => closeModal('finalizeModal'));
+
+    finalizeModal.dataset.bound = 'true';
 }
 
-// ==========================================
-// TIME SHEET PICKER - BOTTOM SHEET MODAL
-// ==========================================
-const TimeSheetPicker = {
-    selectedHour: 9,
-    selectedMinute: 0,
-    selectedPeriod: 'AM',
-    isOpen: false,
-
-    init() {
-        if (this.initialized) return;
-        this.initialized = true;
-        this.attachEvents();
-    },
-
-    attachEvents() {
-        const modal = document.getElementById('timeSheet');
-        const wrapper = document.getElementById('timePickerWrapper');
-        const input = document.getElementById('appointmentTime');
-        const overlay = modal?.querySelector('.time-sheet__overlay');
-        const closeBtn = document.getElementById('timeSheetClose');
-        const cancelBtn = document.getElementById('timeSheetCancel');
-        const okBtn = document.getElementById('timeSheetOk');
-        const periodBtns = modal?.querySelectorAll('.period-btn');
-        const wheelHours = document.getElementById('wheelHours');
-        const wheelMinutes = document.getElementById('wheelMinutes');
-
-        // Open modal on wrapper/input click
-        const openHandler = (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            this.open();
-        };
-
-        if (wrapper && !wrapper.dataset.bound) {
-            wrapper.addEventListener('click', openHandler);
-            wrapper.dataset.bound = 'true';
-        }
-
-        if (input && !input.dataset.bound) {
-            input.addEventListener('click', openHandler);
-            input.dataset.bound = 'true';
-        }
-
-        // Close on overlay click
-        if (overlay && !overlay.dataset.bound) {
-            overlay.addEventListener('click', (e) => {
-                e.stopPropagation();
-                this.close();
-            });
-            overlay.dataset.bound = 'true';
-        }
-
-        // Close on X button
-        if (closeBtn && !closeBtn.dataset.bound) {
-            closeBtn.addEventListener('click', () => this.close());
-            closeBtn.dataset.bound = 'true';
-        }
-
-        // Close on Cancel
-        if (cancelBtn && !cancelBtn.dataset.bound) {
-            cancelBtn.addEventListener('click', () => this.close());
-            cancelBtn.dataset.bound = 'true';
-        }
-
-        // Confirm on OK
-        if (okBtn && !okBtn.dataset.bound) {
-            okBtn.addEventListener('click', () => this.confirm());
-            okBtn.dataset.bound = 'true';
-        }
-
-        // AM/PM period buttons (event delegation)
-        periodBtns?.forEach(btn => {
-            if (!btn.dataset.bound) {
-                btn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    this.selectedPeriod = btn.dataset.period;
-                    this.updatePeriodButtons();
-                });
-                btn.dataset.bound = 'true';
-            }
-        });
-
-        // Wheel hours (event delegation)
-        if (wheelHours && !wheelHours.dataset.bound) {
-            wheelHours.addEventListener('click', (e) => {
-                const item = e.target.closest('.wheel-item');
-                if (item) {
-                    this.selectedHour = parseInt(item.dataset.value);
-                    this.renderWheels();
-                }
-            });
-            wheelHours.dataset.bound = 'true';
-        }
-
-        // Wheel minutes (event delegation)
-        if (wheelMinutes && !wheelMinutes.dataset.bound) {
-            wheelMinutes.addEventListener('click', (e) => {
-                const item = e.target.closest('.wheel-item');
-                if (item) {
-                    this.selectedMinute = parseInt(item.dataset.value);
-                    this.renderWheels();
-                }
-            });
-            wheelMinutes.dataset.bound = 'true';
-        }
-
-        // ESC key to close
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape' && this.isOpen) {
-                this.close();
-            }
-        });
-    },
-
-    open() {
-        const modal = document.getElementById('timeSheet');
-        if (!modal) return;
-
-        // Parse current value from hidden input (24h format)
-        const hiddenInput = document.getElementById('appointmentTimeValue');
-        const value24h = hiddenInput?.value?.trim();
-
-        if (value24h && /^\d{1,2}:\d{2}$/.test(value24h)) {
-            const [hStr, mStr] = value24h.split(':');
-            let h24 = parseInt(hStr);
-            const m = parseInt(mStr);
-
-            // Convert 24h to 12h
-            if (h24 === 0) {
-                this.selectedHour = 12;
-                this.selectedPeriod = 'AM';
-            } else if (h24 === 12) {
-                this.selectedHour = 12;
-                this.selectedPeriod = 'PM';
-            } else if (h24 > 12) {
-                this.selectedHour = h24 - 12;
-                this.selectedPeriod = 'PM';
-            } else {
-                this.selectedHour = h24;
-                this.selectedPeriod = 'AM';
-            }
-            this.selectedMinute = m;
-        } else {
-            // Default: 9:00 AM
-            this.selectedHour = 9;
-            this.selectedMinute = 0;
-            this.selectedPeriod = 'AM';
-        }
-
-        this.renderWheels();
-        this.updatePeriodButtons();
-
-        // Show modal
-        modal.setAttribute('aria-hidden', 'false');
-        document.body.style.overflow = 'hidden';
-        this.isOpen = true;
-
-        // Auto-scroll to selected
-        setTimeout(() => this.scrollToSelected(), 150);
-    },
-
-    close() {
-        const modal = document.getElementById('timeSheet');
-        if (!modal) return;
-
-        modal.setAttribute('aria-hidden', 'true');
-        document.body.style.overflow = '';
-        this.isOpen = false;
-    },
-
-    confirm() {
-        // Convert 12h to 24h
-        let h24 = this.selectedHour;
-        if (this.selectedPeriod === 'PM' && h24 !== 12) {
-            h24 += 12;
-        } else if (this.selectedPeriod === 'AM' && h24 === 12) {
-            h24 = 0;
-        }
-
-        const timeValue24h = `${h24.toString().padStart(2, '0')}:${this.selectedMinute.toString().padStart(2, '0')}`;
-        const displayValue = `${this.selectedHour.toString().padStart(2, '0')}:${this.selectedMinute.toString().padStart(2, '0')} ${this.selectedPeriod}`;
-
-        // Update inputs
-        const displayInput = document.getElementById('appointmentTime');
-        const hiddenInput = document.getElementById('appointmentTimeValue');
-
-        if (displayInput) {
-            displayInput.value = displayValue;
-            displayInput.dispatchEvent(new Event('change', { bubbles: true }));
-        }
-
-        if (hiddenInput) {
-            hiddenInput.value = timeValue24h;
-        }
-
-        console.log('✅ Time selected:', { display: displayValue, value24h: timeValue24h });
-
-        this.close();
-    },
-
-    renderWheels() {
-        const wheelHours = document.getElementById('wheelHours');
-        const wheelMinutes = document.getElementById('wheelMinutes');
-
-        if (!wheelHours || !wheelMinutes) return;
-
-        // Hours 1-12
-        wheelHours.innerHTML = '';
-        for (let i = 1; i <= 12; i++) {
-            const item = document.createElement('div');
-            item.className = 'wheel-item';
-            item.dataset.value = i;
-            item.textContent = i.toString().padStart(2, '0');
-            if (i === this.selectedHour) {
-                item.classList.add('selected');
-            }
-            wheelHours.appendChild(item);
-        }
-
-        // Minutes 0-55 (step 5)
-        wheelMinutes.innerHTML = '';
-        for (let i = 0; i < 60; i += 5) {
-            const item = document.createElement('div');
-            item.className = 'wheel-item';
-            item.dataset.value = i;
-            item.textContent = i.toString().padStart(2, '0');
-            if (i === this.selectedMinute) {
-                item.classList.add('selected');
-            }
-            wheelMinutes.appendChild(item);
-        }
-    },
-
-    updatePeriodButtons() {
-        const modal = document.getElementById('timeSheet');
-        modal?.querySelectorAll('.period-btn').forEach(btn => {
-            btn.classList.toggle('active', btn.dataset.period === this.selectedPeriod);
-        });
-    },
-
-    scrollToSelected() {
-        const wheelHours = document.getElementById('wheelHours');
-        const wheelMinutes = document.getElementById('wheelMinutes');
-
-        const selectedHour = wheelHours?.querySelector('.wheel-item.selected');
-        const selectedMinute = wheelMinutes?.querySelector('.wheel-item.selected');
-
-        selectedHour?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        selectedMinute?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }
-};
-
-// Initialize on DOM ready
-document.addEventListener('DOMContentLoaded', () => {
-    TimeSheetPicker.init();
-});
-
+// Update appointment stats in UI
 function updateAppointmentStats() {
-    const totalAppointments = appointments.length;
-    const doneAppointments = appointments.filter(a => a.status === 'done').length;
-    const canceledAppointments = appointments.filter(a => a.status === 'canceled').length;
-    const upcomingAppointments = appointments.filter(a => a.status === 'scheduled').length;
-    
-    document.getElementById('totalAppointments').textContent = totalAppointments;
-    document.getElementById('doneAppointments').textContent = doneAppointments;
-    document.getElementById('canceledAppointments').textContent = canceledAppointments;
-    document.getElementById('upcomingAppointments').textContent = upcomingAppointments;
-    
-    // Update progress ring
-    const progressRing = document.getElementById('appointmentsProgressRing');
-    if (progressRing) {
-        const percentage = totalAppointments > 0 ? (doneAppointments / totalAppointments) * 100 : 0;
-        progressRing.style.setProperty('--percentage', `${percentage}%`);
-    }
+    const totalEl = document.getElementById('totalAppointments');
+    const todayEl = document.getElementById('todayAppointments');
+    const upcomingEl = document.getElementById('upcomingAppointments');
+    const doneEl = document.getElementById('doneAppointments');
+
+    const now = new Date();
+    const todayStr = now.toISOString().split('T')[0];
+
+    const total = appointments.length;
+    const today = appointments.filter(a => a.dateStr === todayStr).length;
+    const upcoming = appointments.filter(a => a.startAt?.toDate && a.startAt.toDate() > now && a.status === 'scheduled').length;
+    const done = appointments.filter(a => a.status === 'done').length;
+
+    if (totalEl) totalEl.textContent = total;
+    if (todayEl) todayEl.textContent = today;
+    if (upcomingEl) upcomingEl.textContent = upcoming;
+    if (doneEl) doneEl.textContent = done;
 }
 
-// Initial call to update stats display
-updateAppointmentStats();
-
+// Expose needed functions to avoid ReferenceError in other files
+window.bindFinalizeModalControls = bindFinalizeModalControls;
 window.updateAppointmentStats = updateAppointmentStats;
 
 

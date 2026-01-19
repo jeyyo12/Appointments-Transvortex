@@ -1,6 +1,8 @@
 import { db } from '../firebase/firebase-init.js';
 import { doc, getDoc, collection, query, where, getDocs, updateDoc, setDoc } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 
+// ...existing code...
+
 export async function getAppointmentById(id) {
   console.log('[AppointmentsService] Fetching appointment:', id);
   if (!id) throw new Error('appointmentId missing');
@@ -13,3 +15,5 @@ export async function getAppointmentById(id) {
   console.log('[AppointmentsService] Appointment fetched:', data);
   return data;
 }
+
+// ...existing code...
