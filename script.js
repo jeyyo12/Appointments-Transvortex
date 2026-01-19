@@ -803,27 +803,66 @@ document.addEventListener('DOMContentLoaded', () => {
 // ==========================================
 function enhanceNativePickers() {
     const dateInput = document.getElementById('appointmentDate');
-
-    // Click anywhere on wrapper => focus input and open picker
+    const timeInput = document.getElementById('appointmentTime');
+    const hiddenTime = document.getElementById('appointmentTimeValue');
     const dateWrap = document.getElementById('dateWrap');
+    const timeWrap = document.getElementById('timePickerWrapper');
 
+    // Date picker
     if (dateWrap && dateInput && !dateWrap.dataset.bound) {
         dateWrap.addEventListener('click', () => {
             dateInput.focus();
-            // Opens native picker in modern browsers (Chrome/Edge/Safari)
             if (dateInput.showPicker) {
-                try {
-                    dateInput.showPicker();
-                } catch (err) {
-                    // Fallback: just focus (some browsers require user gesture)
-                    console.log('showPicker not available or blocked');
-                }
+                try { dateInput.showPicker(); } catch (err) { console.log('showPicker not available or blocked'); }
             }
         });
         dateWrap.dataset.bound = "true";
     }
 
-    // Time picker is now handled by TimePickerPopover - no native picker
+    // Time picker: allow manual input + custom sheet
+    if (timeInput) {
+        timeInput.readOnly = false; // allow manual typing fallback
+        timeInput.placeholder = 'HH:MM AM/PM';
+
+        const syncHidden = (val) => {
+            const parsed = parseTimeTo24h(val);
+            if (parsed) {
+                hiddenTime.value = parsed;
+                return true;
+            }
+            return false;
+        };
+
+        if (!timeInput.dataset.bound) {
+            // Open custom picker on click
+            timeInput.addEventListener('click', (e) => {
+                e.preventDefault();
+                TimeSheetPicker.open();
+            });
+            // Manual typing fallback
+            timeInput.addEventListener('input', (e) => {
+                const ok = syncHidden(e.target.value);
+                if (!ok) hiddenTime.value = '';
+            });
+            timeInput.addEventListener('blur', (e) => {
+                if (!syncHidden(e.target.value)) {
+                    showNotification('Ora invalidă. Format: HH:MM AM/PM', 'warning');
+                }
+            });
+            timeInput.dataset.bound = "true";
+        }
+
+        // Wrapper click also opens picker
+        if (timeWrap && !timeWrap.dataset.bound) {
+            timeWrap.addEventListener('click', (e) => {
+                e.preventDefault();
+                TimeSheetPicker.open();
+            });
+            timeWrap.dataset.bound = 'true';
+        }
+    }
+
+    // Time picker is now handled by TimeSheetPicker - no native picker
 }
 
 // ==========================================
