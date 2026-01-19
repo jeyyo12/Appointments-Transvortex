@@ -1,0 +1,59 @@
+<div class="invoice">
+  <header class="invoice__header">
+    <div class="invoice__brand">
+      <img class="invoice__logo" alt="Transvortex Logo">
+      <div>
+        <div class="invoice__company-name"></div>
+        <div class="invoice__company-website"></div>
+        <div class="invoice__company-email"></div>
+      </div>
+    </div>
+    <div class="invoice__meta">
+      <div class="invoice__label">Invoice</div>
+      <div class="invoice__meta-line">No: <span class="invoice__number"></span></div>
+      <div class="invoice__meta-line">Date: <span class="invoice__date"></span></div>
+    </div>
+  </header>
+
+  <section class="invoice__section">
+    <h3 class="invoice__section-title">Bill To</h3>
+    <div class="invoice__grid">
+      <div><span class="invoice__muted">Name</span><div class="invoice__customer-name"></div></div>
+      <div><span class="invoice__muted">Vehicle</span><div class="invoice__customer-vehicle"></div></div>
+      <div><span class="invoice__muted">Mileage</span><div class="invoice__customer-mileage"></div></div>
+      <div><span class="invoice__muted">Address</span><div class="invoice__customer-address"></div></div>
+    </div>
+  </section>
+
+  <section class="invoice__section">
+    <h3 class="invoice__section-title">Services</h3>
+    <table class="invoice__table">
+      <thead>
+        <tr>
+          <th>Description</th>
+          <th class="is-right">Qty</th>
+          <th class="is-right">Unit Price</th>
+          <th class="is-right">Line Total</th>
+        </tr>
+      </thead>
+      <tbody class="invoice__services-body"></tbody>
+    </table>
+  </section>
+
+  <section class="invoice__section invoice__totals">
+    <div class="invoice__totals-row">
+      <span>Subtotal</span><span class="invoice__subtotal"></span>
+    </div>
+    <div class="invoice__totals-row">
+      <span>VAT</span><span class="invoice__vat"></span>
+    </div>
+    <div class="invoice__totals-row invoice__totals-row--strong">
+      <span>Total</span><span class="invoice__total"></span>
+    </div>
+  </section>
+
+  <section class="invoice__section">
+    <h3 class="invoice__section-title">Notes</h3>
+    <p class="invoice__notes"></p>
+  </section>
+</div>
