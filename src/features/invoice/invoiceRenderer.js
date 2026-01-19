@@ -415,8 +415,8 @@ function mapFirestoreAppointmentToInvoiceData(appointment) {
         address: '81 Foley Rd, Birmingham B8 2JT',
         website: 'https://transvortexltd.co.uk/',
         facebook: 'https://www.facebook.com/profile.php?id=61586007316302',
-        call: 'Mihai +44 7440787527',
-        emergency: 'Iulian +44 7478280954'
+        call: 'Iulian +44 7478280954',
+        emergency: 'Mihai +44 7440787527'
     };
 
     const vehicleMakeModel = appointment.makeModel || (
