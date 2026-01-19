@@ -865,33 +865,31 @@ function subscribeToAppointments() {
     }
     
     import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js')
-        .then(({ collection, query, orderBy, onSnapshot }) => {
-            console.log('📥 Subscribing to appointments collection...');
-            
-            const q = query(collection(db, 'appointments'), orderBy('startAt', 'asc'));
-            
-            appointmentsUnsubscribe = onSnapshot(q, (snapshot) => {
-                appointments = snapshot.docs.map(doc => ({
-                    id: doc.id,
-                    ...doc.data()
-                }));
-                
-                console.log(`✅ Appointments loaded: ${appointments.length}`);
-                
-                // Filter and render
-                filterAppointments();
-                updateAppointmentStats();
-            }, (error) => {
-                console.error('❌ Error loading appointments:', error);
-                showNotification('❌ Eroare la încărcarea programărilor', 'error');
-            });
-        })
-
-
-        // ==========================================
-        // ENHANCE NATIVE DATE/TIME PICKERS
-        // ==========================================
-        function enhanceNativePickers() {
+                .then(({ collection, query, orderBy, onSnapshot }) => {
+                    console.log('📥 Subscribing to appointments collection...');
+                    
+                    const q = query(collection(db, 'appointments'), orderBy('startAt', 'asc'));
+                    
+                    appointmentsUnsubscribe = onSnapshot(q, (snapshot) => {
+                        appointments = snapshot.docs.map(doc => ({
+                            id: doc.id,
+                            ...doc.data()
+                        }));
+                        
+                        console.log(`✅ Appointments loaded: ${appointments.length}`);
+                        
+                        // Filter and render
+                        filterAppointments();
+                        updateAppointmentStats();
+                    }, (error) => {
+                        console.error('❌ Error loading appointments:', error);
+                        showNotification('❌ Eroare la încărcarea programărilor', 'error');
+                    });
+                })
+                .catch((error) => {
+                    console.error('❌ Error importing Firestore modules:', error);
+                });
+        }
 // Add new appointment
 async function handleAddAppointment(e) {
     e.preventDefault();
