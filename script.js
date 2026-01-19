@@ -1152,22 +1152,12 @@ function createAppointmentCard(apt) {
     
     const actionsHTML = `
     <div class="page-actions">
-      ${apt.status === 'pending' ? `
-        <button class="btn-action btn-post" data-apt-id="${apt.id}" title="Marchează ca postat">
-          <i class="fas fa-check"></i> Postat
-        </button>
-      ` : ''}
-      ${apt.status === 'posted' ? `
-        <button class="btn-action btn-unpost" data-apt-id="${apt.id}" title="Marchează ca de postat">
-          <i class="fas fa-undo"></i> De postat
-        </button>
-      ` : ''}
-      ${apt.status !== 'completed' ? `
+      ${apt.status === 'scheduled' ? `
         <button class="btn-action btn-done" data-apt-id="${apt.id}" title="Finalizează programarea">
           <i class="fas fa-check-circle"></i> Finalizează
         </button>
       ` : ''}
-      ${apt.status === 'completed' ? `
+      ${apt.status === 'done' ? `
         <button class="btn-action btn-invoice" data-apt-id="${apt.id}" title="Generează factură">
           <i class="fas fa-file-invoice"></i> Invoice
         </button>
@@ -1218,7 +1208,7 @@ function createAppointmentCard(apt) {
     // Prevent duplicate listeners
     if (appointmentsClicksBound) return;
     
-    container.addEventListener('click', (e) => {
+    container.addEventListener('click', async (e) => {
         const btn = e.target.closest('button[data-apt-id]');
         if (!btn) return;
         
@@ -1236,20 +1226,18 @@ function createAppointmentCard(apt) {
         // Handle Invoice button
         if (btn.classList.contains('btn-invoice')) {
             e.preventDefault();
-            console.log('[Main] Invoice button clicked for appointment:', id);
             try {
-              downloadInvoicePDF(id);
+                await window.downloadInvoicePDF(id);
             } catch (err) {
-              console.error('[Main] Invoice generation failed:', err);
-              showNotification('Eroare la generarea facturii: ' + err.message, 'error');
+                console.error('[Main] Invoice generation failed:', err);
+                showNotification('Eroare la generarea facturii: ' + err.message, 'error');
             }
             return;
-          }
+        }
         
         // Handle Done/Finalize button
         if (btn.classList.contains('btn-done')) {
             e.preventDefault();
-            console.log('[Main] Finalize button clicked for:', id);
             openFinalizeModal(id);
             return;
         }
@@ -1257,11 +1245,10 @@ function createAppointmentCard(apt) {
         // Handle Delete button
         if (btn.classList.contains('btn-delete-appointment')) {
             e.preventDefault();
-            console.log('[Main] Delete button clicked for:', id);
             if (confirm('Sigur doriți să ștergeți această programare?')) {
-              deleteAppointment(id);
-              showNotification('Programare ștearsă cu succes', 'success');
-              loadAppointments();
+                await deleteAppointment(id);
+                showNotification('Programare ștearsă cu succes', 'success');
+                loadAppointments();
             }
             return;
         }
@@ -1269,27 +1256,12 @@ function createAppointmentCard(apt) {
         // Handle Visit button
         if (btn.classList.contains('btn-visit')) {
             e.preventDefault();
-            const appointment = getAppointmentById(id);
+            const appointment = appointments.find(a => a.id === id);
             if (appointment?.pageUrl) {
-              window.open(appointment.pageUrl, '_blank');
+                window.open(appointment.pageUrl, '_blank');
             } else {
-              showNotification('URL-ul paginii nu este disponibil', 'warning');
+                showNotification('URL-ul paginii nu este disponibil', 'warning');
             }
-            return;
-        }
-        
-        // Handle Post/Unpost buttons
-        if (btn.classList.contains('btn-post')) {
-            e.preventDefault();
-            updateAppointmentStatus(id, 'posted');
-            loadAppointments();
-            return;
-        }
-        
-        if (btn.classList.contains('btn-unpost')) {
-            e.preventDefault();
-            updateAppointmentStatus(id, 'pending');
-            loadAppointments();
             return;
         }
     });
@@ -1297,284 +1269,7 @@ function createAppointmentCard(apt) {
     appointmentsClicksBound = true;
 }
 
-// Update appointment statistics
-function updateAppointmentStats() {
-    const now = new Date();
-    const todayStr = now.toISOString().split('T')[0];
-    
-    const total = appointments.length;
-    const today = appointments.filter(apt => apt.dateStr === todayStr).length;
-    const upcoming = appointments.filter(apt => {
-        const aptDate = apt.startAt.toDate();
-        return aptDate > now && apt.status === 'scheduled';
-    }).length;
-    const done = appointments.filter(apt => apt.status === 'done').length;
-    
-    document.getElementById('totalAppointments').textContent = total;
-    document.getElementById('todayAppointments').textContent = today;
-    document.getElementById('upcomingAppointments').textContent = upcoming;
-    document.getElementById('doneAppointments').textContent = done;
-}
-
-// Refresh appointments manually
-async function handleRefreshAppointments() {
-    const refreshButton = document.getElementById('refreshAppointmentsButton');
-    
-    if (!currentUser) {
-        showNotification('⚠️ Conectează-te pentru a reîncărca programările', 'info');
-        return;
-    }
-    
-    try {
-        if (refreshButton) {
-            refreshButton.classList.add('refreshing');
-            refreshButton.disabled = true;
-        }
-        
-        console.log('🔄 Manual refresh appointments triggered...');
-        
-        // Re-subscribe
-        if (appointmentsUnsubscribe) {
-            appointmentsUnsubscribe();
-        }
-        subscribeToAppointments();
-        
-        showNotification(`✅ Reîncărcat! ${appointments.length} ${appointments.length === 1 ? 'programare găsită' : 'programări găsite'}`, 'success');
-        
-    } catch (error) {
-        console.error('❌ Error refreshing:', error);
-        showNotification('❌ Eroare la reîncărcare', 'error');
-    } finally {
-        if (refreshButton) {
-            refreshButton.classList.remove('refreshing');
-            refreshButton.disabled = false;
-        }
-    }
-}
-
-// ========================================
-// INVOICE SYSTEM WITH PRICES & SERVICES
-// ========================================
-
-// Currency formatter for GBP
-function formatGBP(n) {
-    return '£' + parseFloat(n || 0).toFixed(2);
-}
-
-// Generate invoice PIN
-function generateInvoicePin() {
-    const chars = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
-    let code = '';
-    for (let i = 0; i < 6; i++) {
-        code += chars[Math.floor(Math.random() * chars.length)];
-    }
-    return `TVX-${code}`;
-}
-
-function generateInvoiceNumber() {
-    const now = new Date();
-    const stamp = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
-    return `INV-${stamp}-${Math.floor(10000 + Math.random() * 90000)}`;
-}
-
-function computeTotals(services = [], vatRate = 0) {
-    const subtotal = services.reduce((sum, s) => sum + (s.lineTotal || 0), 0);
-    const vatAmount = subtotal * (vatRate / 100);
-    const total = subtotal + vatAmount;
-    return { subtotal, vatAmount, total };
-}
-
-function buildInvoicePayload({
-    appointmentId,
-    appt,
-    services,
-    mileage,
-    vatRate,
-    pin,
-    invoiceNumber,
-    totals
-}) {
-    return {
-        pin,
-        invoiceNumber,
-        appointmentId,
-        customerName: appt?.customerName || '',
-        vehicle: appt?.car || '',
-        mileage: mileage ?? appt?.mileage ?? 0,
-        services,
-        subtotal: totals.subtotal,
-        vatRate,
-        vatAmount: totals.vatAmount,
-        total: totals.total,
-        dateStr: appt?.dateStr || new Date().toISOString().split('T')[0],
-        timeStr: appt?.timeStr || '',
-        pdfUrl: null
-    };
-}
-
-async function fetchInvoiceByAppointment(appointmentId) {
-    try {
-        const { collection, query, where, getDocs, limit } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
-        const invoicesCol = collection(db, 'invoices');
-        const q = query(invoicesCol, where('appointmentId', '==', appointmentId), limit(1));
-        const snap = await getDocs(q);
-        if (!snap.empty) {
-            const docSnap = snap.docs[0];
-            return { id: docSnap.id, ...docSnap.data() };
-        }
-        return null;
-    } catch (err) {
-        console.error('❌ Error fetching invoice by appointment:', err);
-        return null;
-    }
-}
-
-function isMobileDevice() {
-    return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || window.matchMedia('(max-width: 768px)').matches;
-}
-
-// Global services array for finalize modal
-let finalizeServices = [];
-
-// Flag to prevent duplicate event listeners
-let servicesTableListenerBound = false;
-
-// Add new service row
-function addServiceRow() {
-    finalizeServices.push({ description: '', qty: 1, unitPrice: 0, lineTotal: 0 });
-    renderServicesTable();
-}
-
-// Remove service row
-function removeServiceRow(idx) {
-    finalizeServices.splice(idx, 1);
-    renderServicesTable();
-}
-
-// Render services table (render only, no event binding)
-function renderServicesTable() {
-    const tbody = document.getElementById('servicesTbody');
-    if (!tbody) return;
-
-    tbody.innerHTML = '';
-    finalizeServices.forEach((svc, i) => {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-            <td><input type="text" class="svc-desc" data-idx="${i}" value="${svc.description || ''}" placeholder="ex: Schimb ulei motor" /></td>
-            <td><input type="number" class="svc-qty" data-idx="${i}" min="1" step="1" value="${svc.qty || 1}" /></td>
-            <td><input type="number" class="svc-unit" data-idx="${i}" min="0" step="0.01" value="${svc.unitPrice || 0}" placeholder="£" /></td>
-            <td style="text-align:right;font-weight:600;" class="svc-total" data-idx="${i}">${formatGBP(svc.lineTotal || 0)}</td>
-            <td><button type="button" class="btn-remove" data-idx="${i}"><i class="fas fa-times"></i></button></td>
-        `;
-        tbody.appendChild(tr);
-    });
-
-    recalcInvoiceTotals();
-}
-
-// Bind delegated event listeners for services table (call once)
-function bindServicesTableDelegation() {
-    const tbody = document.getElementById('servicesTbody');
-    if (!tbody || servicesTableListenerBound) return;
-
-    // Single delegated input listener for all input fields
-    tbody.addEventListener('input', (e) => {
-        const idx = parseInt(e.target.dataset.idx);
-        if (isNaN(idx) || !finalizeServices[idx]) return;
-
-        if (e.target.classList.contains('svc-desc')) {
-            // Description changed
-            finalizeServices[idx].description = e.target.value;
-        } else if (e.target.classList.contains('svc-qty')) {
-            // Quantity changed
-            finalizeServices[idx].qty = parseFloat(e.target.value) || 1;
-            finalizeServices[idx].lineTotal = finalizeServices[idx].qty * finalizeServices[idx].unitPrice;
-            
-            // Update only this row's total cell (no full re-render)
-            const totalCell = tbody.querySelector(`.svc-total[data-idx="${idx}"]`);
-            if (totalCell) {
-                totalCell.textContent = formatGBP(finalizeServices[idx].lineTotal);
-            }
-            recalcInvoiceTotals();
-        } else if (e.target.classList.contains('svc-unit')) {
-            // Unit price changed
-            finalizeServices[idx].unitPrice = parseFloat(e.target.value) || 0;
-            finalizeServices[idx].lineTotal = finalizeServices[idx].qty * finalizeServices[idx].unitPrice;
-            
-            // Update only this row's total cell (no full re-render)
-            const totalCell = tbody.querySelector(`.svc-total[data-idx="${idx}"]`);
-            if (totalCell) {
-                totalCell.textContent = formatGBP(finalizeServices[idx].lineTotal);
-            }
-            recalcInvoiceTotals();
-        }
-    });
-
-    // Single delegated click listener for remove buttons
-    tbody.addEventListener('click', (e) => {
-        const removeBtn = e.target.closest('.btn-remove');
-        if (!removeBtn) return;
-        
-        const idx = parseInt(removeBtn.dataset.idx);
-        if (!isNaN(idx)) {
-            removeServiceRow(idx);
-        }
-    });
-
-    servicesTableListenerBound = true;
-}
-
-// Recalculate invoice totals
-function recalcInvoiceTotals() {
-    const subtotal = finalizeServices.reduce((sum, s) => sum + (s.lineTotal || 0), 0);
-    const vatRate = parseFloat(document.getElementById('finalizeVatRate')?.value || 0) / 100;
-    const vatAmount = subtotal * vatRate;
-    const total = subtotal + vatAmount;
-
-    document.getElementById('invSubtotal').textContent = formatGBP(subtotal);
-    document.getElementById('invVat').textContent = formatGBP(vatAmount);
-    document.getElementById('invTotal').textContent = formatGBP(total);
-}
-
-// Bind finalize modal controls
-function bindFinalizeModalControls() {
-    const addBtn = document.getElementById('addServiceRowBtn');
-    const vatInput = document.getElementById('finalizeVatRate');
-    
-    if (addBtn) {
-        addBtn.addEventListener('click', addServiceRow);
-    }
-    if (vatInput) {
-        vatInput.addEventListener('input', recalcInvoiceTotals);
-    }
-    
-    // Bind delegated events for services table
-    bindServicesTableDelegation();
-}
-
-// Open finalize modal with prices and services
-window.openFinalizePricesModal = function(appointmentId) {
-    const modal = document.getElementById('finalizeModal');
-    if (!modal) return;
-
-    const appt = appointments.find(a => a.id === appointmentId);
-    if (!appt) return;
-
-    // Load existing services or create default
-    finalizeServices = appt.services && appt.services.length > 0
-        ? JSON.parse(JSON.stringify(appt.services))
-        : [{ description: 'Service auto', qty: 1, unitPrice: 0, lineTotal: 0 }];
-
-    document.getElementById('finalizeAppointmentId').value = appointmentId;
-    document.getElementById('finalizeMileage').value = appt.mileage || '';
-    document.getElementById('finalizeVatRate').value = (appt.vatRate !== undefined ? appt.vatRate : 0);
-    document.getElementById('generateInvoiceNow').checked = true;
-
-    renderServicesTable();
-    openModal('finalizeModal');
-};
-
-// Finalize appointment with prices
+// Finalize: ensure status stays "done" and log payload
 async function finalizeAppointmentWithPrices(e) {
     e.preventDefault();
     
@@ -2171,26 +1866,13 @@ document.addEventListener('DOMContentLoaded', () => {
 // Global hook for invoice buttons
 window.downloadInvoicePDF = async (appointmentId) => {
   console.log('[Main] Global invoice hook called for:', appointmentId);
-  await downloadInvoicePDF(appointmentId);
-};
-
-// Event delegation for invoice buttons
-document.addEventListener('click', async (e) => {
-  const invoiceBtn = e.target.closest('.btn-invoice');
-  if (!invoiceBtn) return;
-  
-  e.preventDefault();
-  const appointmentId = invoiceBtn.dataset.id || invoiceBtn.getAttribute('data-appointment-id');
-  
   if (!appointmentId) {
-    console.error('[Main] Invoice button missing data-id attribute');
-    alert('Cannot generate invoice: appointment ID missing');
+    showNotification('Programarea nu are ID - vă rugăm să reîmprospătați pagina', 'error');
     return;
   }
-  
-  console.log('[Main] Invoice button clicked via delegation for:', appointmentId);
-  await downloadInvoicePDF(appointmentId);
-});
+  const { downloadInvoicePDF: controllerDownload } = await import('./src/features/invoice/invoiceController.js');
+  return controllerDownload(appointmentId);
+};
 
 
 
