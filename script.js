@@ -2135,6 +2135,37 @@ document.addEventListener('DOMContentLoaded', () => {
     TimeSheetPicker.init();
 });
 
+import { downloadInvoicePDF, openInvoicePreview } from './src/features/invoice/invoiceController.js';
+
+// Global hook for invoice buttons (legacy compatibility)
+window.downloadInvoicePDF = (appointmentId) => {
+  console.log('[Global Hook] Invoice button triggered for:', appointmentId);
+  return downloadInvoicePDF(appointmentId);
+};
+
+window.openInvoicePreview = (appointmentId) => {
+  console.log('[Global Hook] Invoice preview triggered for:', appointmentId);
+  return openInvoicePreview(appointmentId);
+};
+
+// Event delegation for invoice buttons
+document.addEventListener('click', (e) => {
+  const btn = e.target.closest('.btn-invoice');
+  if (!btn) return;
+  
+  e.preventDefault();
+  const appointmentId = btn.dataset.id || btn.getAttribute('data-appointment-id');
+  
+  if (!appointmentId) {
+    console.error('[Invoice] Button clicked but no appointment ID found');
+    alert('Cannot generate invoice: Appointment ID missing');
+    return;
+  }
+  
+  console.log('[Invoice] Button clicked, appointment ID:', appointmentId);
+  downloadInvoicePDF(appointmentId);
+});
+
 
 
 
