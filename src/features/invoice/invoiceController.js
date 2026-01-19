@@ -9,6 +9,11 @@ export async function downloadInvoicePDF(appointment) {
   console.log('[InvoiceController] Invoice button clicked for appointment:', appointment?.id || appointment);
   
   try {
+    // Validate input
+    if (!appointment) {
+      throw new Error('Appointment ID or data is missing');
+    }
+    
     // If appointment is just an ID string, fetch it
     let appointmentData = appointment;
     if (typeof appointment === 'string') {
@@ -16,9 +21,16 @@ export async function downloadInvoicePDF(appointment) {
       // Import getAppointmentById dynamically to avoid circular deps
       const { getAppointmentById } = await import('../../services/appointmentsService.js');
       appointmentData = await getAppointmentById(appointment);
+      
       if (!appointmentData) {
-        throw new Error('Appointment not found');
+        throw new Error(`Appointment with ID ${appointment} not found in database`);
       }
+    }
+    
+    // Validate appointment data
+    if (!appointmentData.id) {
+      console.warn('[InvoiceController] Appointment missing ID field:', appointmentData);
+      throw new Error('Appointment data is invalid (missing ID)');
     }
 
     console.log('[InvoiceController] Mapping appointment to invoice model');
@@ -67,7 +79,24 @@ export async function downloadInvoicePDF(appointment) {
 
   } catch (error) {
     console.error('[InvoiceController] Invoice generation failed:', error);
-    alert(`Failed to generate invoice: ${error.message}`);
+    
+    // User-friendly error messages
+    let message = 'Failed to generate invoice';
+    if (error.message.includes('not found')) {
+      message = 'Programarea nu a fost găsită în baza de date';
+    } else if (error.message.includes('missing')) {
+      message = 'Date lipsă - vă rugăm să reîmprospătați pagina';
+    } else {
+      message = `Eroare la generare: ${error.message}`;
+    }
+    
+    // Show notification if available
+    if (typeof window.showNotification === 'function') {
+      window.showNotification(message, 'error');
+    } else {
+      alert(message);
+    }
+    
     throw error;
   }
 }

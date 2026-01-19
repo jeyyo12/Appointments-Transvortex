@@ -1106,9 +1106,9 @@ function renderAppointments() {
 }
 
 // Create appointment card HTML
-function createAppointmentCard(apt, now) {
+function createAppointmentCard(apt) {
     const aptDate = apt.startAt.toDate();
-    const timeDiff = aptDate - now;
+    const timeDiff = aptDate - new Date();
     const minutesDiff = Math.floor(timeDiff / 60000);
     
     // Check reminders
@@ -1150,22 +1150,36 @@ function createAppointmentCard(apt, now) {
         </div>
     ` : '';
     
-    const adminActions = isAdmin ? `
-        <div class="appointment-actions">
-            <button class="btn-action-small btn-done" data-apt-id="${apt.id}">
-                <i class="fas fa-check"></i> Finalizează
-            </button>
-            <button class="btn-action-small btn-cancel-appointment" data-apt-id="${apt.id}">
-                <i class="fas fa-ban"></i> Anulează
-            </button>
-            <button class="btn-action-small btn-invoice" onclick="downloadInvoicePDF('${apt.id}')">
-                <i class="fas fa-file-invoice"></i> Invoice
-            </button>
-            <button class="btn-action-small btn-delete-appointment" data-apt-id="${apt.id}">
-                <i class="fas fa-trash"></i> Șterge
-            </button>
-        </div>
-    ` : '';
+    const actionsHTML = `
+    <div class="page-actions">
+      ${apt.status === 'pending' ? `
+        <button class="btn-action btn-post" data-apt-id="${apt.id}" title="Marchează ca postat">
+          <i class="fas fa-check"></i> Postat
+        </button>
+      ` : ''}
+      ${apt.status === 'posted' ? `
+        <button class="btn-action btn-unpost" data-apt-id="${apt.id}" title="Marchează ca de postat">
+          <i class="fas fa-undo"></i> De postat
+        </button>
+      ` : ''}
+      ${apt.status !== 'completed' ? `
+        <button class="btn-action btn-done" data-apt-id="${apt.id}" title="Finalizează programarea">
+          <i class="fas fa-check-circle"></i> Finalizează
+        </button>
+      ` : ''}
+      ${apt.status === 'completed' ? `
+        <button class="btn-action btn-invoice" data-apt-id="${apt.id}" title="Generează factură">
+          <i class="fas fa-file-invoice"></i> Invoice
+        </button>
+      ` : ''}
+      <button class="btn-action btn-visit" data-apt-id="${apt.id}" title="Vizitează pagina">
+        <i class="fas fa-external-link-alt"></i> Vizitează
+      </button>
+      <button class="btn-action btn-delete-appointment" data-apt-id="${apt.id}" title="Șterge programarea">
+        <i class="fas fa-trash"></i> Șterge
+      </button>
+    </div>
+  `;
     
     return `
         <div class="appointment-card">
@@ -1191,7 +1205,7 @@ function createAppointmentCard(apt, now) {
                 ${addressRow}
                 ${notesRow}
             </div>
-            ${adminActions}
+            ${actionsHTML}
         </div>
         `;
     }
@@ -1210,15 +1224,73 @@ function createAppointmentCard(apt, now) {
         
         const id = btn.dataset.aptId;
         
+        // Defensive check for missing ID
+        if (!id) {
+            console.error('[Main] Button clicked but data-apt-id is missing:', btn);
+            showNotification('Programarea nu are ID - vă rugăm să reîmprospătați pagina', 'error');
+            return;
+        }
+        
+        console.log('[Main] Appointment action clicked:', btn.className, 'ID:', id);
+        
+        // Handle Invoice button
+        if (btn.classList.contains('btn-invoice')) {
+            e.preventDefault();
+            console.log('[Main] Invoice button clicked for appointment:', id);
+            try {
+              downloadInvoicePDF(id);
+            } catch (err) {
+              console.error('[Main] Invoice generation failed:', err);
+              showNotification('Eroare la generarea facturii: ' + err.message, 'error');
+            }
+            return;
+          }
+        
+        // Handle Done/Finalize button
         if (btn.classList.contains('btn-done')) {
-            console.log('✅ Click Finalizează', id);
-            markAppointmentDone(id);
-        } else if (btn.classList.contains('btn-cancel-appointment')) {
-            console.log('🟠 Click Anulează', id);
-            cancelAppointment(id);
-        } else if (btn.classList.contains('btn-delete-appointment')) {
-            console.log('🗑️ Click Șterge', id);
-            deleteAppointment(id);
+            e.preventDefault();
+            console.log('[Main] Finalize button clicked for:', id);
+            openFinalizeModal(id);
+            return;
+        }
+        
+        // Handle Delete button
+        if (btn.classList.contains('btn-delete-appointment')) {
+            e.preventDefault();
+            console.log('[Main] Delete button clicked for:', id);
+            if (confirm('Sigur doriți să ștergeți această programare?')) {
+              deleteAppointment(id);
+              showNotification('Programare ștearsă cu succes', 'success');
+              loadAppointments();
+            }
+            return;
+        }
+        
+        // Handle Visit button
+        if (btn.classList.contains('btn-visit')) {
+            e.preventDefault();
+            const appointment = getAppointmentById(id);
+            if (appointment?.pageUrl) {
+              window.open(appointment.pageUrl, '_blank');
+            } else {
+              showNotification('URL-ul paginii nu este disponibil', 'warning');
+            }
+            return;
+        }
+        
+        // Handle Post/Unpost buttons
+        if (btn.classList.contains('btn-post')) {
+            e.preventDefault();
+            updateAppointmentStatus(id, 'posted');
+            loadAppointments();
+            return;
+        }
+        
+        if (btn.classList.contains('btn-unpost')) {
+            e.preventDefault();
+            updateAppointmentStatus(id, 'pending');
+            loadAppointments();
+            return;
         }
     });
     
@@ -1779,78 +1851,38 @@ function openAppointmentsPopup(mode = 'all') {
     openModal('appointmentsModal');
 }
 
-function renderAppointmentsModalList() {
-    const body = document.getElementById('appointmentsModalBody');
-    const statusFilter = document.getElementById('modalStatusFilter')?.value || 'all';
-    const searchTerm = (document.getElementById('modalSearch')?.value || '').toLowerCase();
-
-    let list = appointments || [];
-
-    // Filter
-    list = list.filter(a => {
-        const matchesSearch =
-            !searchTerm ||
-            (a.customerName || '').toLowerCase().includes(searchTerm) ||
-            (a.car || '').toLowerCase().includes(searchTerm) ||
-            (a.address || '').toLowerCase().includes(searchTerm);
-
-        if (!matchesSearch) return false;
-
-        if (statusFilter === 'all') return true;
-        return a.status === statusFilter;
-    });
-
-    if (!list.length) {
-        body.innerHTML = `<div style="padding:16px;opacity:0.7;">Nicio programare găsită.</div>`;
-        return;
-    }
-
-    // Group by dateStr
-    const grouped = {};
-    list.forEach(a => {
-        const key = a.dateStr || (a.startAt?.toDate?.()?.toISOString?.().split('T')[0]) || 'unknown';
-        (grouped[key] ||= []).push(a);
-    });
-
-    const dates = Object.keys(grouped).sort();
-
-    let html = '';
-    dates.forEach(d => {
-        html += `<div class="day-group"><div class="day-header"><i class="fas fa-calendar-day"></i> ${d}</div>`;
-        grouped[d].forEach(a => {
-            const statusClass = a.status === 'done' ? 'status-done' : a.status === 'canceled' ? 'status-canceled' : 'status-scheduled';
-            const statusIcon = a.status === 'done' ? 'fa-check-circle' : a.status === 'canceled' ? 'fa-times-circle' : 'fa-clock';
-            const statusText = a.status === 'done' ? 'Finalizat' : a.status === 'canceled' ? 'Anulat' : 'Programat';
-            
-            html += `
-                <div class="appointment-card">
-                    <div class="appointment-header">
-                        <div>
-                            <div class="appointment-title">${a.customerName || '-'}</div>
-                            <div class="appointment-time"><i class="fas fa-clock"></i> ${a.timeStr || '-'}</div>
-                        </div>
-                        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-                            <span class="status-badge ${statusClass}">
-                                <i class="fas ${statusIcon}"></i> ${statusText}
-                            </span>
-                            <button class="btn-action-small" onclick="downloadInvoicePDF('${a.id}')" title="Descarcă factură PDF">
-                                <i class="fas fa-file-invoice"></i> Invoice
-                            </button>
-                        </div>
-                    </div>
-                    <div class="appointment-details">
-                        <div class="detail-row"><i class="fas fa-car"></i> <span><strong>Mașină:</strong> ${a.car || '-'}</span></div>
-                        ${a.address ? `<div class="detail-row"><i class="fas fa-map-marker-alt"></i> <span>${a.address}</span></div>` : ''}
-                        ${a.mileage != null ? `<div class="detail-row"><i class="fas fa-road"></i> <span><strong>Mile:</strong> ${a.mileage}</span></div>` : ''}
-                        ${a.notes ? `<div class="detail-row"><i class="fas fa-sticky-note"></i> <span>${a.notes}</span></div>` : ''}
-                    </div>
-                </div>
-            `;
-        });
-        html += `</div>`;
-    });
-
-    body.innerHTML = html;
+function renderAppointmentsModalList(appointments) {
+  const list = document.getElementById('appointmentsModalList');
+  if (!list) return;
+  
+  if (!appointments || appointments.length === 0) {
+    list.innerHTML = '<div class="empty-state show"><p>Nu există programări finalizate.</p></div>';
+    return;
+  }
+  
+  list.innerHTML = appointments.map(apt => `
+    <div class="appointment-modal-item" data-apt-id="${apt.id}">
+      <div class="apt-modal-header">
+        <div class="apt-modal-info">
+          <strong>${apt.customerName || apt.name || 'Fără nume'}</strong>
+          <span class="apt-modal-date">${apt.date || 'Fără dată'} ${apt.time || ''}</span>
+        </div>
+        <div class="apt-modal-actions">
+          <button class="btn-action btn-invoice" data-apt-id="${apt.id}" title="Generează factură">
+            <i class="fas fa-file-invoice"></i> Invoice
+          </button>
+          <button class="btn-action btn-delete-appointment" data-apt-id="${apt.id}" title="Șterge">
+            <i class="fas fa-trash"></i>
+          </button>
+        </div>
+      </div>
+      <div class="apt-modal-details">
+        <div><strong>Mașină:</strong> ${apt.vehicle || 'N/A'}</div>
+        <div><strong>Mile:</strong> ${apt.mileage || 'N/A'}</div>
+        <div><strong>Total:</strong> ${formatGBP(apt.totalAmount || 0)}</div>
+      </div>
+    </div>
+  `).join('');
 }
 
 // Bind modal controls events
