@@ -520,279 +520,20 @@
             font-family: inherit;
         }
 
-        /* Make date/time feel clickable */
-        .input-wrap input[type="date"],
-        .input-wrap input[type="time"] {
+        /* Make date picker feel clickable */
+        .input-wrap input[type="date"] {
             cursor: pointer;
-                padding-right: 0.375rem;
+            padding-right: 0.375rem;
         }
 
-        /* Improve native date/time indicator visibility */
-        .input-wrap input[type="date"]::-webkit-calendar-picker-indicator,
-        .input-wrap input[type="time"]::-webkit-calendar-picker-indicator {
+        /* Improve native date picker indicator visibility */
+        .input-wrap input[type="date"]::-webkit-calendar-picker-indicator {
             opacity: 0.35;
             cursor: pointer;
         }
 
-        .input-wrap input[type="date"]:hover::-webkit-calendar-picker-indicator,
-        .input-wrap input[type="time"]:hover::-webkit-calendar-picker-indicator {
+        .input-wrap input[type="date"]:hover::-webkit-calendar-picker-indicator {
             opacity: 0.6;
-        }
-        
-        /* ===== Custom Time Picker ===== */
-        .custom-time-picker {
-            position: relative;
-            cursor: pointer;
-        }
-        
-        .time-display {
-            flex: 1;
-            cursor: pointer;
-            user-select: none;
-        }
-        
-        .time-value {
-            color: rgba(0,0,0,0.85);
-            font-size: 1rem;
-        }
-        
-        .time-value.placeholder {
-            color: rgba(0,0,0,0.4);
-        }
-        
-        /* Time Picker Popup */
-        .time-picker-popup {
-            position: fixed;
-            inset: 0;
-            background: rgba(0,0,0,0.5);
-            backdrop-filter: blur(0.375rem);
-            z-index: 10000;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: var(--space-lg);
-            opacity: 0;
-            pointer-events: none;
-            transition: opacity 0.3s ease;
-        }
-        
-        .time-picker-popup.active {
-            opacity: 1;
-            pointer-events: all;
-        }
-        
-        .time-picker-panel {
-            background: white;
-            border-radius: var(--radius-xl);
-            box-shadow: 0 1.875rem 5.625rem rgba(0,0,0,0.3);
-            width: min(clamp(18rem, 90vw, 22rem), 100%);
-            max-height: 85vh;
-            overflow: hidden;
-            transform: translateY(1.25rem);
-            transition: transform 0.3s ease;
-        }
-        
-        .time-picker-popup.active .time-picker-panel {
-            transform: translateY(0);
-        }
-        
-        .time-picker-header {
-            background: linear-gradient(135deg, #FF8A3D 0%, #F47C2C 100%);
-            padding: var(--space-md);
-            color: white;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        
-        .time-picker-title {
-            font-size: var(--text-lg);
-            font-weight: 700;
-            display: flex;
-            align-items: center;
-            gap: var(--space-xs);
-        }
-        
-        .time-picker-close {
-            background: rgba(255,255,255,0.2);
-            border: none;
-            color: white;
-            width: 2rem;
-            height: 2rem;
-            border-radius: 50%;
-            cursor: pointer;
-            font-size: var(--text-md);
-            transition: background 0.2s ease;
-        }
-        
-        .time-picker-close:hover {
-            background: rgba(255,255,255,0.3);
-        }
-        
-        /* AM/PM Toggle */
-        .ampm-toggle {
-            display: flex;
-            gap: var(--space-xs);
-            padding: var(--space-md);
-            background: rgba(255,138,61,0.05);
-            border-bottom: 0.0625rem solid rgba(0,0,0,0.08);
-        }
-        
-        .ampm-btn {
-            flex: 1;
-            padding: var(--space-sm);
-            border: 0.125rem solid rgba(255,138,61,0.2);
-            background: white;
-            color: #666;
-            border-radius: var(--radius-md);
-            font-size: var(--text-md);
-            font-weight: 700;
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }
-        
-        .ampm-btn.active {
-            background: linear-gradient(135deg, #FF8A3D 0%, #F47C2C 100%);
-            color: white;
-            border-color: #FF8A3D;
-            box-shadow: 0 0.25rem 0.75rem rgba(255,138,61,0.3);
-        }
-        
-        /* Time Columns */
-        .time-columns {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: var(--space-sm);
-            padding: var(--space-md);
-            max-height: clamp(15rem, 50vh, 20rem);
-        }
-        
-        .time-column {
-            display: flex;
-            flex-direction: column;
-            gap: var(--space-xs);
-        }
-        
-        .column-label {
-            font-size: var(--text-xs);
-            font-weight: 700;
-            color: #666;
-            text-align: center;
-            margin-bottom: var(--space-xs);
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-        }
-        
-        .time-scroll {
-            overflow-y: auto;
-            overflow-x: hidden;
-            max-height: clamp(12rem, 45vh, 17rem);
-            padding: var(--space-xs);
-            scrollbar-width: thin;
-            scrollbar-color: rgba(255,138,61,0.3) rgba(0,0,0,0.05);
-        }
-        
-        .time-scroll::-webkit-scrollbar {
-            width: 0.375rem;
-        }
-        
-        .time-scroll::-webkit-scrollbar-track {
-            background: rgba(0,0,0,0.05);
-            border-radius: 0.1875rem;
-        }
-        
-        .time-scroll::-webkit-scrollbar-thumb {
-            background: rgba(255,138,61,0.3);
-            border-radius: 0.1875rem;
-        }
-        
-        .time-scroll::-webkit-scrollbar-thumb:hover {
-            background: rgba(255,138,61,0.5);
-        }
-        
-        .time-item {
-            padding: var(--space-sm);
-            text-align: center;
-            border-radius: var(--radius-md);
-            cursor: pointer;
-            font-size: var(--text-md);
-            font-weight: 600;
-            color: #333;
-            transition: all 0.15s ease;
-            background: white;
-            border: 0.125rem solid rgba(0,0,0,0.08);
-        }
-        
-        .time-item:hover {
-            background: rgba(255,138,61,0.1);
-            border-color: rgba(255,138,61,0.3);
-        }
-        
-        .time-item.selected {
-            background: linear-gradient(135deg, #FF8A3D 0%, #F47C2C 100%);
-            color: white;
-            border-color: #FF8A3D;
-            box-shadow: 0 0.125rem 0.5rem rgba(255,138,61,0.4);
-        }
-        
-        /* Selected Time Display */
-        .time-picker-footer {
-            padding: var(--space-md);
-            background: rgba(255,138,61,0.05);
-            border-top: 0.0625rem solid rgba(0,0,0,0.08);
-            display: flex;
-            flex-direction: column;
-            gap: var(--space-sm);
-        }
-        
-        .selected-time-display {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: var(--space-sm);
-            font-size: clamp(1.5rem, 5vw, 2rem);
-            font-weight: 800;
-            color: #FF8A3D;
-        }
-        
-        .selected-time-display i {
-            font-size: clamp(1.25rem, 4vw, 1.5rem);
-        }
-        
-        .time-picker-actions {
-            display: flex;
-            gap: var(--space-sm);
-        }
-        
-        .time-picker-btn {
-            flex: 1;
-            padding: var(--space-sm) var(--space-md);
-            border-radius: var(--radius-md);
-            font-weight: 700;
-            font-size: var(--text-md);
-            cursor: pointer;
-            transition: all 0.2s ease;
-            border: none;
-        }
-        
-        .time-picker-btn.cancel {
-            background: rgba(0,0,0,0.06);
-            color: #666;
-        }
-        
-        .time-picker-btn.cancel:hover {
-            background: rgba(0,0,0,0.1);
-        }
-        
-        .time-picker-btn.confirm {
-            background: linear-gradient(135deg, #FF8A3D 0%, #F47C2C 100%);
-            color: white;
-            box-shadow: 0 0.25rem 0.75rem rgba(255,138,61,0.3);
-        }
-        
-        .time-picker-btn.confirm:hover {
-            transform: translateY(-0.0625rem);
-            box-shadow: 0 0.375rem 1rem rgba(255,138,61,0.4);
         }
     </style>
 </head>
@@ -964,11 +705,12 @@
                             </div>
                             <div class="field">
                                 <label for="appointmentTime">Ora: <span class="req">*</span></label>
-                                <div class="input-wrap custom-time-picker" id="timeWrap" data-time-picker>
+                                <div class="input-wrap time-picker-trigger" id="timeWrap">
                                     <span class="input-icon"><i class="fas fa-clock"></i></span>
                                     <input id="appointmentTime" type="hidden" required />
-                                    <div class="time-display" data-time-display>
-                                        <span class="time-value">Selectează ora</span>
+                                    <div class="time-display" id="timeDisplay">
+                                        <i class="fas fa-clock"></i>
+                                        <span id="timeDisplayText">Selectează ora</span>
                                     </div>
                                 </div>
                             </div>
@@ -1193,51 +935,49 @@
     </div>
 
     <!-- Custom Time Picker Popup -->
-    <div class="time-picker-popup" id="timePickerPopup">
-        <div class="time-picker-panel">
-            <div class="time-picker-header">
-                <div class="time-picker-title">
-                    <i class="fas fa-clock"></i>
-                    <span>Selectează Ora</span>
-                </div>
-                <button class="time-picker-close" id="timePickerClose">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
-            
-            <div class="ampm-toggle">
-                <button class="ampm-btn active" data-period="AM">AM</button>
-                <button class="ampm-btn" data-period="PM">PM</button>
-            </div>
-            
-            <div class="time-columns">
-                <div class="time-column">
-                    <div class="column-label">Ore</div>
-                    <div class="time-scroll" id="hoursScroll">
-                        <!-- Hours 1-12 will be generated -->
-                    </div>
-                </div>
-                <div class="time-column">
-                    <div class="column-label">Minute</div>
-                    <div class="time-scroll" id="minutesScroll">
-                        <!-- Minutes 00-59 will be generated -->
-                    </div>
-                </div>
-            </div>
-            
-            <div class="time-picker-footer">
-                <div class="selected-time-display">
-                    <i class="fas fa-clock"></i>
-                    <span id="selectedTimePreview">--:--</span>
-                </div>
-                <div class="time-picker-actions">
-                    <button class="time-picker-btn cancel" id="timeCancelBtn">Anulează</button>
-                    <button class="time-picker-btn confirm" id="timeConfirmBtn">Confirmă</button>
-                </div>
-            </div>
+    <div class="time-picker-backdrop" id="timePickerBackdrop">
+      <div class="time-picker-popup" id="timePickerPopup">
+        <div class="time-picker-header">
+          <h3><i class="fas fa-clock"></i> Selectează ora</h3>
+          <button type="button" class="time-picker-close" id="timePickerClose">
+            <i class="fas fa-times"></i>
+          </button>
         </div>
+        
+        <div class="time-picker-ampm">
+          <button type="button" class="ampm-btn active" data-period="AM">AM</button>
+          <button type="button" class="ampm-btn" data-period="PM">PM</button>
+        </div>
+
+        <div class="time-picker-columns">
+          <div class="time-column">
+            <div class="column-label">Ore</div>
+            <div class="column-scroll" id="hoursScroll">
+              <!-- Hours 1-12 will be generated by JS -->
+            </div>
+          </div>
+          <div class="time-separator">:</div>
+          <div class="time-column">
+            <div class="column-label">Minute</div>
+            <div class="column-scroll" id="minutesScroll">
+              <!-- Minutes 00-59 will be generated by JS -->
+            </div>
+          </div>
+        </div>
+
+        <div class="time-picker-footer">
+          <div class="selected-time-preview">
+            <i class="fas fa-clock"></i>
+            <span id="timePreview">--:--</span>
+          </div>
+          <button type="button" class="btn-confirm-time" id="confirmTimeBtn">
+            <i class="fas fa-check"></i> Confirmă
+          </button>
+        </div>
+      </div>
     </div>
 
     <script src="script.js"></script>
 </body>
 </html>
+
