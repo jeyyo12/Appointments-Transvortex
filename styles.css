@@ -1350,8 +1350,12 @@ footer p {
   box-shadow: 0 18px 50px rgba(0,0,0,0.18);
   overflow: hidden;
   display: none;
-  z-index: 9999;              /* above cards/buttons */
+  z-index: 9999;
+  border-radius: clamp(0.5rem, 2vw, 0.75rem);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.15);
+  z-index: 1050;
   padding: 0;
+  overflow: hidden;
 }
 
 /* Header: AM/PM Toggle */
@@ -1513,14 +1517,7 @@ footer p {
   }
 }
 
-/* Make the whole wrapper clearly clickable */
-#timePickerWrapper {
-  cursor: pointer;
-}
-#timePickerWrapper input {
-  cursor: pointer;
-}
-
+/* Make the whole wrapper clearly clickable - cursor already set via #timePickerWrapper in popover section */
 @media (max-width: 768px) {
   #timePickerPopover.time-picker-popover {
     position: fixed;
