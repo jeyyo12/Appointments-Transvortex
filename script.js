@@ -756,14 +756,6 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Bind stats cards (needs card IDs in HTML)
     bindStatsPopupButtons();
-    // Init time picker display value
-    const tpInput = document.getElementById('appointmentTime');
-    const tpDisplay = document.getElementById('appointmentTimeDisplay');
-    if (tpInput && tpDisplay) {
-        tpDisplay.textContent = tpInput.value && /^\d{2}:\d{2}$/.test(tpInput.value)
-            ? tpInput.value
-            : 'Selectează ora';
-    }
 });
 
 // ==========================================
@@ -794,21 +786,16 @@ function enhanceNativePickers() {
     }
 
     if (timeWrap && timeInput && !timeWrap.dataset.bound) {
-        const trigger = document.getElementById('appointmentTimeDisplay');
-        const open = () => openCustomTimePicker({
-            inputId: 'appointmentTime',
-            displayId: 'appointmentTimeDisplay'
+        timeWrap.addEventListener('click', () => {
+            timeInput.focus();
+            if (timeInput.showPicker) {
+                try {
+                    timeInput.showPicker();
+                } catch (err) {
+                    console.log('showPicker not available or blocked');
+                }
+            }
         });
-        timeWrap.addEventListener('click', (e) => {
-            // Avoid double-open when clicking inside the sheet
-            const t = e.target;
-            if (t && (t.closest('.tp-backdrop') || t.classList.contains('tp-item'))) return;
-            open();
-        });
-        if (trigger && !trigger.dataset.bound) {
-            trigger.addEventListener('click', (e) => { e.stopPropagation(); open(); });
-            trigger.dataset.bound = 'true';
-        }
         timeWrap.dataset.bound = "true";
     }
 }
@@ -838,164 +825,6 @@ function switchTab(tabName) {
     }
     
     console.log(`📑 Switched to tab: ${tabName}`);
-}
-
-// ==========================================
-// CUSTOM TIME PICKER (Mobile-style)
-// ==========================================
-const TP_IDS = { backdrop: 'tpBackdrop', sheet: 'tpSheet' };
-
-function openCustomTimePicker({ inputId, displayId }) {
-    const hiddenInput = document.getElementById(inputId);
-    const displayBtn = document.getElementById(displayId);
-    if (!hiddenInput || !displayBtn) return;
-
-    // Parse existing value HH:MM -> 12h + period; fallback = current time
-    const now = new Date();
-    let hour24 = now.getHours();
-    let minute = now.getMinutes();
-    if (hiddenInput.value && /^\d{2}:\d{2}$/.test(hiddenInput.value)) {
-        const [h, m] = hiddenInput.value.split(':').map(Number);
-        hour24 = h; minute = m;
-    }
-    const period = hour24 >= 12 ? 'PM' : 'AM';
-    const hour12 = ((hour24 + 11) % 12) + 1; // 0->12, 13->1
-
-    // Singleton backdrop
-    let backdrop = document.getElementById(TP_IDS.backdrop);
-    if (!backdrop) {
-        backdrop = document.createElement('div');
-        backdrop.id = TP_IDS.backdrop;
-        backdrop.className = 'tp-backdrop';
-        backdrop.addEventListener('click', (e) => {
-            if (e.target === backdrop) closeCustomTimePicker();
-        });
-        document.body.appendChild(backdrop);
-    } else {
-        backdrop.innerHTML = '';
-        backdrop.style.display = 'flex';
-    }
-
-    // Sheet markup
-    const sheet = document.createElement('div');
-    sheet.id = TP_IDS.sheet;
-    sheet.className = 'tp-sheet';
-    sheet.setAttribute('role', 'dialog');
-    sheet.setAttribute('aria-modal', 'true');
-
-    sheet.innerHTML = `
-      <div class="tp-header">
-        <div class="tp-toggle" role="group" aria-label="AM PM toggle">
-          <button type="button" class="tp-am" data-period="AM" aria-pressed="${period==='AM'}">AM</button>
-          <button type="button" class="tp-pm" data-period="PM" aria-pressed="${period==='PM'}">PM</button>
-        </div>
-      </div>
-      <div class="tp-body">
-        <div class="tp-col tp-hours" aria-label="Ore">
-          <ul class="tp-list" id="tpHours"></ul>
-        </div>
-        <div class="tp-col tp-minutes" aria-label="Minute">
-          <ul class="tp-list" id="tpMinutes"></ul>
-        </div>
-      </div>
-      <div class="tp-footer">
-        <div class="tp-preview"><i class="fas fa-clock"></i><span id="tpPreview"></span></div>
-        <button type="button" class="tp-confirm" id="tpConfirm">Confirmă</button>
-      </div>
-    `;
-
-    backdrop.appendChild(sheet);
-    displayBtn.setAttribute('aria-expanded', 'true');
-
-    // State
-    const state = {
-        hour12,
-        minute,
-        period
-    };
-
-    // Populate lists once
-    const hoursUl = sheet.querySelector('#tpHours');
-    const minsUl = sheet.querySelector('#tpMinutes');
-
-    const pad2 = (n) => (n < 10 ? '0' + n : '' + n);
-
-    for (let h = 1; h <= 12; h++) {
-        const li = document.createElement('li');
-        li.className = 'tp-item';
-        li.textContent = '' + h;
-        li.setAttribute('role', 'option');
-        li.dataset.value = '' + h;
-        if (h === state.hour12) li.setAttribute('aria-selected', 'true');
-        hoursUl.appendChild(li);
-    }
-
-    for (let m = 0; m < 60; m++) {
-        const li = document.createElement('li');
-        li.className = 'tp-item';
-        li.textContent = pad2(m);
-        li.setAttribute('role', 'option');
-        li.dataset.value = '' + m;
-        if (m === state.minute) li.setAttribute('aria-selected', 'true');
-        minsUl.appendChild(li);
-    }
-
-    // Update preview
-    const setPreview = () => {
-        const h24 = to24h(state.hour12, state.period);
-        sheet.querySelector('#tpPreview').textContent = `${pad2(h24)}:${pad2(state.minute)}`;
-    };
-    setPreview();
-
-    // Toggle AM/PM
-    sheet.querySelector('.tp-toggle').addEventListener('click', (e) => {
-        const btn = e.target.closest('button[data-period]');
-        if (!btn) return;
-        state.period = btn.dataset.period;
-        sheet.querySelectorAll('.tp-toggle button').forEach(b => b.setAttribute('aria-pressed', String(b === btn)));
-        setPreview();
-    });
-
-    // Select hour/minute via delegation without re-render
-    hoursUl.addEventListener('click', (e) => {
-        const li = e.target.closest('.tp-item');
-        if (!li) return;
-        state.hour12 = parseInt(li.dataset.value, 10);
-        hoursUl.querySelectorAll('.tp-item[aria-selected="true"]').forEach(x => x.removeAttribute('aria-selected'));
-        li.setAttribute('aria-selected', 'true');
-        setPreview();
-    });
-
-    minsUl.addEventListener('click', (e) => {
-        const li = e.target.closest('.tp-item');
-        if (!li) return;
-        state.minute = parseInt(li.dataset.value, 10);
-        minsUl.querySelectorAll('.tp-item[aria-selected="true"]').forEach(x => x.removeAttribute('aria-selected'));
-        li.setAttribute('aria-selected', 'true');
-        setPreview();
-    });
-
-    // Confirm
-    sheet.querySelector('#tpConfirm').addEventListener('click', () => {
-        const h24 = to24h(state.hour12, state.period);
-        const finalVal = `${pad2(h24)}:${pad2(state.minute)}`;
-        hiddenInput.value = finalVal;
-        displayBtn.textContent = finalVal;
-        closeCustomTimePicker();
-    });
-}
-
-function to24h(h12, period) {
-    let h = h12 % 12; // 12 -> 0
-    if (period === 'PM') h += 12;
-    return h;
-}
-
-function closeCustomTimePicker() {
-    const backdrop = document.getElementById(TP_IDS.backdrop);
-    const displayBtn = document.getElementById('appointmentTimeDisplay');
-    if (backdrop) backdrop.style.display = 'none';
-    if (displayBtn) displayBtn.setAttribute('aria-expanded', 'false');
 }
 
 // ==========================================
@@ -1714,6 +1543,12 @@ function setupEventListeners() {
         appointmentForm.addEventListener('submit', handleAddAppointment);
         appointmentForm.dataset.bound = 'true';
     }
+
+    // Initialize custom time picker once
+    if (!document.body.dataset.tpBound) {
+        initCustomTimePicker();
+        document.body.dataset.tpBound = 'true';
+    }
 }
 
 // ==============================
@@ -1774,6 +1609,146 @@ function bindModalCloseBehavior() {
 }
 
 // ==============================
+// CUSTOM TIME PICKER COMPONENT
+// ==============================
+
+function initCustomTimePicker() {
+    const trigger = document.querySelector('[data-timepicker-trigger]');
+    const hidden = document.getElementById('appointmentTime');
+    const backdrop = document.getElementById('timepickerBackdrop');
+    const picker = backdrop ? backdrop.querySelector('.timepicker') : null;
+    if (!trigger || !hidden || !backdrop || !picker) return;
+
+    // Build hour and minute lists once
+    const hoursCol = picker.querySelector('.tp-hours');
+    const minutesCol = picker.querySelector('.tp-minutes');
+    const selectedText = picker.querySelector('#tpSelectedText');
+    const segs = picker.querySelectorAll('.tp-seg');
+    const btnCancel = picker.querySelector('.tp-cancel');
+    const btnConfirm = picker.querySelector('.tp-confirm');
+    let state = { hour: 12, minute: 0, period: 'AM' };
+
+    // Render items
+    hoursCol.innerHTML = '';
+    for (let h = 1; h <= 12; h++) {
+        const el = document.createElement('div');
+        el.className = 'tp-item';
+        el.setAttribute('role', 'option');
+        el.textContent = String(h);
+        el.addEventListener('click', () => {
+            state.hour = h;
+            updateSelectedUI();
+            markSelected(hoursCol, String(h));
+        });
+        hoursCol.appendChild(el);
+    }
+
+    minutesCol.innerHTML = '';
+    for (let m = 0; m < 60; m++) {
+        const label = m.toString().padStart(2, '0');
+        const el = document.createElement('div');
+        el.className = 'tp-item';
+        el.setAttribute('role', 'option');
+        el.textContent = label;
+        el.addEventListener('click', () => {
+            state.minute = m;
+            updateSelectedUI();
+            markSelected(minutesCol, label);
+        });
+        minutesCol.appendChild(el);
+    }
+
+    // Toggle AM/PM
+    segs.forEach(seg => {
+        seg.addEventListener('click', () => {
+            segs.forEach(s => s.setAttribute('aria-selected', 'false'));
+            seg.setAttribute('aria-selected', 'true');
+            state.period = seg.dataset.period;
+            updateSelectedUI();
+        });
+    });
+
+    function markSelected(container, value) {
+        container.querySelectorAll('.tp-item').forEach(node => {
+            const isSel = node.textContent === value;
+            node.setAttribute('aria-selected', isSel ? 'true' : 'false');
+        });
+    }
+
+    function updateSelectedUI() {
+        const hh12 = String(state.hour).padStart(2, '0');
+        const mm = String(state.minute).padStart(2, '0');
+        selectedText.textContent = `${hh12}:${mm} ${state.period}`;
+    }
+
+    function openPicker() {
+        // Seed from hidden (HH:MM) if available
+        if (hidden.value) {
+            const [hh, mm] = hidden.value.split(':').map(Number);
+            let period = hh >= 12 ? 'PM' : 'AM';
+            let hour12 = hh % 12; if (hour12 === 0) hour12 = 12;
+            state = { hour: hour12, minute: mm, period };
+        } else {
+            // Default: next rounded 5 minutes of current time
+            const now = new Date();
+            let h = now.getHours();
+            const m = now.getMinutes();
+            const rounded = Math.round(m / 5) * 5;
+            const period = h >= 12 ? 'PM' : 'AM';
+            let hour12 = h % 12; if (hour12 === 0) hour12 = 12;
+            state = { hour: hour12, minute: rounded % 60, period };
+        }
+
+        // Reflect UI
+        segs.forEach(s => s.setAttribute('aria-selected', s.dataset.period === state.period ? 'true' : 'false'));
+        markSelected(hoursCol, String(state.hour));
+        markSelected(minutesCol, String(state.minute).padStart(2, '0'));
+        updateSelectedUI();
+
+        // Scroll into view
+        scrollIntoView(hoursCol, String(state.hour));
+        scrollIntoView(minutesCol, String(state.minute).padStart(2, '0'));
+
+        backdrop.style.display = 'flex';
+        // Keep logical focus flow on picker without losing page context
+        picker.setAttribute('tabindex', '-1');
+        picker.focus({ preventScroll: true });
+    }
+
+    function closePicker() {
+        backdrop.style.display = 'none';
+        // Return focus to trigger for smooth UX
+        trigger.focus({ preventScroll: true });
+    }
+
+    function scrollIntoView(container, value) {
+        const node = Array.from(container.children).find(n => n.textContent === value);
+        if (node) {
+            const top = node.offsetTop - container.clientHeight / 2 + node.clientHeight / 2;
+            container.scrollTo({ top, behavior: 'smooth' });
+        }
+    }
+
+    function to24h(h12, period) {
+        let h = h12 % 12;
+        if (period === 'PM') h += 12;
+        return String(h).padStart(2, '0');
+    }
+
+    // Actions
+    trigger.addEventListener('click', openPicker);
+    btnCancel.addEventListener('click', closePicker);
+    backdrop.addEventListener('click', (e) => { if (e.target === backdrop) closePicker(); });
+    document.addEventListener('keydown', (e) => { if (backdrop.style.display === 'flex' && e.key === 'Escape') closePicker(); });
+    btnConfirm.addEventListener('click', () => {
+        const hh = to24h(state.hour, state.period);
+        const mm = String(state.minute).padStart(2, '0');
+        const val = `${hh}:${mm}`;
+        hidden.value = val;
+        trigger.value = `${String(state.hour).padStart(2, '0')}:${mm} ${state.period}`;
+        closePicker();
+    });
+}
 // STAT CARDS -> open popups
 // ==============================
 function bindStatsPopupButtons() {

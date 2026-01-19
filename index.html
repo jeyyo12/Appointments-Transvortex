@@ -710,8 +710,8 @@
                                 <label for="appointmentTime">Ora: <span class="req">*</span></label>
                                 <div class="input-wrap" id="timeWrap">
                                     <span class="input-icon"><i class="fas fa-clock"></i></span>
-                                    <button type="button" id="appointmentTimeDisplay" class="tp-display" aria-haspopup="dialog" aria-expanded="false">Selectează ora</button>
-                                    <input id="appointmentTime" name="appointmentTime" type="hidden" required />
+                                    <input id="appointmentTimeDisplay" type="text" placeholder="Selectează ora" readonly data-timepicker-trigger />
+                                    <input id="appointmentTime" type="hidden" required />
                                 </div>
                             </div>
                         </div>
@@ -934,6 +934,30 @@
       </div>
     </div>
 
-    <script src="script.js"></script>
+        <!-- Custom Time Picker Popup -->
+        <div id="timepickerBackdrop" class="timepicker-backdrop" style="display:none">
+            <div class="timepicker" role="dialog" aria-modal="true" aria-labelledby="tpTitle">
+                <div class="timepicker-header">
+                    <div class="tp-title" id="tpTitle">Selectează ora</div>
+                    <div class="tp-toggle" role="tablist" aria-label="AM PM toggle">
+                        <button class="tp-seg" data-period="AM" aria-selected="true">AM</button>
+                        <button class="tp-seg" data-period="PM" aria-selected="false">PM</button>
+                    </div>
+                </div>
+                <div class="timepicker-columns">
+                    <div class="tp-col tp-hours" aria-label="Ore" tabindex="0"></div>
+                    <div class="tp-col tp-minutes" aria-label="Minute" tabindex="0"></div>
+                </div>
+                <div class="timepicker-footer">
+                    <div class="tp-selected"><i class="fas fa-clock"></i><span id="tpSelectedText">--:--</span></div>
+                    <div class="tp-actions">
+                        <button type="button" class="btn-secondary tp-cancel">Anulează</button>
+                        <button type="button" class="btn-primary tp-confirm">Confirmă</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <script src="script.js"></script>
 </body>
 </html>
