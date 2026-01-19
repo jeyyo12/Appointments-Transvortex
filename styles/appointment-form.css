@@ -1,0 +1,601 @@
+/* =====================================================
+   MODERN APPOINTMENT FORM - COMPACT RESPONSIVE DESIGN
+   Using: clamp(), rem, vw (no px for sizing/spacing)
+   ===================================================== */
+
+/* Base sizing with clamp for responsive scaling - COMPACT */
+:root {
+  --form-gap: clamp(0.4rem, 0.8vw, 0.75rem);
+  --form-padding: clamp(0.6rem, 1.2vw, 1rem);
+  --label-gap: clamp(0.2rem, 0.4vw, 0.35rem);
+  --input-padding: clamp(0.45rem, 0.7vw, 0.6rem);
+  --font-base: clamp(0.8rem, 1.2vw, 0.95rem);
+  --font-sm: clamp(0.7rem, 1vw, 0.8rem);
+  --font-lg: clamp(0.9rem, 1.3vw, 1.05rem);
+  --font-xl: clamp(1rem, 1.6vw, 1.2rem);
+  --section-gap: clamp(0.75rem, 1.5vw, 1.25rem);
+  --section-padding: clamp(0.75rem, 1.5vw, 1.2rem);
+  --accent-orange: #ff9500;
+  --accent-orange-dark: #e68900;
+  --accent-orange-light: #ffb033;
+  /* Cinematic palette */
+  --text-graphite: #2a2a2f;
+  --text-anthracite: #1f1f23;
+  --label-warm-gray: #6b6f76;
+  --accent-steel-blue: #2f4f5f;
+  --success-green: #3fae7f;
+  --error-red: #b33a3a;
+  --icon-size: clamp(0.9rem, 1.2vw, 1.05rem);
+  --border-radius: 0.5rem;
+  --transition: 0.25s ease;
+  --max-form-width: clamp(60rem, 90vw, 85rem);
+}
+
+/* ===== MAIN SECTION STYLING ===== */
+.add-appointment-section {
+  padding: clamp(0.75rem, 2vw, 1.2rem);
+  background: linear-gradient(135deg, #f9f7f4 0%, #faf8f6 100%);
+  border-radius: var(--border-radius);
+  margin-bottom: var(--section-gap);
+  max-width: var(--max-form-width);
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.add-appointment-header {
+  margin-bottom: clamp(0.75rem, 1.2vw, 1rem);
+  border-bottom: 2px solid var(--accent-orange);
+  padding-bottom: clamp(0.5rem, 0.8vw, 0.75rem);
+}
+
+.add-appointment-header h2 {
+  font-size: var(--font-xl);
+  color: var(--text-graphite);
+  margin: 0 0 clamp(0.15rem, 0.3vw, 0.25rem) 0;
+  display: flex;
+  align-items: center;
+  gap: clamp(0.4rem, 0.7vw, 0.6rem);
+}
+
+.add-appointment-header h2 i {
+  color: var(--accent-orange);
+  font-size: var(--font-lg);
+}
+
+.add-appointment-header .subtitle {
+  font-size: var(--font-sm);
+  color: var(--label-warm-gray);
+  margin: 0;
+}
+
+/* ===== FORM STRUCTURE ===== */
+.modern-appointment-form {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(0.8rem, 1.5vw, 1.2rem);
+}
+
+/* ===== UNIFIED FORM CONTAINER (Single Card) ===== */
+.form-container {
+  background: white;
+  padding: clamp(1rem, 2vw, 1.5rem);
+  border-radius: var(--border-radius);
+  border-left: 3px solid var(--accent-orange);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+  display: flex;
+  flex-direction: column;
+  gap: clamp(0.6rem, 1.2vw, 1rem);
+}
+
+/* ===== INTERNAL SECTION SUBTITLES (not cards, just headings) ===== */
+.section-subtitle {
+  font-size: var(--font-lg);
+  color: var(--text-graphite);
+  margin: clamp(0.4rem, 0.8vw, 0.6rem) 0 clamp(0.3rem, 0.6vw, 0.5rem) 0;
+  display: flex;
+  align-items: center;
+  gap: clamp(0.35rem, 0.6vw, 0.5rem);
+  padding-bottom: clamp(0.35rem, 0.6vw, 0.5rem);
+  border-bottom: 1px solid #f0f0f0;
+  flex-wrap: wrap;
+  font-weight: 600;
+}
+
+.section-subtitle i {
+  color: var(--accent-orange);
+  font-size: var(--font-base);
+  flex-shrink: 0;
+}
+
+/* ===== TOP ROW GRID (Client, Vehicul, Locație pe 3 coloane) ===== */
+.top-row-grid {
+  display: grid;
+  gap: clamp(0.8rem, 1.5vw, 1.2rem);
+  margin-bottom: clamp(0.6rem, 1.2vw, 1rem);
+}
+
+/* Mobile: 1 column */
+@media (max-width: 480px) {
+  .top-row-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Tablet: 2 columns */
+@media (min-width: 481px) and (max-width: 768px) {
+  .top-row-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* Desktop: 3 columns */
+@media (min-width: 769px) {
+  .top-row-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+/* ===== COLUMN SECTION (fiecare coloană din top-row-grid) ===== */
+.column-section {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(0.4rem, 0.8vw, 0.7rem);
+}
+
+/* ===== SERVICE GRID (Serviciu: 3 coloane, rânduri multiple) ===== */
+.service-grid {
+  display: grid;
+  gap: var(--form-gap);
+  margin-bottom: clamp(0.3rem, 0.6vw, 0.5rem);
+}
+
+/* Mobile: 2 columns */
+@media (max-width: 480px) {
+  .service-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .service-grid .problem-full-width {
+    grid-column: 1 / -1;
+  }
+}
+
+/* Tablet: 2 columns */
+@media (min-width: 481px) and (max-width: 768px) {
+  .service-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .service-grid .problem-full-width {
+    grid-column: 1 / -1;
+  }
+}
+
+/* Desktop: 3 columns */
+@media (min-width: 769px) {
+  .service-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  
+  .service-grid .problem-full-width {
+    grid-column: 1 / -1;
+  }
+}
+
+/* ===== ADDRESS GRID (Adresă Client: 2 coloane) ===== */
+.address-grid {
+  display: grid;
+  gap: var(--form-gap);
+  margin-top: clamp(0.4rem, 0.8vw, 0.7rem);
+}
+
+/* Mobile: 1 column */
+@media (max-width: 480px) {
+  .address-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Tablet & Desktop: 2 columns */
+@media (min-width: 481px) {
+  .address-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* ===== FORM GRID - RESPONSIVE (INTERIOR - deprecated, replaced by specific grids) ===== */
+.form-grid {
+  display: grid;
+  gap: var(--form-gap);
+  margin-bottom: clamp(0.3rem, 0.6vw, 0.5rem);
+}
+
+/* Mobile: 2 columns */
+@media (max-width: 480px) {
+  .form-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .form-grid .span-full {
+    grid-column: 1 / -1;
+  }
+}
+
+/* Tablet: 2 columns */
+@media (min-width: 481px) and (max-width: 768px) {
+  .form-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .form-grid .span-full {
+    grid-column: 1 / -1;
+  }
+}
+
+/* Desktop: 3 columns */
+@media (min-width: 769px) {
+  .form-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  
+  .form-grid .span-full {
+    grid-column: 1 / -1;
+  }
+}
+
+/* ===== FORM GROUPS ===== */
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--label-gap);
+}
+
+.form-group label {
+  font-size: var(--font-sm);
+  font-weight: 500;
+  color: var(--label-warm-gray);
+}
+
+.form-group label .req {
+  color: var(--accent-orange);
+  font-weight: bold;
+}
+
+/* ===== INPUT FIELDS ===== */
+.form-input {
+  padding: var(--input-padding) clamp(0.6rem, 1vw, 0.85rem);
+  font-size: var(--font-base);
+  border: 1px solid #ddd;
+  border-radius: calc(var(--border-radius) - 2px);
+  background: white;
+  font-family: inherit;
+  transition: all var(--transition);
+}
+
+.form-input:focus {
+  outline: none;
+  border-color: var(--accent-orange);
+  box-shadow: 0 0 0 clamp(0.15rem, 0.3vw, 0.25rem) rgba(47, 79, 95, 0.15);
+}
+
+.form-input::placeholder {
+  color: #999;
+}
+
+/* Text uppercase styling */
+.form-input.text-uppercase {
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* ===== INPUT WRAP (for icons) ===== */
+.input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.input-icon {
+  position: absolute;
+  top: 50%;
+  left: clamp(0.6rem, 1vw, 0.8rem);
+  transform: translateY(-50%);
+  color: var(--accent-steel-blue);
+  font-size: var(--icon-size);
+  pointer-events: none;
+}
+
+.input-wrap .form-input {
+  padding-left: clamp(2.1rem, 3.3vw, 2.4rem);
+  width: 100%;
+}
+
+/* ===== TEXTAREA ===== */
+textarea.form-input {
+  resize: vertical;
+  min-height: clamp(2.5rem, 6vw, 3.5rem);
+  font-family: inherit;
+  line-height: 1.4;
+}
+
+/* ===== SELECT ===== */
+select.form-input {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%232f4f5f' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right clamp(0.4rem, 0.7vw, 0.6rem) center;
+  background-size: clamp(0.9rem, 1.6vw, 1.1rem);
+  padding-right: clamp(1.8rem, 3vw, 2.2rem);
+  cursor: pointer;
+}
+
+/* ===== READONLY FIELD ===== */
+.readonly-field {
+  padding: var(--input-padding) clamp(0.6rem, 1vw, 0.85rem);
+  background: #f5f5f5;
+  border: 1px solid #ddd;
+  border-radius: calc(var(--border-radius) - 2px);
+  color: var(--label-warm-gray);
+  display: flex;
+  align-items: center;
+  gap: clamp(0.35rem, 0.6vw, 0.5rem);
+  font-size: var(--font-base);
+}
+
+.readonly-field i {
+  color: var(--accent-orange);
+  font-size: var(--font-base);
+}
+
+/* ===== TOGGLE SWITCH ===== */
+.toggle-label {
+  display: flex;
+  align-items: center;
+  gap: clamp(0.35rem, 0.6vw, 0.5rem);
+  cursor: pointer;
+  font-size: var(--font-base);
+  font-weight: 500;
+  color: #333;
+  user-select: none;
+  margin-top: clamp(0.15rem, 0.3vw, 0.25rem);
+}
+
+.toggle-input {
+  display: none;
+}
+
+.toggle-switch {
+  position: relative;
+  width: clamp(2.2rem, 4vw, 2.8rem);
+  height: clamp(1.1rem, 2vw, 1.4rem);
+  background: #ddd;
+  border-radius: clamp(0.55rem, 1vw, 0.7rem);
+  transition: all var(--transition);
+  display: inline-block;
+}
+
+.toggle-switch::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: calc(clamp(1.1rem, 2vw, 1.4rem) - 4px);
+  height: calc(clamp(1.1rem, 2vw, 1.4rem) - 4px);
+  background: white;
+  border-radius: 50%;
+  transition: all var(--transition);
+}
+
+.toggle-input:checked + .toggle-switch {
+  background: var(--accent-orange);
+}
+
+.toggle-input:checked + .toggle-switch::after {
+  left: calc(100% - clamp(1.1rem, 2vw, 1.4rem) + 2px);
+}
+
+.toggle-text {
+  display: inline-block;
+}
+
+/* ===== ERROR MESSAGES ===== */
+.error-message {
+  font-size: clamp(0.65rem, 0.95vw, 0.75rem);
+  color: var(--error-red);
+  margin-top: -clamp(0.15rem, 0.3vw, 0.25rem);
+  display: block;
+  min-height: clamp(0.85rem, 1.5vw, 1rem);
+}
+
+.form-input.error {
+  border-color: var(--error-red);
+  box-shadow: 0 0 0 clamp(0.15rem, 0.3vw, 0.25rem) rgba(179, 58, 58, 0.15);
+}
+
+/* Success visual (optional, if used) */
+.form-input.valid {
+  border-color: var(--success-green);
+  box-shadow: 0 0 0 clamp(0.15rem, 0.3vw, 0.25rem) rgba(63, 174, 127, 0.12);
+}
+
+/* Specific tuning for Date/Ora icons */
+#dateWrap .input-icon,
+#timeInputWrapper .input-icon {
+  color: var(--accent-steel-blue);
+  font-size: clamp(0.85rem, 1.1vw, 1rem);
+}
+
+/* ===== LOCATION SECTIONS ===== */
+.location-section {
+  animation: slideDown 0.3s ease;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ===== FORM ACTIONS ===== */
+.form-actions {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(0.4rem, 0.8vw, 0.75rem);
+  align-items: center;
+  margin-top: clamp(0.8rem, 1.5vw, 1.2rem);
+}
+
+.btn-submit {
+  padding: clamp(0.55rem, 1vw, 0.75rem) clamp(1.2rem, 2.5vw, 1.8rem);
+  font-size: var(--font-base);
+  font-weight: 600;
+  border: none;
+  border-radius: var(--border-radius);
+  background: linear-gradient(135deg, var(--accent-orange) 0%, var(--accent-orange-dark) 100%);
+  color: white;
+  cursor: pointer;
+  transition: all var(--transition);
+  box-shadow: 0 3px 8px rgba(255, 149, 0, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(0.35rem, 0.6vw, 0.5rem);
+  min-width: clamp(12rem, 30vw, 16rem);
+}
+
+.btn-submit:hover {
+  background: linear-gradient(135deg, var(--accent-orange-dark) 0%, #d67700 100%);
+  box-shadow: 0 5px 12px rgba(255, 149, 0, 0.3);
+  transform: translateY(-2px);
+}
+
+.btn-submit:active {
+  transform: translateY(0);
+}
+
+.btn-submit:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.form-hint {
+  font-size: clamp(0.65rem, 0.95vw, 0.75rem);
+  color: #666;
+  text-align: center;
+  margin: 0;
+}
+
+/* ===== RESPONSIVE BREAKPOINTS ===== */
+@media (max-width: 480px) {
+  :root {
+    --form-padding: clamp(0.55rem, 1.2vw, 0.75rem);
+    --section-gap: clamp(0.55rem, 1.2vw, 0.75rem);
+  }
+  
+  .add-appointment-section {
+    border-radius: 0;
+    margin: 0 calc(-1 * var(--form-padding));
+    padding: var(--form-padding);
+  }
+  
+  .form-section {
+    padding: var(--form-padding);
+  }
+  
+  .modern-appointment-form {
+    gap: clamp(0.5rem, 1vw, 0.75rem);
+  }
+  
+  .form-sections-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (min-width: 481px) and (max-width: 768px) {
+  .add-appointment-section {
+    padding: clamp(0.7rem, 1.5vw, 1rem);
+  }
+}
+
+@media (min-width: 769px) {
+  :root {
+    --form-padding: clamp(0.8rem, 1.5vw, 1.1rem);
+  }
+  
+  .form-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+/* ===== DARK MODE SUPPORT ===== */
+@media (prefers-color-scheme: dark) {
+  .add-appointment-section {
+    background: linear-gradient(135deg, #2a2a2a 0%, #323232 100%);
+  }
+  
+  .add-appointment-header {
+    border-bottom-color: var(--accent-orange-light);
+  }
+  
+  .add-appointment-header h2 {
+    color: #f5f5f5;
+  }
+  
+  .add-appointment-header .subtitle {
+    color: #aaa;
+  }
+  
+  .form-section {
+    background: #1a1a1a;
+    border-left-color: var(--accent-orange-light);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+  }
+  
+  .section-title {
+    color: #f5f5f5;
+    border-bottom-color: #444;
+  }
+  
+  .form-group label {
+    color: #e0e0e0;
+  }
+  
+  .form-input {
+    background: #2a2a2a;
+    border-color: #444;
+    color: #f5f5f5;
+  }
+  
+  .form-input:focus {
+    border-color: var(--accent-orange-light);
+    box-shadow: 0 0 0 3px rgba(255, 176, 51, 0.15);
+  }
+  
+  .form-input::placeholder {
+    color: #777;
+  }
+  
+  .readonly-field {
+    background: #2a2a2a;
+    border-color: #444;
+    color: #aaa;
+  }
+  
+  .toggle-label {
+    color: #e0e0e0;
+  }
+  
+  .toggle-switch {
+    background: #444;
+  }
+  
+  .toggle-switch::after {
+    background: #2a2a2a;
+  }
+}

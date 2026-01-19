@@ -5,8 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Manager Pagini Facebook - Transvortex LTD</title>
     <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="styles/modal.css">
+    <link rel="stylesheet" href="styles/appointments.css">
+    <link rel="stylesheet" href="styles/appointment-form.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="styles/invoice.css">
     <style>
         /* Firebase Auth Bar */
         .firebase-auth-bar {
@@ -312,6 +314,9 @@
             color: #FF8A3D;
             font-weight: 600;
             font-size: clamp(0.875rem, 2.5vw, 1rem);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
         }
 
         .appointment-details {
@@ -414,14 +419,7 @@
             background: #2563eb;
         }
 
-        .btn-done {
-            background: #10b981;
-            color: white;
-        }
-
-        .btn-done:hover {
-            background: #059669;
-        }
+        /* Deleted: btn-done styles - removed per user request */
 
         .btn-cancel-appointment {
             background: #f59e0b;
@@ -432,23 +430,9 @@
             background: #d97706;
         }
 
-        .btn-invoice {
-            background: #8b5cf6;
-            color: white;
-        }
+        /* Deleted: btn-invoice styles - removed per user request */
 
-        .btn-invoice:hover {
-            background: #7c3aed;
-        }
-
-        .btn-delete-appointment {
-            background: #ef4444;
-            color: white;
-        }
-
-        .btn-delete-appointment:hover {
-            background: #dc2626;
-        }
+        /* Deleted: btn-delete-appointment styles - removed per user request */
 
         /* ===== Modern form layout ===== */
         .grid-2 {
@@ -662,9 +646,11 @@
             <section class="pages-section">
                 <div class="section-header">
                     <h2><i class="fas fa-th-list"></i> Paginile Mele Facebook</h2>
-                    <button id="refreshButton" class="btn-refresh" onclick="handleRefresh()" title="Reîncarcă paginile">
-                        <i class="fas fa-sync-alt"></i> Refresh
-                    </button>
+                    <div style="display: flex; gap: 0.75rem;">
+                        <button id="refreshButton" class="btn-refresh" onclick="handleRefresh()" title="Reîncarcă paginile">
+                            <i class="fas fa-sync-alt"></i> Refresh
+                        </button>
+                    </div>
                 </div>
                 
                 <div id="pagesList" class="pages-grid">
@@ -683,63 +669,214 @@
             <!-- ============================================ -->
             <div id="appointmentsTab" class="tab-content" style="display: none;">
                 <!-- Formular adăugare programare (ADMIN ONLY) -->
-                <section class="add-section" data-admin-only>
-                    <h2><i class="fas fa-calendar-plus"></i> Adaugă Programare Nouă</h2>
-                    <form id="appointmentForm">
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label for="customerName">Nume Client: *</label>
-                                <input type="text" id="customerName" name="customerName" autocomplete="name" placeholder="ex: Ion Popescu" required>
-                            </div>
-                            <div class="form-group">
-                                <label for="car">Mașină (marcă/model/înmatriculare): *</label>
-                                <input type="text" id="car" name="car" autocomplete="off" placeholder="ex: Dacia Logan, AB-12-XYZ" required>
-                            </div>
-                        </div>
-                        <div class="grid-2">
-                            <div class="field">
-                                <label for="appointmentDate">Data: <span class="req">*</span></label>
-                                <div class="input-wrap" id="dateWrap">
-                                    <span class="input-icon"><i class="fas fa-calendar-alt"></i></span>
-                                    <input id="appointmentDate" name="appointmentDate" type="date" autocomplete="off" required />
+                <section class="add-appointment-section" data-admin-only>
+                    <div class="add-appointment-header">
+                        <h2><i class="fas fa-calendar-plus"></i> Adaugă Programare Nouă</h2>
+                        <p class="subtitle">Completează formularul pentru a programa o nouă reparație</p>
+                    </div>
+                    
+                    <form id="appointmentForm" class="modern-appointment-form">
+                        <!-- SINGLE UNIFIED CONTAINER: All fields in one card -->
+                        <div class="form-container">
+                        
+                            <!-- RÂNDUL 1: Client, Vehicul, Locație pe 3 coloane -->
+                            <div class="top-row-grid">
+                                <!-- COLOANA 1: CLIENT -->
+                                <div class="column-section">
+                                    <h3 class="section-subtitle"><i class="fas fa-user"></i> Client</h3>
+                                    <div class="form-group">
+                                        <label for="customerName">Nume <span class="req">*</span></label>
+                                        <input 
+                                            type="text" 
+                                            id="customerName" 
+                                            name="customerName" 
+                                            autocomplete="name" 
+                                            placeholder="ex: Ion Popescu" 
+                                            required 
+                                            class="form-input"
+                                        />
+                                        <span class="error-message" id="customerName-error"></span>
+                                    </div>
+                                    
+                                    <div class="form-group">
+                                        <label for="customerPhone">Telefon <span class="req">*</span></label>
+                                        <input 
+                                            type="tel" 
+                                            id="customerPhone" 
+                                            name="customerPhone" 
+                                            autocomplete="tel" 
+                                            placeholder="ex: +40 750 123 456" 
+                                            required 
+                                            class="form-input"
+                                        />
+                                        <span class="error-message" id="customerPhone-error"></span>
+                                    </div>
+                                </div>
+
+                                <!-- COLOANA 2: VEHICUL -->
+                                <div class="column-section">
+                                    <h3 class="section-subtitle"><i class="fas fa-car"></i> Vehicul</h3>
+                                    <div class="form-group">
+                                        <label for="makeModel">Marca/Model <span class="req">*</span></label>
+                                        <input 
+                                            type="text" 
+                                            id="makeModel" 
+                                            name="makeModel" 
+                                            placeholder="ex: Dacia Logan" 
+                                            required 
+                                            class="form-input text-uppercase"
+                                            autocomplete="off"
+                                        />
+                                        <span class="error-message" id="makeModel-error"></span>
+                                    </div>
+                                    
+                                    <div class="form-group">
+                                        <label for="regNumber">Înmatr. <span class="req">*</span></label>
+                                        <input 
+                                            type="text" 
+                                            id="regNumber" 
+                                            name="regNumber" 
+                                            placeholder="ex: AB-12-XYZ" 
+                                            required 
+                                            class="form-input text-uppercase"
+                                            autocomplete="off"
+                                            maxlength="8"
+                                        />
+                                        <span class="error-message" id="regNumber-error"></span>
+                                    </div>
+                                </div>
+
+                                <!-- COLOANA 3: LOCAȚIE -->
+                                <div class="column-section">
+                                    <h3 class="section-subtitle"><i class="fas fa-map-marker-alt"></i> Locație</h3>
+                                    <div class="form-group">
+                                        <label for="serviceLocation">Tip <span class="req">*</span></label>
+                                        <select id="serviceLocation" name="serviceLocation" required class="form-input">
+                                            <option value="">Selectează...</option>
+                                            <option value="garage">La garaj</option>
+                                            <option value="client">La client</option>
+                                        </select>
+                                        <span class="error-message" id="serviceLocation-error"></span>
+                                    </div>
+                                    
+                                    <div class="form-group">
+                                        <label for="contactPref">Contact <span class="req">*</span></label>
+                                        <select id="contactPref" name="contactPref" required class="form-input">
+                                            <option value="">Selectează...</option>
+                                            <option value="phone">Telefon</option>
+                                            <option value="sms">SMS</option>
+                                            <option value="whatsapp">WhatsApp</option>
+                                            <option value="email">Email</option>
+                                        </select>
+                                        <span class="error-message" id="contactPref-error"></span>
+                                    </div>
                                 </div>
                             </div>
-                            <div class="field">
-                                <label for="appointmentTime">Ora: <span class="req">*</span></label>
-                                <div class="input-wrap time-picker-wrapper" id="timePickerWrapper" style="position: relative;">
-                                    <span class="input-icon"><i class="fas fa-clock"></i></span>
-                                    <input 
-                                        id="appointmentTime" 
-                                        type="text" 
-                                        name="appointmentTime" 
-                                        autocomplete="off" 
-                                        readonly 
-                                        placeholder="HH:MM AM/PM"
+
+                            <!-- ADRESĂ GARAJ (ascunsă inițial) -->
+                            <div id="garageAddressSection" style="display: none;">
+                                <div class="form-group">
+                                    <label>Garaj</label>
+                                    <div class="readonly-field">
+                                        <i class="fas fa-building"></i>
+                                        <span>Transvortex LTD, Londra</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- ADRESĂ CLIENT (ascunsă inițial) -->
+                            <div id="clientAddressSection" style="display: none;">
+                                <div class="address-grid">
+                                    <div class="form-group">
+                                        <label for="address">Adresă <span class="req">*</span></label>
+                                        <input 
+                                            type="text" 
+                                            id="address" 
+                                            name="address" 
+                                            placeholder="ex: Str. Principală nr. 10, Londra" 
+                                            class="form-input"
+                                            autocomplete="street-address"
+                                        />
+                                        <span class="error-message" id="address-error"></span>
+                                    </div>
+                                    
+                                    <div class="form-group">
+                                        <label for="postcode">Cod Poștal <span class="req">*</span></label>
+                                        <input 
+                                            type="text" 
+                                            id="postcode" 
+                                            name="postcode" 
+                                            placeholder="ex: E1 6AN" 
+                                            class="form-input"
+                                            autocomplete="postal-code"
+                                        />
+                                        <span class="error-message" id="postcode-error"></span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- SECTION 4: SERVICIU - Layout pe 2 coloane -->
+                            <h3 class="section-subtitle"><i class="fas fa-wrench"></i> Serviciu</h3>
+                            <div class="service-grid">
+                                <!-- RÂND 1: Data, Ora -->
+                                <div class="form-group">
+                                    <label for="appointmentDate">Data <span class="req">*</span></label>
+                                    <div class="input-wrap" id="dateWrap">
+                                        <span class="input-icon"><i class="fas fa-calendar-alt"></i></span>
+                                        <input 
+                                            id="appointmentDate" 
+                                            name="appointmentDate" 
+                                            type="date" 
+                                            autocomplete="off" 
+                                            required 
+                                            class="form-input"
+                                        />
+                                    </div>
+                                    <span class="error-message" id="appointmentDate-error"></span>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label for="appointmentTime">Ora <span class="req">*</span></label>
+                                    <div class="input-wrap time-input-wrapper" id="timeInputWrapper">
+                                        <span class="input-icon"><i class="fas fa-clock"></i></span>
+                                        <input 
+                                            id="appointmentTime" 
+                                            type="text" 
+                                            readonly 
+                                            placeholder="Selectează ora" 
+                                            autocomplete="off" 
+                                            required 
+                                            class="form-input"
+                                        />
+                                        <input id="appointmentTimeValue" type="hidden" name="time" />
+                                    </div>
+                                    <span class="error-message" id="appointmentTime-error"></span>
+                                </div>
+                                
+                                <!-- RÂND 2: Problemă (full width) -->
+                                <div class="form-group problem-full-width">
+                                    <label for="problemDescription">Problemă <span class="req">*</span></label>
+                                    <textarea 
+                                        id="problemDescription" 
+                                        name="problemDescription" 
+                                        placeholder="Descrie problema..." 
+                                        rows="2"
                                         required 
-                                    />
-                                    <input id="appointmentTimeValue" type="hidden" name="appointmentTimeValue" />
+                                        class="form-input"
+                                    ></textarea>
+                                    <span class="error-message" id="problemDescription-error"></span>
                                 </div>
                             </div>
+                        
+                        </div><!-- END form-container -->
+
+                        <!-- BUTON SUBMIT -->
+                        <div class="form-actions">
+                            <button type="submit" class="btn-submit" id="submitAppointmentBtn">
+                                <i class="fas fa-plus"></i> Adaugă Programare
+                            </button>
+                            <p class="form-hint"><span class="req">*</span> Câmpuri obligatorii</p>
                         </div>
-                        <div class="form-group">
-                            <label for="address">Adresă (opțional):</label>
-                            <input type="text" id="address" name="address" autocomplete="street-address" placeholder="ex: Str. Principală nr. 10">
-                        </div>
-                        <div class="form-group">
-                            <label for="notes">Notițe (opțional):</label>
-                            <textarea id="notes" name="notes" rows="3" placeholder="Detalii suplimentare..."></textarea>
-                        </div>
-                        <div class="form-group">
-                            <label for="status">Status:</label>
-                            <select id="status" name="status">
-                                <option value="scheduled" selected>Programat</option>
-                                <option value="done">Finalizat</option>
-                                <option value="canceled">Anulat</option>
-                            </select>
-                        </div>
-                        <button type="submit" class="btn-primary">
-                            <i class="fas fa-plus"></i> Adaugă Programare
-                        </button>
                     </form>
                 </section>
 
@@ -827,8 +964,7 @@
         </footer>
     </div>
 
-    <!-- jsPDF for Invoice -->
-    <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+    <!-- Deleted: jsPDF script - removed per user request -->
 
     <!-- ===== Modal: List Appointments (All / Done) ===== -->
     <div id="appointmentsModal" class="modal-backdrop" style="display:none;">
@@ -862,109 +998,48 @@
       </div>
     </div>
 
-    <!-- ===== Modal: Finalize Appointment (Mileage) ===== -->
-    <div id="finalizeModal" class="modal-backdrop" style="display:none;">
-      <div class="modal">
-        <div class="modal-header">
-          <div>
-            <div class="modal-title">Finalizează programarea</div>
-            <div class="modal-subtitle" id="finalizeSubtitle">Adaugă milele și confirmă</div>
-          </div>
-          <button class="modal-close" id="finalizeModalClose" aria-label="Close">✕</button>
-        </div>
+    <!-- Deleted: Finalize Modal - removed per user request -->
 
-        <form id="finalizeForm" class="modal-body">
-          <input type="hidden" id="finalizeAppointmentId" name="finalizeAppointmentId" />
+    <!-- Deleted: Confirmation Modal - removed per user request -->
 
-          <div class="field">
-            <label for="finalizeMileage">Mile la mașină (obligatoriu)</label>
-            <div class="input-wrap">
-              <span class="input-icon"><i class="fas fa-road"></i></span>
-              <input id="finalizeMileage" name="finalizeMileage" type="number" min="0" step="1" placeholder="ex: 124500" required />
+    <!-- Modern Time Picker -->
+    <div id="timePicker" class="time-picker-overlay" style="display: none;">
+        <div class="time-picker-backdrop"></div>
+        <div class="time-picker-panel">
+            <div class="time-picker-header">
+                <h3>Selectează ora</h3>
+                <button type="button" class="time-picker-close" aria-label="Închide">&times;</button>
             </div>
-          </div>
-
-          <div class="field">
-            <label for="finalizeVatRate">VAT % (opțional)</label>
-            <div class="input-wrap">
-              <span class="input-icon"><i class="fas fa-percent"></i></span>
-              <input id="finalizeVatRate" name="finalizeVatRate" type="number" min="0" max="100" step="0.1" value="0" />
-            </div>
-          </div>
-
-          <div class="field">
-            <label>Servicii / Produse (pentru invoice)</label>
-
-            <div class="services-toolbar">
-              <button type="button" class="btn-secondary" id="addServiceRowBtn">
-                <i class="fas fa-plus"></i> Adaugă rând
-              </button>
+            
+            <div class="time-picker-quick-input">
+                <input 
+                    type="text" 
+                    id="timeQuickInput" 
+                    placeholder="Tastează direct (ex: 1430)" 
+                    maxlength="4"
+                />
             </div>
 
-            <div class="services-table-wrap">
-              <table class="services-table">
-                <thead>
-                  <tr>
-                    <th>Descriere</th>
-                    <th style="width:5.625rem;">Qty</th>
-                    <th style="width:8.75rem;">Preț unit.</th>
-                    <th style="width:8.75rem;">Total</th>
-                    <th style="width:4.375rem;"></th>
-                  </tr>
-                </thead>
-                <tbody id="servicesTbody"></tbody>
-              </table>
+            <div class="time-picker-body">
+                <div class="time-picker-column">
+                    <div class="time-picker-label">Ore</div>
+                    <div class="time-picker-scroll" id="hourScroll"></div>
+                </div>
+                <div class="time-picker-separator">:</div>
+                <div class="time-picker-column">
+                    <div class="time-picker-label">Minute</div>
+                    <div class="time-picker-scroll" id="minuteScroll"></div>
+                </div>
             </div>
 
-            <div class="invoice-totals">
-              <div class="tot-row"><span>Subtotal</span><strong id="invSubtotal">£0.00</strong></div>
-              <div class="tot-row"><span>VAT</span><strong id="invVat">£0.00</strong></div>
-              <div class="tot-row grand"><span>Total</span><strong id="invTotal">£0.00</strong></div>
+            <div class="time-picker-footer">
+                <button type="button" class="btn-time-now">Acum</button>
+                <div class="time-picker-actions">
+                    <button type="button" class="btn-time-cancel">Anulează</button>
+                    <button type="button" class="btn-time-ok">OK</button>
+                </div>
             </div>
-          </div>
-
-          <div class="field" style="margin-top:0.625rem;">
-            <label style="display:flex;gap:0.625rem;align-items:center;cursor:pointer;">
-              <input type="checkbox" id="generateInvoiceNow" checked />
-              Generează invoice imediat după finalizare
-            </label>
-          </div>
-
-          <div class="modal-actions">
-            <button type="button" class="btn-secondary" id="finalizeCancelBtn">Anulează</button>
-            <button type="submit" class="btn-primary">
-              <i class="fas fa-check"></i> Finalizează + Salvează
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-
-    <!-- Time Sheet Modal -->
-    <div id="timeSheet" class="time-sheet" aria-hidden="true">
-      <div class="time-sheet__overlay"></div>
-      <div class="time-sheet__panel" role="dialog" aria-modal="true">
-        <div class="time-sheet__header">
-          <div class="time-sheet__title">Selectează ora</div>
-          <button type="button" id="timeSheetClose" class="time-sheet__close" aria-label="Închide">✕</button>
         </div>
-
-        <div class="time-sheet__period">
-          <button type="button" class="period-btn" data-period="AM">AM</button>
-          <button type="button" class="period-btn" data-period="PM">PM</button>
-        </div>
-
-        <div class="time-sheet__body">
-          <div class="wheel" id="wheelHours"></div>
-          <div class="sep">:</div>
-          <div class="wheel" id="wheelMinutes"></div>
-        </div>
-
-        <div class="time-sheet__footer">
-          <button type="button" id="timeSheetCancel" class="btn-cancel">Anulează</button>
-          <button type="button" id="timeSheetOk" class="btn-ok">OK</button>
-        </div>
-      </div>
     </div>
 
     <script src="script.js"></script>

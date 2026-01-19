@@ -1,1 +1,155 @@
-<!-- FILE DELETED - No longer needed. Invoice PDFs are generated directly via jsPDF. -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Transvortex LTD - Invoice</title>
+    <link rel="stylesheet" href="./styles/invoice.css">
+</head>
+<body>
+    <!-- UI Controls (hidden in print) -->
+    <div class="controls-bar">
+        <div class="controls-container">
+            <button id="downloadPdfBtn" class="btn-primary">📥 Download PDF</button>
+            <button id="backBtn" class="btn-secondary">← Back</button>
+            <div id="validationMessage" class="validation-message"></div>
+        </div>
+    </div>
+
+    <!-- Invoice Container -->
+    <div class="invoice-container">
+        <div class="invoice-wrapper">
+            <!-- Header Section -->
+            <header class="invoice-header">
+                <div class="header-left">
+                    <h1 class="company-name">Transvortex LTD</h1>
+                    <p class="invoice-title">INVOICE</p>
+                    <div class="company-contact">
+                        <p><strong>Address:</strong> 81 Foley Rd, Birmingham B8 2JT</p>
+                        <p><strong>Website:</strong> <a href="https://transvortexltd.co.uk/" target="_blank">https://transvortexltd.co.uk/</a></p>
+                        <p><strong>Facebook:</strong> <a href="https://www.facebook.com/profile.php?id=61586007316302" target="_blank">Transvortex</a></p>
+                        <p><strong>Call:</strong> Mihai +44 7440787527</p>
+                        <p><strong>Emergency:</strong> Iulian +44 7478280954</p>
+                    </div>
+                </div>
+                <div class="header-right">
+                    <img src="./Images/Logo.png" alt="Transvortex Logo" class="company-logo">
+                </div>
+            </header>
+
+            <!-- Invoice Meta Section -->
+            <section class="invoice-meta">
+                <div class="meta-box">
+                    <h3 class="meta-label">Invoice Number</h3>
+                    <p class="meta-value" id="invoiceNumber">INV-000000</p>
+                </div>
+                <div class="meta-box">
+                    <h3 class="meta-label">Invoice Date</h3>
+                    <p class="meta-value" id="invoiceDate">—</p>
+                </div>
+                <div class="meta-box">
+                    <h3 class="meta-label">Due Date</h3>
+                    <p class="meta-value" id="dueDate">—</p>
+                </div>
+                <div class="meta-box">
+                    <h3 class="meta-label">Reference/PIN</h3>
+                    <p class="meta-value" id="pinCode">—</p>
+                </div>
+            </section>
+
+            <!-- Bill To Section -->
+            <section class="bill-to">
+                <h2 class="section-title">Bill To</h2>
+                <div class="bill-to-content">
+                    <div class="bill-to-box">
+                        <p class="label">Client Name</p>
+                        <p class="value" id="clientName">—</p>
+                        
+                        <p class="label" style="margin-top: 0.8rem;">Address</p>
+                        <p class="value" id="clientAddress">—</p>
+                        
+                        <p class="label" style="margin-top: 0.8rem;">Phone</p>
+                        <p class="value" id="clientPhone">—</p>
+                    </div>
+                    <div class="bill-to-box">
+                        <p class="label">Vehicle Make/Model</p>
+                        <p class="value" id="vehicleMakeModel">—</p>
+                        
+                        <p class="label" style="margin-top: 0.8rem;">Reg Plate</p>
+                        <p class="value" id="vehicleRegPlate">—</p>
+                        
+                        <p class="label" style="margin-top: 0.8rem;">Mileage</p>
+                        <p class="value" id="vehicleMileage">—</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Services Table Section -->
+            <section class="services-section">
+                <h2 class="section-title">Services</h2>
+                <table class="services-table">
+                    <thead>
+                        <tr>
+                            <th class="col-description">Description</th>
+                            <th class="col-qty">Qty</th>
+                            <th class="col-unit-price">Unit Price</th>
+                            <th class="col-line-total">Line Total</th>
+                        </tr>
+                    </thead>
+                    <tbody id="servicesTableBody">
+                        <!-- Populated by JS -->
+                    </tbody>
+                </table>
+            </section>
+
+            <!-- Totals Section -->
+            <section class="totals-section">
+                <div class="totals-box">
+                    <div class="totals-row">
+                        <span class="totals-label">Subtotal:</span>
+                        <span class="totals-value" id="subtotal">£0.00</span>
+                    </div>
+                    <div class="totals-row" id="vatRow" style="display: none;">
+                        <span class="totals-label">VAT (<span id="vatPercent">0</span>%):</span>
+                        <span class="totals-value" id="vatAmount">£0.00</span>
+                    </div>
+                    <div class="totals-row totals-total">
+                        <span class="totals-label">TOTAL:</span>
+                        <span class="totals-value" id="total">£0.00</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Payment Terms -->
+            <section class="payment-terms">
+                <p class="terms-text" id="paymentTermsText">Due within 7 days</p>
+            </section>
+
+            <!-- Services Info -->
+            <section class="legal-notes">
+                <p>All services provided are subject to our terms and conditions.</p>
+                <p>If VAT is applicable it will be shown on this invoice.</p>
+            </section>
+
+            <!-- Payment Methods Footer -->
+            <footer class="invoice-footer">
+                <div class="footer-section">
+                    <p class="footer-text">Card & Cash Accepted</p>
+                    <div class="payment-icons">
+                        <span class="payment-icon">💳 Visa</span>
+                        <span class="payment-icon">💳 Mastercard</span>
+                        <span class="payment-icon">🍎 Apple Pay</span>
+                        <span class="payment-icon">🔵 Google Pay</span>
+                    </div>
+                </div>
+                <div class="footer-section">
+                    <p class="footer-text">Thank you for your business!</p>
+                    <p class="footer-subtext">Visit us: transvortexltd.co.uk</p>
+                </div>
+            </footer>
+        </div>
+    </div>
+
+    <script src="./src/features/invoice/invoiceRenderer.js"></script>
+</body>
+</html>

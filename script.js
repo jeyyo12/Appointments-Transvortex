@@ -52,46 +52,6 @@ let currentTab = 'pages';
 let appointmentsClicksBound = false;
 
 // ==========================================
-// Utility: Parse time to 24h format
-// ==========================================
-function parseTimeTo24h(timeStr) {
-    if (!timeStr || typeof timeStr !== 'string') return null;
-
-    timeStr = timeStr.trim();
-
-    // Check if already 24h format (HH:mm)
-    const match24h = /^(\d{1,2}):(\d{2})$/.exec(timeStr);
-    if (match24h) {
-        const h = parseInt(match24h[1]);
-        const m = parseInt(match24h[2]);
-        if (h >= 0 && h <= 23 && m >= 0 && m <= 59) {
-            return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
-        }
-        return null;
-    }
-
-    // Check if 12h format (hh:mm AM/PM)
-    const match12h = /^(\d{1,2}):(\d{2})\s*(AM|PM)$/i.exec(timeStr);
-    if (match12h) {
-        let h = parseInt(match12h[1]);
-        const m = parseInt(match12h[2]);
-        const period = match12h[3].toUpperCase();
-
-        if (h < 1 || h > 12 || m < 0 || m > 59) return null;
-
-        if (period === 'AM') {
-            h = h === 12 ? 0 : h;
-        } else {
-            h = h === 12 ? 12 : h + 12;
-        }
-
-        return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
-    }
-
-    return null;
-}
-
-// ==========================================
 // FIREBASE INITIALIZATION (Web SDK only)
 // ==========================================
 async function initializeFirebase() {
@@ -374,6 +334,37 @@ async function handleRefresh() {
     }
 }
 
+// Refresh appointments manually (though they auto-update via listener)
+async function handleRefreshAppointments() {
+    const refreshButton = document.getElementById('refreshAppointmentsButton');
+    
+    if (!currentUser) {
+        showNotification('⚠️ Conectează-te pentru a reîncărca programările', 'info');
+        return;
+    }
+    
+    try {
+        if (refreshButton) {
+            refreshButton.classList.add('refreshing');
+            refreshButton.disabled = true;
+        }
+        
+        console.log('🔄 Manual appointments refresh triggered...');
+        
+        // Appointments auto-update via Firestore listener, but we can show notification
+        showNotification(`✅ Actualizat! ${appointments.length} programări`, 'success');
+        
+    } catch (error) {
+        console.error('❌ Error refreshing appointments:', error);
+        showNotification('❌ Eroare la reîncărcare', 'error');
+    } finally {
+        if (refreshButton) {
+            refreshButton.classList.remove('refreshing');
+            refreshButton.disabled = false;
+        }
+    }
+}
+
 async function handleAddPage(e) {
     if (!isAdmin) {
         alert('Doar administratorii pot adăuga pagini.');
@@ -477,7 +468,8 @@ async function markAsUnposted(docId) {
 async function deletePage(docId) {
     if (!isAdmin) return;
 
-    if (!confirm('Ești sigur că vrei să ștergi această pagină?')) return;
+    // Simple native confirmation
+    if (!confirm('Șterge pagina? Această acțiune nu poate fi anulată.')) return;
 
     try {
         const { doc, deleteDoc } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
@@ -779,36 +771,247 @@ document.addEventListener('DOMContentLoaded', () => {
     // Enhance native date/time pickers
     enhanceNativePickers();
     
+    // Initialize modern time picker
+    TimePicker.init();
+    
     // Bind modal behaviors
     bindModalCloseBehavior();
     bindAppointmentsModalControls();
-    bindFinalizeModalControls();
     
     // Bind appointment action buttons (delegated event handling)
     bindAppointmentsClickDelegation();
     
-    // Finalize form submit
-    const finalizeForm = document.getElementById('finalizeForm');
-    if (finalizeForm && !finalizeForm.dataset.bound) {
-        finalizeForm.addEventListener('submit', finalizeAppointmentWithPrices);
-        finalizeForm.dataset.bound = "true";
-    }
-    
-    // Bind stats cards (needs card IDs in HTML)
-    bindStatsPopupButtons();
+    // Deleted: bindStatsPopupButtons - removed per user request (no popups on stat cards)
 });
 
+// Deleted: confirmModal function - removed per user request
+
 // ==========================================
-// ENHANCE NATIVE DATE/TIME PICKERS
+// MODERN TIME PICKER
+// ==========================================
+const TimePicker = {
+    overlay: null,
+    input: null,
+    hiddenInput: null,
+    selectedHour: null,
+    selectedMinute: null,
+    
+    init() {
+        this.overlay = document.getElementById('timePicker');
+        this.input = document.getElementById('appointmentTime');
+        this.hiddenInput = document.getElementById('appointmentTimeValue');
+        
+        if (!this.overlay || !this.input) return;
+        
+        // Generate hours and minutes
+        this.generateHours();
+        this.generateMinutes();
+        
+        // Event listeners
+        this.bindEvents();
+    },
+    
+    generateHours() {
+        const hourScroll = document.getElementById('hourScroll');
+        if (!hourScroll) return;
+        
+        hourScroll.innerHTML = '';
+        for (let h = 0; h < 24; h++) {
+            const item = document.createElement('div');
+            item.className = 'time-item';
+            item.textContent = h.toString().padStart(2, '0');
+            item.dataset.value = h;
+            item.addEventListener('click', () => this.selectHour(h));
+            hourScroll.appendChild(item);
+        }
+    },
+    
+    generateMinutes() {
+        const minuteScroll = document.getElementById('minuteScroll');
+        if (!minuteScroll) return;
+        
+        minuteScroll.innerHTML = '';
+        // Generate minutes in 5-minute steps
+        for (let m = 0; m < 60; m += 5) {
+            const item = document.createElement('div');
+            item.className = 'time-item';
+            item.textContent = m.toString().padStart(2, '0');
+            item.dataset.value = m;
+            item.addEventListener('click', () => this.selectMinute(m));
+            minuteScroll.appendChild(item);
+        }
+    },
+    
+    selectHour(hour) {
+        this.selectedHour = hour;
+        // Update UI
+        document.querySelectorAll('#hourScroll .time-item').forEach(item => {
+            item.classList.toggle('selected', parseInt(item.dataset.value) === hour);
+        });
+        // Auto-scroll to center
+        const selected = document.querySelector('#hourScroll .time-item.selected');
+        if (selected) {
+            selected.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        }
+    },
+    
+    selectMinute(minute) {
+        this.selectedMinute = minute;
+        // Update UI
+        document.querySelectorAll('#minuteScroll .time-item').forEach(item => {
+            item.classList.toggle('selected', parseInt(item.dataset.value) === minute);
+        });
+        // Auto-scroll to center
+        const selected = document.querySelector('#minuteScroll .time-item.selected');
+        if (selected) {
+            selected.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        }
+    },
+    
+    open() {
+        // Parse existing value if any
+        const currentValue = this.hiddenInput.value;
+        if (currentValue && /^\d{2}:\d{2}$/.test(currentValue)) {
+            const [h, m] = currentValue.split(':').map(Number);
+            this.selectHour(h);
+            this.selectMinute(this.roundToNearest5(m));
+        } else {
+            // Default to current time rounded to 5 minutes
+            const now = new Date();
+            this.selectHour(now.getHours());
+            this.selectMinute(this.roundToNearest5(now.getMinutes()));
+        }
+        
+        this.overlay.style.display = 'flex';
+        
+        // Focus quick input
+        const quickInput = document.getElementById('timeQuickInput');
+        if (quickInput) {
+            quickInput.value = '';
+            setTimeout(() => quickInput.focus(), 100);
+        }
+    },
+    
+    close() {
+        this.overlay.style.display = 'none';
+    },
+    
+    confirm() {
+        if (this.selectedHour !== null && this.selectedMinute !== null) {
+            const timeStr = `${this.selectedHour.toString().padStart(2, '0')}:${this.selectedMinute.toString().padStart(2, '0')}`;
+            this.input.value = timeStr;
+            this.hiddenInput.value = timeStr;
+            this.close();
+        }
+    },
+    
+    setNow() {
+        const now = new Date();
+        this.selectHour(now.getHours());
+        this.selectMinute(this.roundToNearest5(now.getMinutes()));
+    },
+    
+    roundToNearest5(minutes) {
+        return Math.round(minutes / 5) * 5;
+    },
+    
+    parseQuickInput(input) {
+        // Remove non-digits
+        const digits = input.replace(/\D/g, '');
+        
+        if (digits.length === 3) {
+            // e.g., "930" -> 09:30
+            const h = parseInt(digits.substring(0, 1));
+            const m = parseInt(digits.substring(1, 3));
+            if (h >= 0 && h <= 9 && m >= 0 && m <= 59) {
+                return { hour: h, minute: this.roundToNearest5(m) };
+            }
+        } else if (digits.length === 4) {
+            // e.g., "1430" -> 14:30
+            const h = parseInt(digits.substring(0, 2));
+            const m = parseInt(digits.substring(2, 4));
+            if (h >= 0 && h <= 23 && m >= 0 && m <= 59) {
+                return { hour: h, minute: this.roundToNearest5(m) };
+            }
+        }
+        
+        return null;
+    },
+    
+    bindEvents() {
+        // Open picker on input click
+        this.input.addEventListener('click', () => this.open());
+        const wrapper = document.getElementById('timeInputWrapper');
+        if (wrapper) {
+            wrapper.addEventListener('click', () => this.open());
+        }
+        
+        // Close button
+        const closeBtn = this.overlay.querySelector('.time-picker-close');
+        if (closeBtn) {
+            closeBtn.addEventListener('click', () => this.close());
+        }
+        
+        // Backdrop click
+        const backdrop = this.overlay.querySelector('.time-picker-backdrop');
+        if (backdrop) {
+            backdrop.addEventListener('click', () => this.close());
+        }
+        
+        // Cancel button
+        const cancelBtn = this.overlay.querySelector('.btn-time-cancel');
+        if (cancelBtn) {
+            cancelBtn.addEventListener('click', () => this.close());
+        }
+        
+        // OK button
+        const okBtn = this.overlay.querySelector('.btn-time-ok');
+        if (okBtn) {
+            okBtn.addEventListener('click', () => this.confirm());
+        }
+        
+        // Now button
+        const nowBtn = this.overlay.querySelector('.btn-time-now');
+        if (nowBtn) {
+            nowBtn.addEventListener('click', () => this.setNow());
+        }
+        
+        // Quick input
+        const quickInput = document.getElementById('timeQuickInput');
+        if (quickInput) {
+            quickInput.addEventListener('input', (e) => {
+                const parsed = this.parseQuickInput(e.target.value);
+                if (parsed) {
+                    this.selectHour(parsed.hour);
+                    this.selectMinute(parsed.minute);
+                }
+            });
+            
+            quickInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    this.confirm();
+                }
+            });
+        }
+        
+        // ESC key to close
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && this.overlay.style.display === 'flex') {
+                this.close();
+            }
+        });
+    }
+};
+
+// ==========================================
+// ENHANCE NATIVE DATE PICKER
 // ==========================================
 function enhanceNativePickers() {
     const dateInput = document.getElementById('appointmentDate');
-    const timeInput = document.getElementById('appointmentTime');
-    const hiddenTime = document.getElementById('appointmentTimeValue');
     const dateWrap = document.getElementById('dateWrap');
-    const timeWrap = document.getElementById('timePickerWrapper');
 
-    // Date picker
+    // Date picker (unchanged)
     if (dateWrap && dateInput && !dateWrap.dataset.bound) {
         dateWrap.addEventListener('click', () => {
             dateInput.focus();
@@ -818,51 +1021,6 @@ function enhanceNativePickers() {
         });
         dateWrap.dataset.bound = "true";
     }
-
-    // Time picker: allow manual input + custom sheet
-    if (timeInput) {
-        timeInput.readOnly = false; // allow manual typing fallback
-        timeInput.placeholder = 'HH:MM AM/PM';
-
-        const syncHidden = (val) => {
-            const parsed = parseTimeTo24h(val);
-            if (parsed) {
-                hiddenTime.value = parsed;
-                return true;
-            }
-            return false;
-        };
-
-        if (!timeInput.dataset.bound) {
-            // Open custom picker on click
-            timeInput.addEventListener('click', (e) => {
-                e.preventDefault();
-                TimeSheetPicker.open();
-            });
-            // Manual typing fallback
-            timeInput.addEventListener('input', (e) => {
-                const ok = syncHidden(e.target.value);
-                if (!ok) hiddenTime.value = '';
-            });
-            timeInput.addEventListener('blur', (e) => {
-                if (!syncHidden(e.target.value)) {
-                    showNotification('Ora invalidă. Format: HH:MM AM/PM', 'warning');
-                }
-            });
-            timeInput.dataset.bound = "true";
-        }
-
-        // Wrapper click also opens picker
-        if (timeWrap && !timeWrap.dataset.bound) {
-            timeWrap.addEventListener('click', (e) => {
-                e.preventDefault();
-                TimeSheetPicker.open();
-            });
-            timeWrap.dataset.bound = 'true';
-        }
-    }
-
-    // Time picker is now handled by TimeSheetPicker - no native picker
 }
 
 // ==========================================
@@ -930,7 +1088,7 @@ function subscribeToAppointments() {
                 });
 }
 
-// Add new appointment
+// Add new appointment (MODERN FORM)
 async function handleAddAppointment(e) {
     e.preventDefault();
     
@@ -939,50 +1097,87 @@ async function handleAddAppointment(e) {
         return;
     }
     
+    // Colectare date din formular
     const customerName = document.getElementById('customerName').value.trim();
-    const car = document.getElementById('car').value.trim();
+    const customerPhone = document.getElementById('customerPhone').value.trim();
+    const contactPref = document.getElementById('contactPref').value;
+    const makeModel = document.getElementById('makeModel').value.trim();
+    const regNumber = document.getElementById('regNumber').value.trim();
+    const serviceLocation = document.getElementById('serviceLocation').value;
     const dateStr = document.getElementById('appointmentDate').value;
-    let timeStr = document.getElementById('appointmentTimeValue').value;
-    if (!timeStr) {
-        timeStr = parseTimeTo24h(document.getElementById('appointmentTime').value);
-    } else {
-        timeStr = parseTimeTo24h(timeStr);
-    }
+    const time = document.getElementById('appointmentTimeValue').value;
+    const problemDescription = document.getElementById('problemDescription').value.trim();
     
-    if (!timeStr) {
-        showNotification('⚠️ Ora invalidă', 'error');
+    // Validare câmpuri required
+    if (!customerName || !customerPhone || !contactPref || !makeModel || !regNumber || !serviceLocation || !dateStr || !time || !problemDescription) {
+        showNotification('⚠️ Completează toate câmpurile obligatorii', 'error');
         return;
     }
     
-    const address = document.getElementById('address').value.trim();
-    const notes = document.getElementById('notes').value.trim();
-    const statusRaw = document.getElementById('status').value;
-    const status = ['scheduled', 'done', 'canceled'].includes(statusRaw) ? statusRaw : 'scheduled';
+    // Validare locație și adresă
+    let address = '';
+    let postcode = '';
     
-    if (!customerName || !car || !dateStr || !timeStr) {
-        showNotification('⚠️ Completează toate câmpurile obligatorii', 'error');
+    if (serviceLocation === 'client') {
+        const clientAddress = document.getElementById('address').value.trim();
+        postcode = document.getElementById('postcode').value.trim();
+        
+        if (!clientAddress || !postcode) {
+            showNotification('⚠️ Completează adresa clientului (Adresă, Cod Poștal)', 'error');
+            return;
+        }
+        
+        address = clientAddress;
+    } else if (serviceLocation === 'garage') {
+        address = 'Transvortex LTD, Londra';
+        postcode = '';
+    }
+    
+    // Validare format oră
+    if (!/^\d{2}:\d{2}$/.test(time)) {
+        showNotification('⚠️ Format oră invalid', 'error');
         return;
     }
     
     try {
         const { collection, addDoc, serverTimestamp, Timestamp } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
         
-        // Create combined datetime
+        // Crează obiect de dată cu oră
         const [year, month, day] = dateStr.split('-').map(Number);
-        const [hours, minutes] = timeStr.split(':').map(Number);
-        const startDate = new Date(year, month - 1, day, hours, minutes);
+        const [hours, minutes] = time.split(':').map(Number);
+        const startDate = new Date(year, month - 1, day, hours, minutes, 0);
         
         console.log('📝 Adding appointment...');
         
         const docRef = await addDoc(collection(db, 'appointments'), {
+            // Client info
             customerName,
-            car,
-            address: address || '',
-            notes: notes || '',
-            status,
+            customerPhone,
+            contactPref,
+            
+            // Vehicle info
+            makeModel,
+            regNumber,
+            vehicle: makeModel + ' (' + regNumber + ')', // Compatibility field
+            
+            // Location
+            serviceLocation,
+            address,
+            postcode: postcode || '',
+            
+            // Service details
+            problemDescription,
+            
+            // Status (default to 'scheduled' for new appointments)
+            status: 'scheduled',
+            
+            // Legacy fields for compatibility
+            car: makeModel + ', ' + regNumber,
+            
+            // Timestamps
+            time,
             startAt: Timestamp.fromDate(startDate),
             dateStr,
-            timeStr,
             createdAt: serverTimestamp(),
             updatedAt: serverTimestamp(),
             createdBy: currentUser.uid
@@ -994,7 +1189,13 @@ async function handleAddAppointment(e) {
         e.target.reset();
         const today = new Date().toISOString().split('T')[0];
         document.getElementById('appointmentDate').value = today;
-        document.getElementById('status').value = 'scheduled';
+        document.getElementById('appointmentTime').value = '';
+        document.getElementById('appointmentTimeValue').value = '';
+        
+        // Reset location sections
+        document.getElementById('serviceLocation').value = '';
+        document.getElementById('garageAddressSection').style.display = 'none';
+        document.getElementById('clientAddressSection').style.display = 'none';
         
         showNotification('✅ Programare adăugată cu succes!', 'success');
         
@@ -1003,31 +1204,38 @@ async function handleAddAppointment(e) {
         showNotification('❌ Eroare la adăugarea programării: ' + error.message, 'error');
     }
 }
-
-// Delete appointment
-async function deleteAppointment(id) {
-    if (!isAdmin) return;
+// Utility: Validate individual field
+function validateField(fieldId) {
+    const field = document.getElementById(fieldId);
+    const errorEl = document.getElementById(fieldId + '-error');
+    if (!field || !errorEl) return true;
     
-    if (!confirm('Ești sigur că vrei să ștergi această programare?')) return;
+    let isValid = true;
+    let errorMsg = '';
     
-    try {
-        const { doc, deleteDoc } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
-        
-        console.log(`🗑️ Deleting appointment ${id}...`);
-        
-        await deleteDoc(doc(db, 'appointments', id));
-        
-        console.log(`✅ Appointment ${id} deleted`);
-        showNotification('✅ Programare ștearsă cu succes', 'success');
-        
-    } catch (error) {
-        console.error('❌ Error deleting appointment:', error);
-        showNotification('❌ Eroare la ștergere: ' + error.message, 'error');
+    const value = field.value.trim();
+    
+    // Check if required and empty
+    if (field.hasAttribute('required') && !value) {
+        isValid = false;
+        errorMsg = 'Câmp obligatoriu';
+    } else if (fieldId === 'regNumber' && value && value.length < 6) {
+        isValid = false;
+        errorMsg = 'Înmatriculare invalidă';
     }
+    
+    if (!isValid) {
+        errorEl.textContent = errorMsg;
+        field.classList.add('error');
+    } else {
+        errorEl.textContent = '';
+        field.classList.remove('error');
+    }
+    
+    return isValid;
 }
 
-// Mark appointment as done
-// markAppointmentDone - removed, now opens finalize modal with pricing
+// Deleted: deleteAppointment function - removed per user request
 
 // Mark appointment as canceled
 async function cancelAppointment(id) {
@@ -1182,42 +1390,55 @@ function createAppointmentCard(apt) {
         </div>
     ` : '';
     
-    const notesRow = apt.notes ? `
+    const vehicleDisplay = apt.vehicle || apt.car || 'N/A';
+    
+    // Problem/job details (if available from new form)
+    const problemRow = apt.problemDescription ? `
         <div class="detail-row">
-            <i class="fas fa-sticky-note"></i>
-            <span>${apt.notes}</span>
+            <i class="fas fa-clipboard"></i>
+            <span><strong>Problemă:</strong> ${apt.problemDescription.substring(0, 80)}...</span>
         </div>
     ` : '';
     
-    const actionsHTML = `
-    <div class="page-actions">
-      ${apt.status === 'scheduled' ? `
-        <button class="btn-action btn-done" data-apt-id="${apt.id}" title="Finalizează programarea">
-          <i class="fas fa-check-circle"></i> Finalizează
-        </button>
-      ` : ''}
-      ${apt.status === 'done' ? `
-        <button class="btn-action btn-invoice" data-apt-id="${apt.id}" title="Generează factură">
-          <i class="fas fa-file-invoice"></i> Invoice
-        </button>
-      ` : ''}
-      <button class="btn-action btn-visit" data-apt-id="${apt.id}" title="Vizitează pagina">
-        <i class="fas fa-external-link-alt"></i> Vizitează
-      </button>
-      <button class="btn-action btn-delete-appointment" data-apt-id="${apt.id}" title="Șterge programarea">
-        <i class="fas fa-trash"></i> Șterge
-      </button>
-    </div>
-  `;
+    const notesRow = apt.problemDescription || apt.notes ? `
+        <div class="detail-row">
+            <i class="fas fa-sticky-note"></i>
+            <span>${apt.problemDescription || apt.notes}</span>
+        </div>
+    ` : '';
+    
+    // Butoane de acțiune (mobile-first layout)
+    const actionsHTML = apt.status !== 'canceled' ? `
+        <div class="appointment-actions">
+            ${apt.status === 'scheduled' ? `
+                <button class="apt-btn apt-btn-finalize" data-action="finalize" data-apt-id="${apt.id}" aria-label="Finalizează programarea">
+                    <i class="fas fa-check-circle"></i>
+                    <span>Finalizează</span>
+                </button>
+            ` : ''}
+            ${apt.address ? `
+                <button class="apt-btn apt-btn-visit" data-action="visit" data-apt-id="${apt.id}" aria-label="Vizitează locația">
+                    <i class="fas fa-map-marker-alt"></i>
+                    <span>Vizitează</span>
+                </button>
+            ` : ''}
+            <button class="apt-btn apt-btn-invoice" data-apt-id="${apt.id}" aria-label="Generează factură">
+                <i class="fas fa-file-invoice"></i>
+                <span>Invoice</span>
+            </button>
+            <button class="apt-btn apt-btn-delete" data-action="delete" data-apt-id="${apt.id}" aria-label="Șterge programarea">
+                <i class="fas fa-trash-alt"></i>
+                <span>Șterge</span>
+            </button>
+        </div>
+    ` : '';
     
     return `
         <div class="appointment-card">
             <div class="appointment-header">
                 <div>
                     <div class="appointment-title">${apt.customerName}</div>
-                    <div class="appointment-time">
-                        <i class="fas fa-clock"></i> ${apt.timeStr || aptDate.toLocaleTimeString('ro-RO', {hour: '2-digit', minute: '2-digit'})}
-                    </div>
+                    ${apt.time ? `<div class="appointment-time"><i class="fas fa-clock"></i> ${apt.time}</div>` : ''}
                 </div>
                 <div>
                     <span class="status-badge ${statusClass}">
@@ -1229,195 +1450,458 @@ function createAppointmentCard(apt) {
             <div class="appointment-details">
                 <div class="detail-row">
                     <i class="fas fa-car"></i>
-                    <span><strong>Mașină:</strong> ${apt.car}</span>
+                    <span><strong>Mașină:</strong> ${vehicleDisplay}</span>
                 </div>
                 ${addressRow}
+                ${problemRow}
                 ${notesRow}
             </div>
             ${actionsHTML}
         </div>
-        `;
-    }
-    
-    // Bind appointment action buttons using event delegation
-    function bindAppointmentsClickDelegation() {
-        const container = document.getElementById('appointmentsList');
-        if (!container) return;
+    `;
+}
 
-        if (appointmentsClicksBound) return;
+// Bind appointment action buttons using event delegation
+function bindAppointmentsClickDelegation() {
+    const container = document.getElementById('appointmentsList');
+    if (!container) return;
 
-        container.addEventListener('click', async (e) => {
-            const btn = e.target.closest('button[data-apt-id]');
-            if (!btn) return;
+    if (appointmentsClicksBound) return;
 
-            const id = btn.dataset.aptId;
-            if (!id) {
-                console.error('[Main] Button clicked but data-apt-id is missing:', btn);
-                showNotification('Programarea nu are ID - vă rugăm să reîmprospătați pagina', 'error');
-                return;
-            }
+    container.addEventListener('click', async (e) => {
+        const btn = e.target.closest('button[data-apt-id]');
+        if (!btn) return;
 
-            console.log('[Main] Appointment action clicked:', btn.className, 'ID:', id);
-
-            if (btn.classList.contains('btn-invoice')) {
-                e.preventDefault();
-                try {
-                    const { downloadInvoicePDF } = await import('./src/features/invoice/invoiceController.js');
-                    await downloadInvoicePDF(id);
-                } catch (err) {
-                    console.error('[Main] Invoice generation failed:', err);
-                    showNotification('Eroare la generarea facturii: ' + err.message, 'error');
-                }
-                return;
-            }
-
-            if (btn.classList.contains('btn-done')) {
-                e.preventDefault();
-                openFinalizeModal(id);
-                return;
-            }
-
-            if (btn.classList.contains('btn-delete-appointment')) {
-                e.preventDefault();
-                if (confirm('Sigur doriți să ștergeți această programare?')) {
-                    await deleteAppointment(id);
-                    showNotification('Programare ștearsă cu succes', 'success');
-                    loadAppointments();
-                }
-                return;
-            }
-
-            if (btn.classList.contains('btn-visit')) {
-                e.preventDefault();
-                const appointment = appointments.find(a => a.id === id);
-                if (appointment?.pageUrl) {
-                    window.open(appointment.pageUrl, '_blank');
-                } else {
-                    showNotification('URL-ul paginii nu este disponibil', 'warning');
-                }
-                return;
-            }
-        });
-
-        appointmentsClicksBound = true;
-    }
-
-// Finalize: ensure status stays "done" and log payload
-async function finalizeAppointmentWithPrices(e) {
-    e.preventDefault();
-    
-    console.log('🔄 Starting finalize appointment...');
-    
-    const appointmentId = document.getElementById('finalizeAppointmentId').value;
-    const mileage = parseInt(document.getElementById('finalizeMileage').value);
-    const vatRate = parseFloat(document.getElementById('finalizeVatRate').value) || 0;
-    const generateNow = document.getElementById('generateInvoiceNow').checked;
-    const submitBtn = e.target.querySelector('button[type="submit"]');
-
-    if (!appointmentId) {
-        console.error('❌ No appointment ID');
-        return;
-    }
-    if (!mileage || mileage < 0) {
-        showNotification('⚠️ Mile obligatorii!', 'warning');
-        return;
-    }
-
-    // Normalize and validate services
-    const servicesClean = finalizeServices
-        .map(s => {
-            const desc = (s.description || '').trim();
-            const qty = Math.max(1, parseFloat(s.qty) || 1);
-            const unitPrice = Math.max(0, parseFloat(s.unitPrice) || 0);
-            return {
-                description: desc,
-                qty,
-                unitPrice,
-                lineTotal: qty * unitPrice
-            };
-        })
-        .filter(s => s.description);
-
-    if (!servicesClean.length) {
-        showNotification('⚠️ Adaugă cel puțin un serviciu cu descriere și preț.', 'warning');
-        return;
-    }
-
-    // Disable submit button to prevent double-submit
-    if (submitBtn) {
-        submitBtn.disabled = true;
-        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Se salvează...';
-    }
-
-    // Calculate totals
-    const totals = computeTotals(servicesClean, vatRate);
-    const pin = generateInvoicePin();
-    const invoiceNumber = generateInvoiceNumber();
-    const appt = appointments.find(a => a.id === appointmentId) || {};
-    const invoicePayload = buildInvoicePayload({
-        appointmentId,
-        appt,
-        services: servicesClean,
-        mileage,
-        vatRate,
-        pin,
-        invoiceNumber,
-        totals
-    });
-
-    try {
-        const { doc, updateDoc, Timestamp, addDoc, collection, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
-        const appointmentRef = doc(db, 'appointments', appointmentId);
-
-        console.log('💾 Saving to Firestore...', { appointmentId, mileage, status: 'done' });
-
-        await updateDoc(appointmentRef, {
-            status: 'done',
-            mileage,
-            services: servicesClean,
-            subtotal: totals.subtotal,
-            vatRate,
-            vatAmount: totals.vatAmount,
-            total: totals.total,
-            invoicePin: pin,
-            invoiceNumber,
-            doneAt: Timestamp.now(),
-            updatedAt: Timestamp.now()
-        });
-
-        const invoiceDocRef = await addDoc(collection(db, 'invoices'), {
-            ...invoicePayload,
-            appointmentId,
-            createdAt: serverTimestamp(),
-            updatedAt: serverTimestamp()
-        });
-
-        await updateDoc(appointmentRef, {
-            invoiceId: invoiceDocRef.id
-        });
-
-        console.log('✅ Firestore update successful');
-        showNotification('✅ Programare finalizată cu succes!', 'success');
-
-        // Close modal BEFORE invoice generation
-        closeModal('finalizeModal');
-
-        // Generate invoice if checked (after modal closed)
-        if (generateNow) {
-            console.log('📄 Generating invoice...');
-            const { downloadInvoicePDF } = await import('./src/features/invoice/invoiceController.js');
-            await downloadInvoicePDF(appointmentId);
+        const id = btn.dataset.aptId;
+        const action = btn.dataset.action;
+        
+        if (!id) {
+            console.error('[Main] Button clicked but data-apt-id is missing:', btn);
+            showNotification('Programarea nu are ID - vă rugăm să reîmprospătați pagina', 'error');
+            return;
         }
 
-    } catch (error) {
-        console.error('❌ Error finalizing appointment:', error);
-        showNotification('❌ Eroare la finalizare: ' + error.message, 'error');
+        // Special handling for Invoice button (no data-action by requirement)
+        if (btn.classList.contains('apt-btn-invoice')) {
+            e.preventDefault();
+            try {
+                const basePath = window.location.pathname.replace(/[^/]+$/, '');
+                const url = basePath + 'invoice.html?aptId=' + encodeURIComponent(id);
+                window.location.href = url;
+            } catch (err) {
+                console.error('[Main] Failed to navigate to invoice:', err);
+                showNotification('Nu s-a putut deschide factura', 'error');
+            }
+            return;
+        }
+
+        // Import modal component
+        const { confirmModal, openCustomModal } = await import('./src/shared/modal.js');
+        const appointment = appointments.find(a => a.id === id);
+
+        // Handle actions
+        switch(action) {
+            case 'finalize':
+                e.preventDefault();
+                await handleFinalizeAction(id, appointment, openCustomModal);
+                break;
+                
+            case 'visit':
+                e.preventDefault();
+                await handleVisitAction(id, appointment, confirmModal);
+                break;
+
+            case 'delete':
+                e.preventDefault();
+                await handleDeleteAction(id, appointment, confirmModal);
+                break;
+                
+                break;
+                
+            default:
+                console.warn('[Main] Unknown action:', action);
+        }
+    });
+
+    appointmentsClicksBound = true;
+}
+
+// ==========================================
+// ACTION HANDLERS
+// ==========================================
+
+/**
+ * Handle Finalize Action - Deschide modal pentru finalizare cu mile, VAT, servicii
+ */
+async function handleFinalizeAction(id, appointment, openCustomModal) {
+    if (!appointment) {
+        showNotification('Programarea nu a fost găsită', 'error');
+        return;
+    }
+
+    // HTML pentru modal de finalizare
+    const modalContent = `
+        <form id="finalizeForm" class="finalize-form">
+            <div class="form-field">
+                <label for="finalizeMileage" class="form-label">
+                    <i class="fas fa-road"></i> Mile la mașină <span class="required">*</span>
+                </label>
+                <input 
+                    type="number" 
+                    id="finalizeMileage" 
+                    class="form-input" 
+                    placeholder="Ex: 124500" 
+                    min="0" 
+                    step="1" 
+                    required 
+                    autocomplete="off"
+                />
+            </div>
+            
+            <div class="form-field">
+                <label for="finalizeVatRate" class="form-label">
+                    <i class="fas fa-percent"></i> VAT % (opțional)
+                </label>
+                <input 
+                    type="number" 
+                    id="finalizeVatRate" 
+                    class="form-input" 
+                    placeholder="Ex: 20" 
+                    min="0" 
+                    max="100" 
+                    step="0.1" 
+                    value="20"
+                    autocomplete="off"
+                />
+            </div>
+            
+            <div class="form-field">
+                <label class="form-label">
+                    <i class="fas fa-list"></i> Servicii / Produse
+                </label>
+                <div class="services-mini-table">
+                    <div class="services-row services-header">
+                        <span>Descriere</span>
+                        <span>Qty</span>
+                        <span>Preț (£)</span>
+                    </div>
+                    <div id="servicesContainer">
+                        <div class="services-row" data-row="1">
+                            <input type="text" class="service-desc" placeholder="Descriere serviciu" />
+                            <input type="number" class="service-qty" value="1" min="1" step="1" />
+                            <input type="number" class="service-price" placeholder="0.00" min="0" step="0.01" />
+                        </div>
+                    </div>
+                    <button type="button" class="btn-add-service" id="addServiceBtn">
+                        <i class="fas fa-plus"></i> Adaugă serviciu
+                    </button>
+                </div>
+                
+                <div class="totals-mini">
+                    <div class="totals-row">
+                        <span>Subtotal:</span>
+                        <strong id="subtotalDisplay">£0.00</strong>
+                    </div>
+                    <div class="totals-row">
+                        <span>VAT:</span>
+                        <strong id="vatDisplay">£0.00</strong>
+                    </div>
+                    <div class="totals-row totals-grand">
+                        <span>Total:</span>
+                        <strong id="totalDisplay">£0.00</strong>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="modal-footer-actions">
+                <button type="button" class="modal-btn modal-btn-cancel" id="finalizeCancelBtn">
+                    Anulează
+                </button>
+                <button type="submit" class="modal-btn modal-btn-success">
+                    <i class="fas fa-check"></i> Finalizează + Salvează
+                </button>
+            </div>
+        </form>
+    `;
+
+    const { panel, close } = openCustomModal({
+        title: `Finalizează: ${appointment.customerName}`,
+        content: modalContent,
+        size: 'large'
+    });
+
+    // Setup form interactivity
+    setupFinalizeForm(panel, id, close);
+}
+
+/**
+ * Setup finalize form - calculează totaluri, adaugă servicii, submit
+ */
+function setupFinalizeForm(panel, appointmentId, closeModal) {
+    const form = panel.querySelector('#finalizeForm');
+    const addServiceBtn = panel.querySelector('#addServiceBtn');
+    const servicesContainer = panel.querySelector('#servicesContainer');
+    const cancelBtn = panel.querySelector('#finalizeCancelBtn');
+    const vatInput = panel.querySelector('#finalizeVatRate');
+    
+    let serviceRowCount = 1;
+
+    // Calculate totals
+    const updateTotals = () => {
+        const rows = servicesContainer.querySelectorAll('.services-row');
+        let subtotal = 0;
         
-        // Re-enable button on error
-        if (submitBtn) {
+        rows.forEach(row => {
+            const qty = parseFloat(row.querySelector('.service-qty')?.value || 0);
+            const price = parseFloat(row.querySelector('.service-price')?.value || 0);
+            subtotal += qty * price;
+        });
+        
+        const vatRate = parseFloat(vatInput.value || 0) / 100;
+        const vatAmount = subtotal * vatRate;
+        const total = subtotal + vatAmount;
+        
+        panel.querySelector('#subtotalDisplay').textContent = `£${subtotal.toFixed(2)}`;
+        panel.querySelector('#vatDisplay').textContent = `£${vatAmount.toFixed(2)}`;
+        panel.querySelector('#totalDisplay').textContent = `£${total.toFixed(2)}`;
+    };
+
+    // Add service row
+    addServiceBtn.addEventListener('click', () => {
+        serviceRowCount++;
+        const newRow = document.createElement('div');
+        newRow.className = 'services-row';
+        newRow.dataset.row = serviceRowCount;
+        newRow.innerHTML = `
+            <input type="text" class="service-desc" placeholder="Descriere serviciu" />
+            <input type="number" class="service-qty" value="1" min="1" step="1" />
+            <input type="number" class="service-price" placeholder="0.00" min="0" step="0.01" />
+            <button type="button" class="btn-remove-service" aria-label="Elimină">
+                <i class="fas fa-times"></i>
+            </button>
+        `;
+        servicesContainer.appendChild(newRow);
+        
+        // Remove service
+        newRow.querySelector('.btn-remove-service').addEventListener('click', () => {
+            newRow.remove();
+            updateTotals();
+        });
+        
+        // Update totals on change
+        newRow.querySelectorAll('input[type="number"]').forEach(input => {
+            input.addEventListener('input', updateTotals);
+        });
+    });
+
+    // Update totals on existing inputs
+    servicesContainer.addEventListener('input', (e) => {
+        if (e.target.matches('input[type="number"]')) {
+            updateTotals();
+        }
+    });
+    
+    vatInput.addEventListener('input', updateTotals);
+
+    // Cancel
+    cancelBtn.addEventListener('click', () => closeModal(false));
+
+    // Submit form
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const mileage = parseInt(panel.querySelector('#finalizeMileage').value);
+        let vatRateInput = parseFloat(panel.querySelector('#finalizeVatRate').value || 0);
+        
+        // ============================================
+        // VALIDARE VAT: Fix pentru bug 2000%
+        // Limită: 0-100%, default 20% dacă invalid
+        // ============================================
+        if (isNaN(vatRateInput) || vatRateInput < 0) {
+            vatRateInput = 20; // Default
+            showNotification('⚠️ VAT setat la 20% (default)', 'warning');
+        } else if (vatRateInput > 100) {
+            vatRateInput = 100; // Max cap
+            showNotification('⚠️ VAT nu poate depăși 100%! Setat la 100%.', 'warning');
+        }
+        
+        const vatRate = vatRateInput; // Stocat ca procent (nu decimal)
+        
+        if (!mileage || mileage < 0) {
+            showNotification('⚠️ Mile obligatorii și trebuie să fie pozitive', 'warning');
+            return;
+        }
+
+        // Collect services
+        const services = [];
+        const rows = servicesContainer.querySelectorAll('.services-row');
+        
+        rows.forEach(row => {
+            const desc = row.querySelector('.service-desc').value.trim();
+            const qty = parseFloat(row.querySelector('.service-qty').value || 0);
+            const price = parseFloat(row.querySelector('.service-price').value || 0);
+            
+            if (desc && qty > 0) {
+                services.push({
+                    description: desc,
+                    qty: qty,
+                    unitPrice: price,
+                    lineTotal: qty * price
+                });
+            }
+        });
+
+        if (services.length === 0) {
+            showNotification('⚠️ Adaugă cel puțin un serviciu cu descriere', 'warning');
+            return;
+        }
+
+        // Calculate totals
+        const subtotal = services.reduce((sum, s) => sum + s.lineTotal, 0);
+        const vatAmount = subtotal * (vatRate / 100);
+        const total = subtotal + vatAmount;
+
+        console.log(`[Finalize] VAT Rate: ${vatRate}%, VAT Amount: £${vatAmount.toFixed(2)}, Total: £${total.toFixed(2)}`);
+
+        // Disable submit button
+        const submitBtn = form.querySelector('button[type="submit"]');
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Se salvează...';
+
+        try {
+            const { doc, updateDoc, Timestamp, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+            
+            await updateDoc(doc(db, 'appointments', appointmentId), {
+                status: 'done',
+                mileage: mileage,
+                services: services,
+                subtotal: subtotal,
+                vatRate: vatRate / 100,
+                vatAmount: vatAmount,
+                total: total,
+                doneAt: Timestamp.now(),
+                updatedAt: serverTimestamp()
+            });
+
+            showNotification('✅ Programare finalizată cu succes!', 'success');
+            closeModal(true);
+
+        } catch (error) {
+            console.error('[Finalize] Error:', error);
+            showNotification('❌ Eroare la finalizare: ' + error.message, 'error');
             submitBtn.disabled = false;
             submitBtn.innerHTML = '<i class="fas fa-check"></i> Finalizează + Salvează';
         }
+    });
+
+    // Initial calculation
+    updateTotals();
+}
+
+/**
+ * Handle Visit Action - Oferă opțiuni Google Maps / Apple Maps
+ */
+async function handleVisitAction(id, appointment, confirmModal) {
+    if (!appointment || !appointment.address) {
+        showNotification('⚠️ Nu există adresă pentru această programare', 'warning');
+        return;
+    }
+
+    const address = encodeURIComponent(appointment.address);
+    const googleMapsUrl = `https://www.google.com/maps/search/?api=1&query=${address}`;
+    const appleMapsUrl = `https://maps.apple.com/?q=${address}`;
+
+    // Detectează dispozitivul
+    const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+    const isMac = /Macintosh|MacIntel/i.test(navigator.userAgent);
+
+    const message = `
+        <div style="text-align: center; margin-bottom: 1rem;">
+            <p style="margin-bottom: 1.5rem; color: #6b7280;">Adresa: <strong>${appointment.address}</strong></p>
+            <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+                <a href="${googleMapsUrl}" target="_blank" class="maps-link maps-google">
+                    <i class="fab fa-google"></i> Deschide în Google Maps
+                </a>
+                ${isIOS || isMac ? `
+                    <a href="${appleMapsUrl}" class="maps-link maps-apple">
+                        <i class="fas fa-map"></i> Deschide în Apple Maps
+                    </a>
+                ` : ''}
+            </div>
+        </div>
+    `;
+
+    // Folosim confirmModal doar pentru a afișa opțiunile (nu pentru confirmare)
+    const modalDiv = document.createElement('div');
+    modalDiv.className = 'modern-modal-overlay modern-modal-show';
+    modalDiv.innerHTML = `
+        <div class="modern-modal-backdrop"></div>
+        <div class="modern-modal-panel modern-modal-primary">
+            <div class="modern-modal-icon">
+                <i class="fas fa-map-marker-alt"></i>
+            </div>
+            <div class="modern-modal-content">
+                <h3 class="modern-modal-title">Vizitează Locația</h3>
+                ${message}
+            </div>
+            <div class="modern-modal-actions">
+                <button type="button" class="modern-modal-btn modern-modal-btn-cancel" data-action="close">
+                    Închide
+                </button>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(modalDiv);
+    document.body.style.overflow = 'hidden';
+
+    const close = () => {
+        modalDiv.classList.remove('modern-modal-show');
+        setTimeout(() => {
+            document.body.removeChild(modalDiv);
+            document.body.style.overflow = '';
+        }, 200);
+    };
+
+    modalDiv.querySelector('[data-action="close"]').addEventListener('click', close);
+    modalDiv.querySelector('.modern-modal-backdrop').addEventListener('click', close);
+    document.addEventListener('keydown', function escHandler(e) {
+        if (e.key === 'Escape') {
+            close();
+            document.removeEventListener('keydown', escHandler);
+        }
+    });
+}
+
+/**
+ * Handle Delete Action - Confirmare simplă
+ */
+async function handleDeleteAction(id, appointment, confirmModal) {
+    if (!appointment) {
+        showNotification('Programarea nu a fost găsită', 'error');
+        return;
+    }
+
+    const confirmed = await confirmModal({
+        title: 'Șterge programarea',
+        message: `Ești sigur că vrei să ștergi programarea pentru ${appointment.customerName}?\n\nAceastă acțiune este permanentă și nu poate fi anulată.`,
+        icon: 'fa-trash-alt',
+        confirmText: 'Șterge definitiv',
+        cancelText: 'Anulează',
+        variant: 'danger'
+    });
+
+    if (!confirmed) return;
+
+    try {
+        const { doc, deleteDoc } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+        
+        await deleteDoc(doc(db, 'appointments', id));
+        
+        showNotification('✅ Programare ștearsă cu succes', 'success');
+    } catch (error) {
+        console.error('[Delete] Error:', error);
+        showNotification('❌ Eroare la ștergere: ' + error.message, 'error');
     }
 }
 
@@ -1435,7 +1919,7 @@ function exportAppointmentsCSV() {
     filteredAppointments.forEach(apt => {
         const row = [
             apt.dateStr || '',
-            apt.timeStr || '',
+            apt.time || '',
             apt.customerName || '',
             apt.car || '',
             apt.address || '',
@@ -1475,7 +1959,67 @@ function setupEventListeners() {
     if (appointmentForm && !appointmentForm.dataset.bound) {
         appointmentForm.addEventListener('submit', handleAddAppointment);
         appointmentForm.dataset.bound = 'true';
+        setupAppointmentFormLogic();
     }
+}
+
+// Modern appointment form logic
+function setupAppointmentFormLogic() {
+    // 1. Toggle location sections based on serviceLocation dropdown
+    const serviceLocationSelect = document.getElementById('serviceLocation');
+    const garageSection = document.getElementById('garageAddressSection');
+    const clientSection = document.getElementById('clientAddressSection');
+    
+    if (serviceLocationSelect) {
+        serviceLocationSelect.addEventListener('change', (e) => {
+            if (e.target.value === 'garage') {
+                if (garageSection) garageSection.style.display = 'block';
+                if (clientSection) clientSection.style.display = 'none';
+                // Clear client address fields
+                document.getElementById('address').value = '';
+                document.getElementById('postcode').value = '';
+            } else if (e.target.value === 'client') {
+                if (garageSection) garageSection.style.display = 'none';
+                if (clientSection) clientSection.style.display = 'block';
+            } else {
+                if (garageSection) garageSection.style.display = 'none';
+                if (clientSection) clientSection.style.display = 'none';
+            }
+        });
+    }
+    
+    // 2. Force UPPERCASE for makeModel and regNumber
+    const makeModelInput = document.getElementById('makeModel');
+    const regNumberInput = document.getElementById('regNumber');
+    
+    if (makeModelInput) {
+        makeModelInput.addEventListener('input', (e) => {
+            e.target.value = e.target.value.toUpperCase();
+        });
+    }
+    
+    if (regNumberInput) {
+        regNumberInput.addEventListener('input', (e) => {
+            e.target.value = e.target.value.toUpperCase();
+        });
+    }
+    
+    // 3. Real-time validation feedback (optional - can add error messages on change)
+    const requiredFields = [
+        'customerName', 'customerPhone', 'contactPref', 'makeModel', 'regNumber',
+        'serviceLocation', 'appointmentDate', 'appointmentTime',
+        'problemDescription'
+    ];
+    
+    // Optionally add visual feedback on blur
+    requiredFields.forEach(fieldId => {
+        const field = document.getElementById(fieldId);
+        if (field) {
+            field.addEventListener('blur', () => {
+                validateField(fieldId);
+            });
+        }
+    });
 }
 
 // ==============================
@@ -1495,7 +2039,7 @@ function closeModal(id) {
 
 // Close modals on backdrop click + ESC
 function bindModalCloseBehavior() {
-    const modalIds = ['appointmentsModal', 'finalizeModal'];
+    const modalIds = ['appointmentsModal'];
 
     modalIds.forEach(mid => {
         const backdrop = document.getElementById(mid);
@@ -1511,7 +2055,6 @@ function bindModalCloseBehavior() {
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
             closeModal('appointmentsModal');
-            closeModal('finalizeModal');
         }
     });
 
@@ -1522,63 +2065,12 @@ function bindModalCloseBehavior() {
         aClose.dataset.bound = "true";
     }
 
-    const fClose = document.getElementById('finalizeModalClose');
-    if (fClose && !fClose.dataset.bound) {
-        fClose.addEventListener('click', () => closeModal('finalizeModal'));
-        fClose.dataset.bound = "true";
-    }
-
-    const fCancel = document.getElementById('finalizeCancelBtn');
-    if (fCancel && !fCancel.dataset.bound) {
-        fCancel.addEventListener('click', () => closeModal('finalizeModal'));
-        fCancel.dataset.bound = "true";
-    }
+    // Deleted: finalize modal bindings - removed per user request
 }
 
-// ==============================
-// STAT CARDS -> open popups
-// ==============================
-function bindStatsPopupButtons() {
-    const totalCard = document.getElementById('totalAppointmentsCard');
-    const doneCard = document.getElementById('doneAppointmentsCard');
+// Deleted: bindStatsPopupButtons function - removed per user request (no popups on stat cards)
 
-    if (totalCard && !totalCard.dataset.bound) {
-        totalCard.classList.add('clickable');
-        totalCard.addEventListener('click', () => openAppointmentsPopup('all'));
-        totalCard.dataset.bound = "true";
-    }
-
-    if (doneCard && !doneCard.dataset.bound) {
-        doneCard.classList.add('clickable');
-        doneCard.addEventListener('click', () => openAppointmentsPopup('done'));
-        doneCard.dataset.bound = "true";
-    }
-}
-
-// ==============================
-// OPEN appointments popup
-// ==============================
-function openAppointmentsPopup(mode = 'all') {
-    const title = document.getElementById('appointmentsModalTitle');
-    const subtitle = document.getElementById('appointmentsModalSubtitle');
-
-    if (mode === 'done') {
-        title.textContent = 'Programări finalizate';
-        subtitle.textContent = 'Toate programările cu status "Finalizat"';
-    } else {
-        title.textContent = 'Toate programările';
-        subtitle.textContent = 'Lista completă a programărilor';
-    }
-
-    // Set default filter based on mode
-    const statusFilter = document.getElementById('modalStatusFilter');
-    const search = document.getElementById('modalSearch');
-    if (search) search.value = '';
-    if (statusFilter) statusFilter.value = (mode === 'done') ? 'done' : 'all';
-
-    renderAppointmentsModalList();
-    openModal('appointmentsModal');
-}
+// Deleted: openAppointmentsPopup function - removed per user request (no popups on stat cards)
 
 function renderAppointmentsModalList(appointments) {
   const list = document.getElementById('appointmentsModalList');
@@ -1594,15 +2086,10 @@ function renderAppointmentsModalList(appointments) {
       <div class="apt-modal-header">
         <div class="apt-modal-info">
           <strong>${apt.customerName || apt.name || 'Fără nume'}</strong>
-          <span class="apt-modal-date">${apt.date || 'Fără dată'} ${apt.time || ''}</span>
+          <span class="apt-modal-date">${apt.date || 'Fără dată'}</span>
         </div>
         <div class="apt-modal-actions">
-          <button class="btn-action btn-invoice" data-apt-id="${apt.id}" title="Generează factură">
-            <i class="fas fa-file-invoice"></i> Invoice
-          </button>
-          <button class="btn-action btn-delete-appointment" data-apt-id="${apt.id}" title="Șterge">
-            <i class="fas fa-trash"></i>
-          </button>
+          <!-- Deleted: Invoice button - removed per user request -->
         </div>
       </div>
       <div class="apt-modal-details">
@@ -1628,19 +2115,7 @@ function bindAppointmentsModalControls() {
     }
 }
 
-// Ensure finalize modal controls are bound (single place)
-function bindFinalizeModalControls() {
-    const finalizeModal = document.getElementById('finalizeModal');
-    if (!finalizeModal || finalizeModal.dataset.bound === 'true') return;
-
-    const closeBtn = document.getElementById('finalizeModalClose');
-    const cancelBtn = document.getElementById('finalizeCancelBtn');
-
-    closeBtn?.addEventListener('click', () => closeModal('finalizeModal'));
-    cancelBtn?.addEventListener('click', () => closeModal('finalizeModal'));
-
-    finalizeModal.dataset.bound = 'true';
-}
+// Deleted: bindFinalizeModalControls function - removed per user request
 
 // Update appointment stats in UI
 function updateAppointmentStats() {
@@ -1664,8 +2139,183 @@ function updateAppointmentStats() {
 }
 
 // Expose needed functions to avoid ReferenceError in other files
-window.bindFinalizeModalControls = bindFinalizeModalControls;
 window.updateAppointmentStats = updateAppointmentStats;
+
+// ============================================
+// INVOICE SYSTEM INTEGRATION
+// ============================================
+
+/**
+ * Create invoice data from appointment
+ * Called when user clicks "View Invoice" or "Download Invoice" on an appointment
+ * Stores data in sessionStorage and opens invoice.html
+ */
+function createInvoiceFromAppointment(appointment) {
+    if (!appointment || !appointment.customerName) {
+        showNotification('⚠️ Cannot generate invoice: Missing client information', 'error');
+        return;
+    }
+
+    // Create invoice data structure
+    const invoiceData = {
+        company: {
+            name: 'Transvortex LTD',
+            address: '81 Foley Rd, Birmingham B8 2JT',
+            website: 'https://transvortexltd.co.uk/',
+            facebook: 'https://www.facebook.com/profile.php?id=61586007316302',
+            call: 'Mihai +44 7440787527',
+            emergency: 'Iulian +44 7478280954'
+        },
+        client: {
+            name: appointment.customerName || '',
+            address: appointment.address || '',
+            phone: appointment.customerPhone || '',
+            vehicle: appointment.makeModel || '',
+            regPlate: appointment.regNumber || '',
+            mileage: appointment.mileage || ''
+        },
+        // Default empty items - can be added via invoice UI
+        items: appointment.items || [
+            {
+                description: appointment.problemDescription || 'Service',
+                qty: 1,
+                unitPrice: 0
+            }
+        ],
+        invoiceNumber: appointment.invoiceNumber || null,
+        invoiceDate: appointment.appointmentDate || new Date().toISOString().split('T')[0],
+        dueDate: null, // Will be calculated (7 days after invoice date)
+        pin: null, // Will be generated
+        paymentTerms: 'Due within 7 days',
+        vatPercent: 0,
+        
+        // Metadata for reference
+        appointmentId: appointment.id || null,
+        appointmentDate: appointment.appointmentDate,
+        appointmentTime: appointment.appointmentTime
+    };
+
+    // Store in sessionStorage
+    try {
+        sessionStorage.setItem('tvx.invoiceData', JSON.stringify(invoiceData));
+        
+        // Open invoice.html in new tab or same window
+        // Using relative path that works in both Go Live and GitHub Pages
+        const invoiceUrl = './invoice.html';
+        window.open(invoiceUrl, '_blank');
+    } catch (error) {
+        console.error('Error storing invoice data:', error);
+        showNotification('❌ Error generating invoice. Please try again.', 'error');
+    }
+}
+
+// Expose to global scope
+window.createInvoiceFromAppointment = createInvoiceFromAppointment;
+
+/**
+ * Open invoice for a given appointment ID
+ * - Finds appointment in local cache; if not found, attempts to fetch
+ * - Normalizes items and fields
+ * - Stores in sessionStorage under key "tvx.invoiceData"
+ * - Opens invoice.html via relative URL
+ */
+async function openInvoiceForAppointment(appointmentId) {
+    try {
+        let appointment = appointments.find(a => a.id === appointmentId);
+        if (!appointment) {
+            // Fallback: fetch directly from Firestore if available
+            try {
+                const { doc, getDoc } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+                const snap = await getDoc(doc(db, 'appointments', appointmentId));
+                if (snap?.exists()) appointment = { id: snap.id, ...snap.data() };
+            } catch (err) {
+                console.warn('[Invoice] Could not fetch appointment, proceeding with minimal data:', err);
+            }
+        }
+
+        if (!appointment) {
+            showNotification('❌ Nu s-a găsit programarea pentru factură', 'error');
+            return;
+        }
+
+        const normalizeItems = (apt) => {
+            const src = apt.invoiceItems || apt.items || apt.services || null;
+            if (Array.isArray(src) && src.length) {
+                return src.map(it => ({
+                    description: it.description || it.name || it.service || apt.problemDescription || 'Service',
+                    qty: Number(it.qty ?? it.quantity ?? 1),
+                    unitPrice: Number(it.unitPrice ?? it.price ?? it.cost ?? 0)
+                }));
+            }
+            const desc = apt.problemDescription || apt.notes || 'Service';
+            return [{ description: desc, qty: 1, unitPrice: 0 }];
+        };
+
+        const todayISO = () => new Date().toISOString().split('T')[0];
+        const plusDaysISO = (days) => {
+            const d = new Date();
+            d.setDate(d.getDate() + days);
+            return d.toISOString().split('T')[0];
+        };
+        const generatePin = () => `TVX-${Math.floor(Math.random()*10000).toString().padStart(4,'0')}`;
+        const generateInvoiceNumberStable = (id) => {
+            const now = new Date();
+            const yy = String(now.getFullYear()).slice(2);
+            const mm = String(now.getMonth()+1).padStart(2,'0');
+            const dd = String(now.getDate()).padStart(2,'0');
+            const short = (id || 'INV').toString().slice(-6).toUpperCase();
+            return `INV-${short}-${yy}${mm}${dd}`;
+        };
+
+        const invoiceData = {
+            company: {
+                name: 'Transvortex LTD',
+                address: '81 Foley Rd, Birmingham B8 2JT',
+                website: 'https://transvortexltd.co.uk/',
+                facebook: 'https://www.facebook.com/profile.php?id=61586007316302',
+                call: 'Mihai +44 7440787527',
+                emergency: 'Iulian +44 7478280954'
+            },
+            invoiceNumber: generateInvoiceNumberStable(appointmentId),
+            invoiceDate: todayISO(),
+            dueDate: plusDaysISO(7),
+            pin: generatePin(),
+            paymentTerms: 'Due within 7 days',
+            client: {
+                name: appointment.customerName || appointment.clientName || appointment.name || '',
+                address: appointment.address || '',
+                phone: appointment.customerPhone || appointment.phone || '',
+                vehicle: appointment.makeModel || appointment.vehicle || appointment.car || '',
+                regPlate: appointment.regNumber || appointment.regPlate || appointment.plate || '',
+                mileage: appointment.mileageFinal ?? appointment.mileage ?? ''
+            },
+            vatPercent: appointment.vatPercent ?? appointment.vat ?? 0,
+            items: normalizeItems(appointment),
+            notes: appointment.notes || ''
+        };
+
+        // Persist to sessionStorage under namespaced key
+        try {
+            sessionStorage.setItem('tvx.invoiceData', JSON.stringify(invoiceData));
+        } catch (err) {
+            console.error('[Invoice] Failed to store invoiceData:', err);
+        }
+
+        const getInvoiceUrl = () => {
+            const href = window.location.href;
+            const base = href.replace(/[^/]*$/, '');
+            return base + 'invoice.html';
+        };
+
+        window.open(getInvoiceUrl(), '_blank', 'noopener');
+    } catch (error) {
+        console.error('[Invoice] Error opening invoice:', error);
+        showNotification('❌ A apărut o eroare la generarea facturii', 'error');
+    }
+}
+
+// Expose openInvoiceForAppointment globally
+window.openInvoiceForAppointment = openInvoiceForAppointment;
 
 
 

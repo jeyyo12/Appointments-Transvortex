@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Invoice System - Test Tool</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f5f5;
+            padding: 2rem;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: white;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+        }
+
+        h1 {
+            color: #1f1f23;
+            margin-bottom: 1.5rem;
+            border-bottom: 3px solid #ff9500;
+            padding-bottom: 0.5rem;
+        }
+
+        .info-box {
+            background: #f9f9f9;
+            border-left: 4px solid #ff9500;
+            padding: 1rem;
+            margin-bottom: 1.5rem;
+            border-radius: 4px;
+        }
+
+        .info-box p {
+            margin-bottom: 0.5rem;
+            color: #666;
+        }
+
+        .code-block {
+            background: #2a2a2f;
+            color: #00ff00;
+            padding: 1rem;
+            border-radius: 4px;
+            overflow-x: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+            margin: 1rem 0;
+            line-height: 1.4;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 1rem;
+            margin: 2rem 0;
+            flex-wrap: wrap;
+        }
+
+        button {
+            flex: 1;
+            min-width: 150px;
+            padding: 0.8rem 1.5rem;
+            border: none;
+            border-radius: 4px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 1rem;
+        }
+
+        .btn-primary {
+            background: #ff9500;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #ff8400;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(255, 149, 0, 0.3);
+        }
+
+        .btn-secondary {
+            background: #2a2a2f;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #1f1f23;
+        }
+
+        .btn-danger {
+            background: #b33a3a;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #9a2e2e;
+        }
+
+        .output {
+            background: #f9f9f9;
+            border: 1px solid #e0e0e0;
+            padding: 1rem;
+            border-radius: 4px;
+            margin-top: 1rem;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            color: #2a2a2f;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .output.success {
+            background: #d4edda;
+            border-color: #3fae7f;
+            color: #155724;
+        }
+
+        .output.error {
+            background: #f8d7da;
+            border-color: #b33a3a;
+            color: #721c24;
+        }
+
+        .test-scenario {
+            margin: 2rem 0;
+            padding-bottom: 2rem;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .test-scenario:last-child {
+            border-bottom: none;
+        }
+
+        .test-scenario h3 {
+            color: #1f1f23;
+            margin-bottom: 0.5rem;
+        }
+
+        .test-scenario p {
+            color: #666;
+            font-size: 0.95rem;
+            margin-bottom: 1rem;
+        }
+
+        .status {
+            display: inline-block;
+            padding: 0.3rem 0.8rem;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            margin-top: 0.5rem;
+        }
+
+        .status.pass {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status.fail {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .status.pending {
+            background: #fff3cd;
+            color: #856404;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 Invoice System Test Tool</h1>
+
+        <div class="info-box">
+            <p>
+                <strong>Purpose:</strong> Quickly test the invoice system with sample data and validate functionality.
+            </p>
+            <p>
+                <strong>How to use:</strong> Click buttons below to load test data into sessionStorage, then open invoice.html to see the result.
+            </p>
+        </div>
+
+        <!-- Test Scenario 1: Basic Invoice -->
+        <div class="test-scenario">
+            <h3>Test 1: Basic Invoice (Valid Data)</h3>
+            <p>Loads a complete, valid invoice with 2 services and 20% VAT. Should render perfectly and enable download button.</p>
+            <button class="btn-primary" onclick="loadBasicInvoice()">Load Basic Invoice</button>
+            <button class="btn-secondary" onclick="openInvoice()">Open invoice.html →</button>
+            <div id="output1" class="output" style="display: none;"></div>
+        </div>
+
+        <!-- Test Scenario 2: Invalid Data (No Client) -->
+        <div class="test-scenario">
+            <h3>Test 2: Invalid Data (Missing Client Name)</h3>
+            <p>Loads invoice with missing client name. invoice.html should show error and disable download button.</p>
+            <button class="btn-primary" onclick="loadInvalidNoClient()">Load Invalid Data</button>
+            <button class="btn-secondary" onclick="openInvoice()">Open invoice.html →</button>
+            <div id="output2" class="output" style="display: none;"></div>
+        </div>
+
+        <!-- Test Scenario 3: Invalid Data (No Items) -->
+        <div class="test-scenario">
+            <h3>Test 3: Invalid Data (No Services)</h3>
+            <p>Loads invoice with empty services. invoice.html should show error and disable download button.</p>
+            <button class="btn-primary" onclick="loadInvalidNoItems()">Load Invalid Data</button>
+            <button class="btn-secondary" onclick="openInvoice()">Open invoice.html →</button>
+            <div id="output3" class="output" style="display: none;"></div>
+        </div>
+
+        <!-- Test Scenario 4: Complex Invoice -->
+        <div class="test-scenario">
+            <h3>Test 4: Complex Invoice (Multiple Services)</h3>
+            <p>Loads invoice with 5 services, larger totals, and 0% VAT. Tests table rendering with multiple rows.</p>
+            <button class="btn-primary" onclick="loadComplexInvoice()">Load Complex Invoice</button>
+            <button class="btn-secondary" onclick="openInvoice()">Open invoice.html →</button>
+            <div id="output4" class="output" style="display: none;"></div>
+        </div>
+
+        <!-- Test Scenario 5: Check Storage -->
+        <div class="test-scenario">
+            <h3>Utilities</h3>
+            <p>Check sessionStorage contents and clear data.</p>
+            <div class="button-group">
+                <button class="btn-secondary" onclick="checkStorage()">Check sessionStorage</button>
+                <button class="btn-danger" onclick="clearStorage()">Clear sessionStorage</button>
+            </div>
+            <div id="outputStorage" class="output" style="display: none;"></div>
+        </div>
+
+        <div style="margin-top: 2rem; padding-top: 2rem; border-top: 1px solid #e0e0e0; color: #666; font-size: 0.9rem;">
+            <p><strong>💡 Tip:</strong> After loading test data, click "Open invoice.html" to see the rendered invoice. You can also open a second browser tab and navigate to <code>./invoice.html</code> directly.</p>
+            <p><strong>🖨️ Print Test:</strong> In the invoice page, click "Download PDF" to open browser print dialog (Ctrl+P / Cmd+P to save as PDF).</p>
+        </div>
+    </div>
+
+    <script>
+        // Helper function to show output
+        function showOutput(id, message, isError = false) {
+            const el = document.getElementById(id);
+            el.textContent = message;
+            el.className = 'output ' + (isError ? 'error' : 'success');
+            el.style.display = 'block';
+        }
+
+        // Test 1: Load basic valid invoice
+        function loadBasicInvoice() {
+            const invoiceData = {
+                company: {
+                    name: 'Transvortex LTD',
+                    address: '81 Foley Rd, Birmingham B8 2JT',
+                    website: 'https://transvortexltd.co.uk/',
+                    facebook: 'https://www.facebook.com/profile.php?id=61586007316302',
+                    call: 'Mihai +44 7440787527',
+                    emergency: 'Iulian +44 7478280954'
+                },
+                client: {
+                    name: 'John Smith',
+                    address: '123 High Street, London SW1A 1AA',
+                    phone: '+44 (0) 123 456 7890',
+                    vehicle: 'Toyota Camry 2020',
+                    regPlate: 'AB20 CDE',
+                    mileage: '45,000 miles'
+                },
+                items: [
+                    {
+                        description: 'Engine Service',
+                        qty: 1,
+                        unitPrice: 150.00
+                    },
+                    {
+                        description: 'Oil & Filter Change',
+                        qty: 1,
+                        unitPrice: 35.50
+                    }
+                ],
+                invoiceDate: new Date().toISOString().split('T')[0],
+                paymentTerms: 'Due within 7 days',
+                vatPercent: 20
+            };
+
+            sessionStorage.setItem('invoiceData', JSON.stringify(invoiceData));
+            showOutput('output1', '✅ Basic invoice loaded!\n\nClient: John Smith\nServices: 2 items\nSubtotal: £185.50\nVAT (20%): £37.10\nTotal: £222.60\n\nNow click "Open invoice.html" in a new tab to view.');
+        }
+
+        // Test 2: Invalid (no client)
+        function loadInvalidNoClient() {
+            const invoiceData = {
+                company: {
+                    name: 'Transvortex LTD',
+                    address: '81 Foley Rd, Birmingham B8 2JT',
+                    website: 'https://transvortexltd.co.uk/',
+                    facebook: 'https://www.facebook.com/profile.php?id=61586007316302',
+                    call: 'Mihai +44 7440787527',
+                    emergency: 'Iulian +44 7478280954'
+                },
+                client: {
+                    name: '',  // MISSING - This should cause error
+                    address: '',
+                    phone: '',
+                    vehicle: '',
+                    regPlate: '',
+                    mileage: ''
+                },
+                items: [
+                    {
+                        description: 'Test Service',
+                        qty: 1,
+                        unitPrice: 100.00
+                    }
+                ],
+                invoiceDate: new Date().toISOString().split('T')[0],
+                vatPercent: 0
+            };
+
+            sessionStorage.setItem('invoiceData', JSON.stringify(invoiceData));
+            showOutput('output2', '⚠️ Invalid invoice loaded (missing client name)\n\nExpected behavior in invoice.html:\n- Error message: "Client name is required"\n- Download button: DISABLED\n\nClick "Open invoice.html" to verify error handling.');
+        }
+
+        // Test 3: Invalid (no items)
+        function loadInvalidNoItems() {
+            const invoiceData = {
+                company: {
+                    name: 'Transvortex LTD',
+                    address: '81 Foley Rd, Birmingham B8 2JT',
+                    website: 'https://transvortexltd.co.uk/',
+                    facebook: 'https://www.facebook.com/profile.php?id=61586007316302',
+                    call: 'Mihai +44 7440787527',
+                    emergency: 'Iulian +44 7478280954'
+                },
+                client: {
+                    name: 'Jane Doe',
+                    address: '456 Main St, Manchester',
+                    phone: '+44 (0) 987 654 3210',
+                    vehicle: 'Ford Focus 2019',
+                    regPlate: 'CD19 EFG',
+                    mileage: '32,000 miles'
+                },
+                items: [],  // EMPTY - This should cause error
+                invoiceDate: new Date().toISOString().split('T')[0],
+                vatPercent: 0
+            };
+
+            sessionStorage.setItem('invoiceData', JSON.stringify(invoiceData));
+            showOutput('output3', '⚠️ Invalid invoice loaded (no services)\n\nExpected behavior in invoice.html:\n- Error message: "At least one service item is required"\n- Download button: DISABLED\n\nClick "Open invoice.html" to verify validation.');
+        }
+
+        // Test 4: Complex invoice
+        function loadComplexInvoice() {
+            const invoiceData = {
+                company: {
+                    name: 'Transvortex LTD',
+                    address: '81 Foley Rd, Birmingham B8 2JT',
+                    website: 'https://transvortexltd.co.uk/',
+                    facebook: 'https://www.facebook.com/profile.php?id=61586007316302',
+                    call: 'Mihai +44 7440787527',
+                    emergency: 'Iulian +44 7478280954'
+                },
+                client: {
+                    name: 'Corporate Fleet Services Ltd',
+                    address: 'Building 5, Business Park, Edinburgh EH10 6HZ',
+                    phone: '+44 (0) 131 456 7890',
+                    vehicle: 'Mercedes-Benz Sprinter Van 2021',
+                    regPlate: 'SD21 XYZ',
+                    mileage: '18,500 miles'
+                },
+                items: [
+                    { description: 'Full Vehicle Inspection', qty: 1, unitPrice: 85.00 },
+                    { description: 'Engine Diagnostics', qty: 1, unitPrice: 120.00 },
+                    { description: 'Brake System Service', qty: 1, unitPrice: 175.00 },
+                    { description: 'Tire Rotation & Balance', qty: 4, unitPrice: 35.00 },
+                    { description: 'Battery Test & Replacement', qty: 1, unitPrice: 95.00 }
+                ],
+                invoiceDate: new Date().toISOString().split('T')[0],
+                paymentTerms: 'Due within 30 days (Net 30)',
+                vatPercent: 20
+            };
+
+            sessionStorage.setItem('invoiceData', JSON.stringify(invoiceData));
+            
+            const subtotal = 85 + 120 + 175 + (35*4) + 95;
+            const vat = subtotal * 0.20;
+            const total = subtotal + vat;
+
+            showOutput('output4', `✅ Complex invoice loaded!\n\nClient: Corporate Fleet Services Ltd\nServices: 5 line items\nSubtotal: £${subtotal.toFixed(2)}\nVAT (20%): £${vat.toFixed(2)}\nTotal: £${total.toFixed(2)}\n\nNote: Table rendering will be tested with 5 rows.\nClick "Open invoice.html" to view.`);
+        }
+
+        // Check storage
+        function checkStorage() {
+            const data = sessionStorage.getItem('invoiceData');
+            if (!data) {
+                showOutput('outputStorage', 'sessionStorage is empty.\nLoad a test invoice above to populate it.', true);
+            } else {
+                try {
+                    const parsed = JSON.parse(data);
+                    showOutput('outputStorage', '✅ invoiceData found in sessionStorage\n\n' + JSON.stringify(parsed, null, 2));
+                } catch (e) {
+                    showOutput('outputStorage', '❌ Error parsing invoiceData: ' + e.message, true);
+                }
+            }
+        }
+
+        // Clear storage
+        function clearStorage() {
+            sessionStorage.removeItem('invoiceData');
+            showOutput('outputStorage', '🗑️ sessionStorage cleared.\n\nAll invoice data has been removed.');
+        }
+
+        // Open invoice.html
+        function openInvoice() {
+            window.open('./invoice.html', '_blank');
+        }
+    </script>
+</body>
+</html>
