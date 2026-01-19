@@ -2135,36 +2135,39 @@ document.addEventListener('DOMContentLoaded', () => {
     TimeSheetPicker.init();
 });
 
-import { downloadInvoicePDF, openInvoicePreview } from './src/features/invoice/invoiceController.js';
+import { downloadInvoicePDF } from './src/features/invoice/invoiceController.js';
 
-// Global hook for invoice buttons (legacy compatibility)
+// Global hook for invoice (backward compatibility)
 window.downloadInvoicePDF = (appointmentId) => {
-  console.log('[Global Hook] Invoice button triggered for:', appointmentId);
-  return downloadInvoicePDF(appointmentId);
-};
-
-window.openInvoicePreview = (appointmentId) => {
-  console.log('[Global Hook] Invoice preview triggered for:', appointmentId);
-  return openInvoicePreview(appointmentId);
+  console.log('[script.js] Invoice button clicked for:', appointmentId);
+  downloadInvoicePDF(appointmentId);
 };
 
 // Event delegation for invoice buttons
 document.addEventListener('click', (e) => {
-  const btn = e.target.closest('.btn-invoice');
-  if (!btn) return;
-  
-  e.preventDefault();
-  const appointmentId = btn.dataset.id || btn.getAttribute('data-appointment-id');
-  
-  if (!appointmentId) {
-    console.error('[Invoice] Button clicked but no appointment ID found');
-    alert('Cannot generate invoice: Appointment ID missing');
-    return;
+  const invoiceBtn = e.target.closest('.btn-invoice');
+  if (invoiceBtn) {
+    e.preventDefault();
+    const appointmentId = invoiceBtn.dataset.id || invoiceBtn.getAttribute('data-appointment-id');
+    console.log('[script.js] Invoice button clicked (delegation):', appointmentId);
+    if (appointmentId) {
+      downloadInvoicePDF(appointmentId);
+    } else {
+      console.error('[script.js] No appointment ID found on invoice button');
+    }
   }
-  
-  console.log('[Invoice] Button clicked, appointment ID:', appointmentId);
-  downloadInvoicePDF(appointmentId);
 });
+
+// Integration with finalize flow
+async function finalizeAppointmentWithPrices(appointmentId, generateInvoiceNow) {
+  console.log('[script.js] Finalizing appointment:', appointmentId);
+  // ...existing finalize logic...
+  
+  if (generateInvoiceNow) {
+    console.log('[script.js] Generating invoice immediately...');
+    await downloadInvoicePDF(appointmentId);
+  }
+}
 
 
 

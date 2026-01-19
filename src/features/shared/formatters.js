@@ -1,15 +1,10 @@
-export function formatGBP(amount) {
-  return '£' + parseFloat(amount || 0).toFixed(2);
+export function formatGBP(value) {
+  const num = parseFloat(value || 0);
+  return '£' + num.toFixed(2);
 }
 
-export function formatDate(dateString) {
-  if (!dateString) return '';
-  const date = new Date(dateString);
-  return date.toLocaleDateString('en-GB');
-}
-
-export function formatDateTime(dateString) {
-  if (!dateString) return '';
-  const date = new Date(dateString);
-  return date.toLocaleString('en-GB');
+export function formatDate(date) {
+  if (!date) return new Date().toISOString().split('T')[0];
+  if (typeof date === 'string') return date.split('T')[0];
+  return date.toISOString().split('T')[0];
 }

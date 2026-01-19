@@ -1,13 +1,11 @@
 // ...existing code...
 
-export async function getAppointmentById(appointmentId) {
-  // If using Firebase/Firestore
-  // const doc = await getDoc(doc(db, 'appointments', appointmentId));
-  // return doc.exists() ? { id: doc.id, ...doc.data() } : null;
-  
-  // If using local storage or state management
-  const appointments = await getAllAppointments();
-  return appointments.find(apt => apt.id === appointmentId) || null;
+export async function getAppointmentById(id) {
+  console.log('[appointmentsService] Fetching appointment:', id);
+  // Your existing Firebase/data fetch logic
+  const appointment = await yourDataSource.get(id);
+  console.log('[appointmentsService] Appointment data:', appointment);
+  return appointment;
 }
 
 // ...existing code...
