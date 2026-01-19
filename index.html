@@ -594,15 +594,15 @@
                 <form id="pageForm">
                     <div class="form-group">
                         <label for="pageName">Nume Pagină:</label>
-                        <input type="text" id="pageName" placeholder="ex: Transvortex LTD Official" required>
+                        <input type="text" id="pageName" name="pageName" autocomplete="off" placeholder="ex: Transvortex LTD Official" required>
                     </div>
                     <div class="form-group">
                         <label for="pageUrl">URL Pagină Facebook:</label>
-                        <input type="url" id="pageUrl" placeholder="https://facebook.com/..." required>
+                        <input type="url" id="pageUrl" name="pageUrl" autocomplete="url" placeholder="https://facebook.com/..." required>
                     </div>
                     <div class="form-group">
                         <label for="pageAvatar">URL Avatar (opțional):</label>
-                        <input type="url" id="pageAvatar" placeholder="https://... (logo sau poză de profil)">
+                        <input type="url" id="pageAvatar" name="pageAvatar" autocomplete="off" placeholder="https://... (logo sau poză de profil)">
                     </div>
                     <button type="submit" class="btn-primary">
                         <i class="fas fa-plus"></i> Adaugă Pagină
@@ -687,12 +687,12 @@
                     <form id="appointmentForm">
                         <div class="form-row">
                             <div class="form-group">
-                                <label for="customerName">Nume Client: *</label>
-                                <input type="text" id="customerName" placeholder="ex: Ion Popescu" required>
+                                <label for="customerName">Nume Client: <span class="req">*</span></label>
+                                <input type="text" id="customerName" name="customerName" autocomplete="name" placeholder="ex: Ion Popescu" required>
                             </div>
                             <div class="form-group">
-                                <label for="car">Mașină (marcă/model/înmatriculare): *</label>
-                                <input type="text" id="car" placeholder="ex: Dacia Logan, AB-12-XYZ" required>
+                                <label for="car">Mașină (marcă/model/înmatriculare): <span class="req">*</span></label>
+                                <input type="text" id="car" name="car" autocomplete="off" placeholder="ex: Dacia Logan, AB-12-XYZ" required>
                             </div>
                         </div>
                         <div class="grid-2">
@@ -700,32 +700,62 @@
                                 <label for="appointmentDate">Data: <span class="req">*</span></label>
                                 <div class="input-wrap" id="dateWrap">
                                     <span class="input-icon"><i class="fas fa-calendar-alt"></i></span>
-                                    <input id="appointmentDate" type="date" required />
+                                    <input id="appointmentDate" name="appointmentDate" type="date" autocomplete="off" required />
                                 </div>
                             </div>
                             <div class="field">
                                 <label for="appointmentTime">Ora: <span class="req">*</span></label>
                                 <div class="input-wrap time-picker-trigger" id="timeWrap">
                                     <span class="input-icon"><i class="fas fa-clock"></i></span>
-                                    <input id="appointmentTime" type="hidden" required />
+                                    <input id="appointmentTime" name="appointmentTime" type="hidden" autocomplete="off" required />
                                     <div class="time-display" id="timeDisplay">
                                         <i class="fas fa-clock"></i>
                                         <span id="timeDisplayText">Selectează ora</span>
+                                    </div>
+                                </div>
+                                <!-- Custom inline time picker panel -->
+                                <div id="timePickerPanel" class="time-picker-panel" style="display: none;">
+                                    <div class="tp-header">
+                                        <h4>Selectează ora</h4>
+                                        <button type="button" class="tp-close-btn" aria-label="Închide">&times;</button>
+                                    </div>
+                                    <div class="tp-body">
+                                        <!-- AM/PM toggle -->
+                                        <div class="tp-ampm-group">
+                                            <button type="button" class="tp-period-btn active" data-period="AM">AM</button>
+                                            <button type="button" class="tp-period-btn" data-period="PM">PM</button>
+                                        </div>
+                                        
+                                        <!-- Hours and Minutes columns -->
+                                        <div class="tp-columns">
+                                            <div class="tp-column">
+                                                <div class="tp-label">Ore</div>
+                                                <div class="tp-items" id="hoursContainer"></div>
+                                            </div>
+                                            <div class="tp-separator">:</div>
+                                            <div class="tp-column">
+                                                <div class="tp-label">Minute</div>
+                                                <div class="tp-items" id="minutesContainer"></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="tp-footer">
+                                        <span id="tpPreview" class="tp-preview">09:00 AM</span>
                                     </div>
                                 </div>
                             </div>
                         </div>
                         <div class="form-group">
                             <label for="address">Adresă (opțional):</label>
-                            <input type="text" id="address" placeholder="ex: Str. Principală nr. 10">
+                            <input type="text" id="address" name="address" autocomplete="street-address" placeholder="ex: Str. Principală nr. 10">
                         </div>
                         <div class="form-group">
                             <label for="notes">Notițe (opțional):</label>
-                            <textarea id="notes" rows="3" placeholder="Detalii suplimentare..."></textarea>
+                            <textarea id="notes" name="notes" autocomplete="off" rows="3" placeholder="Detalii suplimentare..."></textarea>
                         </div>
                         <div class="form-group">
                             <label for="status">Status:</label>
-                            <select id="status">
+                            <select id="status" name="status" autocomplete="off">
                                 <option value="scheduled" selected>Programat</option>
                                 <option value="done">Finalizat</option>
                                 <option value="canceled">Anulat</option>
@@ -978,36 +1008,6 @@
               <i class="fas fa-check"></i> OK
             </button>
           </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- TIME PICKER MODAL (Overlay Global) -->
-    <div id="timePickerModal" class="tp-modal" aria-hidden="true">
-      <div class="tp-backdrop"></div>
-      <div class="tp-container">
-        <div class="tp-header">
-          <h3><i class="fas fa-clock"></i> Selectează ora</h3>
-          <button type="button" class="tp-close" aria-label="Închide">&times;</button>
-        </div>
-
-        <div class="tp-ampm">
-          <button type="button" class="tp-ampm-btn active" data-period="AM">AM</button>
-          <button type="button" class="tp-ampm-btn" data-period="PM">PM</button>
-        </div>
-
-        <div class="tp-clock-wrapper">
-          <div id="tpClockFace" class="tp-clock"></div>
-        </div>
-
-        <div class="tp-preview">
-          <i class="fas fa-clock"></i>
-          <span id="tpPreviewTime">09:00 AM</span>
-        </div>
-
-        <div class="tp-buttons">
-          <button type="button" class="tp-btn-cancel"><i class="fas fa-times"></i> Anulează</button>
-          <button type="button" class="tp-btn-ok"><i class="fas fa-check"></i> OK</button>
         </div>
       </div>
     </div>
