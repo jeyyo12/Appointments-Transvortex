@@ -1,4 +1,4 @@
-:root {
+﻿:root {
     /* Design System - Brand Colors */
     --primary: #FF8A3D;
     --primary-dark: #F47C2C;
@@ -748,7 +748,7 @@ main {
     box-shadow: 0 0.75rem 2.5rem rgba(46, 204, 154, 0.15);
 }
 
-/* Status: De postat - Portocaliu ușor */
+/* Status: De postat - Portocaliu uÈ™or */
 .page-card.pending {
     border-color: rgba(255, 138, 61, 0.2);
     background: var(--surface);
@@ -759,7 +759,7 @@ main {
     box-shadow: 0 0.75rem 2.5rem rgba(255, 138, 61, 0.12);
 }
 
-/* Status: De șters - Roșu */
+/* Status: De È™ters - RoÈ™u */
 .page-card.to-delete {
     border-color: rgba(239, 68, 68, 0.3);
     background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
@@ -1322,37 +1322,36 @@ footer p {
    CUSTOM TIME PICKER - POPOVER STYLE
    ========================================== */
 
-.tp-overlay {
+/* Overlay fullscreen */
+#tpSheetOverlay {
     position: fixed;
     inset: 0;
-    background: transparent;
-    z-index: 9998; /* just under the popover */
+    background: rgba(0, 0, 0, 0.35);
+    z-index: 10000;
+    display: none;
 }
 
-.tp-sheet-overlay {
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.45);
-    z-index: 10000;
+#tpSheetOverlay.show {
+    display: block;
 }
 
 .time-picker-wrapper {
   position: relative !important;
 }
 
-.time-picker-popover {
+/* Popover default (desktop) */
+#timePickerPopover.time-picker-popover {
   position: absolute;
-  top: calc(100% + 0.5rem);
+  top: calc(100% + 10px);
   left: 0;
-  right: 0;
-  min-width: max(280px, 100%);
-  background: white;
-  border: 1px solid #ddd;
-  border-radius: clamp(0.5rem, 2vw, 0.75rem);
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.15);
-  z-index: 1050;
-  padding: 0;
+  width: min(520px, 100%);
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 18px 50px rgba(0,0,0,0.18);
   overflow: hidden;
+  display: none;
+  z-index: 9999;              /* above cards/buttons */
+  padding: 0;
 }
 
 /* Header: AM/PM Toggle */
@@ -1503,7 +1502,7 @@ footer p {
 
 /* Responsive adjustments */
 @media (max-width: 640px) {
-  .time-picker-popover {
+  #timePickerPopover.time-picker-popover {
     min-width: calc(100% - 2rem);
     margin-left: 1rem;
     margin-right: 1rem;
@@ -1512,44 +1511,6 @@ footer p {
   .tp-items {
     max-height: clamp(150px, 35vh, 250px);
   }
-}
-/* IMPORTANT: wrapper must be positioning context */
-#timePickerWrapper {
-  position: relative;
-}
-
-/* Popover: stays above everything, doesn’t overflow the page */
-.time-picker-popover {
-  position: absolute;
-  top: calc(100% + 10px);
-  left: 0;
-  width: 100%;
-  max-width: 520px;
-
-    z-index: 9999;              /* above cards/buttons */
-  background: #fff;
-  border-radius: 16px;
-  box-shadow: 0 18px 50px rgba(0,0,0,0.18);
-  overflow: hidden;
-
-  /* critical: prevent it from becoming taller than the viewport */
-  max-height: min(420px, 70vh);
-  display: none;
-}
-
-/* Make the body scrollable if needed */
-.time-picker-popover .tp-popover-body {
-  overflow: auto;
-  max-height: calc(min(420px, 70vh) - 120px); /* header+footer space */
-}
-
-/* Footer always visible and easy to tap */
-.time-picker-popover .tp-popover-footer {
-  position: sticky;
-  bottom: 0;
-  background: #fff;
-  padding: 12px;
-  border-top: 1px solid rgba(0,0,0,0.06);
 }
 
 /* Make the whole wrapper clearly clickable */
@@ -1561,18 +1522,18 @@ footer p {
 }
 
 @media (max-width: 768px) {
-    .time-picker-popover {
-        position: fixed;
-        left: 12px;
-        right: 12px;
-        bottom: 12px;
-        top: auto;
-        width: auto;
-        max-width: none;
-        max-height: 78vh;
-        margin: 0;
-        z-index: 10001;
-        border-radius: 18px;
-    }
+  #timePickerPopover.time-picker-popover {
+    position: fixed;
+    left: 12px;
+    right: 12px;
+    bottom: 12px;
+    top: auto;
+    width: auto;
+    max-width: none;
+    max-height: 78vh;
+    margin: 0;
+    z-index: 10001;              /* above overlay (10000) */
+    border-radius: 18px;
+  }
 }
 

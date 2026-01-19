@@ -2088,6 +2088,8 @@ const TimePickerPopover = {
     tempPeriod: 'AM',
     bodyScrollLocked: false,
     prevBodyOverflow: '',
+    originalParent: null,
+    originalNextSibling: null,
 
     init() {
         this.renderOptions();
@@ -2173,15 +2175,46 @@ wrapper?.addEventListener('click', (e) => {
     },
 
     ensureOverlay() {
-        let overlay = document.getElementById('tpOverlay');
+        let overlay = document.getElementById('tpSheetOverlay');
         if (!overlay) {
             overlay = document.createElement('div');
-            overlay.id = 'tpOverlay';
-            overlay.className = 'tp-overlay';
+            overlay.id = 'tpSheetOverlay';
             document.body.appendChild(overlay);
+            // Click overlay to close popover
+            overlay.addEventListener('click', () => {
+                if (this.isOpen) this.closePopover();
+            });
         }
-        overlay.classList.add('tp-sheet-overlay');
         return overlay;
+    },
+
+    mountPopoverToBodyIfMobile() {
+        if (!this.isMobile()) return;
+        const popover = document.getElementById('timePickerPopover');
+        if (!popover) return;
+        
+        // Save original position for restore
+        this.originalParent = popover.parentElement;
+        this.originalNextSibling = popover.nextElementSibling;
+        
+        // Move to body for fixed positioning
+        document.body.appendChild(popover);
+    },
+
+    restorePopoverParent() {
+        if (!this.originalParent) return;
+        const popover = document.getElementById('timePickerPopover');
+        if (!popover) return;
+        
+        // Restore to original parent
+        if (this.originalNextSibling) {
+            this.originalParent.insertBefore(popover, this.originalNextSibling);
+        } else {
+            this.originalParent.appendChild(popover);
+        }
+        
+        this.originalParent = null;
+        this.originalNextSibling = null;
     },
 
     renderOptions() {
@@ -2225,9 +2258,6 @@ wrapper?.addEventListener('click', (e) => {
     },
 
     openPopover() {
-        const overlay = this.ensureOverlay();
-        if (overlay) overlay.style.display = 'block';
-
         const hiddenInput = document.getElementById('appointmentTimeValue');
         const displayInput = document.getElementById('appointmentTime');
         
@@ -2261,36 +2291,52 @@ wrapper?.addEventListener('click', (e) => {
         }
         this.renderOptions();
 
+        // Mount popover to body if on mobile (for fixed positioning)
+        this.mountPopoverToBodyIfMobile();
+
+        // Show overlay and lock scroll
+        const overlay = this.ensureOverlay();
+        overlay.classList.add('show');
+        
+        if (this.isMobile()) {
+            this.prevBodyOverflow = document.body.style.overflow;
+            document.body.style.overflow = 'hidden';
+            this.bodyScrollLocked = true;
+        }
+
+        // Show popover
         const popover = document.getElementById('timePickerPopover');
         if (popover) {
-            if (this.isMobile()) {
-                // Lock body scroll on mobile
-                this.prevBodyOverflow = document.body.style.overflow;
-                document.body.style.overflow = 'hidden';
-                this.bodyScrollLocked = true;
-            }
-
             popover.style.display = 'block';
             this.isOpen = true;
-
             // Auto-scroll to selected
             setTimeout(() => this.scrollToSelected(), 100);
         }
     },
 
     closePopover() {
-        const overlay = document.getElementById('tpOverlay');
-        if (overlay) overlay.style.display = 'none';
+        // Hide popover
+        const popover = document.getElementById('timePickerPopover');
+        if (popover) {
+            popover.style.display = 'none';
+        }
+
+        // Hide overlay
+        const overlay = document.getElementById('tpSheetOverlay');
+        if (overlay) {
+            overlay.classList.remove('show');
+        }
+
+        // Restore body scroll
         if (this.bodyScrollLocked) {
             document.body.style.overflow = this.prevBodyOverflow;
             this.bodyScrollLocked = false;
         }
 
-        const popover = document.getElementById('timePickerPopover');
-        if (popover) {
-            popover.style.display = 'none';
-            this.isOpen = false;
-        }
+        // Restore popover to original parent (after body mount)
+        this.restorePopoverParent();
+
+        this.isOpen = false;
     },
 
     confirmSelection() {
