@@ -1962,6 +1962,8 @@ const TimePickerPopover = {
     tempHour: 12,
     tempMinute: 0,
     tempPeriod: 'AM',
+    bodyScrollLocked: false,
+    prevBodyOverflow: '',
 
     init() {
         this.renderOptions();
@@ -1969,19 +1971,23 @@ const TimePickerPopover = {
     },
 
     attachEvents() {
-        const input = document.getElementById('appointmentTime');
+                const input = document.getElementById('appointmentTime');
         const popover = document.getElementById('timePickerPopover');
         const wrapper = document.getElementById('timePickerWrapper');
 
-        // Open popover on input click
-        input?.addEventListener('click', (e) => {
-            e.stopPropagation();
-            this.openPopover();
-        });
+     // Open popover when clicking anywhere on the wrapper (icon + input area)
+wrapper?.addEventListener('click', (e) => {
+  e.preventDefault();
+  e.stopPropagation();
+  this.openPopover();
+});
 
         // Close on outside click
         document.addEventListener('click', (e) => {
-            if (!wrapper?.contains(e.target) && this.isOpen) {
+            if (!this.isOpen) return;
+            const popoverEl = document.getElementById('timePickerPopover');
+            const isInside = wrapper?.contains(e.target) || popoverEl?.contains(e.target);
+            if (!isInside) {
                 this.closePopover();
             }
         });
@@ -2038,6 +2044,22 @@ const TimePickerPopover = {
         });
     },
 
+    isMobile() {
+        return window.matchMedia('(max-width: 768px)').matches;
+    },
+
+    ensureOverlay() {
+        let overlay = document.getElementById('tpOverlay');
+        if (!overlay) {
+            overlay = document.createElement('div');
+            overlay.id = 'tpOverlay';
+            overlay.className = 'tp-overlay';
+            document.body.appendChild(overlay);
+        }
+        overlay.classList.add('tp-sheet-overlay');
+        return overlay;
+    },
+
     renderOptions() {
         const hoursContainer = document.getElementById('hoursContainer');
         const minutesContainer = document.getElementById('minutesContainer');
@@ -2079,8 +2101,8 @@ const TimePickerPopover = {
     },
 
     openPopover() {
-
-
+        const overlay = this.ensureOverlay();
+        if (overlay) overlay.style.display = 'block';
 
         const hiddenInput = document.getElementById('appointmentTimeValue');
         const displayInput = document.getElementById('appointmentTime');
@@ -2117,6 +2139,13 @@ const TimePickerPopover = {
 
         const popover = document.getElementById('timePickerPopover');
         if (popover) {
+            if (this.isMobile()) {
+                // Lock body scroll on mobile
+                this.prevBodyOverflow = document.body.style.overflow;
+                document.body.style.overflow = 'hidden';
+                this.bodyScrollLocked = true;
+            }
+
             popover.style.display = 'block';
             this.isOpen = true;
 
@@ -2126,6 +2155,13 @@ const TimePickerPopover = {
     },
 
     closePopover() {
+        const overlay = document.getElementById('tpOverlay');
+        if (overlay) overlay.style.display = 'none';
+        if (this.bodyScrollLocked) {
+            document.body.style.overflow = this.prevBodyOverflow;
+            this.bodyScrollLocked = false;
+        }
+
         const popover = document.getElementById('timePickerPopover');
         if (popover) {
             popover.style.display = 'none';
