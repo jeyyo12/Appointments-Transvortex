@@ -1,11 +1,12 @@
-// ...existing code...
+import { db } from '../firebaseConfig';
+import { doc as docRef, getDoc } from 'firebase/firestore';
 
-export async function getAppointmentById(id) {
-  console.log('[appointmentsService] Fetching appointment:', id);
-  // Your existing Firebase/data fetch logic
-  const appointment = await yourDataSource.get(id);
-  console.log('[appointmentsService] Appointment data:', appointment);
-  return appointment;
+export async function getAppointmentById(appointmentId) {
+  console.log('[Appointments Service] Fetching appointment:', appointmentId);
+  const doc = await getDoc(docRef(db, 'appointments', appointmentId));
+  if (!doc.exists()) {
+    console.error('[Appointments Service] Appointment not found:', appointmentId);
+    return null;
+  }
+  return { id: doc.id, ...doc.data() };
 }
-
-// ...existing code...

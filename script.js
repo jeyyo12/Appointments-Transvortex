@@ -2137,37 +2137,27 @@ document.addEventListener('DOMContentLoaded', () => {
 
 import { downloadInvoicePDF } from './src/features/invoice/invoiceController.js';
 
-// Global hook for invoice (backward compatibility)
+// Global invoice hook
 window.downloadInvoicePDF = (appointmentId) => {
-  console.log('[script.js] Invoice button clicked for:', appointmentId);
+  console.log('[App] Invoice button clicked for:', appointmentId);
   downloadInvoicePDF(appointmentId);
 };
 
 // Event delegation for invoice buttons
 document.addEventListener('click', (e) => {
-  const invoiceBtn = e.target.closest('.btn-invoice');
-  if (invoiceBtn) {
-    e.preventDefault();
-    const appointmentId = invoiceBtn.dataset.id || invoiceBtn.getAttribute('data-appointment-id');
-    console.log('[script.js] Invoice button clicked (delegation):', appointmentId);
-    if (appointmentId) {
-      downloadInvoicePDF(appointmentId);
-    } else {
-      console.error('[script.js] No appointment ID found on invoice button');
-    }
+  const btn = e.target.closest('.btn-invoice');
+  if (!btn) return;
+  
+  e.preventDefault();
+  const appointmentId = btn.dataset.id || btn.getAttribute('data-appointment-id');
+  
+  if (appointmentId) {
+    console.log('[App] Invoice button clicked via delegation:', appointmentId);
+    downloadInvoicePDF(appointmentId);
+  } else {
+    console.error('[App] Invoice button missing appointment ID');
   }
 });
-
-// Integration with finalize flow
-async function finalizeAppointmentWithPrices(appointmentId, generateInvoiceNow) {
-  console.log('[script.js] Finalizing appointment:', appointmentId);
-  // ...existing finalize logic...
-  
-  if (generateInvoiceNow) {
-    console.log('[script.js] Generating invoice immediately...');
-    await downloadInvoicePDF(appointmentId);
-  }
-}
 
 
 
