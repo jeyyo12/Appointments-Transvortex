@@ -1,4 +1,5 @@
 import { loadTemplateAsDataURL } from '../../services/assetsService.js';
+import { layout } from './invoiceLayoutMap.js';
 
 export async function buildInvoicePdf(invoiceModel) {
   console.log('[InvoicePDF] Starting PDF build');
@@ -12,34 +13,14 @@ export async function buildInvoicePdf(invoiceModel) {
 
   // Load and add template background
   try {
-    const templateDataUrl = await loadTemplateAsDataURL('Images/Invoice.png');
+    const templateDataUrl = await loadTemplateAsDataURL(layout.templatePath);
     console.log('[InvoicePDF] Template loaded, adding to PDF');
     doc.addImage(templateDataUrl, 'PNG', 0, 0, 210, 297);
   } catch (err) {
     console.warn('[InvoicePDF] Template load failed, using blank background:', err);
   }
 
-  // Define positions for text overlay (adjust these based on your template)
-  const positions = {
-    pin: { x: 170, y: 20 },
-    date: { x: 170, y: 30 },
-    customer: { x: 20, y: 60 },
-    vehicle: { x: 20, y: 68 },
-    mileage: { x: 20, y: 76 },
-    vatRate: { x: 170, y: 76 },
-    servicesStart: 100,
-    rowHeight: 8,
-    cols: {
-      description: 20,
-      qty: 140,
-      unitPrice: 160,
-      lineTotal: 190,
-    },
-    subtotal: { x: 190, y: 230 },
-    vat: { x: 190, y: 238 },
-    total: { x: 190, y: 246 },
-    notes: { x: 20, y: 260 },
-  };
+  const { positions } = layout;
 
   // Set font
   doc.setFont('helvetica', 'normal');
