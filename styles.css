@@ -1319,7 +1319,7 @@ footer p {
   font-weight: 600;
 }
 
-/* ===== CUSTOM TIME PICKER ===== */
+/* ===== CUSTOM CLOCK TIME PICKER ===== */
 .time-picker-trigger {
   cursor: pointer !important;
   user-select: none;
@@ -1340,7 +1340,8 @@ footer p {
   font-size: var(--text-lg);
 }
 
-.time-picker-backdrop {
+/* Clock picker backdrop */
+.clock-picker-backdrop {
   position: fixed;
   inset: 0;
   background: rgba(0, 0, 0, 0.5);
@@ -1353,43 +1354,36 @@ footer p {
   animation: fadeIn 0.2s ease;
 }
 
-.time-picker-backdrop.active {
+.clock-picker-backdrop.active {
   display: flex;
 }
 
-.time-picker-popup {
+/* Clock picker modal */
+.clock-picker-modal {
   background: white;
   border-radius: var(--radius-xl);
   box-shadow: 0 1.875rem 5.625rem rgba(0, 0, 0, 0.3);
-  width: min(clamp(20rem, 85vw, 28rem), 100%);
+  width: min(clamp(20rem, 85vw, 32rem), 100%);
   max-height: 90vh;
-  overflow: hidden;
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
   animation: slideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-@keyframes slideUp {
-  from {
-    opacity: 0;
-    transform: translateY(clamp(1rem, 5vw, 2rem));
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.time-picker-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+/* Clock picker header */
+.clock-picker-header {
   padding: var(--space-lg);
   border-bottom: 0.0625rem solid rgba(0, 0, 0, 0.06);
   background: linear-gradient(135deg, rgba(255, 138, 61, 0.05) 0%, rgba(244, 124, 44, 0.05) 100%);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  flex-wrap: wrap;
 }
 
-.time-picker-header h3 {
+.clock-picker-header h3 {
   margin: 0;
   font-size: var(--text-xl);
   font-weight: 700;
@@ -1397,13 +1391,50 @@ footer p {
   display: flex;
   align-items: center;
   gap: var(--space-sm);
+  flex: 1;
+  min-width: 12rem;
 }
 
-.time-picker-header h3 i {
+.clock-picker-header h3 i {
   color: var(--primary);
 }
 
-.time-picker-close {
+/* AM/PM toggle */
+.ampm-toggle {
+  display: flex;
+  gap: var(--space-xs);
+  background: white;
+  padding: 0.25rem;
+  border-radius: var(--radius-lg);
+  border: 0.0625rem solid rgba(255, 138, 61, 0.15);
+}
+
+.ampm-toggle-btn {
+  flex: 1;
+  padding: var(--space-xs) var(--space-sm);
+  border: none;
+  background: transparent;
+  color: rgba(0, 0, 0, 0.6);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  cursor: pointer;
+  border-radius: var(--radius-md);
+  transition: all 0.2s ease;
+}
+
+.ampm-toggle-btn:hover {
+  background: rgba(255, 138, 61, 0.1);
+  color: var(--primary);
+}
+
+.ampm-toggle-btn.active {
+  background: var(--primary-gradient);
+  color: white;
+  box-shadow: 0 0.25rem 0.75rem rgba(255, 138, 61, 0.3);
+}
+
+/* Close button */
+.clock-picker-close {
   background: rgba(0, 0, 0, 0.05);
   border: none;
   width: clamp(2rem, 5vw, 2.5rem);
@@ -1416,160 +1447,136 @@ footer p {
   display: flex;
   align-items: center;
   justify-content: center;
+  padding: 0;
 }
 
-.time-picker-close:hover {
+.clock-picker-close:hover {
   background: rgba(0, 0, 0, 0.1);
   color: rgba(0, 0, 0, 0.9);
 }
 
-.time-picker-ampm {
+/* Clock face container */
+.clock-face-container {
+  position: relative;
+  padding: var(--space-xl);
   display: flex;
-  gap: var(--space-sm);
-  padding: var(--space-md);
-  background: white;
+  align-items: center;
+  justify-content: center;
+  min-height: clamp(18rem, 50vw, 24rem);
+  background: linear-gradient(135deg, rgba(255, 138, 61, 0.02) 0%, rgba(244, 124, 44, 0.02) 100%);
 }
 
-.ampm-btn {
-  flex: 1;
-  padding: var(--space-sm) var(--space-lg);
-  border: 0.125rem solid rgba(255, 138, 61, 0.2);
+/* Circular clock face */
+.clock-face {
+  position: relative;
+  width: clamp(16rem, 45vw, 22rem);
+  height: clamp(16rem, 45vw, 22rem);
+  border-radius: 50%;
   background: white;
-  border-radius: var(--radius-lg);
+  border: 0.1875rem solid rgba(255, 138, 61, 0.2);
+  box-shadow: 0 0.5rem 2rem rgba(255, 138, 61, 0.1),
+             inset 0 0 1.5rem rgba(255, 138, 61, 0.05);
+}
+
+/* Clock center dot */
+.clock-center-dot {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 0.75rem;
+  height: 0.75rem;
+  background: var(--primary);
+  border-radius: 50%;
+  box-shadow: 0 0 0.5rem rgba(255, 138, 61, 0.4);
+  z-index: 100;
+}
+
+/* Clock number (hour or minute) */
+.clock-number {
+  position: absolute;
+  width: clamp(2.5rem, 6vw, 3.5rem);
+  height: clamp(2.5rem, 6vw, 3.5rem);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
   font-size: var(--text-lg);
   font-weight: 700;
-  color: rgba(0, 0, 0, 0.6);
+  color: rgba(0, 0, 0, 0.7);
   cursor: pointer;
   transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.ampm-btn:hover {
-  border-color: rgba(255, 138, 61, 0.4);
-  background: rgba(255, 138, 61, 0.05);
-}
-
-.ampm-btn.active {
-  background: var(--primary-gradient);
-  border-color: var(--primary);
-  color: white;
-  box-shadow: 0 0.5rem 1.5rem rgba(255, 138, 61, 0.3);
-}
-
-.time-picker-columns {
-  display: flex;
-  align-items: stretch;
-  gap: var(--space-md);
-  padding: var(--space-lg);
-  background: linear-gradient(135deg, rgba(255, 138, 61, 0.02) 0%, rgba(244, 124, 44, 0.02) 100%);
-  min-height: clamp(15rem, 40vh, 20rem);
-}
-
-.time-column {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-xs);
-}
-
-.column-label {
-  text-align: center;
-  font-size: var(--text-xs);
-  font-weight: 700;
-  color: var(--primary);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  margin-bottom: var(--space-xs);
-}
-
-.column-scroll {
-  flex: 1;
-  overflow-y: auto;
-  background: white;
-  border-radius: var(--radius-lg);
-  border: 0.125rem solid rgba(255, 138, 61, 0.15);
-  padding: var(--space-xs);
-  scroll-behavior: smooth;
-}
-
-.column-scroll::-webkit-scrollbar {
-  width: clamp(0.25rem, 1vw, 0.375rem);
-}
-
-.column-scroll::-webkit-scrollbar-track {
-  background: rgba(255, 138, 61, 0.05);
-  border-radius: var(--radius-sm);
-}
-
-.column-scroll::-webkit-scrollbar-thumb {
-  background: var(--primary);
-  border-radius: var(--radius-sm);
-}
-
-.column-scroll::-webkit-scrollbar-thumb:hover {
-  background: var(--primary-dark);
-}
-
-.time-option {
-  padding: var(--space-sm) var(--space-md);
-  text-align: center;
-  font-size: var(--text-lg);
-  font-weight: 600;
-  color: rgba(0, 0, 0, 0.6);
-  border-radius: var(--radius-md);
-  cursor: pointer;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   user-select: none;
 }
 
-.time-option:hover {
-  background: rgba(255, 138, 61, 0.1);
-  color: var(--primary-dark);
+.clock-number:hover {
+  background: rgba(255, 138, 61, 0.15);
+  color: var(--primary);
+  transform: scale(1.1);
 }
 
-.time-option.selected {
+.clock-number.selected {
   background: var(--primary-gradient);
   color: white;
+  box-shadow: 0 0.5rem 1.5rem rgba(255, 138, 61, 0.4);
+  transform: scale(1.15);
   font-weight: 800;
-  box-shadow: 0 0.25rem 0.75rem rgba(255, 138, 61, 0.3);
-  transform: scale(1.05);
 }
 
-.time-separator {
-  font-size: clamp(1.5rem, 4vw, 2.5rem);
-  font-weight: 800;
-  color: var(--primary);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  animation: pulse 2s ease-in-out infinite;
+/* Mode indicator */
+.clock-mode-indicator {
+  padding: var(--space-lg);
+  text-align: center;
+  background: white;
+  border-bottom: 0.0625rem solid rgba(0, 0, 0, 0.06);
 }
 
-.time-picker-footer {
+.clock-mode-indicator span {
+  display: block;
+  font-size: var(--text-sm);
+  color: rgba(0, 0, 0, 0.6);
+  margin-bottom: 0.25rem;
+}
+
+.clock-mode-indicator .selected-display {
+  display: inline-block;
+  font-size: clamp(1.75rem, 5vw, 2.5rem);
+  font-weight: 800;
+  color: var(--primary-dark);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.05em;
+}
+
+/* Footer */
+.clock-picker-footer {
   padding: var(--space-lg);
   border-top: 0.0625rem solid rgba(0, 0, 0, 0.06);
   background: white;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-md);
 }
 
-.selected-time-preview {
+.time-preview-section {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: var(--space-sm);
+  margin-bottom: var(--space-lg);
   padding: var(--space-md) var(--space-lg);
   background: linear-gradient(135deg, rgba(255, 138, 61, 0.08) 0%, rgba(244, 124, 44, 0.08) 100%);
   border-radius: var(--radius-lg);
   border: 0.125rem solid rgba(255, 138, 61, 0.2);
 }
 
-.selected-time-preview i {
+.time-preview-section i {
   color: var(--primary);
   font-size: var(--text-lg);
 }
 
-.selected-time-preview span {
+.time-preview-section span {
+  font-size: var(--text-sm);
+  color: rgba(0, 0, 0, 0.6);
+}
+
+.time-preview-section strong {
   font-size: clamp(1.25rem, 4vw, 1.75rem);
   font-weight: 800;
   color: var(--primary-dark);
@@ -1577,12 +1584,12 @@ footer p {
   letter-spacing: 0.05em;
 }
 
-.time-picker-buttons {
+.clock-picker-actions {
   display: flex;
   gap: var(--space-sm);
 }
 
-.btn-cancel-time {
+.btn-cancel-clock {
   flex: 1;
   background: rgba(0, 0, 0, 0.05);
   color: rgba(0, 0, 0, 0.7);
@@ -1599,13 +1606,13 @@ footer p {
   transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.btn-cancel-time:hover {
+.btn-cancel-clock:hover {
   background: rgba(0, 0, 0, 0.1);
   color: rgba(0, 0, 0, 0.9);
   transform: translateY(-0.0625rem);
 }
 
-.btn-confirm-time {
+.btn-ok-clock {
   flex: 1;
   background: var(--primary-gradient);
   color: white;
@@ -1623,33 +1630,44 @@ footer p {
   box-shadow: 0 0.5rem 1.5rem rgba(255, 138, 61, 0.3);
 }
 
-.btn-confirm-time:hover {
+.btn-ok-clock:hover {
   transform: translateY(-0.125rem);
   box-shadow: 0 0.75rem 2rem rgba(255, 138, 61, 0.4);
 }
 
-.btn-confirm-time:active,
-.btn-cancel-time:active {
+.btn-ok-clock:active,
+.btn-cancel-clock:active {
   transform: translateY(0);
 }
 
 /* Mobile optimizations */
 @media (max-width: 26rem) {
-  .time-picker-popup {
+  .clock-picker-modal {
     width: 100%;
     max-height: 95vh;
   }
   
-  .time-picker-columns {
-    min-height: clamp(12rem, 35vh, 15rem);
+  .clock-face-container {
+    min-height: clamp(14rem, 40vh, 18rem);
   }
   
-  .time-picker-footer {
+  .clock-picker-header {
+    flex-direction: column;
     gap: var(--space-sm);
   }
   
-  .time-picker-buttons {
+  .clock-picker-header h3 {
+    flex: 1;
+  }
+  
+  .ampm-toggle {
     width: 100%;
+    order: -1;
+  }
+  
+  .clock-picker-close {
+    align-self: flex-start;
   }
 }
+
 
