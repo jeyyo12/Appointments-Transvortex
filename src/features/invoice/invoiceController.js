@@ -30,14 +30,16 @@ async function deliverPdf(doc, fileName) {
   doc.save(fileName);
 }
 
-export async function downloadInvoicePDF(appointment) {
-  const appointmentId = typeof appointment === 'string' ? appointment : appointment?.id;
-  if (!appointmentId) throw new Error('appointmentId missing');
+export async function downloadInvoicePDF(appointmentId) {
   console.log('[InvoiceController] Invoice button clicked for appointment:', appointmentId);
-
   try {
-    const appointmentData = typeof appointment === 'string' ? await getAppointmentById(appointmentId) : appointment;
-    if (!appointmentData) throw new Error(`Appointment with ID ${appointmentId} not found in database`);
+    if (!appointmentId) throw new Error('appointmentId missing');
+
+    let appointmentData = appointmentId;
+    if (typeof appointmentId === 'string') {
+      appointmentData = await getAppointmentById(appointmentId);
+      if (!appointmentData) throw new Error(`Appointment with ID ${appointmentId} not found in database`);
+    }
     if (!appointmentData.id) throw new Error('Appointment data is invalid (missing ID)');
 
     const invoiceModel = mapAppointmentToInvoiceModel(appointmentData);

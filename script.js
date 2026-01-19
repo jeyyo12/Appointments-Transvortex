@@ -96,16 +96,36 @@ function parseTimeTo24h(timeStr) {
 // ==========================================
 async function initializeFirebase() {
     try {
-        const { onAuthStateChanged, signInWithPopup, GoogleAuthProvider, signOut } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js');
+        // Import Firebase App module
+        const { initializeApp } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js');
+        
+        // Import Firebase Auth module (Web SDK)
+        const { 
+            getAuth, 
+            onAuthStateChanged, 
+            signInWithPopup, 
+            GoogleAuthProvider, 
+            signOut 
+        } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js');
+        
+        // Import Firestore module
         const { getFirestore } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
-        const { app: sharedApp, auth: sharedAuth, db: sharedDb } = await import('./src/firebase/firebase-init.js');
 
         console.log("🔥 Firebase SDK: Initializing...");
-        app = sharedApp;
-        auth = sharedAuth;
-        db = sharedDb;
-        console.log("✅ Firebase App/Auth/Firestore initialized via shared module");
+        
+        // Initialize Firebase App with Web config
+        app = initializeApp(firebaseConfig);
+        console.log("✅ Firebase App initialized");
+        
+        // Get Auth instance (Web SDK)
+        auth = getAuth(app);
+        console.log("✅ Firebase Auth initialized");
+        
+        // Get Firestore instance
+        db = getFirestore(app);
+        console.log("✅ Firestore initialized");
 
+        // Setup authentication state listener
         onAuthStateChanged(auth, async (user) => {
             currentUser = user;
             isAdmin = user ? ADMIN_UIDS.includes(user.uid) : false;
@@ -1184,71 +1204,69 @@ function createAppointmentCard(apt) {
     function bindAppointmentsClickDelegation() {
         const container = document.getElementById('appointmentsList');
         if (!container) return;
-    
-    // Prevent duplicate listeners
-    if (appointmentsClicksBound) return;
-    
-    container.addEventListener('click', async (e) => {
-        const btn = e.target.closest('button[data-apt-id]');
-        if (!btn) return;
-        
-        const id = btn.dataset.aptId;
-        
-        // Defensive check for missing ID
-        if (!id) {
-            console.error('[Main] Button clicked but data-apt-id is missing:', btn);
-            showNotification('Programarea nu are ID - vă rugăm să reîmprospătați pagina', 'error');
-            return;
-        }
-        
-        console.log('[Main] Appointment action clicked:', btn.className, 'ID:', id);
-        
-        // Handle Invoice button
-        if (btn.classList.contains('btn-invoice')) {
-            e.preventDefault();
-            try {
-                const { downloadInvoicePDF } = await import('./src/features/invoice/invoiceController.js');
-                await downloadInvoicePDF(id);
-            } catch (err) {
-                console.error('[Main] Invoice generation failed:', err);
-                showNotification('Eroare la generarea facturii: ' + err.message, 'error');
+
+        // Prevent duplicate listeners
+        if (appointmentsClicksBound) return;
+
+        // Single handler for all appointment buttons
+        container.addEventListener('click', async (e) => {
+            const btn = e.target.closest('button[data-apt-id]');
+            if (!btn) return;
+
+            const id = btn.dataset.aptId;
+            if (!id) {
+                console.error('[Main] Button clicked but data-apt-id is missing:', btn);
+                showNotification('Programarea nu are ID - vă rugăm să reîmprospătați pagina', 'error');
+                return;
             }
-            return;
-        }
-        
-        // Handle Done/Finalize button
-        if (btn.classList.contains('btn-done')) {
-            e.preventDefault();
-            openFinalizeModal(id);
-            return;
-        }
-        
-        // Handle Delete button
-        if (btn.classList.contains('btn-delete-appointment')) {
-            e.preventDefault();
-            if (confirm('Sigur doriți să ștergeți această programare?')) {
-                await deleteAppointment(id);
-                showNotification('Programare ștearsă cu succes', 'success');
-                loadAppointments();
+
+            console.log('[Main] Appointment action clicked:', btn.className, 'ID:', id);
+
+            if (btn.classList.contains('btn-invoice')) {
+                e.preventDefault();
+                try {
+                    const { downloadInvoicePDF } = await import('./src/features/invoice/invoiceController.js');
+                    await downloadInvoicePDF(id);
+                } catch (err) {
+                    console.error('[Main] Invoice generation failed:', err);
+                    showNotification('Eroare la generarea facturii: ' + err.message, 'error');
+                }
+                return;
             }
-            return;
-        }
-        
-        // Handle Visit button
-        if (btn.classList.contains('btn-visit')) {
-            e.preventDefault();
-            const appointment = appointments.find(a => a.id === id);
-            if (appointment?.pageUrl) {
-                window.open(appointment.pageUrl, '_blank');
-            } else {
-                showNotification('URL-ul paginii nu este disponibil', 'warning');
+
+            // Handle Done/Finalize button
+            if (btn.classList.contains('btn-done')) {
+                e.preventDefault();
+                openFinalizeModal(id);
+                return;
             }
-            return;
-        }
-    });
-    
-    appointmentsClicksBound = true;
-}
+            
+            // Handle Delete button
+            if (btn.classList.contains('btn-delete-appointment')) {
+                e.preventDefault();
+                if (confirm('Sigur doriți să ștergeți această programare?')) {
+                    await deleteAppointment(id);
+                    showNotification('Programare ștearsă cu succes', 'success');
+                    loadAppointments();
+                }
+                return;
+            }
+            
+            // Handle Visit button
+            if (btn.classList.contains('btn-visit')) {
+                e.preventDefault();
+                const appointment = appointments.find(a => a.id === id);
+                if (appointment?.pageUrl) {
+                    window.open(appointment.pageUrl, '_blank');
+                } else {
+                    showNotification('URL-ul paginii nu este disponibil', 'warning');
+                }
+                return;
+            }
+        });
+
+        appointmentsClicksBound = true;
+    }
 
 // Finalize: ensure status stays "done" and log payload
 async function finalizeAppointmentWithPrices(e) {
