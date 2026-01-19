@@ -1915,348 +1915,341 @@ window.downloadInvoicePDF = async function(appointmentId) {
 }
 
 // ==========================================
-// ⏰ CUSTOM TIME PICKER - FULL IMPLEMENTATION
+// CUSTOM TIME PICKER FUNCTIONALITY (REFACTORED)
 // ==========================================
 const CustomTimePicker = {
-    // State
-    selectedHour: null,
-    selectedMinute: null,
+    isInitialized: false,
+    backdrop: null,
+    popup: null,
+    hoursScroll: null,
+    minutesScroll: null,
+    selectedHour: 9,
+    selectedMinute: 0,
     selectedPeriod: 'AM',
     targetInput: null,
-    displaySpan: null,
-    
-    // Elements (will be set after DOM loads)
-    modal: null,
-    overlay: null,
-    hoursArea: null,
-    minutesArea: null,
-    previewText: null,
-    amBtn: null,
-    pmBtn: null,
-    
-    // Initialize the picker
+    displayElement: null,
+
     init() {
-        console.log('⏰ CustomTimePicker: Initializing...');
-        
-        // Get modal elements
-        this.modal = document.getElementById('timePickerModal');
-        this.overlay = this.modal?.querySelector('.time-picker-overlay');
-        this.hoursArea = document.getElementById('hoursScrollArea');
-        this.minutesArea = document.getElementById('minutesScrollArea');
-        this.previewText = document.getElementById('timePreviewText');
-        this.amBtn = document.getElementById('amBtn');
-        this.pmBtn = document.getElementById('pmBtn');
-        
-        if (!this.modal || !this.hoursArea || !this.minutesArea) {
-            console.error('❌ Time picker elements not found!');
+        if (this.isInitialized) {
+            console.log('⚠️ CustomTimePicker already initialized');
             return;
         }
-        
-        console.log('✅ Time picker elements found');
-        
-        // Generate hours (1-12)
-        this.generateHours();
-        
-        // Generate minutes (00-59, step 1)
-        this.generateMinutes();
-        
-        // Setup event listeners using event delegation
-        this.setupEventListeners();
-        
-        console.log('✅ CustomTimePicker initialized');
-    },
-    
-    generateHours() {
-        this.hoursArea.innerHTML = '';
-        for (let h = 1; h <= 12; h++) {
-            const div = document.createElement('div');
-            div.className = 'time-value-option';
-            div.textContent = h;
-            div.dataset.value = h;
-            this.hoursArea.appendChild(div);
-        }
-        console.log('✅ Generated 12 hours');
-    },
-    
-    generateMinutes() {
-        this.minutesArea.innerHTML = '';
-        // Step 1 for all minutes (00-59)
-        for (let m = 0; m < 60; m++) {
-            const div = document.createElement('div');
-            div.className = 'time-value-option';
-            div.textContent = m.toString().padStart(2, '0');
-            div.dataset.value = m;
-            this.minutesArea.appendChild(div);
-        }
-        console.log('✅ Generated 60 minutes');
-    },
-    
-    setupEventListeners() {
-        console.log('🔗 Setting up event listeners...');
-        
-        // IMPORTANT: Use event delegation on document for the trigger
-        // This ensures it works even if the element is re-rendered
-        document.addEventListener('click', (e) => {
-            const timeWrap = e.target.closest('#timeWrap');
-            if (timeWrap) {
-                console.log('🖱️ timeWrap clicked');
-                e.preventDefault();
+
+        console.log('🕐 CustomTimePicker: Starting initialization...');
+
+        // Wait for elements to be available
+        setTimeout(() => {
+            this.backdrop = document.getElementById('timePickerBackdrop');
+            this.popup = document.getElementById('timePickerPopup');
+            this.hoursScroll = document.getElementById('hoursScroll');
+            this.minutesScroll = document.getElementById('minutesScroll');
+
+            if (!this.backdrop || !this.popup || !this.hoursScroll || !this.minutesScroll) {
+                console.error('❌ CustomTimePicker: Missing required elements!');
+                console.log('backdrop:', this.backdrop);
+                console.log('popup:', this.popup);
+                console.log('hoursScroll:', this.hoursScroll);
+                console.log('minutesScroll:', this.minutesScroll);
+                return;
+            }
+
+            console.log('✅ CustomTimePicker: All elements found');
+
+            // Generate hours (1-12)
+            for (let i = 1; i <= 12; i++) {
+                const option = document.createElement('div');
+                option.className = 'time-option';
+                option.textContent = i.toString();
+                option.dataset.value = i;
+                this.hoursScroll.appendChild(option);
+            }
+
+            // Generate minutes (00-59, step 5 for better UX)
+            for (let i = 0; i < 60; i += 5) {
+                const option = document.createElement('div');
+                option.className = 'time-option';
+                option.textContent = i.toString().padStart(2, '0');
+                option.dataset.value = i;
+                this.minutesScroll.appendChild(option);
+            }
+
+            console.log('✅ CustomTimePicker: Time options generated');
+
+            // Event delegation for time options
+            this.hoursScroll.addEventListener('click', (e) => {
+                if (e.target.classList.contains('time-option')) {
+                    const hour = parseInt(e.target.dataset.value);
+                    console.log('🕐 Hour selected:', hour);
+                    this.selectHour(hour);
+                }
+            });
+
+            this.minutesScroll.addEventListener('click', (e) => {
+                if (e.target.classList.contains('time-option')) {
+                    const minute = parseInt(e.target.dataset.value);
+                    console.log('🕐 Minute selected:', minute);
+                    this.selectMinute(minute);
+                }
+            });
+
+            // AM/PM toggle buttons
+            document.querySelectorAll('.ampm-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const period = e.target.dataset.period;
+                    console.log('🕐 Period selected:', period);
+                    document.querySelectorAll('.ampm-btn').forEach(b => b.classList.remove('active'));
+                    e.target.classList.add('active');
+                    this.selectedPeriod = period;
+                    this.updatePreview();
+                });
+            });
+
+            // Close button
+            const closeBtn = document.getElementById('timePickerClose');
+            if (closeBtn) {
+                closeBtn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    console.log('🕐 Close button clicked');
+                    this.close();
+                });
+            }
+
+            // Confirm button
+            const confirmBtn = document.getElementById('confirmTimeBtn');
+            if (confirmBtn) {
+                confirmBtn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    console.log('🕐 Confirm button clicked');
+                    this.confirm();
+                });
+            }
+
+            // Cancel button (if exists)
+            const cancelBtn = document.getElementById('cancelTimeBtn');
+            if (cancelBtn) {
+                cancelBtn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    console.log('🕐 Cancel button clicked');
+                    this.close();
+                });
+            }
+
+            // Close on backdrop click
+            this.backdrop.addEventListener('click', (e) => {
+                if (e.target === this.backdrop) {
+                    console.log('🕐 Backdrop clicked - closing');
+                    this.close();
+                }
+            });
+
+            // Prevent popup click from closing
+            this.popup.addEventListener('click', (e) => {
                 e.stopPropagation();
-                this.open();
-            }
-        });
-        
-        // Hour selection (event delegation on scroll area)
-        this.hoursArea.addEventListener('click', (e) => {
-            const option = e.target.closest('.time-value-option');
-            if (option) {
-                const value = parseInt(option.dataset.value);
-                console.log('Selected hour:', value);
-                this.selectHour(value);
-            }
-        });
-        
-        // Minute selection (event delegation on scroll area)
-        this.minutesArea.addEventListener('click', (e) => {
-            const option = e.target.closest('.time-value-option');
-            if (option) {
-                const value = parseInt(option.dataset.value);
-                console.log('Selected minute:', value);
-                this.selectMinute(value);
-            }
-        });
-        
-        // AM/PM toggle buttons
-        this.amBtn.addEventListener('click', () => this.setPeriod('AM'));
-        this.pmBtn.addEventListener('click', () => this.setPeriod('PM'));
-        
-        // Close button
-        document.getElementById('timePickerCloseBtn')?.addEventListener('click', () => {
-            console.log('Close button clicked');
-            this.close();
-        });
-        
-        // Cancel button
-        document.getElementById('timeCancelBtn')?.addEventListener('click', () => {
-            console.log('Cancel button clicked');
-            this.close();
-        });
-        
-        // OK button
-        document.getElementById('timeOkBtn')?.addEventListener('click', () => {
-            console.log('OK button clicked');
-            this.confirm();
-        });
-        
-        // Click outside overlay to close
-        this.overlay?.addEventListener('click', () => {
-            console.log('Overlay clicked');
-            this.close();
-        });
-        
-        // ESC key to close
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape' && this.modal.style.display !== 'none') {
-                console.log('ESC pressed');
-                this.close();
-            }
-        });
-        
-        console.log('✅ Event listeners attached');
+            });
+
+            // ESC key to close
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape' && this.backdrop.classList.contains('active')) {
+                    console.log('🕐 ESC pressed - closing');
+                    this.close();
+                }
+            });
+
+            this.isInitialized = true;
+            console.log('✅ CustomTimePicker: Initialization complete');
+        }, 100);
     },
-    
+
     open() {
-        console.log('🔓 Opening time picker...');
+        console.log('🕐 Opening time picker...');
         
-        this.targetInput = document.getElementById('appointmentTime');
-        this.displaySpan = document.getElementById('timeDisplayText');
-        
-        if (!this.targetInput || !this.displaySpan) {
-            console.error('❌ Target input or display not found');
+        if (!this.backdrop) {
+            console.error('❌ Cannot open: backdrop not found');
             return;
         }
-        
-        // Parse existing value if present
-        const currentValue = this.targetInput.value;
+
+        // Parse existing value if any
+        const currentValue = this.targetInput?.value;
+        console.log('🕐 Current input value:', currentValue);
+
         if (currentValue && currentValue.includes(':')) {
-            console.log('Parsing existing value:', currentValue);
-            const [hoursStr, minutesStr] = currentValue.split(':');
-            const hours24 = parseInt(hoursStr);
+            const [hours24Str, minutesStr] = currentValue.split(':');
+            const hours24 = parseInt(hours24Str);
             const minutes = parseInt(minutesStr);
             
-            // Convert 24h to 12h + AM/PM
-            if (hours24 === 0) {
-                this.selectedHour = 12;
-                this.selectedPeriod = 'AM';
-            } else if (hours24 < 12) {
-                this.selectedHour = hours24;
-                this.selectedPeriod = 'AM';
-            } else if (hours24 === 12) {
-                this.selectedHour = 12;
-                this.selectedPeriod = 'PM';
-            } else {
-                this.selectedHour = hours24 - 12;
-                this.selectedPeriod = 'PM';
-            }
-            this.selectedMinute = minutes;
+            this.selectedHour = hours24 > 12 ? hours24 - 12 : (hours24 === 0 ? 12 : hours24);
+            this.selectedMinute = Math.round(minutes / 5) * 5; // Round to nearest 5
+            this.selectedPeriod = hours24 >= 12 ? 'PM' : 'AM';
+            
+            console.log('🕐 Parsed time:', { hour: this.selectedHour, minute: this.selectedMinute, period: this.selectedPeriod });
         } else {
             // Default to current time
             const now = new Date();
-            const hours = now.getHours();
-            const minutes = now.getMinutes();
+            let hours = now.getHours();
+            this.selectedPeriod = hours >= 12 ? 'PM' : 'AM';
+            this.selectedHour = hours > 12 ? hours - 12 : (hours === 0 ? 12 : hours);
+            this.selectedMinute = Math.round(now.getMinutes() / 5) * 5;
             
-            if (hours === 0) {
-                this.selectedHour = 12;
-                this.selectedPeriod = 'AM';
-            } else if (hours < 12) {
-                this.selectedHour = hours;
-                this.selectedPeriod = 'AM';
-            } else if (hours === 12) {
-                this.selectedHour = 12;
-                this.selectedPeriod = 'PM';
-            } else {
-                this.selectedHour = hours - 12;
-                this.selectedPeriod = 'PM';
-            }
-            this.selectedMinute = minutes;
-            
-            console.log('Set to current time:', this.selectedHour, this.selectedMinute, this.selectedPeriod);
+            console.log('🕐 Using current time:', { hour: this.selectedHour, minute: this.selectedMinute, period: this.selectedPeriod });
         }
-        
-        // Update UI
+
+        // Update AM/PM buttons
+        document.querySelectorAll('.ampm-btn').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.period === this.selectedPeriod);
+        });
+
         this.updateSelections();
-        this.updatePeriodButtons();
         this.updatePreview();
-        
-        // Show modal
-        this.modal.style.display = 'flex';
+        this.backdrop.classList.add('active');
         document.body.style.overflow = 'hidden';
         
         console.log('✅ Time picker opened');
     },
-    
+
     close() {
-        console.log('🔒 Closing time picker...');
-        this.modal.style.display = 'none';
-        document.body.style.overflow = '';
-        console.log('✅ Time picker closed');
+        console.log('🕐 Closing time picker...');
+        if (this.backdrop) {
+            this.backdrop.classList.remove('active');
+            document.body.style.overflow = '';
+            console.log('✅ Time picker closed');
+        }
     },
-    
+
     selectHour(hour) {
         this.selectedHour = hour;
+        console.log('🕐 Selected hour updated:', hour);
         this.updateSelections();
         this.updatePreview();
     },
-    
+
     selectMinute(minute) {
         this.selectedMinute = minute;
+        console.log('🕐 Selected minute updated:', minute);
         this.updateSelections();
         this.updatePreview();
     },
-    
-    setPeriod(period) {
-        console.log('Setting period:', period);
-        this.selectedPeriod = period;
-        this.updatePeriodButtons();
-        this.updatePreview();
-    },
-    
+
     updateSelections() {
-        // Update hour selection visual
-        this.hoursArea.querySelectorAll('.time-value-option').forEach(opt => {
-            const isSelected = parseInt(opt.dataset.value) === this.selectedHour;
-            opt.classList.toggle('selected', isSelected);
-            
-            // Scroll selected into view
-            if (isSelected) {
-                setTimeout(() => {
-                    opt.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                }, 50);
-            }
+        if (!this.hoursScroll || !this.minutesScroll) return;
+
+        // Update hour selection
+        this.hoursScroll.querySelectorAll('.time-option').forEach(opt => {
+            opt.classList.toggle('selected', parseInt(opt.dataset.value) === this.selectedHour);
         });
-        
-        // Update minute selection visual
-        this.minutesArea.querySelectorAll('.time-value-option').forEach(opt => {
-            const isSelected = parseInt(opt.dataset.value) === this.selectedMinute;
-            opt.classList.toggle('selected', isSelected);
-            
-            // Scroll selected into view
-            if (isSelected) {
-                setTimeout(() => {
-                    opt.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                }, 50);
-            }
+
+        // Update minute selection
+        this.minutesScroll.querySelectorAll('.time-option').forEach(opt => {
+            opt.classList.toggle('selected', parseInt(opt.dataset.value) === this.selectedMinute);
         });
+
+        // Scroll selected items into view
+        setTimeout(() => {
+            const selectedHourEl = this.hoursScroll.querySelector('.selected');
+            const selectedMinuteEl = this.minutesScroll.querySelector('.selected');
+            
+            if (selectedHourEl) {
+                selectedHourEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+            if (selectedMinuteEl) {
+                selectedMinuteEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        }, 50);
     },
-    
-    updatePeriodButtons() {
-        this.amBtn.classList.toggle('active', this.selectedPeriod === 'AM');
-        this.pmBtn.classList.toggle('active', this.selectedPeriod === 'PM');
-    },
-    
+
     updatePreview() {
-        if (this.selectedHour !== null && this.selectedMinute !== null) {
-            const hourStr = this.selectedHour.toString().padStart(2, '0');
-            const minuteStr = this.selectedMinute.toString().padStart(2, '0');
-            const preview = `${hourStr}:${minuteStr} ${this.selectedPeriod}`;
-            this.previewText.textContent = preview;
-            console.log('Preview updated:', preview);
+        const previewEl = document.getElementById('timePreview');
+        if (previewEl && this.selectedHour !== null && this.selectedMinute !== null) {
+            const displayHour = this.selectedHour.toString().padStart(2, '0');
+            const displayMinute = this.selectedMinute.toString().padStart(2, '0');
+            const previewText = `${displayHour}:${displayMinute} ${this.selectedPeriod}`;
+            previewEl.textContent = previewText;
+            console.log('🕐 Preview updated:', previewText);
         }
     },
-    
+
     confirm() {
+        console.log('🕐 Confirming time selection...');
+
         if (this.selectedHour === null || this.selectedMinute === null) {
-            console.warn('⚠️ No time selected');
-            showNotification('⚠️ Te rog selectează ora și minutele', 'warning');
+            console.warn('⚠️ Cannot confirm: hour or minute not selected');
+            if (typeof showNotification === 'function') {
+                showNotification('⚠️ Te rog selectează ora și minutele', 'warning');
+            }
             return;
         }
-        
-        // Convert to 24-hour format
+
+        // Convert to 24-hour format for the hidden input
         let hours24 = this.selectedHour;
-        
         if (this.selectedPeriod === 'PM' && hours24 !== 12) {
             hours24 += 12;
         } else if (this.selectedPeriod === 'AM' && hours24 === 12) {
             hours24 = 0;
         }
-        
-        const hours24Str = hours24.toString().padStart(2, '0');
-        const minuteStr = this.selectedMinute.toString().padStart(2, '0');
-        const timeValue24h = `${hours24Str}:${minuteStr}`;
-        
-        // Friendly display (12h format)
-        const hourStr12 = this.selectedHour.toString().padStart(2, '0');
-        const displayText = `${hourStr12}:${minuteStr} ${this.selectedPeriod}`;
-        
-        console.log('✅ Selected time (24h):', timeValue24h);
-        console.log('✅ Display text (12h):', displayText);
-        
-        // Set the hidden input to 24h format
+
+        const timeValue = `${hours24.toString().padStart(2, '0')}:${this.selectedMinute.toString().padStart(2, '0')}`;
+        console.log('🕐 Selected time (24h format):', timeValue);
+
+        // Update hidden input
         if (this.targetInput) {
-            this.targetInput.value = timeValue24h;
+            this.targetInput.value = timeValue;
+            console.log('✅ Input updated:', this.targetInput.id, '=', timeValue);
         }
-        
-        // Update the display span
-        if (this.displaySpan) {
-            this.displaySpan.textContent = displayText;
+
+        // Update display
+        if (this.displayElement) {
+            const displayHour = this.selectedHour.toString().padStart(2, '0');
+            const displayMinute = this.selectedMinute.toString().padStart(2, '0');
+            const displayText = `${displayHour}:${displayMinute} ${this.selectedPeriod}`;
+            this.displayElement.textContent = displayText;
+            console.log('✅ Display updated:', displayText);
         }
-        
+
         this.close();
-        showNotification('✅ Ora selectată: ' + displayText, 'success');
     }
 };
 
-// Initialize time picker after DOM is fully loaded
+// ==========================================
+// EVENT DELEGATION FOR TIME PICKER TRIGGER
+// ==========================================
+// Use document-level delegation to ensure it works even if DOM is re-rendered
+document.addEventListener('click', function(e) {
+    // Check if click is on #timeWrap or any of its children
+    const timeWrap = e.target.closest('#timeWrap');
+    
+    if (timeWrap) {
+        console.log('🕐 timeWrap clicked');
+        e.preventDefault();
+        e.stopPropagation();
+        
+        const input = document.getElementById('appointmentTime');
+        const display = document.getElementById('timeDisplayText');
+        
+        console.log('🕐 Input element:', input);
+        console.log('🕐 Display element:', display);
+        
+        if (input && display) {
+            CustomTimePicker.targetInput = input;
+            CustomTimePicker.displayElement = display;
+            console.log('🕐 Opening custom time picker...');
+            CustomTimePicker.open();
+        } else {
+            console.error('❌ Cannot open time picker: input or display element not found');
+        }
+    }
+}, true); // Use capture phase to catch event early
+
+// Initialize on DOMContentLoaded
 if (document.readyState === 'loading') {
-    console.log('⏳ Waiting for DOMContentLoaded...');
     document.addEventListener('DOMContentLoaded', () => {
-        console.log('✅ DOM loaded, initializing CustomTimePicker');
+        console.log('🕐 DOM ready - initializing CustomTimePicker');
         CustomTimePicker.init();
     });
 } else {
-    console.log('✅ DOM already loaded, initializing CustomTimePicker immediately');
+    // DOM already loaded
+    console.log('🕐 DOM already ready - initializing CustomTimePicker immediately');
     CustomTimePicker.init();
 }
-
 
 
