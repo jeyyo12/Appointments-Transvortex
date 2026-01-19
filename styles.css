@@ -1654,270 +1654,288 @@ footer p {
 }
 
 /* ==========================================
-   CIRCULAR CLOCK PICKER STYLES
+   TIME PICKER MODAL - OVERLAY REAL
    ========================================== */
-.clock-picker-backdrop {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.5);
-    z-index: 9999;
-    opacity: 0;
-    visibility: hidden;
-    transition: opacity 0.3s, visibility 0.3s;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+
+.tp-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 9999;
+  display: none;
+  align-items: center;
+  justify-content: center;
 }
 
-.clock-picker-backdrop.active {
-    opacity: 1;
-    visibility: visible;
+.tp-modal.active {
+  display: flex;
 }
 
-.clock-picker-modal {
-    background: white;
-    border-radius: clamp(1rem, 2vw, 1.5rem);
-    box-shadow: 0 clamp(1rem, 3vw, 2rem) clamp(2rem, 5vw, 3rem) rgba(0, 0, 0, 0.3);
-    z-index: 10000;
-    width: clamp(16rem, 90vw, 28rem);
-    padding: clamp(1.5rem, 3vw, 2rem);
-    max-height: 95vh;
-    overflow-y: auto;
-    animation: slideUp 0.3s ease-out;
+.tp-backdrop {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+}
+
+.tp-container {
+  position: relative;
+  z-index: 10000;
+  background: white;
+  border-radius: 1rem;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  width: clamp(16rem, 90vw, 28rem);
+  max-height: 90vh;
+  overflow-y: auto;
+  padding: 0;
+  animation: slideUp 0.3s ease-out;
 }
 
 @keyframes slideUp {
-    from {
-        transform: translateY(2rem);
-        opacity: 0;
-    }
-    to {
-        transform: translateY(0);
-        opacity: 1;
-    }
+  from {
+    opacity: 0;
+    transform: translateY(2rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
-.clock-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: clamp(1rem, 2vw, 1.5rem);
-    border-bottom: 0.125rem solid #eee;
-    padding-bottom: clamp(0.75rem, 1.5vw, 1rem);
+.tp-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.5rem;
+  border-bottom: 1px solid #eee;
+  background: linear-gradient(135deg, rgba(255, 138, 61, 0.05), rgba(244, 124, 44, 0.05));
 }
 
-.clock-header h3 {
-    margin: 0;
-    font-size: clamp(1rem, 2vw, 1.25rem);
-    color: #333;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
+.tp-header h3 {
+  margin: 0;
+  font-size: 1.25rem;
+  color: #333;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
 }
 
-.clock-close-btn {
-    background: none;
-    border: none;
-    font-size: clamp(1rem, 2vw, 1.25rem);
-    cursor: pointer;
-    color: #999;
-    padding: 0.25rem;
-    transition: all 0.2s;
-    width: 2rem;
-    height: 2rem;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+.tp-header h3 i {
+  color: #FF8A3D;
 }
 
-.clock-close-btn:hover {
-    color: #FF8A3D;
-    transform: rotate(90deg);
+.tp-close {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  color: #999;
+  padding: 0;
+  width: 2rem;
+  height: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  line-height: 1;
+}
+
+.tp-close:hover {
+  color: #FF8A3D;
+  transform: rotate(90deg);
 }
 
 /* AM/PM Toggle */
-.clock-ampm-toggle {
-    display: flex;
-    gap: clamp(0.5rem, 1vw, 1rem);
-    margin-bottom: clamp(1.5rem, 2.5vw, 2rem);
+.tp-ampm {
+  display: flex;
+  gap: 1rem;
+  padding: 1.5rem;
+  background: white;
 }
 
-.clock-ampm-btn {
-    flex: 1;
-    padding: clamp(0.5rem, 1.5vw, 0.75rem);
-    border: 0.125rem solid #ddd;
-    background: white;
-    color: #666;
-    font-size: clamp(0.875rem, 1.5vw, 1rem);
-    font-weight: 600;
-    border-radius: 0.5rem;
-    cursor: pointer;
-    transition: all 0.3s ease;
+.tp-ampm-btn {
+  flex: 1;
+  padding: 0.75rem;
+  border: 1px solid #ddd;
+  background: white;
+  color: #666;
+  font-size: 1rem;
+  font-weight: 600;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
 }
 
-.clock-ampm-btn:hover {
-    border-color: #FF8A3D;
-    color: #FF8A3D;
+.tp-ampm-btn:hover {
+  border-color: #FF8A3D;
+  color: #FF8A3D;
 }
 
-.clock-ampm-btn.active {
-    background: linear-gradient(135deg, #FF8A3D, #F47C2C);
-    color: white;
-    border-color: #FF8A3D;
-    box-shadow: 0 clamp(0.25rem, 0.5vw, 0.5rem) clamp(0.75rem, 1.5vw, 1rem) rgba(255, 138, 61, 0.3);
+.tp-ampm-btn.active {
+  background: linear-gradient(135deg, #FF8A3D, #F47C2C);
+  color: white;
+  border-color: #FF8A3D;
+  box-shadow: 0 4px 12px rgba(255, 138, 61, 0.3);
 }
 
-/* Circular Clock Face */
-.clock-face-container {
-    position: relative;
-    margin-bottom: clamp(1.5rem, 3vw, 2rem);
-    display: flex;
-    justify-content: center;
-    align-items: center;
+/* Clock Face */
+.tp-clock-wrapper {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 2rem 1.5rem;
+  background: linear-gradient(135deg, rgba(255, 138, 61, 0.03), rgba(244, 124, 44, 0.03));
 }
 
-.clock-face {
-    position: relative;
-    width: clamp(14rem, 70vw, 20rem);
-    aspect-ratio: 1 / 1;
-    border-radius: 50%;
-    background: linear-gradient(135deg, rgba(255, 138, 61, 0.05), rgba(244, 124, 44, 0.05));
-    border: 0.125rem solid #eee;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+.tp-clock {
+  position: relative;
+  width: clamp(14rem, 70vw, 20rem);
+  aspect-ratio: 1 / 1;
+  border-radius: 50%;
+  background: white;
+  border: 2px solid #FF8A3D;
+  box-shadow: inset 0 0 30px rgba(255, 138, 61, 0.1);
 }
 
-.clock-hour,
-.clock-minute {
-    position: absolute;
-    width: clamp(2.5rem, 8vw, 3rem);
-    height: clamp(2.5rem, 8vw, 3rem);
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: clamp(0.75rem, 1.5vw, 1rem);
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    color: #666;
-    background: white;
-    border: 0.125rem solid #ddd;
-    transform: translate(-50%, -50%);
-    user-select: none;
+.tp-hour,
+.tp-minute {
+  position: absolute;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background: white;
+  border: 1px solid #ddd;
+  color: #666;
+  user-select: none;
+  transform: translate(-50%, -50%);
+  pointer-events: auto;
 }
 
-.clock-hour:hover,
-.clock-minute:hover {
-    background: #f5f5f5;
-    border-color: #FF8A3D;
-    color: #FF8A3D;
-    transform: translate(-50%, -50%) scale(1.15);
+.tp-hour:hover,
+.tp-minute:hover {
+  border-color: #FF8A3D;
+  color: #FF8A3D;
+  transform: translate(-50%, -50%) scale(1.15);
+  box-shadow: 0 0 8px rgba(255, 138, 61, 0.3);
 }
 
-.clock-hour.selected,
-.clock-minute.selected {
-    background: linear-gradient(135deg, #FF8A3D, #F47C2C);
-    color: white;
-    border-color: #FF8A3D;
-    transform: translate(-50%, -50%) scale(1.25);
-    box-shadow: 0 0 clamp(0.5rem, 1vw, 1rem) rgba(255, 138, 61, 0.4);
+.tp-hour.selected,
+.tp-minute.selected {
+  background: linear-gradient(135deg, #FF8A3D, #F47C2C);
+  color: white;
+  border-color: #FF8A3D;
+  transform: translate(-50%, -50%) scale(1.3);
+  box-shadow: 0 0 12px rgba(255, 138, 61, 0.5);
+  font-weight: 700;
 }
 
-.clock-center {
-    position: absolute;
-    width: clamp(0.5rem, 1.5vw, 0.75rem);
-    height: clamp(0.5rem, 1.5vw, 0.75rem);
-    border-radius: 50%;
-    background: #FF8A3D;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    z-index: 10;
+.tp-hour.hidden {
+  opacity: 0.2;
+  pointer-events: none;
 }
 
-.clock-minute-labels {
-    display: none;
+.tp-minute.hidden {
+  opacity: 0.2;
+  pointer-events: none;
 }
 
-/* Clock Preview */
-.clock-preview {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-    font-size: clamp(1.25rem, 2vw, 1.75rem);
-    color: #333;
-    font-weight: 700;
-    margin-bottom: clamp(1rem, 2vw, 1.5rem);
-    padding: clamp(0.75rem, 1.5vw, 1rem);
-    background: linear-gradient(135deg, rgba(255, 138, 61, 0.1), rgba(244, 124, 44, 0.05));
-    border-radius: 0.75rem;
-    border-left: 0.25rem solid #FF8A3D;
-    min-height: clamp(2.5rem, 5vw, 3.5rem);
+.tp-center-dot {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0.6rem;
+  height: 0.6rem;
+  background: #FF8A3D;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 100;
 }
 
-.clock-preview i {
-    color: #FF8A3D;
-    font-size: clamp(1.25rem, 2vw, 1.75rem);
+/* Preview */
+.tp-preview {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #333;
+  padding: 1.5rem;
+  background: linear-gradient(135deg, rgba(255, 138, 61, 0.1), rgba(244, 124, 44, 0.05));
+  border-left: 4px solid #FF8A3D;
+  margin: 0 1.5rem;
+  border-radius: 0.5rem;
 }
 
-/* Clock Buttons */
-.clock-buttons {
-    display: flex;
-    gap: clamp(0.5rem, 1vw, 1rem);
-    margin-top: clamp(1rem, 2vw, 1.5rem);
+.tp-preview i {
+  color: #FF8A3D;
+  font-size: 1.5rem;
 }
 
-.btn-clock-cancel,
-.btn-clock-ok {
-    flex: 1;
-    padding: clamp(0.6rem, 1.5vw, 0.875rem);
-    border: none;
-    border-radius: 0.5rem;
-    font-size: clamp(0.75rem, 1.5vw, 0.95rem);
-    cursor: pointer;
-    transition: all 0.3s ease;
-    font-weight: 600;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-    letter-spacing: 0.3px;
+/* Buttons */
+.tp-buttons {
+  display: flex;
+  gap: 1rem;
+  padding: 1.5rem;
+  border-top: 1px solid #eee;
+  background: white;
 }
 
-.btn-clock-ok {
-    background: linear-gradient(135deg, #FF8A3D, #F47C2C);
-    color: white;
-    border: 0.125rem solid #FF8A3D;
+.tp-btn-cancel,
+.tp-btn-ok {
+  flex: 1;
+  padding: 0.75rem;
+  border: none;
+  border-radius: 0.5rem;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
 }
 
-.btn-clock-ok:hover {
-    transform: translateY(-0.125rem);
-    box-shadow: 0 clamp(0.25rem, 0.5vw, 0.5rem) clamp(0.75rem, 1.5vw, 1rem) rgba(255, 138, 61, 0.4);
+.tp-btn-ok {
+  background: linear-gradient(135deg, #FF8A3D, #F47C2C);
+  color: white;
 }
 
-.btn-clock-ok:active {
-    transform: translateY(0);
+.tp-btn-ok:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 16px rgba(255, 138, 61, 0.3);
 }
 
-.btn-clock-cancel {
-    background: white;
-    color: #666;
-    border: 0.125rem solid #ddd;
+.tp-btn-ok:active {
+  transform: translateY(0);
 }
 
-.btn-clock-cancel:hover {
-    border-color: #FF8A3D;
-    color: #FF8A3D;
-    background: #fafafa;
+.tp-btn-cancel {
+  background: #f5f5f5;
+  color: #666;
 }
 
-.btn-clock-cancel:active {
-    background: #f0f0f0;
+.tp-btn-cancel:hover {
+  background: #eee;
+  color: #FF8A3D;
+}
+
+.tp-btn-cancel:active {
+  background: #e0e0e0;
 }
 

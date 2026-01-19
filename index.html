@@ -982,6 +982,36 @@
       </div>
     </div>
 
+    <!-- TIME PICKER MODAL (Overlay Global) -->
+    <div id="timePickerModal" class="tp-modal" aria-hidden="true">
+      <div class="tp-backdrop"></div>
+      <div class="tp-container">
+        <div class="tp-header">
+          <h3><i class="fas fa-clock"></i> Selectează ora</h3>
+          <button type="button" class="tp-close" aria-label="Închide">&times;</button>
+        </div>
+
+        <div class="tp-ampm">
+          <button type="button" class="tp-ampm-btn active" data-period="AM">AM</button>
+          <button type="button" class="tp-ampm-btn" data-period="PM">PM</button>
+        </div>
+
+        <div class="tp-clock-wrapper">
+          <div id="tpClockFace" class="tp-clock"></div>
+        </div>
+
+        <div class="tp-preview">
+          <i class="fas fa-clock"></i>
+          <span id="tpPreviewTime">09:00 AM</span>
+        </div>
+
+        <div class="tp-buttons">
+          <button type="button" class="tp-btn-cancel"><i class="fas fa-times"></i> Anulează</button>
+          <button type="button" class="tp-btn-ok"><i class="fas fa-check"></i> OK</button>
+        </div>
+      </div>
+    </div>
+
     <script src="script.js"></script>
 </body>
 </html>

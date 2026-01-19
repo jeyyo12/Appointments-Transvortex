@@ -1915,415 +1915,341 @@ window.downloadInvoicePDF = async function(appointmentId) {
 }
 
 // ==========================================
-// CIRCULAR CLOCK TIME PICKER (COMPLETE REFACTOR)
+// TIME PICKER MODAL - COMPLETE REFACTOR
 // ==========================================
-const ClockPicker = {
-    isInitialized: false,
-    modalExists: false,
+const TimePicker = {
+    isOpen: false,
     selectedHour: 9,
     selectedMinute: 0,
     selectedPeriod: 'AM',
     selectionMode: 'hour', // 'hour' or 'minute'
     targetInput: null,
     displayElement: null,
+    scrollSaved: 0,
 
     init() {
-        if (this.isInitialized) {
-            console.log('⏰ ClockPicker already initialized');
+        console.log('⏰ [TimePicker] Initializing...');
+        this.setupModalEventDelegation();
+        this.setupTriggerListener();
+        console.log('✅ [TimePicker] Initialization complete');
+    },
+
+    setupTriggerListener() {
+        // Listen for #timeWrap click
+        document.addEventListener('click', (e) => {
+            const timeWrap = e.target.closest('#timeWrap');
+            if (timeWrap) {
+                console.log('⏰ [TimePicker] #timeWrap clicked');
+                e.preventDefault();
+                e.stopPropagation();
+
+                const input = document.getElementById('appointmentTime');
+                const display = document.getElementById('timeDisplayText');
+
+                if (!input || !display) {
+                    console.error('❌ [TimePicker] Missing input or display element');
+                    return;
+                }
+
+                this.targetInput = input;
+                this.displayElement = display;
+                console.log('⏰ [TimePicker] Opening modal...');
+                this.open();
+            }
+        }, true);
+    },
+
+    setupModalEventDelegation() {
+        const modal = document.getElementById('timePickerModal');
+        if (!modal) {
+            console.error('❌ [TimePicker] Modal not found in DOM');
             return;
         }
 
-        console.log('⏰ ClockPicker: Starting initialization...');
+        console.log('⏰ [TimePicker] Setting up event delegation on #timePickerModal');
 
-        // Inject modal HTML if it doesn't exist
-        if (!document.getElementById('clockPickerModal')) {
-            this.injectModalHTML();
-            this.modalExists = true;
-            console.log('✅ ClockPicker: Modal injected into DOM');
-        } else {
-            this.modalExists = true;
-            console.log('✅ ClockPicker: Modal already in DOM');
-        }
+        // All event delegation happens on the modal
+        modal.addEventListener('click', (e) => {
+            console.log('⏰ [TimePicker] Modal click detected, target:', e.target.className);
 
-        // Setup event listeners
-        setTimeout(() => {
-            this.setupEventListeners();
-            this.isInitialized = true;
-            console.log('✅ ClockPicker: Initialization complete');
-        }, 50);
-    },
+            // Close button
+            if (e.target.closest('.tp-close')) {
+                console.log('⏰ [TimePicker] Close button clicked');
+                this.close();
+                return;
+            }
 
-    injectModalHTML() {
-        const modalHTML = `
-<div id="clockPickerBackdrop" class="clock-picker-backdrop">
-  <div id="clockPickerModal" class="clock-picker-modal">
-    <div class="clock-header">
-      <h3><i class="fas fa-clock"></i> Selectează ora</h3>
-      <button type="button" class="clock-close-btn" id="clockCloseBtn">
-        <i class="fas fa-times"></i>
-      </button>
-    </div>
+            // AM/PM toggle
+            if (e.target.closest('.tp-ampm-btn')) {
+                const btn = e.target.closest('.tp-ampm-btn');
+                const period = btn.dataset.period;
+                console.log('⏰ [TimePicker] AM/PM selected:', period);
+                this.setPeriod(period);
+                return;
+            }
 
-    <div class="clock-ampm-toggle">
-      <button type="button" class="clock-ampm-btn active" data-period="AM">AM</button>
-      <button type="button" class="clock-ampm-btn" data-period="PM">PM</button>
-    </div>
+            // Hour selection
+            if (e.target.closest('.tp-hour')) {
+                const hour = parseInt(e.target.closest('.tp-hour').dataset.value);
+                console.log('⏰ [TimePicker] Hour selected:', hour);
+                this.selectHour(hour);
+                return;
+            }
 
-    <div class="clock-face-container">
-      <div class="clock-face" id="clockFace">
-        <!-- Hours will be generated here (1-12 in circle) -->
-      </div>
-      <div class="clock-minute-labels" id="clockMinuteLabels">
-        <!-- Minute markers (0, 5, 10...) will be generated here -->
-      </div>
-    </div>
+            // Minute selection
+            if (e.target.closest('.tp-minute')) {
+                const minute = parseInt(e.target.closest('.tp-minute').dataset.value);
+                console.log('⏰ [TimePicker] Minute selected:', minute);
+                this.selectMinute(minute);
+                return;
+            }
 
-    <div class="clock-preview">
-      <i class="fas fa-clock"></i>
-      <span id="clockPreviewTime">09:00 AM</span>
-    </div>
+            // OK button
+            if (e.target.closest('.tp-btn-ok')) {
+                console.log('⏰ [TimePicker] OK button clicked');
+                this.confirm();
+                return;
+            }
 
-    <div class="clock-buttons">
-      <button type="button" class="btn-clock-cancel" id="clockCancelBtn">
-        <i class="fas fa-times"></i> Anulează
-      </button>
-      <button type="button" class="btn-clock-ok" id="clockOkBtn">
-        <i class="fas fa-check"></i> OK
-      </button>
-    </div>
-  </div>
-</div>
-        `;
-
-        document.body.insertAdjacentHTML('beforeend', modalHTML);
-    },
-
-    setupEventListeners() {
-        const backdrop = document.getElementById('clockPickerBackdrop');
-        const modal = document.getElementById('clockPickerModal');
-        const closeBtn = document.getElementById('clockCloseBtn');
-        const cancelBtn = document.getElementById('clockCancelBtn');
-        const okBtn = document.getElementById('clockOkBtn');
-        const clockFace = document.getElementById('clockFace');
-
-        // Generate clock elements
-        this.generateClockElements();
-
-        // AM/PM toggle
-        document.querySelectorAll('.clock-ampm-btn').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                const period = e.target.dataset.period;
-                console.log('⏰ Period selected:', period);
-                document.querySelectorAll('.clock-ampm-btn').forEach(b => b.classList.remove('active'));
-                e.target.classList.add('active');
-                this.selectedPeriod = period;
-                this.updatePreview();
-            });
+            // Cancel button
+            if (e.target.closest('.tp-btn-cancel')) {
+                console.log('⏰ [TimePicker] Cancel button clicked');
+                this.close();
+                return;
+            }
         });
 
-        // Close buttons
-        if (closeBtn) {
-            closeBtn.addEventListener('click', (e) => {
-                e.preventDefault();
-                console.log('⏰ Close button clicked');
-                this.close();
-            });
-        }
-
-        if (cancelBtn) {
-            cancelBtn.addEventListener('click', (e) => {
-                e.preventDefault();
-                console.log('⏰ Cancel button clicked');
-                this.close();
-            });
-        }
-
-        // OK button
-        if (okBtn) {
-            okBtn.addEventListener('click', (e) => {
-                e.preventDefault();
-                console.log('⏰ OK button clicked');
-                this.confirm();
-            });
-        }
-
-        // Backdrop close
-        if (backdrop) {
-            backdrop.addEventListener('click', (e) => {
-                if (e.target === backdrop) {
-                    console.log('⏰ Backdrop clicked - closing');
-                    this.close();
-                }
-            });
-        }
-
-        // Modal click prevention
-        if (modal) {
-            modal.addEventListener('click', (e) => {
-                e.stopPropagation();
-            });
-        }
-
-        // ESC key
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape' && backdrop && backdrop.classList.contains('active')) {
-                console.log('⏰ ESC pressed - closing');
+        // Close on backdrop click
+        modal.addEventListener('click', (e) => {
+            if (e.target.closest('.tp-backdrop')) {
+                console.log('⏰ [TimePicker] Backdrop clicked');
                 this.close();
             }
         });
 
-        // Hour/minute selection via event delegation
-        if (clockFace) {
-            clockFace.addEventListener('click', (e) => {
-                const hourElement = e.target.closest('.clock-hour');
-                const minuteElement = e.target.closest('.clock-minute');
-
-                if (hourElement) {
-                    const hour = parseInt(hourElement.dataset.value);
-                    console.log('⏰ Hour selected:', hour);
-                    this.selectHour(hour);
-                }
-
-                if (minuteElement) {
-                    const minute = parseInt(minuteElement.dataset.value);
-                    console.log('⏰ Minute selected:', minute);
-                    this.selectMinute(minute);
-                }
-            });
-        }
+        // ESC key
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && this.isOpen) {
+                console.log('⏰ [TimePicker] ESC pressed');
+                this.close();
+            }
+        });
     },
 
-    generateClockElements() {
-        const clockFace = document.getElementById('clockFace');
-        if (!clockFace) return;
+    renderClock() {
+        console.log('⏰ [TimePicker] Rendering clock face');
+        const clockFace = document.getElementById('tpClockFace');
+        if (!clockFace) {
+            console.error('❌ [TimePicker] Clock face element not found');
+            return;
+        }
 
-        // Clear existing
-        clockFace.innerHTML = '';
+        // Clear
+        clockFace.innerHTML = '<div class="tp-center-dot"></div>';
 
-        // Radius for positioning (in percentages/em)
-        const hoursRadius = 40; // Distance from center for hour numbers
-        const minutesRadius = 65; // Distance from center for minute dots
+        // Hours radius: 40% from center
+        // Minutes radius: 65% from center
+        const hoursRadius = 40;
+        const minutesRadius = 65;
 
-        // Generate 12 hours in circular layout
+        // Generate 12 hours (1-12) in circular layout
         for (let i = 1; i <= 12; i++) {
-            const angle = (i - 3) * 30; // Start from 12 o'clock (-90°)
+            const angle = (i - 3) * 30; // Start at 12 o'clock (-90°)
             const rad = (angle * Math.PI) / 180;
             const x = 50 + hoursRadius * Math.cos(rad);
             const y = 50 + hoursRadius * Math.sin(rad);
 
-            const hourEl = document.createElement('div');
-            hourEl.className = 'clock-hour';
-            hourEl.dataset.value = i;
-            hourEl.style.left = x + '%';
-            hourEl.style.top = y + '%';
-            hourEl.textContent = i;
+            const el = document.createElement('div');
+            el.className = 'tp-hour';
+            el.dataset.value = i;
+            el.style.left = x + '%';
+            el.style.top = y + '%';
+            el.textContent = i;
 
-            // Add selected class if this is the selected hour
-            if (i === this.selectedHour && this.selectionMode === 'hour') {
-                hourEl.classList.add('selected');
+            if (this.selectionMode === 'hour' && i === this.selectedHour) {
+                el.classList.add('selected');
+            } else if (this.selectionMode === 'minute') {
+                el.classList.add('hidden');
             }
 
-            clockFace.appendChild(hourEl);
+            clockFace.appendChild(el);
         }
 
-        // Generate 60 minute dots (or 12 at step 5)
+        // Generate minutes (0, 5, 10... 55) in circular layout
         for (let i = 0; i < 60; i += 5) {
-            const angle = (i * 6 - 90); // 6 degrees per minute
+            const angle = i * 6 - 90; // 6 degrees per minute
             const rad = (angle * Math.PI) / 180;
             const x = 50 + minutesRadius * Math.cos(rad);
             const y = 50 + minutesRadius * Math.sin(rad);
 
-            const minuteEl = document.createElement('div');
-            minuteEl.className = 'clock-minute';
-            minuteEl.dataset.value = i;
-            minuteEl.style.left = x + '%';
-            minuteEl.style.top = y + '%';
-            minuteEl.textContent = i.toString().padStart(2, '0');
+            const el = document.createElement('div');
+            el.className = 'tp-minute';
+            el.dataset.value = i;
+            el.style.left = x + '%';
+            el.style.top = y + '%';
+            el.textContent = i.toString().padStart(2, '0');
 
-            // Add selected class if this is the selected minute
-            if (i === this.selectedMinute && this.selectionMode === 'minute') {
-                minuteEl.classList.add('selected');
+            if (this.selectionMode === 'minute' && i === this.selectedMinute) {
+                el.classList.add('selected');
+            } else if (this.selectionMode === 'hour') {
+                el.classList.add('hidden');
             }
 
-            clockFace.appendChild(minuteEl);
+            clockFace.appendChild(el);
         }
 
-        // Generate center dot
-        const centerDot = document.createElement('div');
-        centerDot.className = 'clock-center';
-        clockFace.appendChild(centerDot);
+        console.log('✅ [TimePicker] Clock rendered - mode:', this.selectionMode);
+    },
 
-        console.log('✅ Clock elements generated');
+    setPeriod(period) {
+        this.selectedPeriod = period;
+        console.log('⏰ [TimePicker] Period set to:', period);
+
+        // Update AM/PM buttons
+        document.querySelectorAll('.tp-ampm-btn').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.period === period);
+        });
+
+        this.updatePreview();
     },
 
     selectHour(hour) {
-        console.log('⏰ Selecting hour:', hour);
         this.selectedHour = hour;
         this.selectionMode = 'hour';
-        this.updateClockDisplay();
+        console.log('⏰ [TimePicker] Hour selected:', hour);
+        this.renderClock();
         this.updatePreview();
 
-        // Auto-switch to minute selection after 500ms
+        // Auto-switch to minute after 500ms
         setTimeout(() => {
-            if (this.selectionMode === 'hour') {
-                console.log('⏰ Auto-switching to minute selection');
+            if (this.isOpen && this.selectionMode === 'hour') {
+                console.log('⏰ [TimePicker] Auto-switching to minute selection');
                 this.selectionMode = 'minute';
-                this.updateClockDisplay();
+                this.renderClock();
             }
         }, 500);
     },
 
     selectMinute(minute) {
-        console.log('⏰ Selecting minute:', minute);
         this.selectedMinute = minute;
         this.selectionMode = 'minute';
-        this.updateClockDisplay();
+        console.log('⏰ [TimePicker] Minute selected:', minute);
+        this.renderClock();
         this.updatePreview();
     },
 
-    updateClockDisplay() {
-        const clockFace = document.getElementById('clockFace');
-        if (!clockFace) return;
-
-        // Remove all selected classes
-        clockFace.querySelectorAll('.selected').forEach(el => {
-            el.classList.remove('selected');
-        });
-
-        // Add selected class to appropriate elements
-        if (this.selectionMode === 'hour') {
-            const hourElement = clockFace.querySelector(`.clock-hour[data-value="${this.selectedHour}"]`);
-            if (hourElement) {
-                hourElement.classList.add('selected');
-            }
-            // Hide minute elements
-            clockFace.querySelectorAll('.clock-minute').forEach(el => {
-                el.style.opacity = '0.3';
-            });
-        } else {
-            const minuteElement = clockFace.querySelector(`.clock-minute[data-value="${this.selectedMinute}"]`);
-            if (minuteElement) {
-                minuteElement.classList.add('selected');
-            }
-            // Hide hour elements
-            clockFace.querySelectorAll('.clock-hour').forEach(el => {
-                el.style.opacity = '0.3';
-            });
-        }
-
-        console.log('⏰ Clock display updated - mode:', this.selectionMode);
-    },
-
     updatePreview() {
-        const previewEl = document.getElementById('clockPreviewTime');
+        const previewEl = document.getElementById('tpPreviewTime');
         if (previewEl) {
-            const displayHour = this.selectedHour.toString().padStart(2, '0');
-            const displayMinute = this.selectedMinute.toString().padStart(2, '0');
-            const previewText = `${displayHour}:${displayMinute} ${this.selectedPeriod}`;
-            previewEl.textContent = previewText;
-            console.log('⏰ Preview updated:', previewText);
+            const h = this.selectedHour.toString().padStart(2, '0');
+            const m = this.selectedMinute.toString().padStart(2, '0');
+            const text = `${h}:${m} ${this.selectedPeriod}`;
+            previewEl.textContent = text;
+            console.log('⏰ [TimePicker] Preview updated:', text);
         }
     },
 
     open() {
-        console.log('⏰ Opening clock picker...');
-
-        const backdrop = document.getElementById('clockPickerBackdrop');
-        if (!backdrop) {
-            console.error('❌ Cannot open: backdrop not found');
+        console.log('⏰ [TimePicker] Opening...');
+        const modal = document.getElementById('timePickerModal');
+        if (!modal) {
+            console.error('❌ [TimePicker] Modal not found');
             return;
         }
 
-        // Parse existing value
-        const currentValue = this.targetInput?.value;
-        console.log('⏰ Current input value:', currentValue);
+        // Parse existing value from input
+        if (this.targetInput && this.targetInput.value) {
+            const [h24Str, mStr] = this.targetInput.value.split(':');
+            const h24 = parseInt(h24Str);
+            const m = parseInt(mStr);
 
-        if (currentValue && currentValue.includes(':')) {
-            const [hours24Str, minutesStr] = currentValue.split(':');
-            const hours24 = parseInt(hours24Str);
-            const minutes = parseInt(minutesStr);
+            this.selectedHour = h24 > 12 ? h24 - 12 : (h24 === 0 ? 12 : h24);
+            this.selectedMinute = m;
+            this.selectedPeriod = h24 >= 12 ? 'PM' : 'AM';
 
-            this.selectedHour = hours24 > 12 ? hours24 - 12 : (hours24 === 0 ? 12 : hours24);
-            this.selectedMinute = Math.round(minutes / 5) * 5;
-            this.selectedPeriod = hours24 >= 12 ? 'PM' : 'AM';
-
-            console.log('⏰ Parsed time:', {
-                hour: this.selectedHour,
-                minute: this.selectedMinute,
-                period: this.selectedPeriod
-            });
+            console.log('⏰ [TimePicker] Parsed time from input:', { h: this.selectedHour, m: this.selectedMinute, p: this.selectedPeriod });
         } else {
-            // Default to current time
+            // Use current time
             const now = new Date();
-            let hours = now.getHours();
-            this.selectedPeriod = hours >= 12 ? 'PM' : 'AM';
-            this.selectedHour = hours > 12 ? hours - 12 : (hours === 0 ? 12 : hours);
-            this.selectedMinute = Math.round(now.getMinutes() / 5) * 5;
+            let h = now.getHours();
+            this.selectedPeriod = h >= 12 ? 'PM' : 'AM';
+            this.selectedHour = h > 12 ? h - 12 : (h === 0 ? 12 : h);
+            this.selectedMinute = now.getMinutes();
 
-            console.log('⏰ Using current time:', {
-                hour: this.selectedHour,
-                minute: this.selectedMinute,
-                period: this.selectedPeriod
-            });
+            console.log('⏰ [TimePicker] Using current time:', { h: this.selectedHour, m: this.selectedMinute, p: this.selectedPeriod });
         }
 
-        // Update AM/PM buttons
-        document.querySelectorAll('.clock-ampm-btn').forEach(btn => {
+        // Update period buttons
+        document.querySelectorAll('.tp-ampm-btn').forEach(btn => {
             btn.classList.toggle('active', btn.dataset.period === this.selectedPeriod);
         });
 
-        // Regenerate clock with new selection
+        // Start with hour selection
         this.selectionMode = 'hour';
-        this.generateClockElements();
-        this.updateClockDisplay();
+        this.renderClock();
         this.updatePreview();
 
-        backdrop.classList.add('active');
-        document.body.style.overflow = 'hidden';
+        // Save scroll position
+        this.scrollSaved = window.scrollY;
+        console.log('⏰ [TimePicker] Saved scrollY:', this.scrollSaved);
 
-        console.log('✅ Clock picker opened');
+        // Lock body scroll
+        document.body.style.position = 'fixed';
+        document.body.style.top = -this.scrollSaved + 'px';
+        document.body.style.width = '100%';
+
+        // Show modal
+        modal.classList.add('active');
+        this.isOpen = true;
+
+        console.log('✅ [TimePicker] Modal opened, scroll locked');
     },
 
     close() {
-        console.log('⏰ Closing clock picker...');
-        const backdrop = document.getElementById('clockPickerBackdrop');
-        if (backdrop) {
-            backdrop.classList.remove('active');
-            document.body.style.overflow = '';
-            console.log('✅ Clock picker closed');
-        }
+        console.log('⏰ [TimePicker] Closing...');
+        const modal = document.getElementById('timePickerModal');
+        if (!modal) return;
+
+        // Hide modal
+        modal.classList.remove('active');
+        this.isOpen = false;
+
+        // Restore body scroll
+        document.body.style.position = '';
+        document.body.style.top = '';
+        document.body.style.width = '';
+        window.scrollTo(0, this.scrollSaved);
+
+        console.log('✅ [TimePicker] Modal closed, scroll restored to:', this.scrollSaved);
     },
 
     confirm() {
-        console.log('⏰ Confirming time selection...');
+        console.log('⏰ [TimePicker] Confirming selection...');
 
         // Convert to 24-hour format
-        let hours24 = this.selectedHour;
-        if (this.selectedPeriod === 'PM' && hours24 !== 12) {
-            hours24 += 12;
-        } else if (this.selectedPeriod === 'AM' && hours24 === 12) {
-            hours24 = 0;
+        let h24 = this.selectedHour;
+        if (this.selectedPeriod === 'PM' && h24 !== 12) {
+            h24 += 12;
+        } else if (this.selectedPeriod === 'AM' && h24 === 12) {
+            h24 = 0;
         }
 
-        const timeValue = `${hours24.toString().padStart(2, '0')}:${this.selectedMinute.toString().padStart(2, '0')}`;
-        console.log('⏰ Final time (24h format):', timeValue);
+        const timeValue = `${h24.toString().padStart(2, '0')}:${this.selectedMinute.toString().padStart(2, '0')}`;
+        console.log('⏰ [TimePicker] Final time (24h):', timeValue);
 
         // Update input
         if (this.targetInput) {
             this.targetInput.value = timeValue;
             this.targetInput.dispatchEvent(new Event('change', { bubbles: true }));
-            console.log('✅ Input updated:', timeValue);
+            console.log('✅ [TimePicker] Input updated');
         }
 
         // Update display
         if (this.displayElement) {
-            const displayHour = this.selectedHour.toString().padStart(2, '0');
-            const displayMinute = this.selectedMinute.toString().padStart(2, '0');
-            const displayText = `${displayHour}:${displayMinute} ${this.selectedPeriod}`;
-            this.displayElement.textContent = displayText;
-            console.log('✅ Display updated:', displayText);
+            const h = this.selectedHour.toString().padStart(2, '0');
+            const m = this.selectedMinute.toString().padStart(2, '0');
+            this.displayElement.textContent = `${h}:${m} ${this.selectedPeriod}`;
+            console.log('✅ [TimePicker] Display updated');
         }
 
         this.close();
@@ -2331,42 +2257,16 @@ const ClockPicker = {
 };
 
 // ==========================================
-// EVENT DELEGATION FOR TIME PICKER TRIGGER
+// INITIALIZATION
 // ==========================================
-document.addEventListener('click', function(e) {
-    const timeWrap = e.target.closest('#timeWrap');
-
-    if (timeWrap) {
-        console.log('⏰ timeWrap clicked');
-        e.preventDefault();
-        e.stopPropagation();
-
-        const input = document.getElementById('appointmentTime');
-        const display = document.getElementById('timeDisplayText');
-
-        console.log('⏰ Input element:', input);
-        console.log('⏰ Display element:', display);
-
-        if (input && display) {
-            ClockPicker.targetInput = input;
-            ClockPicker.displayElement = display;
-            console.log('⏰ Opening clock picker...');
-            ClockPicker.open();
-        } else {
-            console.error('❌ Missing input or display element');
-        }
-    }
-}, true);
-
-// Initialize on DOM ready
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => {
-        console.log('⏰ DOM ready - initializing ClockPicker');
-        ClockPicker.init();
+        console.log('⏰ [TimePicker] DOM ready, initializing');
+        TimePicker.init();
     });
 } else {
-    console.log('⏰ DOM already ready - initializing ClockPicker immediately');
-    ClockPicker.init();
+    console.log('⏰ [TimePicker] DOM already ready, initializing immediately');
+    TimePicker.init();
 }
 
 
