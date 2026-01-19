@@ -15,8 +15,8 @@ const firebaseConfig = {
   projectId: "transvortexltdcouk",
   storageBucket: "transvortexltdcouk.firebasestorage.app",
   messagingSenderId: "980773899679",
-  appId: "1:980773899679:web:08800ca927f4ac348581aa",
-  measurementId: "G-D1QH23H9J8"
+  appId: "1:980773899679:web:1d741dd11f75cd238581aa",
+  measurementId: "G-RL8PTZS34D"
 };
 
 // Validation check
@@ -1376,13 +1376,8 @@ function recalcInvoiceTotals() {
     document.getElementById('invTotal').textContent = formatGBP(total);
 }
 
-// Flag to prevent duplicate modal listeners
-let finalizeModalListenerBound = false;
-
-// Bind finalize modal controls (called once only)
+// Bind finalize modal controls
 function bindFinalizeModalControls() {
-    if (finalizeModalListenerBound) return;
-
     const addBtn = document.getElementById('addServiceRowBtn');
     const vatInput = document.getElementById('finalizeVatRate');
     
@@ -1395,8 +1390,6 @@ function bindFinalizeModalControls() {
     
     // Bind delegated events for services table
     bindServicesTableDelegation();
-    
-    finalizeModalListenerBound = true;
 }
 
 // Open finalize modal with prices and services

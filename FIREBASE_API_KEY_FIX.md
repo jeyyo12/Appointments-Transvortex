@@ -69,17 +69,17 @@ Deschide [script.js](script.js) și găsește:
 
 ```javascript
 const firebaseConfig = {
-    apiKey: "AIzaSy...", // 🔴 REPLACE
+    apiKey: "AIzaSyDKyqAb198h6VdbHXZtciMdn_KIg-L2zZU",
     authDomain: "transvortexltdcouk.firebaseapp.com",
     projectId: "transvortexltdcouk",
     storageBucket: "transvortexltdcouk.firebasestorage.app",
-    messagingSenderId: "XXXXXXXXX", // 🔴 REPLACE
-    appId: "1:XXXXXXXXX:web:XXXXXXXX", // 🔴 REPLACE
-    measurementId: "G-XXXXXXXXX" // 🔴 REPLACE
-};
+    messagingSenderId: "980773899679",
+    appId: "1:980773899679:web:1d741dd11f75cd238581aa",
+    measurementId: "G-RL8PTZS34D"
+  };
 ```
 
-**Înlocuiește cu valoarea din Firebase Console (Pasul 3).**
+**✅ ACTUALIZAT din Firebase Console pentru Appointments-Transvortex app.**
 
 ---
 

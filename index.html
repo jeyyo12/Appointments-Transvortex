@@ -687,11 +687,11 @@
                     <form id="appointmentForm">
                         <div class="form-row">
                             <div class="form-group">
-                                <label for="customerName">Nume Client: <span class="req">*</span></label>
+                                <label for="customerName">Nume Client: *</label>
                                 <input type="text" id="customerName" name="customerName" autocomplete="name" placeholder="ex: Ion Popescu" required>
                             </div>
                             <div class="form-group">
-                                <label for="car">Mașină (marcă/model/înmatriculare): <span class="req">*</span></label>
+                                <label for="car">Mașină (marcă/model/înmatriculare): *</label>
                                 <input type="text" id="car" name="car" autocomplete="off" placeholder="ex: Dacia Logan, AB-12-XYZ" required>
                             </div>
                         </div>
@@ -707,7 +707,7 @@
                                 <label for="appointmentTime">Ora: <span class="req">*</span></label>
                                 <div class="input-wrap time-picker-trigger" id="timeWrap">
                                     <span class="input-icon"><i class="fas fa-clock"></i></span>
-                                    <input id="appointmentTime" name="appointmentTime" type="hidden" autocomplete="off" required />
+                                    <input id="appointmentTime" type="hidden" name="appointmentTime" autocomplete="off" required />
                                     <div class="time-display" id="timeDisplay">
                                         <i class="fas fa-clock"></i>
                                         <span id="timeDisplayText">Selectează ora</span>
@@ -751,11 +751,11 @@
                         </div>
                         <div class="form-group">
                             <label for="notes">Notițe (opțional):</label>
-                            <textarea id="notes" name="notes" autocomplete="off" rows="3" placeholder="Detalii suplimentare..."></textarea>
+                            <textarea id="notes" name="notes" rows="3" placeholder="Detalii suplimentare..."></textarea>
                         </div>
                         <div class="form-group">
                             <label for="status">Status:</label>
-                            <select id="status" name="status" autocomplete="off">
+                            <select id="status" name="status">
                                 <option value="scheduled" selected>Programat</option>
                                 <option value="done">Finalizat</option>
                                 <option value="canceled">Anulat</option>
@@ -898,21 +898,21 @@
         </div>
 
         <form id="finalizeForm" class="modal-body">
-          <input type="hidden" id="finalizeAppointmentId" />
+          <input type="hidden" id="finalizeAppointmentId" name="finalizeAppointmentId" />
 
           <div class="field">
-            <label>Mile la mașină (obligatoriu)</label>
+            <label for="finalizeMileage">Mile la mașină (obligatoriu)</label>
             <div class="input-wrap">
               <span class="input-icon"><i class="fas fa-road"></i></span>
-              <input id="finalizeMileage" type="number" min="0" step="1" placeholder="ex: 124500" required />
+              <input id="finalizeMileage" name="finalizeMileage" type="number" min="0" step="1" placeholder="ex: 124500" required />
             </div>
           </div>
 
           <div class="field">
-            <label>VAT % (opțional)</label>
+            <label for="finalizeVatRate">VAT % (opțional)</label>
             <div class="input-wrap">
               <span class="input-icon"><i class="fas fa-percent"></i></span>
-              <input id="finalizeVatRate" type="number" min="0" max="100" step="0.1" value="0" />
+              <input id="finalizeVatRate" name="finalizeVatRate" type="number" min="0" max="100" step="0.1" value="0" />
             </div>
           </div>
 
