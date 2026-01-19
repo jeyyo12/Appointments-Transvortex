@@ -1,27 +1,30 @@
-import { formatGBP } from '../shared/formatters.js';
+import { formatGBP, formatDate } from '../shared/formatters.js';
 
 export function mapAppointmentToInvoiceModel(appointment) {
+  console.log('[InvoiceMapper] Mapping appointment:', appointment.id);
+  
   const services = Array.isArray(appointment.services) ? appointment.services : [];
   const subtotal = services.reduce((sum, s) => sum + (Number(s.unitPrice) || 0) * (Number(s.qty) || 0), 0);
-  const vatRate = appointment.vatRate ?? 0;
+  const vatRate = appointment.vatRate ?? 0.20; // Default 20% VAT
   const vatAmount = subtotal * vatRate;
   const total = subtotal + vatAmount;
 
-  return {
+  const model = {
     company: {
-      name: appointment.companyName || 'Transvortex',
-      website: appointment.companyWebsite || 'https://transvortex.com',
-      email: appointment.companyEmail || 'office@transvortex.com',
+      name: 'Transvortex Ltd',
+      website: 'https://transvortexltd.co.uk',
+      email: 'office@transvortex.com',
     },
     invoice: {
-      number: appointment.invoiceNumber || `INV-${appointment.id}`,
-      date: appointment.completedAt || appointment.date || new Date().toISOString().slice(0, 10),
+      number: appointment.invoiceNumber || `TVX-${appointment.id?.slice(0, 8) || 'DRAFT'}`,
+      date: formatDate(appointment.completedAt || appointment.date),
+      pin: appointment.pin || appointment.invoiceNumber || `TVX-${appointment.id?.slice(0, 8)}`,
     },
     customer: {
-      name: appointment.customerName || '',
-      vehicle: appointment.vehicle || '',
-      mileage: appointment.mileage || '',
-      address: appointment.customerAddress || '',
+      name: appointment.customerName || appointment.name || 'N/A',
+      vehicle: appointment.vehicle || 'N/A',
+      mileage: appointment.mileage || 'N/A',
+      address: appointment.customerAddress || appointment.address || '',
     },
     services: services.length
       ? services.map((s, idx) => ({
@@ -40,4 +43,7 @@ export function mapAppointmentToInvoiceModel(appointment) {
     notes: appointment.notes || (services.length ? '' : 'No services listed; refer to appointment notes.'),
     format: formatGBP,
   };
+
+  console.log('[InvoiceMapper] Mapped model:', model);
+  return model;
 }

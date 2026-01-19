@@ -1284,158 +1284,881 @@ async function handleRefreshAppointments() {
 // INVOICE SYSTEM WITH PRICES & SERVICES
 // ========================================
 
-// -- Invoice: single source of truth --
-const INVOICE_TEMPLATE_PATH = 'Images/Invoice.png';
-
-// Map appointment to invoice data expected by generator
-function mapAppointmentToInvoiceData(appt) {
-  const services = Array.isArray(appt.services) ? appt.services : [];
-  const subtotal = services.reduce((s, v) => s + (Number(v.unitPrice) || 0) * (Number(v.qty) || 1), 0);
-  const vatRate = Number(appt.vatRate) || 0;
-  const vatAmount = subtotal * vatRate / 100;
-  const total = subtotal + vatAmount;
-  return {
-    pin: appt.pin || appt.invoiceNumber || appt.id,
-    dateStr: appt.completedAt || appt.date || new Date().toISOString().slice(0, 10),
-    customerName: appt.customerName || '',
-    vehicle: appt.vehicle || '',
-    mileage: appt.mileage || '',
-    vatRate,
-    subtotal,
-    vatAmount,
-    total,
-    services: services.map(s => ({
-      description: s.description || s.name || '',
-      qty: Number(s.qty) || 1,
-      unitPrice: Number(s.unitPrice) || 0,
-      lineTotal: (Number(s.qty) || 1) * (Number(s.unitPrice) || 0)
-    }))
-  };
-}
-
+// Currency formatter for GBP
 function formatGBP(n) {
-  return '£' + (Number(n) || 0).toFixed(2);
+    return '£' + parseFloat(n || 0).toFixed(2);
 }
 
-async function ensureJsPDF() {
-  if (window.jspdf?.jsPDF) return window.jspdf.jsPDF;
-  const mod = await import('https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js');
-  window.jspdf = mod.jspdf || mod;
-  return window.jspdf.jsPDF;
+// Generate invoice PIN
+function generateInvoicePin() {
+    const chars = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+    let code = '';
+    for (let i = 0; i < 6; i++) {
+        code += chars[Math.floor(Math.random() * chars.length)];
+    }
+    return `TVX-${code}`;
 }
 
-async function loadTemplateImage() {
-  const res = await fetch(INVOICE_TEMPLATE_PATH);
-  if (!res.ok) throw new Error('Invoice template missing');
-  const blob = await res.blob();
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result);
-    reader.onerror = reject;
-    reader.readAsDataURL(blob);
-  });
+function generateInvoiceNumber() {
+    const now = new Date();
+    const stamp = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
+    return `INV-${stamp}-${Math.floor(10000 + Math.random() * 90000)}`;
 }
 
-async function generateInvoicePdfFromTemplate(data) {
-  console.log('[Invoice] Template start');
-  const jsPDF = await ensureJsPDF();
-  const doc = new jsPDF('p', 'mm', 'a4');
-  const template = await loadTemplateImage();
-  console.log('[Invoice] Template loaded');
-  doc.addImage(template, 'PNG', 0, 0, 210, 297);
+function computeTotals(services = [], vatRate = 0) {
+    const subtotal = services.reduce((sum, s) => sum + (s.lineTotal || 0), 0);
+    const vatAmount = subtotal * (vatRate / 100);
+    const total = subtotal + vatAmount;
+    return { subtotal, vatAmount, total };
+}
 
-  const p = {
-    pin: { x: 160, y: 20 },
-    date: { x: 160, y: 35 },
-    customer: { x: 30, y: 60 },
-    vehicle: { x: 30, y: 68 },
-    mileage: { x: 30, y: 76 },
-    vatRate: { x: 160, y: 76 },
-    servicesStartY: 100,
-    rowHeight: 8,
-    cols: { desc: 20, qty: 140, unit: 160, total: 190 },
-    subtotal: { x: 190, y: 230 },
-    vat: { x: 190, y: 238 },
-    total: { x: 190, y: 246 },
-    contacts: { x: 20, y: 260 }
-  };
+function buildInvoicePayload({
+    appointmentId,
+    appt,
+    services,
+    mileage,
+    vatRate,
+    pin,
+    invoiceNumber,
+    totals
+}) {
+    return {
+        pin,
+        invoiceNumber,
+        appointmentId,
+        customerName: appt?.customerName || '',
+        vehicle: appt?.car || '',
+        mileage: mileage ?? appt?.mileage ?? 0,
+        services,
+        subtotal: totals.subtotal,
+        vatRate,
+        vatAmount: totals.vatAmount,
+        total: totals.total,
+        dateStr: appt?.dateStr || new Date().toISOString().split('T')[0],
+        timeStr: appt?.timeStr || '',
+        pdfUrl: null
+    };
+}
 
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(10);
-  doc.text(`PIN: ${data.pin || '-'}`, p.pin.x, p.pin.y, { align: 'right' });
-  doc.text(`Date: ${data.dateStr}`, p.date.x, p.date.y, { align: 'right' });
-  doc.text(`Customer: ${data.customerName || '-'}`, p.customer.x, p.customer.y);
-  doc.text(`Vehicle: ${data.vehicle || '-'}`, p.vehicle.x, p.vehicle.y);
-  doc.text(`Mileage: ${data.mileage || '-'} miles`, p.mileage.x, p.mileage.y);
-  doc.text(`VAT: ${data.vatRate || 0}%`, p.vatRate.x, p.vatRate.y, { align: 'right' });
+async function fetchInvoiceByAppointment(appointmentId) {
+    try {
+        const { collection, query, where, getDocs, limit } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+        const invoicesCol = collection(db, 'invoices');
+        const q = query(invoicesCol, where('appointmentId', '==', appointmentId), limit(1));
+        const snap = await getDocs(q);
+        if (!snap.empty) {
+            const docSnap = snap.docs[0];
+            return { id: docSnap.id, ...docSnap.data() };
+        }
+        return null;
+    } catch (err) {
+        console.error('❌ Error fetching invoice by appointment:', err);
+        return null;
+    }
+}
 
-  let y = p.servicesStartY;
-  (data.services || []).forEach(svc => {
-    if (y > 255) { doc.addPage(); y = 30; }
-    const desc = doc.splitTextToSize(svc.description || '', 100);
-    doc.text(desc, p.cols.desc, y);
-    doc.text(String(svc.qty || 1), p.cols.qty, y, { align: 'right' });
-    doc.text(formatGBP(svc.unitPrice || 0), p.cols.unit, y, { align: 'right' });
-    doc.text(formatGBP(svc.lineTotal || 0), p.cols.total, y, { align: 'right' });
-    y += p.rowHeight;
-  });
+function isMobileDevice() {
+    return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || window.matchMedia('(max-width: 768px)').matches;
+}
 
-  doc.setFont('helvetica', 'bold');
-  doc.text('Subtotal', p.subtotal.x - 20, p.subtotal.y);
-  doc.text(formatGBP(data.subtotal || 0), p.subtotal.x, p.subtotal.y, { align: 'right' });
-  doc.setFont('helvetica', 'normal');
-  doc.text(`VAT (${data.vatRate || 0}%)`, p.vat.x - 20, p.vat.y);
-  doc.text(formatGBP(data.vatAmount || 0), p.vat.x, p.vat.y, { align: 'right' });
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(255, 99, 72);
-  doc.text('TOTAL', p.total.x - 20, p.total.y);
-  doc.text(formatGBP(data.total || 0), p.total.x, p.total.y, { align: 'right' });
-  doc.setTextColor(0, 0, 0);
+// Global services array for finalize modal
+let finalizeServices = [];
 
-  doc.setFontSize(8);
-  doc.text('Call us: Mihai +44 7440787527', p.contacts.x, p.contacts.y);
-  doc.text('Emergency: Iulian +44 7478280954', p.contacts.x, p.contacts.y + 5);
-  doc.text('Website: https://transvortexltd.co.uk/', p.contacts.x, p.contacts.y + 10);
-  doc.text('Facebook: https://www.facebook.com/profile.php?id=61586007316302', p.contacts.x, p.contacts.y + 15);
+// Flag to prevent duplicate event listeners
+let servicesTableListenerBound = false;
 
-  doc.setFontSize(9);
-  doc.text(`Invoice PIN: ${data.pin || '-'}`, 20, 285);
-  console.log('[Invoice] PDF built');
+// Add new service row
+function addServiceRow() {
+    finalizeServices.push({ description: '', qty: 1, unitPrice: 0, lineTotal: 0 });
+    renderServicesTable();
+}
 
-  const fileName = `invoice_${(data.customerName || 'client').replace(/[^a-zA-Z0-9]/g, '_')}_${data.dateStr}.pdf`;
-  const blob = doc.output('blob');
+// Remove service row
+function removeServiceRow(idx) {
+    finalizeServices.splice(idx, 1);
+    renderServicesTable();
+}
 
-  if (navigator.share && navigator.canShare?.({ files: [new File([blob], fileName, { type: 'application/pdf' })] })) {
-    await navigator.share({ files: [new File([blob], fileName, { type: 'application/pdf' })], title: 'Invoice', text: `Invoice ${data.pin || ''}` });
-    console.log('[Invoice] PDF delivered via share');
-    return;
-  }
-  if (/Mobi|Android/i.test(navigator.userAgent)) {
+// Render services table (render only, no event binding)
+function renderServicesTable() {
+    const tbody = document.getElementById('servicesTbody');
+    if (!tbody) return;
+
+    tbody.innerHTML = '';
+    finalizeServices.forEach((svc, i) => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td><input type="text" class="svc-desc" data-idx="${i}" value="${svc.description || ''}" placeholder="ex: Schimb ulei motor" /></td>
+            <td><input type="number" class="svc-qty" data-idx="${i}" min="1" step="1" value="${svc.qty || 1}" /></td>
+            <td><input type="number" class="svc-unit" data-idx="${i}" min="0" step="0.01" value="${svc.unitPrice || 0}" placeholder="£" /></td>
+            <td style="text-align:right;font-weight:600;" class="svc-total" data-idx="${i}">${formatGBP(svc.lineTotal || 0)}</td>
+            <td><button type="button" class="btn-remove" data-idx="${i}"><i class="fas fa-times"></i></button></td>
+        `;
+        tbody.appendChild(tr);
+    });
+
+    recalcInvoiceTotals();
+}
+
+// Bind delegated event listeners for services table (call once)
+function bindServicesTableDelegation() {
+    const tbody = document.getElementById('servicesTbody');
+    if (!tbody || servicesTableListenerBound) return;
+
+    // Single delegated input listener for all input fields
+    tbody.addEventListener('input', (e) => {
+        const idx = parseInt(e.target.dataset.idx);
+        if (isNaN(idx) || !finalizeServices[idx]) return;
+
+        if (e.target.classList.contains('svc-desc')) {
+            // Description changed
+            finalizeServices[idx].description = e.target.value;
+        } else if (e.target.classList.contains('svc-qty')) {
+            // Quantity changed
+            finalizeServices[idx].qty = parseFloat(e.target.value) || 1;
+            finalizeServices[idx].lineTotal = finalizeServices[idx].qty * finalizeServices[idx].unitPrice;
+            
+            // Update only this row's total cell (no full re-render)
+            const totalCell = tbody.querySelector(`.svc-total[data-idx="${idx}"]`);
+            if (totalCell) {
+                totalCell.textContent = formatGBP(finalizeServices[idx].lineTotal);
+            }
+            recalcInvoiceTotals();
+        } else if (e.target.classList.contains('svc-unit')) {
+            // Unit price changed
+            finalizeServices[idx].unitPrice = parseFloat(e.target.value) || 0;
+            finalizeServices[idx].lineTotal = finalizeServices[idx].qty * finalizeServices[idx].unitPrice;
+            
+            // Update only this row's total cell (no full re-render)
+            const totalCell = tbody.querySelector(`.svc-total[data-idx="${idx}"]`);
+            if (totalCell) {
+                totalCell.textContent = formatGBP(finalizeServices[idx].lineTotal);
+            }
+            recalcInvoiceTotals();
+        }
+    });
+
+    // Single delegated click listener for remove buttons
+    tbody.addEventListener('click', (e) => {
+        const removeBtn = e.target.closest('.btn-remove');
+        if (!removeBtn) return;
+        
+        const idx = parseInt(removeBtn.dataset.idx);
+        if (!isNaN(idx)) {
+            removeServiceRow(idx);
+        }
+    });
+
+    servicesTableListenerBound = true;
+}
+
+// Recalculate invoice totals
+function recalcInvoiceTotals() {
+    const subtotal = finalizeServices.reduce((sum, s) => sum + (s.lineTotal || 0), 0);
+    const vatRate = parseFloat(document.getElementById('finalizeVatRate')?.value || 0) / 100;
+    const vatAmount = subtotal * vatRate;
+    const total = subtotal + vatAmount;
+
+    document.getElementById('invSubtotal').textContent = formatGBP(subtotal);
+    document.getElementById('invVat').textContent = formatGBP(vatAmount);
+    document.getElementById('invTotal').textContent = formatGBP(total);
+}
+
+// Bind finalize modal controls
+function bindFinalizeModalControls() {
+    const addBtn = document.getElementById('addServiceRowBtn');
+    const vatInput = document.getElementById('finalizeVatRate');
+    
+    if (addBtn) {
+        addBtn.addEventListener('click', addServiceRow);
+    }
+    if (vatInput) {
+        vatInput.addEventListener('input', recalcInvoiceTotals);
+    }
+    
+    // Bind delegated events for services table
+    bindServicesTableDelegation();
+}
+
+// Open finalize modal with prices and services
+window.openFinalizePricesModal = function(appointmentId) {
+    const modal = document.getElementById('finalizeModal');
+    if (!modal) return;
+
+    const appt = appointments.find(a => a.id === appointmentId);
+    if (!appt) return;
+
+    // Load existing services or create default
+    finalizeServices = appt.services && appt.services.length > 0
+        ? JSON.parse(JSON.stringify(appt.services))
+        : [{ description: 'Service auto', qty: 1, unitPrice: 0, lineTotal: 0 }];
+
+    document.getElementById('finalizeAppointmentId').value = appointmentId;
+    document.getElementById('finalizeMileage').value = appt.mileage || '';
+    document.getElementById('finalizeVatRate').value = (appt.vatRate !== undefined ? appt.vatRate : 0);
+    document.getElementById('generateInvoiceNow').checked = true;
+
+    renderServicesTable();
+    openModal('finalizeModal');
+};
+
+// Finalize appointment with prices
+async function finalizeAppointmentWithPrices(e) {
+    e.preventDefault();
+    
+    console.log('🔄 Starting finalize appointment...');
+    
+    const appointmentId = document.getElementById('finalizeAppointmentId').value;
+    const mileage = parseInt(document.getElementById('finalizeMileage').value);
+    const vatRate = parseFloat(document.getElementById('finalizeVatRate').value) || 0;
+    const generateNow = document.getElementById('generateInvoiceNow').checked;
+    const submitBtn = e.target.querySelector('button[type="submit"]');
+
+    if (!appointmentId) {
+        console.error('❌ No appointment ID');
+        return;
+    }
+    if (!mileage || mileage < 0) {
+        showNotification('⚠️ Mile obligatorii!', 'warning');
+        return;
+    }
+
+    // Normalize and validate services
+    const servicesClean = finalizeServices
+        .map(s => {
+            const desc = (s.description || '').trim();
+            const qty = Math.max(1, parseFloat(s.qty) || 1);
+            const unitPrice = Math.max(0, parseFloat(s.unitPrice) || 0);
+            return {
+                description: desc,
+                qty,
+                unitPrice,
+                lineTotal: qty * unitPrice
+            };
+        })
+        .filter(s => s.description);
+
+    if (!servicesClean.length) {
+        showNotification('⚠️ Adaugă cel puțin un serviciu cu descriere și preț.', 'warning');
+        return;
+    }
+
+    // Disable submit button to prevent double-submit
+    if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Se salvează...';
+    }
+
+    // Calculate totals
+    const totals = computeTotals(servicesClean, vatRate);
+    const pin = generateInvoicePin();
+    const invoiceNumber = generateInvoiceNumber();
+    const appt = appointments.find(a => a.id === appointmentId) || {};
+    const invoicePayload = buildInvoicePayload({
+        appointmentId,
+        appt,
+        services: servicesClean,
+        mileage,
+        vatRate,
+        pin,
+        invoiceNumber,
+        totals
+    });
+
+    try {
+        const { doc, updateDoc, Timestamp, addDoc, collection, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+        const appointmentRef = doc(db, 'appointments', appointmentId);
+
+        console.log('💾 Saving to Firestore...', { appointmentId, mileage, status: 'done' });
+
+        await updateDoc(appointmentRef, {
+            status: 'done',
+            mileage,
+            services: servicesClean,
+            subtotal: totals.subtotal,
+            vatRate,
+            vatAmount: totals.vatAmount,
+            total: totals.total,
+            invoicePin: pin,
+            invoiceNumber,
+            doneAt: Timestamp.now(),
+            updatedAt: Timestamp.now()
+        });
+
+        const invoiceDocRef = await addDoc(collection(db, 'invoices'), {
+            ...invoicePayload,
+            appointmentId,
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp()
+        });
+
+        await updateDoc(appointmentRef, {
+            invoiceId: invoiceDocRef.id
+        });
+
+        console.log('✅ Firestore update successful');
+        showNotification('✅ Programare finalizată cu succes!', 'success');
+
+        // Close modal BEFORE invoice generation
+        closeModal('finalizeModal');
+
+        // Generate invoice if checked (after modal closed)
+        if (generateNow) {
+            console.log('📄 Generating invoice...');
+            downloadInvoicePDF(appointmentId);
+        }
+
+    } catch (error) {
+        console.error('❌ Error finalizing appointment:', error);
+        showNotification('❌ Eroare la finalizare: ' + error.message, 'error');
+        
+        // Re-enable button on error
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<i class="fas fa-check"></i> Finalizează + Salvează';
+        }
+    }
+}
+
+// Export appointments to CSV
+function exportAppointmentsCSV() {
+    if (filteredAppointments.length === 0) {
+        showNotification('⚠️ Nicio programare de exportat', 'info');
+        return;
+    }
+    
+    // CSV Header
+    let csv = 'Data,Ora,Client,Mașină,Adresă,Status,Notițe\n';
+    
+    // CSV Rows
+    filteredAppointments.forEach(apt => {
+        const row = [
+            apt.dateStr || '',
+            apt.timeStr || '',
+            apt.customerName || '',
+            apt.car || '',
+            apt.address || '',
+            apt.status || '',
+            (apt.notes || '').replace(/"/g, '""') // Escape quotes
+        ];
+        csv += row.map(field => `"${field}"`).join(',') + '\n';
+    });
+    
+    // Create download
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
     const url = URL.createObjectURL(blob);
-    window.open(url, '_blank');
-    console.log('[Invoice] PDF delivered via blob URL');
-    return;
-  }
-  doc.save(fileName);
-  console.log('[Invoice] PDF delivered via download');
+    
+    const today = new Date().toISOString().split('T')[0];
+    link.setAttribute('href', url);
+    link.setAttribute('download', `appointments_${today}.csv`);
+    link.style.visibility = 'hidden';
+    
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    showNotification(`✅ Export CSV: ${filteredAppointments.length} programări`, 'success');
+    console.log(`📄 Exported ${filteredAppointments.length} appointments to CSV`);
 }
 
-// Invoice button delegation
-document.addEventListener('click', async (e) => {
-  const btn = e.target.closest('.btn-invoice');
-  if (!btn) return;
-  console.log('[Invoice] Button clicked');
-  const id = btn.dataset.id;
-  if (!id) return;
-  const appt = await getAppointmentById(id); // assumes existing appointment fetch
-  if (!appt) return;
-  const invoiceData = mapAppointmentToInvoiceData(appt);
-  await generateInvoicePdfFromTemplate(invoiceData);
-});
+// Setup form listeners (called once after auth)
+function setupEventListeners() {
+    const pageForm = document.getElementById('pageForm');
+    if (pageForm && !pageForm.dataset.bound) {
+        pageForm.addEventListener('submit', handleAddPage);
+        pageForm.dataset.bound = 'true';
+    }
+    
+    const appointmentForm = document.getElementById('appointmentForm');
+    if (appointmentForm && !appointmentForm.dataset.bound) {
+        appointmentForm.addEventListener('submit', handleAddAppointment);
+        appointmentForm.dataset.bound = 'true';
+    }
+}
 
-// ==========================================
+// ==============================
 // MODALS - open/close helpers
 // ==============================
+function openModal(id) {
+    const el = typeof id === 'string' ? document.getElementById(id) : id;
+    if (!el) return;
+    el.style.display = 'flex';
+}
+
+function closeModal(id) {
+    const el = typeof id === 'string' ? document.getElementById(id) : id;
+    if (!el) return;
+    el.style.display = 'none';
+}
+
+// Close modals on backdrop click + ESC
+function bindModalCloseBehavior() {
+    const modalIds = ['appointmentsModal', 'finalizeModal'];
+
+    modalIds.forEach(mid => {
+        const backdrop = document.getElementById(mid);
+        if (!backdrop || backdrop.dataset.bound) return;
+
+        backdrop.addEventListener('click', (e) => {
+            if (e.target === backdrop) closeModal(mid);
+        });
+
+        backdrop.dataset.bound = "true";
+    });
+
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            closeModal('appointmentsModal');
+            closeModal('finalizeModal');
+        }
+    });
+
+    // Close buttons
+    const aClose = document.getElementById('appointmentsModalClose');
+    if (aClose && !aClose.dataset.bound) {
+        aClose.addEventListener('click', () => closeModal('appointmentsModal'));
+        aClose.dataset.bound = "true";
+    }
+
+    const fClose = document.getElementById('finalizeModalClose');
+    if (fClose && !fClose.dataset.bound) {
+        fClose.addEventListener('click', () => closeModal('finalizeModal'));
+        fClose.dataset.bound = "true";
+    }
+
+    const fCancel = document.getElementById('finalizeCancelBtn');
+    if (fCancel && !fCancel.dataset.bound) {
+        fCancel.addEventListener('click', () => closeModal('finalizeModal'));
+        fCancel.dataset.bound = "true";
+    }
+}
+
+// ==============================
+// STAT CARDS -> open popups
+// ==============================
+function bindStatsPopupButtons() {
+    const totalCard = document.getElementById('totalAppointmentsCard');
+    const doneCard = document.getElementById('doneAppointmentsCard');
+
+    if (totalCard && !totalCard.dataset.bound) {
+        totalCard.classList.add('clickable');
+        totalCard.addEventListener('click', () => openAppointmentsPopup('all'));
+        totalCard.dataset.bound = "true";
+    }
+
+    if (doneCard && !doneCard.dataset.bound) {
+        doneCard.classList.add('clickable');
+        doneCard.addEventListener('click', () => openAppointmentsPopup('done'));
+        doneCard.dataset.bound = "true";
+    }
+}
+
+// ==============================
+// OPEN appointments popup
+// ==============================
+function openAppointmentsPopup(mode = 'all') {
+    const title = document.getElementById('appointmentsModalTitle');
+    const subtitle = document.getElementById('appointmentsModalSubtitle');
+
+    if (mode === 'done') {
+        title.textContent = 'Programări finalizate';
+        subtitle.textContent = 'Toate programările cu status "Finalizat"';
+    } else {
+        title.textContent = 'Toate programările';
+        subtitle.textContent = 'Lista completă a programărilor';
+    }
+
+    // Set default filter based on mode
+    const statusFilter = document.getElementById('modalStatusFilter');
+    const search = document.getElementById('modalSearch');
+    if (search) search.value = '';
+    if (statusFilter) statusFilter.value = (mode === 'done') ? 'done' : 'all';
+
+    renderAppointmentsModalList();
+    openModal('appointmentsModal');
+}
+
+function renderAppointmentsModalList() {
+    const body = document.getElementById('appointmentsModalBody');
+    const statusFilter = document.getElementById('modalStatusFilter')?.value || 'all';
+    const searchTerm = (document.getElementById('modalSearch')?.value || '').toLowerCase();
+
+    let list = appointments || [];
+
+    // Filter
+    list = list.filter(a => {
+        const matchesSearch =
+            !searchTerm ||
+            (a.customerName || '').toLowerCase().includes(searchTerm) ||
+            (a.car || '').toLowerCase().includes(searchTerm) ||
+            (a.address || '').toLowerCase().includes(searchTerm);
+
+        if (!matchesSearch) return false;
+
+        if (statusFilter === 'all') return true;
+        return a.status === statusFilter;
+    });
+
+    if (!list.length) {
+        body.innerHTML = `<div style="padding:16px;opacity:0.7;">Nicio programare găsită.</div>`;
+        return;
+    }
+
+    // Group by dateStr
+    const grouped = {};
+    list.forEach(a => {
+        const key = a.dateStr || (a.startAt?.toDate?.()?.toISOString?.().split('T')[0]) || 'unknown';
+        (grouped[key] ||= []).push(a);
+    });
+
+    const dates = Object.keys(grouped).sort();
+
+    let html = '';
+    dates.forEach(d => {
+        html += `<div class="day-group"><div class="day-header"><i class="fas fa-calendar-day"></i> ${d}</div>`;
+        grouped[d].forEach(a => {
+            const statusClass = a.status === 'done' ? 'status-done' : a.status === 'canceled' ? 'status-canceled' : 'status-scheduled';
+            const statusIcon = a.status === 'done' ? 'fa-check-circle' : a.status === 'canceled' ? 'fa-times-circle' : 'fa-clock';
+            const statusText = a.status === 'done' ? 'Finalizat' : a.status === 'canceled' ? 'Anulat' : 'Programat';
+            
+            html += `
+                <div class="appointment-card">
+                    <div class="appointment-header">
+                        <div>
+                            <div class="appointment-title">${a.customerName || '-'}</div>
+                            <div class="appointment-time"><i class="fas fa-clock"></i> ${a.timeStr || '-'}</div>
+                        </div>
+                        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+                            <span class="status-badge ${statusClass}">
+                                <i class="fas ${statusIcon}"></i> ${statusText}
+                            </span>
+                            <button class="btn-action-small" onclick="downloadInvoicePDF('${a.id}')" title="Descarcă factură PDF">
+                                <i class="fas fa-file-invoice"></i> Invoice
+                            </button>
+                        </div>
+                    </div>
+                    <div class="appointment-details">
+                        <div class="detail-row"><i class="fas fa-car"></i> <span><strong>Mașină:</strong> ${a.car || '-'}</span></div>
+                        ${a.address ? `<div class="detail-row"><i class="fas fa-map-marker-alt"></i> <span>${a.address}</span></div>` : ''}
+                        ${a.mileage != null ? `<div class="detail-row"><i class="fas fa-road"></i> <span><strong>Mile:</strong> ${a.mileage}</span></div>` : ''}
+                        ${a.notes ? `<div class="detail-row"><i class="fas fa-sticky-note"></i> <span>${a.notes}</span></div>` : ''}
+                    </div>
+                </div>
+            `;
+        });
+        html += `</div>`;
+    });
+
+    body.innerHTML = html;
+}
+
+// Bind modal controls events
+function bindAppointmentsModalControls() {
+    const s = document.getElementById('modalSearch');
+    const f = document.getElementById('modalStatusFilter');
+    if (s && !s.dataset.bound) {
+        s.addEventListener('input', renderAppointmentsModalList);
+        s.dataset.bound = "true";
+    }
+    if (f && !f.dataset.bound) {
+        f.addEventListener('change', renderAppointmentsModalList);
+        f.dataset.bound = "true";
+    }
+}
+
+// ==============================
+// Old finalize functions removed - now using openFinalizePricesModal
+// ==============================
+
+// Mark appointment as done - opens finalize modal with pricing
+window.markAppointmentDone = function(id) {
+    if (!isAdmin) return;
+    openFinalizePricesModal(id);
+}
+
+// ==========================================
+// TIME SHEET PICKER - BOTTOM SHEET MODAL
+// ==========================================
+const TimeSheetPicker = {
+    selectedHour: 9,
+    selectedMinute: 0,
+    selectedPeriod: 'AM',
+    isOpen: false,
+
+    init() {
+        if (this.initialized) return;
+        this.initialized = true;
+        this.attachEvents();
+    },
+
+    attachEvents() {
+        const modal = document.getElementById('timeSheet');
+        const wrapper = document.getElementById('timePickerWrapper');
+        const input = document.getElementById('appointmentTime');
+        const overlay = modal?.querySelector('.time-sheet__overlay');
+        const closeBtn = document.getElementById('timeSheetClose');
+        const cancelBtn = document.getElementById('timeSheetCancel');
+        const okBtn = document.getElementById('timeSheetOk');
+        const periodBtns = modal?.querySelectorAll('.period-btn');
+        const wheelHours = document.getElementById('wheelHours');
+        const wheelMinutes = document.getElementById('wheelMinutes');
+
+        // Open modal on wrapper/input click
+        const openHandler = (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            this.open();
+        };
+
+        if (wrapper && !wrapper.dataset.bound) {
+            wrapper.addEventListener('click', openHandler);
+            wrapper.dataset.bound = 'true';
+        }
+
+        if (input && !input.dataset.bound) {
+            input.addEventListener('click', openHandler);
+            input.dataset.bound = 'true';
+        }
+
+        // Close on overlay click
+        if (overlay && !overlay.dataset.bound) {
+            overlay.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.close();
+            });
+            overlay.dataset.bound = 'true';
+        }
+
+        // Close on X button
+        if (closeBtn && !closeBtn.dataset.bound) {
+            closeBtn.addEventListener('click', () => this.close());
+            closeBtn.dataset.bound = 'true';
+        }
+
+        // Close on Cancel
+        if (cancelBtn && !cancelBtn.dataset.bound) {
+            cancelBtn.addEventListener('click', () => this.close());
+            cancelBtn.dataset.bound = 'true';
+        }
+
+        // Confirm on OK
+        if (okBtn && !okBtn.dataset.bound) {
+            okBtn.addEventListener('click', () => this.confirm());
+            okBtn.dataset.bound = 'true';
+        }
+
+        // AM/PM period buttons (event delegation)
+        periodBtns?.forEach(btn => {
+            if (!btn.dataset.bound) {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this.selectedPeriod = btn.dataset.period;
+                    this.updatePeriodButtons();
+                });
+                btn.dataset.bound = 'true';
+            }
+        });
+
+        // Wheel hours (event delegation)
+        if (wheelHours && !wheelHours.dataset.bound) {
+            wheelHours.addEventListener('click', (e) => {
+                const item = e.target.closest('.wheel-item');
+                if (item) {
+                    this.selectedHour = parseInt(item.dataset.value);
+                    this.renderWheels();
+                }
+            });
+            wheelHours.dataset.bound = 'true';
+        }
+
+        // Wheel minutes (event delegation)
+        if (wheelMinutes && !wheelMinutes.dataset.bound) {
+            wheelMinutes.addEventListener('click', (e) => {
+                const item = e.target.closest('.wheel-item');
+                if (item) {
+                    this.selectedMinute = parseInt(item.dataset.value);
+                    this.renderWheels();
+                }
+            });
+            wheelMinutes.dataset.bound = 'true';
+        }
+
+        // ESC key to close
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && this.isOpen) {
+                this.close();
+            }
+        });
+    },
+
+    open() {
+        const modal = document.getElementById('timeSheet');
+        if (!modal) return;
+
+        // Parse current value from hidden input (24h format)
+        const hiddenInput = document.getElementById('appointmentTimeValue');
+        const value24h = hiddenInput?.value?.trim();
+
+        if (value24h && /^\d{1,2}:\d{2}$/.test(value24h)) {
+            const [hStr, mStr] = value24h.split(':');
+            let h24 = parseInt(hStr);
+            const m = parseInt(mStr);
+
+            // Convert 24h to 12h
+            if (h24 === 0) {
+                this.selectedHour = 12;
+                this.selectedPeriod = 'AM';
+            } else if (h24 === 12) {
+                this.selectedHour = 12;
+                this.selectedPeriod = 'PM';
+            } else if (h24 > 12) {
+                this.selectedHour = h24 - 12;
+                this.selectedPeriod = 'PM';
+            } else {
+                this.selectedHour = h24;
+                this.selectedPeriod = 'AM';
+            }
+            this.selectedMinute = m;
+        } else {
+            // Default: 9:00 AM
+            this.selectedHour = 9;
+            this.selectedMinute = 0;
+            this.selectedPeriod = 'AM';
+        }
+
+        this.renderWheels();
+        this.updatePeriodButtons();
+
+        // Show modal
+        modal.setAttribute('aria-hidden', 'false');
+        document.body.style.overflow = 'hidden';
+        this.isOpen = true;
+
+        // Auto-scroll to selected
+        setTimeout(() => this.scrollToSelected(), 150);
+    },
+
+    close() {
+        const modal = document.getElementById('timeSheet');
+        if (!modal) return;
+
+        modal.setAttribute('aria-hidden', 'true');
+        document.body.style.overflow = '';
+        this.isOpen = false;
+    },
+
+    confirm() {
+        // Convert 12h to 24h
+        let h24 = this.selectedHour;
+        if (this.selectedPeriod === 'PM' && h24 !== 12) {
+            h24 += 12;
+        } else if (this.selectedPeriod === 'AM' && h24 === 12) {
+            h24 = 0;
+        }
+
+        const timeValue24h = `${h24.toString().padStart(2, '0')}:${this.selectedMinute.toString().padStart(2, '0')}`;
+        const displayValue = `${this.selectedHour.toString().padStart(2, '0')}:${this.selectedMinute.toString().padStart(2, '0')} ${this.selectedPeriod}`;
+
+        // Update inputs
+        const displayInput = document.getElementById('appointmentTime');
+        const hiddenInput = document.getElementById('appointmentTimeValue');
+
+        if (displayInput) {
+            displayInput.value = displayValue;
+            displayInput.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+
+        if (hiddenInput) {
+            hiddenInput.value = timeValue24h;
+        }
+
+        console.log('✅ Time selected:', { display: displayValue, value24h: timeValue24h });
+
+        this.close();
+    },
+
+    renderWheels() {
+        const wheelHours = document.getElementById('wheelHours');
+        const wheelMinutes = document.getElementById('wheelMinutes');
+
+        if (!wheelHours || !wheelMinutes) return;
+
+        // Hours 1-12
+        wheelHours.innerHTML = '';
+        for (let i = 1; i <= 12; i++) {
+            const item = document.createElement('div');
+            item.className = 'wheel-item';
+            item.dataset.value = i;
+            item.textContent = i.toString().padStart(2, '0');
+            if (i === this.selectedHour) {
+                item.classList.add('selected');
+            }
+            wheelHours.appendChild(item);
+        }
+
+        // Minutes 0-55 (step 5)
+        wheelMinutes.innerHTML = '';
+        for (let i = 0; i < 60; i += 5) {
+            const item = document.createElement('div');
+            item.className = 'wheel-item';
+            item.dataset.value = i;
+            item.textContent = i.toString().padStart(2, '0');
+            if (i === this.selectedMinute) {
+                item.classList.add('selected');
+            }
+            wheelMinutes.appendChild(item);
+        }
+    },
+
+    updatePeriodButtons() {
+        const modal = document.getElementById('timeSheet');
+        modal?.querySelectorAll('.period-btn').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.period === this.selectedPeriod);
+        });
+    },
+
+    scrollToSelected() {
+        const wheelHours = document.getElementById('wheelHours');
+        const wheelMinutes = document.getElementById('wheelMinutes');
+
+        const selectedHour = wheelHours?.querySelector('.wheel-item.selected');
+        const selectedMinute = wheelMinutes?.querySelector('.wheel-item.selected');
+
+        selectedHour?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        selectedMinute?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+};
+
+// Initialize on DOM ready
+document.addEventListener('DOMContentLoaded', () => {
+    TimeSheetPicker.init();
+});
+
+// === INVOICE INTEGRATION ===
+// Global hook for invoice buttons
+window.downloadInvoicePDF = async (appointmentId) => {
+  console.log('[Main] Global invoice hook called for:', appointmentId);
+  await downloadInvoicePDF(appointmentId);
+};
+
+// Event delegation for invoice buttons
+document.addEventListener('click', async (e) => {
+  const invoiceBtn = e.target.closest('.btn-invoice');
+  if (!invoiceBtn) return;
+  
+  e.preventDefault();
+  const appointmentId = invoiceBtn.dataset.id || invoiceBtn.getAttribute('data-appointment-id');
+  
+  if (!appointmentId) {
+    console.error('[Main] Invoice button missing data-id attribute');
+    alert('Cannot generate invoice: appointment ID missing');
+    return;
+  }
+  
+  console.log('[Main] Invoice button clicked via delegation for:', appointmentId);
+  await downloadInvoicePDF(appointmentId);
+});
 
 
 

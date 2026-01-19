@@ -1,79 +1,121 @@
-import jsPDF from 'jspdf';
+import { loadTemplateAsDataURL } from '../../services/assetsService.js';
 
-export function buildInvoicePdf(invoiceModel, logoDataUrl) {
-  const doc = new jsPDF({ unit: 'pt', format: 'a4' });
-  const margin = 48;
-  let y = margin;
-
-  if (logoDataUrl) {
-    doc.addImage(logoDataUrl, 'PNG', margin, y, 120, 60);
+export async function buildInvoicePdf(invoiceModel) {
+  console.log('[InvoicePDF] Starting PDF build');
+  
+  if (typeof window.jspdf === 'undefined') {
+    throw new Error('jsPDF not loaded. Please include jsPDF library.');
   }
-  doc.setFontSize(18).setFont(undefined, 'bold').text(invoiceModel.company.name, margin + 140, y + 20);
-  doc.setFontSize(10).setFont(undefined, 'normal');
-  doc.text(invoiceModel.company.website, margin + 140, y + 38);
-  doc.text(invoiceModel.company.email, margin + 140, y + 54);
 
-  y += 80;
-  doc.setFontSize(22).setFont(undefined, 'bold').text('INVOICE', margin, y);
-  doc.setFontSize(11).setFont(undefined, 'normal');
-  doc.text(`Invoice #: ${invoiceModel.invoice.number}`, margin, y + 18);
-  doc.text(`Date: ${invoiceModel.invoice.date}`, margin, y + 34);
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
 
-  y += 56;
-  doc.setFontSize(12).setFont(undefined, 'bold').text('Bill To', margin, y);
-  doc.setFontSize(11).setFont(undefined, 'normal');
-  doc.text(invoiceModel.customer.name || '-', margin, y + 16);
-  doc.text(invoiceModel.customer.vehicle || '', margin, y + 32);
-  doc.text(invoiceModel.customer.mileage ? `Mileage: ${invoiceModel.customer.mileage}` : '', margin, y + 48);
-  doc.text(invoiceModel.customer.address || '', margin, y + 64);
+  // Load and add template background
+  try {
+    const templateDataUrl = await loadTemplateAsDataURL('Images/Invoice.png');
+    console.log('[InvoicePDF] Template loaded, adding to PDF');
+    doc.addImage(templateDataUrl, 'PNG', 0, 0, 210, 297);
+  } catch (err) {
+    console.warn('[InvoicePDF] Template load failed, using blank background:', err);
+  }
 
-  y += 88;
-  doc.setFontSize(12).setFont(undefined, 'bold').text('Services', margin, y);
-  y += 16;
-  const tableTop = y;
-  doc.setFontSize(10).setFont(undefined, 'bold');
-  doc.text('Description', margin, y);
-  doc.text('Qty', margin + 260, y, { align: 'right' });
-  doc.text('Unit Price', margin + 360, y, { align: 'right' });
-  doc.text('Line Total', margin + 480, y, { align: 'right' });
+  // Define positions for text overlay (adjust these based on your template)
+  const positions = {
+    pin: { x: 170, y: 20 },
+    date: { x: 170, y: 30 },
+    customer: { x: 20, y: 60 },
+    vehicle: { x: 20, y: 68 },
+    mileage: { x: 20, y: 76 },
+    vatRate: { x: 170, y: 76 },
+    servicesStart: 100,
+    rowHeight: 8,
+    cols: {
+      description: 20,
+      qty: 140,
+      unitPrice: 160,
+      lineTotal: 190,
+    },
+    subtotal: { x: 190, y: 230 },
+    vat: { x: 190, y: 238 },
+    total: { x: 190, y: 246 },
+    notes: { x: 20, y: 260 },
+  };
 
-  doc.setFont(undefined, 'normal');
-  y += 12;
-  if (invoiceModel.services.length) {
-    invoiceModel.services.forEach((s) => {
-      doc.text(s.description, margin, y);
-      doc.text(String(s.qty), margin + 260, y, { align: 'right' });
-      doc.text(invoiceModel.format(s.unitPrice), margin + 360, y, { align: 'right' });
-      doc.text(invoiceModel.format(s.lineTotal), margin + 480, y, { align: 'right' });
-      y += 18;
+  // Set font
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(10);
+  doc.setTextColor(0, 0, 0);
+
+  // Header info
+  console.log('[InvoicePDF] Adding header information');
+  doc.text(`PIN: ${invoiceModel.invoice.pin}`, positions.pin.x, positions.pin.y, { align: 'right' });
+  doc.text(`Date: ${invoiceModel.invoice.date}`, positions.date.x, positions.date.y, { align: 'right' });
+
+  // Customer info
+  console.log('[InvoicePDF] Adding customer information');
+  doc.text(`Customer: ${invoiceModel.customer.name}`, positions.customer.x, positions.customer.y);
+  doc.text(`Vehicle: ${invoiceModel.customer.vehicle}`, positions.vehicle.x, positions.vehicle.y);
+  doc.text(`Mileage: ${invoiceModel.customer.mileage}`, positions.mileage.x, positions.mileage.y);
+  doc.text(`VAT: ${(invoiceModel.totals.vatRate * 100).toFixed(0)}%`, positions.vatRate.x, positions.vatRate.y, { align: 'right' });
+
+  // Services table
+  console.log('[InvoicePDF] Adding services table');
+  let y = positions.servicesStart;
+  
+  if (invoiceModel.services.length > 0) {
+    invoiceModel.services.forEach((service, idx) => {
+      if (y > 250) {
+        doc.addPage();
+        y = 30;
+      }
+      
+      const description = doc.splitTextToSize(service.description, 100);
+      doc.text(description, positions.cols.description, y);
+      doc.text(String(service.qty), positions.cols.qty, y, { align: 'right' });
+      doc.text(invoiceModel.format(service.unitPrice), positions.cols.unitPrice, y, { align: 'right' });
+      doc.text(invoiceModel.format(service.lineTotal), positions.cols.lineTotal, y, { align: 'right' });
+      
+      y += positions.rowHeight;
+      console.log(`[InvoicePDF] Added service ${idx + 1}: ${service.description}`);
     });
   } else {
-    doc.text(invoiceModel.notes || 'No services listed.', margin, y);
-    y += 18;
+    doc.text('No services listed', positions.cols.description, y);
+    y += positions.rowHeight;
   }
 
-  y += 12;
-  doc.line(margin, tableTop - 6, margin + 500, tableTop - 6);
-  doc.line(margin, y - 6, margin + 500, y - 6);
+  // Totals
+  console.log('[InvoicePDF] Adding totals');
+  doc.setFont('helvetica', 'bold');
+  doc.text('Subtotal:', positions.subtotal.x - 30, positions.subtotal.y);
+  doc.text(invoiceModel.format(invoiceModel.totals.subtotal), positions.subtotal.x, positions.subtotal.y, { align: 'right' });
 
-  y += 10;
-  doc.setFont(undefined, 'bold');
-  doc.text('Subtotal', margin + 360, y, { align: 'right' });
-  doc.text(invoiceModel.format(invoiceModel.totals.subtotal), margin + 480, y, { align: 'right' });
+  doc.setFont('helvetica', 'normal');
+  doc.text(`VAT (${(invoiceModel.totals.vatRate * 100).toFixed(0)}%):`, positions.vat.x - 30, positions.vat.y);
+  doc.text(invoiceModel.format(invoiceModel.totals.vatAmount), positions.vat.x, positions.vat.y, { align: 'right' });
 
-  y += 16;
-  doc.text(`VAT (${(invoiceModel.totals.vatRate * 100).toFixed(0)}%)`, margin + 360, y, { align: 'right' });
-  doc.text(invoiceModel.format(invoiceModel.totals.vatAmount), margin + 480, y, { align: 'right' });
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(12);
+  doc.setTextColor(255, 99, 72);
+  doc.text('TOTAL:', positions.total.x - 30, positions.total.y);
+  doc.text(invoiceModel.format(invoiceModel.totals.total), positions.total.x, positions.total.y, { align: 'right' });
 
-  y += 16;
-  doc.setFontSize(12).text('Total', margin + 360, y, { align: 'right' });
-  doc.text(invoiceModel.format(invoiceModel.totals.total), margin + 480, y, { align: 'right' });
-
+  // Notes
   if (invoiceModel.notes) {
-    y += 32;
-    doc.setFontSize(11).setFont(undefined, 'bold').text('Notes', margin, y);
-    doc.setFont(undefined, 'normal').text(invoiceModel.notes, margin, y + 16, { maxWidth: 480 });
+    doc.setTextColor(0, 0, 0);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    const notesText = doc.splitTextToSize(invoiceModel.notes, 170);
+    doc.text(notesText, positions.notes.x, positions.notes.y);
   }
 
+  // Footer
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(100, 100, 100);
+  doc.text('Call: Mihai +44 7440787527 | Emergency: Iulian +44 7478280954', 20, 280);
+  doc.text('Web: https://transvortexltd.co.uk/', 20, 285);
+  doc.text(`Invoice PIN: ${invoiceModel.invoice.pin}`, 20, 290);
+
+  console.log('[InvoicePDF] PDF build complete');
   return doc;
 }
