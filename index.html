@@ -779,7 +779,7 @@
                                     <label>Garaj</label>
                                     <div class="readonly-field">
                                         <i class="fas fa-building"></i>
-                                        <span>Transvortex LTD, Londra</span>
+                                        <span>TransvortexLTD Mobile Mechanic, 81 Foley Rd, Birmingham B8 2JT</span>
                                     </div>
                                 </div>
                             </div>
@@ -793,7 +793,7 @@
                                             type="text" 
                                             id="address" 
                                             name="address" 
-                                            placeholder="ex: Str. Principală nr. 10, Londra" 
+                                            placeholder="ex: Str. Principală nr. 10, Birmingham" 
                                             class="form-input"
                                             autocomplete="street-address"
                                         />
@@ -914,6 +914,14 @@
 
                 <!-- Filtre și Search -->
                 <section class="filters-section">
+                    <div class="appointments-tabs" id="appointmentsTabs">
+                        <button class="tab-btn" data-apt-tab="scheduled">
+                            Programate <span class="tab-count" id="tabCountScheduled">0</span>
+                        </button>
+                        <button class="tab-btn" data-apt-tab="finalized">
+                            Finalizate <span class="tab-count" id="tabCountFinalized">0</span>
+                        </button>
+                    </div>
                     <div class="filters-wrapper">
                         <div class="filter-group">
                             <label for="filterStatus">Filtrează:</label>

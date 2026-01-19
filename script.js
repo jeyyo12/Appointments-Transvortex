@@ -48,6 +48,10 @@ let appointmentsUnsubscribe = null;
 // Current active tab
 let currentTab = 'pages';
 
+// Appointments tab state (Programate / Finalizate)
+const APPOINTMENTS_TAB_KEY = 'tvx.activeAppointmentsTab';
+let activeAppointmentsTab = localStorage.getItem(APPOINTMENTS_TAB_KEY) || 'scheduled';
+
 // Appointment buttons delegation flag
 let appointmentsClicksBound = false;
 
@@ -1129,7 +1133,7 @@ async function handleAddAppointment(e) {
         
         address = clientAddress;
     } else if (serviceLocation === 'garage') {
-        address = 'Transvortex LTD, Londra';
+        address = 'TransvortexLTD Mobile Mechanic, 81 Foley Rd, Birmingham B8 2JT';
         postcode = '';
     }
     
@@ -1260,51 +1264,115 @@ async function cancelAppointment(id) {
     }
 }
 
-// Filter appointments
+// Helpers for appointment state
+function isAppointmentFinalized(apt) {
+    return apt.finalized === true || apt.status === 'done' || apt.status === 'finalized';
+}
+
+function isAppointmentScheduled(apt) {
+    if (apt.status === 'canceled') return false;
+    return !isAppointmentFinalized(apt);
+}
+
+// Filter appointments (search + status select + active tab)
 function filterAppointments() {
     const filterStatus = document.getElementById('filterStatus')?.value || 'all';
     const searchTerm = document.getElementById('searchAppointments')?.value.toLowerCase() || '';
     
     const now = new Date();
     const todayStr = now.toISOString().split('T')[0];
+
+    // Update tab counts (unfiltered)
+    const scheduledCount = appointments.filter(isAppointmentScheduled).length;
+    const finalizedCount = appointments.filter(isAppointmentFinalized).length;
+    const scheduledCountEl = document.getElementById('tabCountScheduled');
+    const finalizedCountEl = document.getElementById('tabCountFinalized');
+    if (scheduledCountEl) scheduledCountEl.textContent = scheduledCount;
+    if (finalizedCountEl) finalizedCountEl.textContent = finalizedCount;
     
     filteredAppointments = appointments.filter(apt => {
+        // Tab filter
+        const inTab = activeAppointmentsTab === 'scheduled' ? isAppointmentScheduled(apt) : isAppointmentFinalized(apt);
+        if (!inTab) return false;
+
         // Search filter
-        const matchesSearch = !searchTerm || 
-            apt.customerName.toLowerCase().includes(searchTerm) ||
-            apt.car.toLowerCase().includes(searchTerm);
-        
+        const matchesSearch = !searchTerm ||
+            (apt.customerName && apt.customerName.toLowerCase().includes(searchTerm)) ||
+            (apt.car && apt.car.toLowerCase().includes(searchTerm)) ||
+            (apt.makeModel && apt.makeModel.toLowerCase().includes(searchTerm)) ||
+            (apt.regNumber && apt.regNumber.toLowerCase().includes(searchTerm));
         if (!matchesSearch) return false;
         
-        // Status filter
+        // Status filter (keep existing filter dropdown semantics inside selected tab)
         if (filterStatus === 'all') return true;
         if (filterStatus === 'today') return apt.dateStr === todayStr;
         if (filterStatus === 'upcoming') {
-            const aptDate = apt.startAt.toDate();
+            const aptDate = apt.startAt?.toDate ? apt.startAt.toDate() : new Date(apt.dateStr);
             return aptDate > now && apt.status === 'scheduled';
         }
         if (filterStatus === 'overdue') {
-            const aptDate = apt.startAt.toDate();
+            const aptDate = apt.startAt?.toDate ? apt.startAt.toDate() : new Date(apt.dateStr);
             return aptDate < now && apt.status === 'scheduled';
         }
         return apt.status === filterStatus;
     });
     
+    updateAppointmentsTabsUI();
     renderAppointments();
+}
+
+function setActiveAppointmentsTab(tab) {
+    if (!tab || (tab !== 'scheduled' && tab !== 'finalized')) return;
+    activeAppointmentsTab = tab;
+    localStorage.setItem(APPOINTMENTS_TAB_KEY, tab);
+    updateAppointmentsTabsUI();
+    filterAppointments();
+}
+
+function updateAppointmentsTabsUI() {
+    const tabs = document.querySelectorAll('[data-apt-tab]');
+    tabs.forEach(btn => {
+        const isActive = btn.dataset.aptTab === activeAppointmentsTab;
+        if (isActive) btn.classList.add('active');
+        else btn.classList.remove('active');
+    });
+    const container = document.getElementById('appointmentsTabs');
+    if (container) container.setAttribute('data-active-tab', activeAppointmentsTab);
+}
+
+function bindAppointmentsTabs() {
+    const tabContainer = document.getElementById('appointmentsTabs');
+    if (!tabContainer || tabContainer.dataset.bound) return;
+
+    tabContainer.addEventListener('click', (e) => {
+        const btn = e.target.closest('[data-apt-tab]');
+        if (!btn) return;
+        const tab = btn.dataset.aptTab;
+        setActiveAppointmentsTab(tab);
+    });
+
+    tabContainer.dataset.bound = 'true';
+    updateAppointmentsTabsUI();
 }
 
 // Render appointments grouped by day
 function renderAppointments() {
     const container = document.getElementById('appointmentsList');
     const emptyState = document.getElementById('emptyStateAppointments');
-    
+    const tabEmptyMsg = activeAppointmentsTab === 'scheduled'
+        ? 'Nu ai programări programate încă.'
+        : 'Nu ai lucrări finalizate încă.';
+
     if (!filteredAppointments || filteredAppointments.length === 0) {
         container.innerHTML = '';
-        emptyState.style.display = 'block';
+        if (emptyState) {
+            emptyState.querySelector('h3').textContent = tabEmptyMsg;
+            emptyState.style.display = 'block';
+        }
         return;
     }
     
-    emptyState.style.display = 'none';
+    if (emptyState) emptyState.style.display = 'none';
     
     // Group by date
     const grouped = {};
@@ -1407,10 +1475,10 @@ function createAppointmentCard(apt) {
         </div>
     ` : '';
     
-    // Butoane de acțiune (mobile-first layout)
+    // Butoane de acțiune (mobile-first layout) per tab
     const actionsHTML = apt.status !== 'canceled' ? `
         <div class="appointment-actions">
-            ${apt.status === 'scheduled' ? `
+            ${activeAppointmentsTab === 'scheduled' ? `
                 <button class="apt-btn apt-btn-finalize" data-action="finalize" data-apt-id="${apt.id}" aria-label="Finalizează programarea">
                     <i class="fas fa-check-circle"></i>
                     <span>Finalizează</span>
@@ -1422,10 +1490,12 @@ function createAppointmentCard(apt) {
                     <span>Vizitează</span>
                 </button>
             ` : ''}
-            <button class="apt-btn apt-btn-invoice" data-apt-id="${apt.id}" aria-label="Generează factură">
-                <i class="fas fa-file-invoice"></i>
-                <span>Invoice</span>
-            </button>
+            ${activeAppointmentsTab === 'finalized' ? `
+                <button class="apt-btn apt-btn-invoice" data-apt-id="${apt.id}" aria-label="Generează factură">
+                    <i class="fas fa-file-invoice"></i>
+                    <span>Invoice</span>
+                </button>
+            ` : ''}
             <button class="apt-btn apt-btn-delete" data-action="delete" data-apt-id="${apt.id}" aria-label="Șterge programarea">
                 <i class="fas fa-trash-alt"></i>
                 <span>Șterge</span>
@@ -1961,6 +2031,9 @@ function setupEventListeners() {
         appointmentForm.dataset.bound = 'true';
         setupAppointmentFormLogic();
     }
+
+    // Tabs for appointments list
+    bindAppointmentsTabs();
 }
 
 // Modern appointment form logic
