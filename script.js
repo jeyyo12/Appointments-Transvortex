@@ -1543,12 +1543,6 @@ function setupEventListeners() {
         appointmentForm.addEventListener('submit', handleAddAppointment);
         appointmentForm.dataset.bound = 'true';
     }
-
-    // Initialize custom time picker once
-    if (!document.body.dataset.tpBound) {
-        initCustomTimePicker();
-        document.body.dataset.tpBound = 'true';
-    }
 }
 
 // ==============================
@@ -1609,146 +1603,6 @@ function bindModalCloseBehavior() {
 }
 
 // ==============================
-// CUSTOM TIME PICKER COMPONENT
-// ==============================
-
-function initCustomTimePicker() {
-    const trigger = document.querySelector('[data-timepicker-trigger]');
-    const hidden = document.getElementById('appointmentTime');
-    const backdrop = document.getElementById('timepickerBackdrop');
-    const picker = backdrop ? backdrop.querySelector('.timepicker') : null;
-    if (!trigger || !hidden || !backdrop || !picker) return;
-
-    // Build hour and minute lists once
-    const hoursCol = picker.querySelector('.tp-hours');
-    const minutesCol = picker.querySelector('.tp-minutes');
-    const selectedText = picker.querySelector('#tpSelectedText');
-    const segs = picker.querySelectorAll('.tp-seg');
-    const btnCancel = picker.querySelector('.tp-cancel');
-    const btnConfirm = picker.querySelector('.tp-confirm');
-    let state = { hour: 12, minute: 0, period: 'AM' };
-
-    // Render items
-    hoursCol.innerHTML = '';
-    for (let h = 1; h <= 12; h++) {
-        const el = document.createElement('div');
-        el.className = 'tp-item';
-        el.setAttribute('role', 'option');
-        el.textContent = String(h);
-        el.addEventListener('click', () => {
-            state.hour = h;
-            updateSelectedUI();
-            markSelected(hoursCol, String(h));
-        });
-        hoursCol.appendChild(el);
-    }
-
-    minutesCol.innerHTML = '';
-    for (let m = 0; m < 60; m++) {
-        const label = m.toString().padStart(2, '0');
-        const el = document.createElement('div');
-        el.className = 'tp-item';
-        el.setAttribute('role', 'option');
-        el.textContent = label;
-        el.addEventListener('click', () => {
-            state.minute = m;
-            updateSelectedUI();
-            markSelected(minutesCol, label);
-        });
-        minutesCol.appendChild(el);
-    }
-
-    // Toggle AM/PM
-    segs.forEach(seg => {
-        seg.addEventListener('click', () => {
-            segs.forEach(s => s.setAttribute('aria-selected', 'false'));
-            seg.setAttribute('aria-selected', 'true');
-            state.period = seg.dataset.period;
-            updateSelectedUI();
-        });
-    });
-
-    function markSelected(container, value) {
-        container.querySelectorAll('.tp-item').forEach(node => {
-            const isSel = node.textContent === value;
-            node.setAttribute('aria-selected', isSel ? 'true' : 'false');
-        });
-    }
-
-    function updateSelectedUI() {
-        const hh12 = String(state.hour).padStart(2, '0');
-        const mm = String(state.minute).padStart(2, '0');
-        selectedText.textContent = `${hh12}:${mm} ${state.period}`;
-    }
-
-    function openPicker() {
-        // Seed from hidden (HH:MM) if available
-        if (hidden.value) {
-            const [hh, mm] = hidden.value.split(':').map(Number);
-            let period = hh >= 12 ? 'PM' : 'AM';
-            let hour12 = hh % 12; if (hour12 === 0) hour12 = 12;
-            state = { hour: hour12, minute: mm, period };
-        } else {
-            // Default: next rounded 5 minutes of current time
-            const now = new Date();
-            let h = now.getHours();
-            const m = now.getMinutes();
-            const rounded = Math.round(m / 5) * 5;
-            const period = h >= 12 ? 'PM' : 'AM';
-            let hour12 = h % 12; if (hour12 === 0) hour12 = 12;
-            state = { hour: hour12, minute: rounded % 60, period };
-        }
-
-        // Reflect UI
-        segs.forEach(s => s.setAttribute('aria-selected', s.dataset.period === state.period ? 'true' : 'false'));
-        markSelected(hoursCol, String(state.hour));
-        markSelected(minutesCol, String(state.minute).padStart(2, '0'));
-        updateSelectedUI();
-
-        // Scroll into view
-        scrollIntoView(hoursCol, String(state.hour));
-        scrollIntoView(minutesCol, String(state.minute).padStart(2, '0'));
-
-        backdrop.style.display = 'flex';
-        // Keep logical focus flow on picker without losing page context
-        picker.setAttribute('tabindex', '-1');
-        picker.focus({ preventScroll: true });
-    }
-
-    function closePicker() {
-        backdrop.style.display = 'none';
-        // Return focus to trigger for smooth UX
-        trigger.focus({ preventScroll: true });
-    }
-
-    function scrollIntoView(container, value) {
-        const node = Array.from(container.children).find(n => n.textContent === value);
-        if (node) {
-            const top = node.offsetTop - container.clientHeight / 2 + node.clientHeight / 2;
-            container.scrollTo({ top, behavior: 'smooth' });
-        }
-    }
-
-    function to24h(h12, period) {
-        let h = h12 % 12;
-        if (period === 'PM') h += 12;
-        return String(h).padStart(2, '0');
-    }
-
-    // Actions
-    trigger.addEventListener('click', openPicker);
-    btnCancel.addEventListener('click', closePicker);
-    backdrop.addEventListener('click', (e) => { if (e.target === backdrop) closePicker(); });
-    document.addEventListener('keydown', (e) => { if (backdrop.style.display === 'flex' && e.key === 'Escape') closePicker(); });
-    btnConfirm.addEventListener('click', () => {
-        const hh = to24h(state.hour, state.period);
-        const mm = String(state.minute).padStart(2, '0');
-        const val = `${hh}:${mm}`;
-        hidden.value = val;
-        trigger.value = `${String(state.hour).padStart(2, '0')}:${mm} ${state.period}`;
-        closePicker();
-    });
-}
 // STAT CARDS -> open popups
 // ==============================
 function bindStatsPopupButtons() {
@@ -2059,5 +1913,186 @@ window.downloadInvoicePDF = async function(appointmentId) {
         console.log('✅ Invoice PDF downloaded (desktop)');
     }
 }
+
+// ==========================================
+// Custom Time Picker
+// ==========================================
+
+class CustomTimePicker {
+    constructor() {
+        this.popup = document.getElementById('timePickerPopup');
+        this.hoursScroll = document.getElementById('hoursScroll');
+        this.minutesScroll = document.getElementById('minutesScroll');
+        this.preview = document.getElementById('selectedTimePreview');
+        this.closeBtn = document.getElementById('timePickerClose');
+        this.cancelBtn = document.getElementById('timeCancelBtn');
+        this.confirmBtn = document.getElementById('timeConfirmBtn');
+        
+        this.selectedHour = 12;
+        this.selectedMinute = 0;
+        this.selectedPeriod = 'AM';
+        this.targetInput = null;
+        this.targetDisplay = null;
+        
+        this.init();
+    }
+    
+    init() {
+        // Generate hours (1-12)
+        for (let i = 1; i <= 12; i++) {
+            const item = document.createElement('div');
+            item.className = 'time-item';
+            item.textContent = i.toString().padStart(2, '0');
+            item.dataset.value = i;
+            item.addEventListener('click', () => this.selectHour(i));
+            this.hoursScroll.appendChild(item);
+        }
+        
+        // Generate minutes (00-59)
+        for (let i = 0; i < 60; i++) {
+            const item = document.createElement('div');
+            item.className = 'time-item';
+            item.textContent = i.toString().padStart(2, '0');
+            item.dataset.value = i;
+            item.addEventListener('click', () => this.selectMinute(i));
+            this.minutesScroll.appendChild(item);
+        }
+        
+        // AM/PM toggle
+        document.querySelectorAll('.ampm-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.ampm-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                this.selectedPeriod = btn.dataset.period;
+                this.updatePreview();
+            });
+        });
+        
+        // Close handlers
+        this.closeBtn.addEventListener('click', () => this.close());
+        this.cancelBtn.addEventListener('click', () => this.close());
+        this.confirmBtn.addEventListener('click', () => this.confirm());
+        
+        // Click outside to close
+        this.popup.addEventListener('click', (e) => {
+            if (e.target === this.popup) {
+                this.close();
+            }
+        });
+        
+        // Bind to time picker inputs
+        document.querySelectorAll('[data-time-picker]').forEach(picker => {
+            const display = picker.querySelector('[data-time-display]');
+            display.addEventListener('click', () => {
+                this.targetInput = picker.querySelector('input[type="hidden"]');
+                this.targetDisplay = display.querySelector('.time-value');
+                this.open();
+            });
+        });
+    }
+    
+    selectHour(hour) {
+        this.selectedHour = hour;
+        
+        // Update UI
+        this.hoursScroll.querySelectorAll('.time-item').forEach(item => {
+            item.classList.toggle('selected', parseInt(item.dataset.value) === hour);
+        });
+        
+        // Scroll selected into view
+        const selectedItem = this.hoursScroll.querySelector('.time-item.selected');
+        if (selectedItem) {
+            selectedItem.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+        
+        this.updatePreview();
+    }
+    
+    selectMinute(minute) {
+        this.selectedMinute = minute;
+        
+        // Update UI
+        this.minutesScroll.querySelectorAll('.time-item').forEach(item => {
+            item.classList.toggle('selected', parseInt(item.dataset.value) === minute);
+        });
+        
+        // Scroll selected into view
+        const selectedItem = this.minutesScroll.querySelector('.time-item.selected');
+        if (selectedItem) {
+            selectedItem.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+        
+        this.updatePreview();
+    }
+    
+    updatePreview() {
+        const hour = this.selectedHour.toString().padStart(2, '0');
+        const minute = this.selectedMinute.toString().padStart(2, '0');
+        this.preview.textContent = `${hour}:${minute} ${this.selectedPeriod}`;
+    }
+    
+    open() {
+        // Set default to current time or 12:00 PM
+        const now = new Date();
+        let hours = now.getHours();
+        const minutes = now.getMinutes();
+        
+        // Convert to 12-hour format
+        this.selectedPeriod = hours >= 12 ? 'PM' : 'AM';
+        hours = hours % 12 || 12;
+        
+        this.selectedHour = hours;
+        this.selectedMinute = Math.round(minutes / 5) * 5; // Round to nearest 5
+        if (this.selectedMinute >= 60) this.selectedMinute = 0;
+        
+        // Update AM/PM toggle
+        document.querySelectorAll('.ampm-btn').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.period === this.selectedPeriod);
+        });
+        
+        // Select current values
+        this.selectHour(this.selectedHour);
+        this.selectMinute(this.selectedMinute);
+        
+        // Show popup
+        this.popup.classList.add('active');
+        document.body.style.overflow = 'hidden';
+    }
+    
+    close() {
+        this.popup.classList.remove('active');
+        document.body.style.overflow = '';
+    }
+    
+    confirm() {
+        if (!this.targetInput || !this.targetDisplay) return;
+        
+        // Convert to 24-hour format for input value
+        let hours24 = this.selectedHour;
+        if (this.selectedPeriod === 'PM' && hours24 !== 12) {
+            hours24 += 12;
+        } else if (this.selectedPeriod === 'AM' && hours24 === 12) {
+            hours24 = 0;
+        }
+        
+        const timeValue = `${hours24.toString().padStart(2, '0')}:${this.selectedMinute.toString().padStart(2, '0')}`;
+        
+        // Set hidden input value
+        this.targetInput.value = timeValue;
+        
+        // Update display with 12-hour format
+        const displayValue = `${this.selectedHour.toString().padStart(2, '0')}:${this.selectedMinute.toString().padStart(2, '0')} ${this.selectedPeriod}`;
+        this.targetDisplay.textContent = displayValue;
+        this.targetDisplay.classList.remove('placeholder');
+        
+        this.close();
+    }
+}
+
+// Initialize time picker when DOM is ready
+let timePicker;
+document.addEventListener('DOMContentLoaded', () => {
+    timePicker = new CustomTimePicker();
+});
 
 
