@@ -281,3 +281,130 @@
         height: -webkit-fill-available;
     }
 }
+
+/* ==========================================
+   MOBILE INPUT FIX - iOS & Android
+   Fix black text/placeholder issue
+   ========================================== */
+
+/* Force dark theme color scheme for inputs */
+.modern-modal-panel-custom,
+.modern-modal-body {
+    color-scheme: dark;
+}
+
+/* Global text color for modal forms */
+.modern-modal-body input,
+.modern-modal-body textarea,
+.modern-modal-body select {
+    /* Remove browser default styling */
+    -webkit-appearance: none;
+    appearance: none;
+    
+    /* Force white text (critical for iOS) */
+    color: #ffffff !important;
+    -webkit-text-fill-color: #ffffff !important;
+    
+    /* Dark background */
+    background: rgba(255, 255, 255, 0.08) !important;
+    
+    /* Borders */
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    border-radius: 0.5rem;
+    
+    /* Padding and sizing */
+    padding: 0.75rem 1rem;
+    font-size: clamp(0.9375rem, 3vw, 1rem);
+    line-height: 1.5;
+    
+    /* White caret/cursor */
+    caret-color: #ffffff;
+    
+    /* Smooth transitions */
+    transition: border-color 0.2s ease, background-color 0.2s ease;
+}
+
+/* Placeholder text - semi-transparent white */
+.modern-modal-body input::placeholder,
+.modern-modal-body textarea::placeholder,
+.modern-modal-body select::placeholder {
+    color: rgba(255, 255, 255, 0.65) !important;
+    opacity: 1;
+}
+
+/* Focus states */
+.modern-modal-body input:focus,
+.modern-modal-body textarea:focus,
+.modern-modal-body select:focus {
+    outline: none;
+    border-color: rgba(255, 255, 255, 0.35);
+    background: rgba(255, 255, 255, 0.12) !important;
+}
+
+/* Disabled state */
+.modern-modal-body input:disabled,
+.modern-modal-body textarea:disabled,
+.modern-modal-body select:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* ==========================================
+   AUTOFILL FIX - iOS & Android Chrome
+   Prevent yellow background and black text
+   ========================================== */
+
+.modern-modal-body input:-webkit-autofill,
+.modern-modal-body textarea:-webkit-autofill,
+.modern-modal-body select:-webkit-autofill,
+.modern-modal-body input:-webkit-autofill:hover,
+.modern-modal-body input:-webkit-autofill:focus,
+.modern-modal-body textarea:-webkit-autofill:hover,
+.modern-modal-body textarea:-webkit-autofill:focus {
+    /* Force white text on autofill */
+    -webkit-text-fill-color: #ffffff !important;
+    
+    /* Dark background on autofill (transition hack to override yellow) */
+    transition: background-color 9999s ease-out 0s;
+    
+    /* Dark inset shadow to replace yellow background */
+    box-shadow: 0 0 0px 1000px rgba(0, 0, 0, 0.35) inset !important;
+    
+    /* Maintain border */
+    border: 1px solid rgba(255, 255, 255, 0.18) !important;
+}
+
+/* Labels in modal forms */
+.modern-modal-body label {
+    color: rgba(255, 255, 255, 0.9);
+    font-weight: 600;
+    font-size: clamp(0.875rem, 2.8vw, 0.9375rem);
+    margin-bottom: 0.5rem;
+    display: block;
+}
+
+/* Select dropdown arrow fix for dark theme */
+.modern-modal-body select {
+    background-image: url('data:image/svg+xml;charset=UTF-8,%3Csvg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12"%3E%3Cpath fill="%23ffffff" d="M6 9L1 4h10z"/%3E%3C/svg%3E');
+    background-repeat: no-repeat;
+    background-position: right 0.75rem center;
+    background-size: 0.75rem;
+    padding-right: 2.5rem;
+}
+
+/* Textarea specific */
+.modern-modal-body textarea {
+    min-height: 6rem;
+    resize: vertical;
+    font-family: inherit;
+}
+
+/* Android-specific fixes */
+@media screen and (-webkit-min-device-pixel-ratio: 0) {
+    .modern-modal-body input,
+    .modern-modal-body textarea,
+    .modern-modal-body select {
+        /* Additional Android Chrome fix */
+        -webkit-tap-highlight-color: transparent;
+    }
+}
