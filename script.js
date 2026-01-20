@@ -760,6 +760,87 @@ function showNotification(message, type = 'info') {
 }
 
 // ==========================================
+// TOAST NOTIFICATION SYSTEM (Design System)
+// ==========================================
+function showToast(message, type = 'success') {
+    // Create toast container if doesn't exist
+    let toastContainer = document.querySelector('.tvToastContainer');
+    if (!toastContainer) {
+        toastContainer = document.createElement('div');
+        toastContainer.className = 'tvToastContainer';
+        toastContainer.style.cssText = `
+            position: fixed;
+            top: clamp(1rem, 2vw, 1.5rem);
+            right: clamp(1rem, 2vw, 1.5rem);
+            z-index: 10000;
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+            pointer-events: none;
+        `;
+        document.body.appendChild(toastContainer);
+    }
+    
+    // Create toast element
+    const toast = document.createElement('div');
+    toast.className = `tvToast tvToast--${type}`;
+    toast.style.pointerEvents = 'auto';
+    
+    const icons = {
+        success: 'check-circle',
+        error: 'exclamation-circle',
+        warning: 'exclamation-triangle',
+        info: 'info-circle'
+    };
+    
+    toast.innerHTML = `
+        <i class="fas fa-${icons[type] || icons.info}"></i>
+        <span>${message}</span>
+    `;
+    
+    toastContainer.appendChild(toast);
+    
+    // Auto-remove after 3 seconds
+    setTimeout(() => {
+        toast.style.animation = 'tvToastSlideOut 0.3s ease forwards';
+        setTimeout(() => {
+            toast.remove();
+            // Remove container if empty
+            if (toastContainer.children.length === 0) {
+                toastContainer.remove();
+            }
+        }, 300);
+    }, 3000);
+}
+
+// ==========================================
+// HIGHLIGHT AND SCROLL TO APPOINTMENT
+// ==========================================
+function highlightAndScrollToAppointment(appointmentId) {
+    const aptRow = document.querySelector(`.aptRow[data-apt-id="${appointmentId}"]`);
+    
+    if (!aptRow) {
+        console.warn(`⚠️ Appointment row not found for ID: ${appointmentId}`);
+        return;
+    }
+    
+    // Add highlight class
+    aptRow.classList.add('tvHighlight');
+    
+    // Scroll to appointment (smooth scroll, centered)
+    aptRow.scrollIntoView({
+        behavior: 'smooth',
+        block: 'center',
+        inline: 'nearest'
+    });
+    
+    // Remove highlight after animation (2 seconds)
+    setTimeout(() => {
+        aptRow.classList.remove('tvHighlight');
+    }, 2000);
+}
+
+// ==========================================
 // INITIALIZE ON PAGE LOAD
 // ==========================================
 document.addEventListener('DOMContentLoaded', () => {
@@ -1202,17 +1283,76 @@ async function handleAddAppointment(e) {
         document.getElementById('clientAddressSection').style.display = 'none';
         
         showNotification('✅ Programare adăugată cu succes!', 'success');
+        showToast('Programare adăugată cu succes!', 'success');
+        
+        // Highlight and scroll to new appointment
+        setTimeout(() => {
+            highlightAndScrollToAppointment(docRef.id);
+        }, 300);
         
     } catch (error) {
         console.error('❌ Error adding appointment:', error);
         showNotification('❌ Eroare la adăugarea programării: ' + error.message, 'error');
+        showToast('Eroare la adăugarea programării', 'error');
     }
 }
-// Utility: Validate individual field
+// ==========================================
+// UTILITY: Split Vehicle & Registration
+// ==========================================
+/**
+ * Parses combined vehicle string and extracts make/model and registration
+ * Supports formats like:
+ *   - "OPEL VIVARA (BV66HKE)"
+ *   - "OPEL VIVARA - BV66HKE"
+ *   - "OPEL VIVARA" (no reg, returns just make/model)
+ * 
+ * @param {string} inputString - Combined vehicle string
+ * @returns {object} { vehicleMakeModel, regPlate }
+ */
+function splitVehicleAndReg(inputString) {
+    if (!inputString || typeof inputString !== 'string') {
+        return { vehicleMakeModel: '', regPlate: '' };
+    }
+    
+    const input = inputString.trim();
+    
+    // Pattern 1: "OPEL VIVARA (BV66HKE)" or "OPEL VIVARA(BV66HKE)"
+    const pattern1 = /^(.+?)\s*\((.+?)\)\s*$/;
+    const match1 = input.match(pattern1);
+    if (match1) {
+        return {
+            vehicleMakeModel: match1[1].trim(),
+            regPlate: match1[2].trim()
+        };
+    }
+    
+    // Pattern 2: "OPEL VIVARA - BV66HKE" or "OPEL VIVARA -BV66HKE"
+    const pattern2 = /^(.+?)\s*-\s*(.+?)\s*$/;
+    const match2 = input.match(pattern2);
+    if (match2) {
+        return {
+            vehicleMakeModel: match2[1].trim(),
+            regPlate: match2[2].trim()
+        };
+    }
+    
+    // No pattern matched - return as vehicleMakeModel only
+    return {
+        vehicleMakeModel: input,
+        regPlate: ''
+    };
+}
+
+// Utility: Validate individual field (using design system classes)
 function validateField(fieldId) {
     const field = document.getElementById(fieldId);
+    if (!field) return true;
+    
+    // Find parent .tvField container
+    const tvField = field.closest('.tvField');
+    
+    // Legacy error element (fallback)
     const errorEl = document.getElementById(fieldId + '-error');
-    if (!field || !errorEl) return true;
     
     let isValid = true;
     let errorMsg = '';
@@ -1228,12 +1368,34 @@ function validateField(fieldId) {
         errorMsg = 'Înmatriculare invalidă';
     }
     
-    if (!isValid) {
-        errorEl.textContent = errorMsg;
-        field.classList.add('error');
-    } else {
-        errorEl.textContent = '';
-        field.classList.remove('error');
+    // Apply design system error state
+    if (tvField) {
+        if (!isValid) {
+            tvField.classList.add('tvField--error');
+            // Add error message if doesn't exist
+            let errorSpan = tvField.querySelector('.tvError');
+            if (!errorSpan) {
+                errorSpan = document.createElement('span');
+                errorSpan.className = 'tvError';
+                tvField.appendChild(errorSpan);
+            }
+            errorSpan.textContent = errorMsg;
+        } else {
+            tvField.classList.remove('tvField--error');
+            const errorSpan = tvField.querySelector('.tvError');
+            if (errorSpan) errorSpan.remove();
+        }
+    }
+    
+    // Legacy error display (fallback for old markup)
+    if (errorEl) {
+        if (!isValid) {
+            errorEl.textContent = errorMsg;
+            field.classList.add('error');
+        } else {
+            errorEl.textContent = '';
+            field.classList.remove('error');
+        }
     }
     
     return isValid;
@@ -1420,21 +1582,11 @@ function renderAppointments() {
     bindAppointmentsClickDelegation();
 }
 
-// Create appointment card HTML
+// Create appointment card HTML - COMPACT HORIZONTAL LAYOUT
 function createAppointmentCard(apt) {
     const aptDate = apt.startAt.toDate();
     const timeDiff = aptDate - new Date();
     const minutesDiff = Math.floor(timeDiff / 60000);
-    
-    // Check reminders
-    let reminderBadge = '';
-    if (apt.status === 'scheduled') {
-        if (minutesDiff <= 30 && minutesDiff > 0) {
-            reminderBadge = `<span class="reminder-badge reminder-soon"><i class="fas fa-bell"></i> În curând (≤30 min)</span>`;
-        } else if (minutesDiff < 0) {
-            reminderBadge = `<span class="reminder-badge reminder-overdue"><i class="fas fa-exclamation-triangle"></i> Întârziat</span>`;
-        }
-    }
     
     // Status badge
     let statusClass = 'status-scheduled';
@@ -1451,33 +1603,25 @@ function createAppointmentCard(apt) {
         statusText = 'Anulat';
     }
     
-    const addressRow = apt.address ? `
-        <div class="detail-row">
-            <i class="fas fa-map-marker-alt"></i>
-            <span>${apt.address}</span>
-        </div>
-    ` : '';
+    // Check if overdue
+    const isOverdue = apt.status === 'scheduled' && minutesDiff < 0;
+    const overdueClass = isOverdue ? 'aptRow--overdue' : '';
     
     const vehicleDisplay = apt.vehicle || apt.car || 'N/A';
+    const regPlate = apt.regPlate || apt.registration || 'N/A';
+    const mileage = apt.mileage ? ` • ${apt.mileage} km` : '';
+    const location = apt.address ? apt.address.substring(0, 40) + (apt.address.length > 40 ? '...' : '') : 'N/A';
     
-    // Problem/job details (if available from new form)
-    const problemRow = apt.problemDescription ? `
-        <div class="detail-row">
-            <i class="fas fa-clipboard"></i>
-            <span><strong>Problemă:</strong> ${apt.problemDescription.substring(0, 80)}...</span>
-        </div>
-    ` : '';
+    // Full details for collapsible section
+    const fullAddress = apt.address || 'N/A';
+    const problemText = apt.problemDescription || apt.problem || 'N/A';
+    const notesText = apt.notes || 'N/A';
     
-    const notesRow = apt.problemDescription || apt.notes ? `
-        <div class="detail-row">
-            <i class="fas fa-sticky-note"></i>
-            <span>${apt.problemDescription || apt.notes}</span>
-        </div>
-    ` : '';
+    const hasDetails = apt.address || apt.problemDescription || apt.problem || apt.notes;
     
     // Butoane de acțiune (mobile-first layout) per tab
     const actionsHTML = apt.status !== 'canceled' ? `
-        <div class="appointment-actions">
+        <div class="aptRow__actions">
             ${activeAppointmentsTab === 'scheduled' ? `
                 <button class="apt-btn apt-btn-finalize" data-action="finalize" data-apt-id="${apt.id}" aria-label="Finalizează programarea">
                     <i class="fas fa-check-circle"></i>
@@ -1496,6 +1640,10 @@ function createAppointmentCard(apt) {
                     <span>Invoice</span>
                 </button>
             ` : ''}
+            <button class="apt-btn apt-btn-edit" data-action="edit" data-apt-id="${apt.id}" aria-label="Editează programarea">
+                <i class="fas fa-edit"></i>
+                <span>Editează</span>
+            </button>
             <button class="apt-btn apt-btn-delete" data-action="delete" data-apt-id="${apt.id}" aria-label="Șterge programarea">
                 <i class="fas fa-trash-alt"></i>
                 <span>Șterge</span>
@@ -1504,28 +1652,60 @@ function createAppointmentCard(apt) {
     ` : '';
     
     return `
-        <div class="appointment-card">
-            <div class="appointment-header">
-                <div>
-                    <div class="appointment-title">${apt.customerName}</div>
-                    ${apt.time ? `<div class="appointment-time"><i class="fas fa-clock"></i> ${apt.time}</div>` : ''}
+        <div class="aptRow ${overdueClass}" data-apt-id="${apt.id}">
+            <div class="aptRow__header">
+                <div class="aptRow__client">
+                    <strong>${apt.customerName}</strong>
                 </div>
-                <div>
+                <div class="aptRow__badges">
                     <span class="status-badge ${statusClass}">
                         <i class="fas ${statusIcon}"></i> ${statusText}
                     </span>
-                    ${reminderBadge}
+                    ${isOverdue ? `<span class="reminder-badge reminder-overdue"><i class="fas fa-exclamation-triangle"></i> Întârziat</span>` : ''}
                 </div>
             </div>
-            <div class="appointment-details">
-                <div class="detail-row">
+            <div class="aptRow__meta">
+                <div class="aptRow__meta-item">
+                    <i class="fas fa-clock"></i>
+                    <span>${apt.time || 'N/A'}</span>
+                </div>
+                <div class="aptRow__meta-item">
+                    <i class="fas fa-calendar"></i>
+                    <span>${apt.dateStr || aptDate.toLocaleDateString('ro-RO')}</span>
+                </div>
+                <div class="aptRow__meta-item">
                     <i class="fas fa-car"></i>
-                    <span><strong>Mașină:</strong> ${vehicleDisplay}</span>
+                    <span>${vehicleDisplay}</span>
                 </div>
-                ${addressRow}
-                ${problemRow}
-                ${notesRow}
+                <div class="aptRow__meta-item">
+                    <i class="fas fa-hashtag"></i>
+                    <span>${regPlate}${mileage}</span>
+                </div>
+                <div class="aptRow__meta-item aptRow__meta-item--location">
+                    <i class="fas fa-map-marker-alt"></i>
+                    <span>${location}</span>
+                </div>
             </div>
+            ${hasDetails ? `
+                <button class="aptRow__toggleDetails" data-toggle="details" aria-expanded="false">
+                    <i class="fas fa-chevron-down"></i>
+                    <span>Detalii</span>
+                </button>
+                <div class="aptRow__details" hidden>
+                    <div class="aptRow__detail-row">
+                        <strong><i class="fas fa-map-marker-alt"></i> Adresă:</strong>
+                        <span>${fullAddress}</span>
+                    </div>
+                    <div class="aptRow__detail-row">
+                        <strong><i class="fas fa-clipboard"></i> Problemă:</strong>
+                        <span>${problemText}</span>
+                    </div>
+                    <div class="aptRow__detail-row">
+                        <strong><i class="fas fa-sticky-note"></i> Notițe:</strong>
+                        <span>${notesText}</span>
+                    </div>
+                </div>
+            ` : ''}
             ${actionsHTML}
         </div>
     `;
@@ -1539,6 +1719,29 @@ function bindAppointmentsClickDelegation() {
     if (appointmentsClicksBound) return;
 
     container.addEventListener('click', async (e) => {
+        // Handle details toggle
+        const toggleBtn = e.target.closest('[data-toggle="details"]');
+        if (toggleBtn) {
+            e.preventDefault();
+            const row = toggleBtn.closest('.aptRow');
+            const detailsEl = row.querySelector('.aptRow__details');
+            const icon = toggleBtn.querySelector('i');
+            const isExpanded = toggleBtn.getAttribute('aria-expanded') === 'true';
+            
+            if (isExpanded) {
+                detailsEl.hidden = true;
+                toggleBtn.setAttribute('aria-expanded', 'false');
+                icon.classList.remove('fa-chevron-up');
+                icon.classList.add('fa-chevron-down');
+            } else {
+                detailsEl.hidden = false;
+                toggleBtn.setAttribute('aria-expanded', 'true');
+                icon.classList.remove('fa-chevron-down');
+                icon.classList.add('fa-chevron-up');
+            }
+            return;
+        }
+        
         const btn = e.target.closest('button[data-apt-id]');
         if (!btn) return;
 
@@ -1566,7 +1769,7 @@ function bindAppointmentsClickDelegation() {
         }
 
         // Import modal component
-        const { confirmModal, openCustomModal } = await import('./src/shared/modal.js');
+        const { confirmModal, openCustomModal } = await import('./src/modal.js');
         const appointment = appointments.find(a => a.id === id);
 
         // Handle actions
@@ -1585,7 +1788,10 @@ function bindAppointmentsClickDelegation() {
                 e.preventDefault();
                 await handleDeleteAction(id, appointment, confirmModal);
                 break;
-                
+            
+            case 'edit':
+                e.preventDefault();
+                await handleEditAction(id, appointment, openCustomModal);
                 break;
                 
             default:
@@ -1973,6 +2179,264 @@ async function handleDeleteAction(id, appointment, confirmModal) {
         console.error('[Delete] Error:', error);
         showNotification('❌ Eroare la ștergere: ' + error.message, 'error');
     }
+}
+
+/**
+ * Handle edit appointment action
+ */
+async function handleEditAction(id, appointment, openCustomModal) {
+    if (!appointment) {
+        showNotification('Programarea nu a fost găsită', 'error');
+        return;
+    }
+
+    // HTML pentru modal de editare
+    const modalContent = `
+        <form id="editAppointmentForm" class="finalize-form">
+            <div class="form-field">
+                <label for="editCustomerName" class="form-label">
+                    <i class="fas fa-user"></i> Nume Client <span class="required">*</span>
+                </label>
+                <input 
+                    type="text" 
+                    id="editCustomerName" 
+                    class="form-input" 
+                    placeholder="Ex: John Doe" 
+                    required 
+                    value="${appointment.customerName || ''}"
+                    autocomplete="off"
+                />
+            </div>
+            
+            <div class="form-field">
+                <label for="editDate" class="form-label">
+                    <i class="fas fa-calendar"></i> Data <span class="required">*</span>
+                </label>
+                <input 
+                    type="date" 
+                    id="editDate" 
+                    class="form-input" 
+                    required 
+                    value="${appointment.dateStr || ''}"
+                />
+            </div>
+            
+            <div class="form-field">
+                <label for="editTime" class="form-label">
+                    <i class="fas fa-clock"></i> Ora <span class="required">*</span>
+                </label>
+                <input 
+                    type="time" 
+                    id="editTime" 
+                    class="form-input" 
+                    required 
+                    value="${appointment.time || ''}"
+                />
+            </div>
+            
+            <div class="form-field">
+                <label for="editMakeModel" class="form-label">
+                    <i class="fas fa-car"></i> Marca/Model <span class="optional">(opțional)</span>
+                </label>
+                <input 
+                    type="text" 
+                    id="editMakeModel" 
+                    class="form-input" 
+                    placeholder="Ex: OPEL VIVARA" 
+                    autocomplete="off"
+                />
+                <small style="color: #999; margin-top: 4px; display: block;">Vehicle make and model (e.g., OPEL VIVARA)</small>
+            </div>
+            
+            <div class="form-field">
+                <label for="editRegNumber" class="form-label">
+                    <i class="fas fa-hashtag"></i> Nr. Înmatriculare <span class="optional">(opțional)</span>
+                </label>
+                <input 
+                    type="text" 
+                    id="editRegNumber" 
+                    class="form-input" 
+                    placeholder="Ex: BV66HKE" 
+                    autocomplete="off"
+                />
+                <small style="color: #999; margin-top: 4px; display: block;">Registration plate (e.g., BV66HKE)</small>
+            </div>
+            
+            <div class="form-field">
+                <label for="editMileage" class="form-label">
+                    <i class="fas fa-road"></i> Kilometraj
+                </label>
+                <input 
+                    type="number" 
+                    id="editMileage" 
+                    class="form-input" 
+                    placeholder="Ex: 124500" 
+                    min="0" 
+                    step="1" 
+                    value="${appointment.mileage || ''}"
+                    autocomplete="off"
+                />
+            </div>
+            
+            <div class="form-field">
+                <label for="editAddress" class="form-label">
+                    <i class="fas fa-map-marker-alt"></i> Adresă / Locație
+                </label>
+                <input 
+                    type="text" 
+                    id="editAddress" 
+                    class="form-input" 
+                    placeholder="Ex: 123 Main Street, London" 
+                    value="${appointment.address || ''}"
+                    autocomplete="off"
+                />
+            </div>
+            
+            <div class="form-field">
+                <label for="editProblem" class="form-label">
+                    <i class="fas fa-clipboard"></i> Problemă / Serviciu Solicitat
+                </label>
+                <textarea 
+                    id="editProblem" 
+                    class="form-input" 
+                    placeholder="Descrierea problemei sau serviciului solicitat..."
+                    rows="3"
+                >${appointment.problemDescription || appointment.problem || ''}</textarea>
+            </div>
+            
+            <div class="form-field">
+                <label for="editNotes" class="form-label">
+                    <i class="fas fa-sticky-note"></i> Notițe
+                </label>
+                <textarea 
+                    id="editNotes" 
+                    class="form-input" 
+                    placeholder="Notițe adiționale..."
+                    rows="2"
+                >${appointment.notes || ''}</textarea>
+            </div>
+            
+            <div class="form-field">
+                <label for="editStatus" class="form-label">
+                    <i class="fas fa-info-circle"></i> Status
+                </label>
+                <select id="editStatus" class="form-input">
+                    <option value="scheduled" ${appointment.status === 'scheduled' ? 'selected' : ''}>Programat</option>
+                    <option value="done" ${appointment.status === 'done' ? 'selected' : ''}>Finalizat</option>
+                    <option value="canceled" ${appointment.status === 'canceled' ? 'selected' : ''}>Anulat</option>
+                </select>
+            </div>
+            
+            <div class="modal-footer-actions">
+                <button type="button" class="modal-btn modal-btn-cancel" id="editCancelBtn">
+                    Anulează
+                </button>
+                <button type="submit" class="modal-btn modal-btn-success">
+                    <i class="fas fa-save"></i> Salvează Modificările
+                </button>
+            </div>
+        </form>
+    `;
+
+    const { panel, close } = openCustomModal({
+        title: `Editează: ${appointment.customerName}`,
+        content: modalContent,
+        size: 'large'
+    });
+
+    const form = panel.querySelector('#editAppointmentForm');
+    const cancelBtn = panel.querySelector('#editCancelBtn');
+    
+    // Prefill vehicle and registration by parsing the combined string
+    const vehicleData = splitVehicleAndReg(
+        appointment.vehicle || appointment.makeModel || appointment.car || ''
+    );
+    const editMakeModelInput = panel.querySelector('#editMakeModel');
+    const editRegNumberInput = panel.querySelector('#editRegNumber');
+    
+    if (editMakeModelInput) {
+        editMakeModelInput.value = vehicleData.vehicleMakeModel;
+    }
+    if (editRegNumberInput) {
+        editRegNumberInput.value = vehicleData.regPlate;
+    }
+
+    // Cancel
+    cancelBtn.addEventListener('click', () => close(false));
+
+    // Submit form
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        // Collect form data
+        const customerName = panel.querySelector('#editCustomerName').value.trim();
+        const date = panel.querySelector('#editDate').value;
+        const time = panel.querySelector('#editTime').value;
+        const makeModel = panel.querySelector('#editMakeModel').value.trim();
+        const regNumber = panel.querySelector('#editRegNumber').value.trim();
+        const mileage = panel.querySelector('#editMileage').value;
+        const address = panel.querySelector('#editAddress').value.trim();
+        const problem = panel.querySelector('#editProblem').value.trim();
+        const notes = panel.querySelector('#editNotes').value.trim();
+        const status = panel.querySelector('#editStatus').value;
+        
+        // Validate
+        if (!customerName || !date || !time) {
+            showNotification('⚠️ Nume client, dată și oră sunt obligatorii', 'warning');
+            return;
+        }
+        
+        try {
+            // Create update object
+            const updateData = {
+                customerName,
+                dateStr: date,
+                time,
+                status
+            };
+            
+            // Add vehicle fields - store as separate fields for consistency
+            if (makeModel) updateData.makeModel = makeModel;
+            if (regNumber) updateData.regNumber = regNumber;
+            
+            // Also update the combined 'vehicle' field for display compatibility
+            if (makeModel || regNumber) {
+                updateData.vehicle = makeModel + (regNumber ? ` (${regNumber})` : '');
+            }
+            
+            if (mileage) updateData.mileage = parseInt(mileage);
+            if (address) updateData.address = address;
+            if (problem) updateData.problemDescription = problem;
+            if (notes) updateData.notes = notes;
+            
+            // Update startAt timestamp
+            const dateTime = new Date(`${date}T${time}`);
+            const { Timestamp } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+            updateData.startAt = Timestamp.fromDate(dateTime);
+            
+            // Update Firestore
+            const { doc, updateDoc } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+            await updateDoc(doc(db, 'appointments', id), updateData);
+            
+            // Update local appointment object
+            Object.assign(appointment, updateData);
+            
+            // Update the DOM row in place
+            const row = document.querySelector(`.aptRow[data-apt-id="${id}"]`);
+            if (row) {
+                const newHTML = createAppointmentCard(appointment);
+                const temp = document.createElement('div');
+                temp.innerHTML = newHTML;
+                row.replaceWith(temp.firstElementChild);
+            }
+            
+            close(false);
+            showNotification('✅ Programare actualizată cu succes', 'success');
+        } catch (error) {
+            console.error('[Edit] Error:', error);
+            showNotification('❌ Eroare la actualizare: ' + error.message, 'error');
+        }
+    });
 }
 
 // Export appointments to CSV

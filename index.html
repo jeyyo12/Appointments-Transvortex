@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Manager Pagini Facebook - Transvortex LTD</title>
     <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="styles/design-system.css">
     <link rel="stylesheet" href="styles/modal.css">
     <link rel="stylesheet" href="styles/appointments.css">
     <link rel="stylesheet" href="styles/appointment-form.css">
@@ -539,7 +540,7 @@
             <div class="header-wrapper">
                 <div class="logo-container">
                     <div class="logo-glow"></div>
-                    <img src="Images/Logo.png" alt="Transvortex LTD Logo" class="logo-large">
+                    <img src="assets/images/Logo.png" alt="Transvortex LTD Logo" class="logo-large">
                 </div>
                 <div class="header-content">
                     <div class="title-wrapper">
@@ -668,24 +669,56 @@
             <!-- TAB 2: PROGRAMĂRI -->
             <!-- ============================================ -->
             <div id="appointmentsTab" class="tab-content" style="display: none;">
-                <!-- Formular adăugare programare (ADMIN ONLY) -->
-                <section class="add-appointment-section" data-admin-only>
-                    <div class="add-appointment-header">
-                        <h2><i class="fas fa-calendar-plus"></i> Adaugă Programare Nouă</h2>
-                        <p class="subtitle">Completează formularul pentru a programa o nouă reparație</p>
+                <!-- Dashboard Stats -->
+                <div class="tvStats">
+                    <div class="tvStatCard">
+                        <i class="fas fa-calendar"></i>
+                        <div class="tvStatCard__content">
+                            <h3 id="totalAppointments">0</h3>
+                            <p>Total Programări</p>
+                        </div>
                     </div>
-                    
-                    <form id="appointmentForm" class="modern-appointment-form">
-                        <!-- SINGLE UNIFIED CONTAINER: All fields in one card -->
-                        <div class="form-container">
+                    <div class="tvStatCard">
+                        <i class="fas fa-calendar-day"></i>
+                        <div class="tvStatCard__content">
+                            <h3 id="todayAppointments">0</h3>
+                            <p>Astăzi</p>
+                        </div>
+                    </div>
+                    <div class="tvStatCard">
+                        <i class="fas fa-calendar-week"></i>
+                        <div class="tvStatCard__content">
+                            <h3 id="upcomingAppointments">0</h3>
+                            <p>Următoarele</p>
+                        </div>
+                    </div>
+                    <div class="tvStatCard">
+                        <i class="fas fa-check-circle"></i>
+                        <div class="tvStatCard__content">
+                            <h3 id="doneAppointments">0</h3>
+                            <p>Finalizate</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Two-column layout: Form + List -->
+                <div class="tvDashboard tvDashboard--twocol">
+                    <!-- LEFT: Add Appointment Form -->
+                    <section class="tvCard tvCard--compact tvCard--accent tvCard--sticky" data-admin-only>
+                        <div class="tvCardHeader">
+                            <div>
+                                <h2><i class="fas fa-calendar-plus"></i> Adaugă Programare Nouă</h2>
+                                <p>Completează formularul pentru a programa o nouă reparație</p>
+                            </div>
+                        </div>
                         
-                            <!-- RÂNDUL 1: Client, Vehicul, Locație pe 3 coloane -->
-                            <div class="top-row-grid">
-                                <!-- COLOANA 1: CLIENT -->
-                                <div class="column-section">
-                                    <h3 class="section-subtitle"><i class="fas fa-user"></i> Client</h3>
-                                    <div class="form-group">
-                                        <label for="customerName">Nume <span class="req">*</span></label>
+                        <form id="appointmentForm" class="tvGrid">
+                            <!-- Client Info -->
+                            <div class="tvCardSection">
+                                <h3 class="tvCardSection__title"><i class="fas fa-user"></i> Client</h3>
+                                <div class="tvGrid tvGrid--2col">
+                                    <div class="tvField">
+                                        <label for="customerName" class="tvLabel tvLabel--required">Nume</label>
                                         <input 
                                             type="text" 
                                             id="customerName" 
@@ -693,13 +726,13 @@
                                             autocomplete="name" 
                                             placeholder="ex: Ion Popescu" 
                                             required 
-                                            class="form-input"
+                                            class="tvInput"
                                         />
-                                        <span class="error-message" id="customerName-error"></span>
+                                        <span class="tvField__error" id="customerName-error">Numele este obligatoriu</span>
                                     </div>
                                     
-                                    <div class="form-group">
-                                        <label for="customerPhone">Telefon <span class="req">*</span></label>
+                                    <div class="tvField">
+                                        <label for="customerPhone" class="tvLabel tvLabel--required">Telefon</label>
                                         <input 
                                             type="tel" 
                                             id="customerPhone" 
@@ -707,263 +740,250 @@
                                             autocomplete="tel" 
                                             placeholder="ex: +40 750 123 456" 
                                             required 
-                                            class="form-input"
+                                            class="tvInput"
                                         />
-                                        <span class="error-message" id="customerPhone-error"></span>
+                                        <span class="tvField__error" id="customerPhone-error">Telefonul este obligatoriu</span>
                                     </div>
                                 </div>
+                            </div>
 
-                                <!-- COLOANA 2: VEHICUL -->
-                                <div class="column-section">
-                                    <h3 class="section-subtitle"><i class="fas fa-car"></i> Vehicul</h3>
-                                    <div class="form-group">
-                                        <label for="makeModel">Marca/Model <span class="req">*</span></label>
+                            <!-- Vehicle Info -->
+                            <div class="tvCardSection">
+                                <h3 class="tvCardSection__title"><i class="fas fa-car"></i> Vehicul</h3>
+                                <div class="tvGrid tvGrid--2col">
+                                    <div class="tvField">
+                                        <label for="makeModel" class="tvLabel tvLabel--required">Marca/Model</label>
                                         <input 
                                             type="text" 
                                             id="makeModel" 
                                             name="makeModel" 
                                             placeholder="ex: Dacia Logan" 
                                             required 
-                                            class="form-input text-uppercase"
+                                            class="tvInput"
                                             autocomplete="off"
                                         />
-                                        <span class="error-message" id="makeModel-error"></span>
+                                        <span class="tvField__error" id="makeModel-error">Marca/Model este obligatoriu</span>
                                     </div>
                                     
-                                    <div class="form-group">
-                                        <label for="regNumber">Înmatr. <span class="req">*</span></label>
+                                    <div class="tvField">
+                                        <label for="regNumber" class="tvLabel tvLabel--required">Nr. Înmatriculare</label>
                                         <input 
                                             type="text" 
                                             id="regNumber" 
                                             name="regNumber" 
                                             placeholder="ex: AB-12-XYZ" 
                                             required 
-                                            class="form-input text-uppercase"
+                                            class="tvInput"
                                             autocomplete="off"
-                                            maxlength="8"
+                                            maxlength="10"
                                         />
-                                        <span class="error-message" id="regNumber-error"></span>
+                                        <span class="tvField__error" id="regNumber-error">Nr. înmatriculare este obligatoriu</span>
                                     </div>
                                 </div>
+                            </div>
 
-                                <!-- COLOANA 3: LOCAȚIE -->
-                                <div class="column-section">
-                                    <h3 class="section-subtitle"><i class="fas fa-map-marker-alt"></i> Locație</h3>
-                                    <div class="form-group">
-                                        <label for="serviceLocation">Tip <span class="req">*</span></label>
-                                        <select id="serviceLocation" name="serviceLocation" required class="form-input">
+                            <!-- Service Details -->
+                            <div class="tvCardSection">
+                                <h3 class="tvCardSection__title"><i class="fas fa-calendar-alt"></i> Data & Ora</h3>
+                                <div class="tvGrid tvGrid--2col">
+                                    <div class="tvField">
+                                        <label for="appointmentDate" class="tvLabel tvLabel--required">Data</label>
+                                        <div class="tvInputWrap">
+                                            <i class="fas fa-calendar-alt tvInputWrap__icon"></i>
+                                            <input 
+                                                id="appointmentDate" 
+                                                name="appointmentDate" 
+                                                type="date" 
+                                                autocomplete="off" 
+                                                required 
+                                                class="tvInput"
+                                            />
+                                        </div>
+                                        <span class="tvField__error" id="appointmentDate-error">Data este obligatorie</span>
+                                    </div>
+                                    
+                                    <div class="tvField">
+                                        <label for="appointmentTime" class="tvLabel tvLabel--required">Ora</label>
+                                        <div class="tvInputWrap">
+                                            <i class="fas fa-clock tvInputWrap__icon"></i>
+                                            <input 
+                                                id="appointmentTime" 
+                                                type="text" 
+                                                readonly 
+                                                placeholder="Selectează ora" 
+                                                autocomplete="off" 
+                                                required 
+                                                class="tvInput"
+                                            />
+                                            <input id="appointmentTimeValue" type="hidden" name="time" />
+                                        </div>
+                                        <span class="tvField__error" id="appointmentTime-error">Ora este obligatorie</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Location -->
+                            <div class="tvCardSection">
+                                <h3 class="tvCardSection__title"><i class="fas fa-map-marker-alt"></i> Locație</h3>
+                                <div class="tvGrid tvGrid--2col">
+                                    <div class="tvField">
+                                        <label for="serviceLocation" class="tvLabel tvLabel--required">Tip Serviciu</label>
+                                        <select id="serviceLocation" name="serviceLocation" required class="tvSelect">
                                             <option value="">Selectează...</option>
                                             <option value="garage">La garaj</option>
                                             <option value="client">La client</option>
                                         </select>
-                                        <span class="error-message" id="serviceLocation-error"></span>
+                                        <span class="tvField__error" id="serviceLocation-error">Tipul este obligatoriu</span>
                                     </div>
                                     
-                                    <div class="form-group">
-                                        <label for="contactPref">Contact <span class="req">*</span></label>
-                                        <select id="contactPref" name="contactPref" required class="form-input">
+                                    <div class="tvField">
+                                        <label for="contactPref" class="tvLabel tvLabel--required">Preferință Contact</label>
+                                        <select id="contactPref" name="contactPref" required class="tvSelect">
                                             <option value="">Selectează...</option>
                                             <option value="phone">Telefon</option>
                                             <option value="sms">SMS</option>
                                             <option value="whatsapp">WhatsApp</option>
                                             <option value="email">Email</option>
                                         </select>
-                                        <span class="error-message" id="contactPref-error"></span>
+                                        <span class="tvField__error" id="contactPref-error">Preferința este obligatorie</span>
+                                    </div>
+                                </div>
+
+                                <!-- Garage Address (hidden initially) -->
+                                <div id="garageAddressSection" style="display: none; margin-top: var(--tv-gap-md);">
+                                    <div class="tvField">
+                                        <label class="tvLabel">Adresa Garajului</label>
+                                        <div style="display: flex; align-items: center; gap: var(--tv-gap-sm); padding: var(--tv-padding-sm); background: var(--tv-bg-hover); border-radius: var(--tv-radius-sm); border: 1px solid var(--tv-border);">
+                                            <i class="fas fa-building" style="color: var(--tv-primary);"></i>
+                                            <span style="font-size: var(--tv-font-sm); color: var(--tv-text-secondary);">TransvortexLTD Mobile Mechanic, 81 Foley Rd, Birmingham B8 2JT</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Client Address (hidden initially) -->
+                                <div id="clientAddressSection" style="display: none; margin-top: var(--tv-gap-md);">
+                                    <div class="tvGrid tvGrid--2col">
+                                        <div class="tvField">
+                                            <label for="address" class="tvLabel tvLabel--required">Adresă</label>
+                                            <input 
+                                                type="text" 
+                                                id="address" 
+                                                name="address" 
+                                                placeholder="ex: Str. Principală nr. 10, Birmingham" 
+                                                class="tvInput"
+                                                autocomplete="street-address"
+                                            />
+                                            <span class="tvField__error" id="address-error">Adresa este obligatorie</span>
+                                        </div>
+                                        
+                                        <div class="tvField">
+                                            <label for="postcode" class="tvLabel tvLabel--required">Cod Poștal</label>
+                                            <input 
+                                                type="text" 
+                                                id="postcode" 
+                                                name="postcode" 
+                                                placeholder="ex: E1 6AN" 
+                                                class="tvInput"
+                                                autocomplete="postal-code"
+                                            />
+                                            <span class="tvField__error" id="postcode-error">Codul poștal este obligatoriu</span>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
 
-                            <!-- ADRESĂ GARAJ (ascunsă inițial) -->
-                            <div id="garageAddressSection" style="display: none;">
-                                <div class="form-group">
-                                    <label>Garaj</label>
-                                    <div class="readonly-field">
-                                        <i class="fas fa-building"></i>
-                                        <span>TransvortexLTD Mobile Mechanic, 81 Foley Rd, Birmingham B8 2JT</span>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- ADRESĂ CLIENT (ascunsă inițial) -->
-                            <div id="clientAddressSection" style="display: none;">
-                                <div class="address-grid">
-                                    <div class="form-group">
-                                        <label for="address">Adresă <span class="req">*</span></label>
-                                        <input 
-                                            type="text" 
-                                            id="address" 
-                                            name="address" 
-                                            placeholder="ex: Str. Principală nr. 10, Birmingham" 
-                                            class="form-input"
-                                            autocomplete="street-address"
-                                        />
-                                        <span class="error-message" id="address-error"></span>
-                                    </div>
-                                    
-                                    <div class="form-group">
-                                        <label for="postcode">Cod Poștal <span class="req">*</span></label>
-                                        <input 
-                                            type="text" 
-                                            id="postcode" 
-                                            name="postcode" 
-                                            placeholder="ex: E1 6AN" 
-                                            class="form-input"
-                                            autocomplete="postal-code"
-                                        />
-                                        <span class="error-message" id="postcode-error"></span>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- SECTION 4: SERVICIU - Layout pe 2 coloane -->
-                            <h3 class="section-subtitle"><i class="fas fa-wrench"></i> Serviciu</h3>
-                            <div class="service-grid">
-                                <!-- RÂND 1: Data, Ora -->
-                                <div class="form-group">
-                                    <label for="appointmentDate">Data <span class="req">*</span></label>
-                                    <div class="input-wrap" id="dateWrap">
-                                        <span class="input-icon"><i class="fas fa-calendar-alt"></i></span>
-                                        <input 
-                                            id="appointmentDate" 
-                                            name="appointmentDate" 
-                                            type="date" 
-                                            autocomplete="off" 
-                                            required 
-                                            class="form-input"
-                                        />
-                                    </div>
-                                    <span class="error-message" id="appointmentDate-error"></span>
-                                </div>
-                                
-                                <div class="form-group">
-                                    <label for="appointmentTime">Ora <span class="req">*</span></label>
-                                    <div class="input-wrap time-input-wrapper" id="timeInputWrapper">
-                                        <span class="input-icon"><i class="fas fa-clock"></i></span>
-                                        <input 
-                                            id="appointmentTime" 
-                                            type="text" 
-                                            readonly 
-                                            placeholder="Selectează ora" 
-                                            autocomplete="off" 
-                                            required 
-                                            class="form-input"
-                                        />
-                                        <input id="appointmentTimeValue" type="hidden" name="time" />
-                                    </div>
-                                    <span class="error-message" id="appointmentTime-error"></span>
-                                </div>
-                                
-                                <!-- RÂND 2: Problemă (full width) -->
-                                <div class="form-group problem-full-width">
-                                    <label for="problemDescription">Problemă <span class="req">*</span></label>
+                            <!-- Problem Description -->
+                            <div class="tvCardSection">
+                                <h3 class="tvCardSection__title"><i class="fas fa-wrench"></i> Detalii Serviciu</h3>
+                                <div class="tvField">
+                                    <label for="problemDescription" class="tvLabel tvLabel--required">Problemă</label>
                                     <textarea 
                                         id="problemDescription" 
                                         name="problemDescription" 
-                                        placeholder="Descrie problema..." 
-                                        rows="2"
+                                        placeholder="Descrie problema sau serviciul solicitat..." 
+                                        rows="3"
                                         required 
-                                        class="form-input"
+                                        class="tvTextarea"
                                     ></textarea>
-                                    <span class="error-message" id="problemDescription-error"></span>
+                                    <span class="tvField__error" id="problemDescription-error">Descrierea problemei este obligatorie</span>
+                                </div>
+
+                                <div class="tvField">
+                                    <label for="notes" class="tvLabel">Notițe Adiționale</label>
+                                    <textarea 
+                                        id="notes" 
+                                        name="notes" 
+                                        placeholder="Notițe sau cerințe speciale (opțional)..." 
+                                        rows="2"
+                                        class="tvTextarea"
+                                    ></textarea>
+                                    <span class="tvField__hint">Acest câmp este opțional</span>
                                 </div>
                             </div>
-                        
-                        </div><!-- END form-container -->
 
-                        <!-- BUTON SUBMIT -->
-                        <div class="form-actions">
-                            <button type="submit" class="btn-submit" id="submitAppointmentBtn">
-                                <i class="fas fa-plus"></i> Adaugă Programare
+                            <!-- Submit Button -->
+                            <button type="submit" class="tvBtn tvBtn--primary tvBtn--full tvBtn--sticky" id="submitAppointmentBtn">
+                                <i class="fas fa-plus"></i> Salvează Programarea
                             </button>
-                            <p class="form-hint"><span class="req">*</span> Câmpuri obligatorii</p>
-                        </div>
-                    </form>
-                </section>
+                        </form>
+                    </section>
 
-                <!-- Statistici și filtre -->
-                <section class="stats-section">
-                    <div class="stat-card" id="totalAppointmentsCard">
-                        <i class="fas fa-calendar"></i>
-                        <div class="stat-content">
-                            <h3 id="totalAppointments">0</h3>
-                            <p>Total Programări</p>
+                    <!-- RIGHT: Appointments List -->
+                    <section class="tvCard tvCard--compact">
+                        <div class="tvCardHeader">
+                            <div style="flex: 1;">
+                                <h2><i class="fas fa-list-ul"></i> Programările Mele</h2>
+                            </div>
+                            <button id="refreshAppointmentsButton" class="tvBtn tvBtn--secondary tvBtn--sm" onclick="handleRefreshAppointments()" title="Reîncarcă programările">
+                                <i class="fas fa-sync-alt"></i> <span class="tvHideMobile">Refresh</span>
+                            </button>
                         </div>
-                    </div>
-                    <div class="stat-card">
-                        <i class="fas fa-calendar-day"></i>
-                        <div class="stat-content">
-                            <h3 id="todayAppointments">0</h3>
-                            <p>Astăzi</p>
-                        </div>
-                    </div>
-                    <div class="stat-card">
-                        <i class="fas fa-calendar-week"></i>
-                        <div class="stat-content">
-                            <h3 id="upcomingAppointments">0</h3>
-                            <p>Următoarele</p>
-                        </div>
-                    </div>
-                    <div class="stat-card" id="doneAppointmentsCard">
-                        <i class="fas fa-check-circle"></i>
-                        <div class="stat-content">
-                            <h3 id="doneAppointments">0</h3>
-                            <p>Finalizate</p>
-                        </div>
-                    </div>
-                </section>
 
-                <!-- Filtre și Search -->
-                <section class="filters-section">
-                    <div class="appointments-tabs" id="appointmentsTabs">
-                        <button class="tab-btn" data-apt-tab="scheduled">
-                            Programate <span class="tab-count" id="tabCountScheduled">0</span>
-                        </button>
-                        <button class="tab-btn" data-apt-tab="finalized">
-                            Finalizate <span class="tab-count" id="tabCountFinalized">0</span>
-                        </button>
-                    </div>
-                    <div class="filters-wrapper">
-                        <div class="filter-group">
-                            <label for="filterStatus">Filtrează:</label>
-                            <select id="filterStatus" onchange="filterAppointments()">
-                                <option value="all">Toate</option>
-                                <option value="today">Astăzi</option>
-                                <option value="upcoming">Următoarele</option>
-                                <option value="scheduled">Programate</option>
-                                <option value="done">Finalizate</option>
-                                <option value="canceled">Anulate</option>
-                                <option value="overdue">Întârziate</option>
-                            </select>
+                        <!-- Tabs -->
+                        <div class="appointments-tabs" id="appointmentsTabs" style="margin-bottom: var(--tv-gap-md);">
+                            <button class="tab-btn" data-apt-tab="scheduled">
+                                Programate <span class="tab-count" id="tabCountScheduled">0</span>
+                            </button>
+                            <button class="tab-btn" data-apt-tab="finalized">
+                                Finalizate <span class="tab-count" id="tabCountFinalized">0</span>
+                            </button>
                         </div>
-                        <div class="filter-group">
-                            <label for="searchAppointments">Caută:</label>
-                            <input type="text" id="searchAppointments" placeholder="Nume client sau mașină..." oninput="filterAppointments()">
+
+                        <!-- Filters -->
+                        <div class="filters-wrapper" style="margin-bottom: var(--tv-gap-lg);">
+                            <div class="filter-group">
+                                <label for="filterStatus">Filtrează:</label>
+                                <select id="filterStatus" onchange="filterAppointments()">
+                                    <option value="all">Toate</option>
+                                    <option value="today">Astăzi</option>
+                                    <option value="upcoming">Următoarele</option>
+                                    <option value="scheduled">Programate</option>
+                                    <option value="done">Finalizate</option>
+                                    <option value="canceled">Anulate</option>
+                                    <option value="overdue">Întârziate</option>
+                                </select>
+                            </div>
+                            <div class="filter-group">
+                                <label for="searchAppointments">Caută:</label>
+                                <input type="text" id="searchAppointments" placeholder="Nume client sau mașină..." oninput="filterAppointments()">
+                            </div>
+                            <button class="btn-export" onclick="exportAppointmentsCSV()">
+                                <i class="fas fa-file-csv"></i> <span class="tvHideMobile">Export</span>
+                            </button>
                         </div>
-                        <button class="btn-export" onclick="exportAppointmentsCSV()">
-                            <i class="fas fa-file-csv"></i> Export CSV
-                        </button>
-                    </div>
-                </section>
 
-                <!-- Lista de programări -->
-                <section class="appointments-section">
-                    <div class="section-header">
-                        <h2><i class="fas fa-list-ul"></i> Programările Mele</h2>
-                        <button id="refreshAppointmentsButton" class="btn-refresh" onclick="handleRefreshAppointments()" title="Reîncarcă programările">
-                            <i class="fas fa-sync-alt"></i> Refresh
-                        </button>
-                    </div>
-                    
-                    <div id="appointmentsList">
-                        <!-- Programările vor fi adăugate dinamic aici grupate pe zile -->
-                    </div>
+                        <!-- Appointments List -->
+                        <div id="appointmentsList">
+                            <!-- Programările vor fi adăugate dinamic aici grupate pe zile -->
+                        </div>
 
-                    <div id="emptyStateAppointments" class="empty-state">
-                        <i class="fas fa-calendar-times"></i>
-                        <h3>Nicio programare adăugată încă</h3>
-                        <p>Adaugă prima ta programare folosind formularul de mai sus.</p>
-                    </div>
-                </section>
+                        <div id="emptyStateAppointments" class="empty-state">
+                            <i class="fas fa-calendar-times"></i>
+                            <h3>Nicio programare adăugată încă</h3>
+                            <p>Adaugă prima ta programare folosind formularul din stânga.</p>
+                        </div>
+                    </section>
+                </div>
             </div>
         </main>
 
@@ -971,8 +991,6 @@
             <p>&copy; 2026 Transvortex LTD. Toate drepturile rezervate.</p>
         </footer>
     </div>
-
-    <!-- Deleted: jsPDF script - removed per user request -->
 
     <!-- ===== Modal: List Appointments (All / Done) ===== -->
     <div id="appointmentsModal" class="modal-backdrop" style="display:none;">

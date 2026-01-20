@@ -1551,11 +1551,25 @@ footer p {
         border: 1px solid var(--border-subtle);
 }
 
+/* Make tabs sticky on mobile for easy access */
+@media (max-width: 768px) {
+    .appointments-tabs {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        background: white;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        width: 100%;
+        justify-content: center;
+        margin-bottom: 1rem;
+    }
+}
+
 .appointments-tabs .tab-btn {
         border: none;
         background: transparent;
         color: var(--text-secondary);
-        padding: 0.55rem 0.95rem;
+        padding: clamp(0.5rem, 1.5vw, 0.55rem) clamp(0.8rem, 2.5vw, 0.95rem);
         border-radius: var(--radius-md);
         font-weight: 600;
         cursor: pointer;
@@ -1563,6 +1577,8 @@ footer p {
         display: inline-flex;
         align-items: center;
         gap: 0.4rem;
+        font-size: clamp(0.85rem, 1.2vw, 0.95rem);
+        min-height: 44px; /* Touch target size */
 }
 
 .appointments-tabs .tab-btn .tab-count {
@@ -1570,7 +1586,7 @@ footer p {
         color: var(--primary);
         padding: 0.15rem 0.5rem;
         border-radius: 999px;
-        font-size: 0.85rem;
+        font-size: clamp(0.75rem, 1.1vw, 0.85rem);
         font-weight: 700;
 }
 
