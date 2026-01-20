@@ -15,16 +15,16 @@
   --font-xl: clamp(1rem, 1.6vw, 1.2rem);
   --section-gap: clamp(0.75rem, 1.5vw, 1.25rem);
   --section-padding: clamp(0.75rem, 1.5vw, 1.2rem);
-  --accent-orange: #ff9500;
-  --accent-orange-dark: #e68900;
-  --accent-orange-light: #ffb033;
-  /* Cinematic palette */
-  --text-graphite: #2a2a2f;
-  --text-anthracite: #1f1f23;
-  --label-warm-gray: #6b6f76;
-  --accent-steel-blue: #2f4f5f;
-  --success-green: #3fae7f;
-  --error-red: #b33a3a;
+  --accent-orange: #FF7A18;
+  --accent-orange-dark: #FF6B02;
+  --accent-orange-light: #FF9A3D;
+  /* Modern palette */
+  --text-graphite: #0F172A;
+  --text-anthracite: #1A1F35;
+  --label-warm-gray: #475569;
+  --accent-steel-blue: #0369A1;
+  --success-green: #34D399;
+  --error-red: #EF4444;
   --icon-size: clamp(0.9rem, 1.2vw, 1.05rem);
   --border-radius: 0.5rem;
   --transition: 0.25s ease;
@@ -34,7 +34,8 @@
 /* ===== MAIN SECTION STYLING ===== */
 .add-appointment-section {
   padding: clamp(0.75rem, 2vw, 1.2rem);
-  background: linear-gradient(135deg, #f9f7f4 0%, #faf8f6 100%);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.6) 0%, rgba(255, 255, 255, 0.4) 100%);
+  backdrop-filter: blur(10px);
   border-radius: var(--border-radius);
   margin-bottom: var(--section-gap);
   max-width: var(--max-form-width);
@@ -552,9 +553,9 @@ select.form-input {
   }
   
   .form-section {
-    background: #1a1a1a;
-    border-left-color: var(--accent-orange-light);
-    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+    background: var(--surface-solid);
+    border-left-color: var(--accent-orange);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
   }
   
   .section-title {

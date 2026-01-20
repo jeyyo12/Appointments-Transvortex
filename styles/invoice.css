@@ -1,18 +1,18 @@
 /* ===== INVOICE STYLES ===== */
 :root {
-    --color-primary: #ff9500;
-    --color-dark: #1f1f23;
-    --color-graphite: #2a2a2f;
-    --color-grey: #6b6f76;
-    --color-light-grey: #f5f5f5;
-    --color-border: #e0e0e0;
-    --color-text: #333;
-    --color-success: #3fae7f;
-    --color-error: #b33a3a;
+    --color-primary: #FF7A18;
+    --color-dark: #0F172A;
+    --color-graphite: #1A1F35;
+    --color-grey: #475569;
+    --color-light-grey: #F0F4F8;
+    --color-border: #E2E8F0;
+    --color-text: #0F172A;
+    --color-success: #34D399;
+    --color-error: #EF4444;
     --spacing-unit: 0.5rem;
     --border-radius: 0.375rem;
-    --shadow-subtle: 0 1px 3px rgba(0, 0, 0, 0.08);
-    --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.12);
+    --shadow-subtle: 0 1px 3px rgba(0, 0, 0, 0.05);
+    --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
 * {
@@ -28,17 +28,19 @@ body {
     font-size: clamp(0.875rem, 1vw, 1rem);
     line-height: 1.6;
     color: var(--color-text);
-    background-color: #fafafa;
+    background-color: #F7F8FB;
 }
 
 /* ===== CONTROLS BAR (hidden in print) ===== */
 .controls-bar {
     position: sticky;
     top: 0;
-    background: linear-gradient(135deg, var(--color-dark) 0%, var(--color-graphite) 100%);
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.6) 0%, rgba(255, 255, 255, 0.4) 100%);
+    backdrop-filter: blur(10px);
     padding: 1rem;
     box-shadow: var(--shadow-card);
     z-index: 1000;
+    border-bottom: 1px solid var(--color-border);
 }
 
 .controls-container {
@@ -67,9 +69,9 @@ body {
 }
 
 .btn-primary:hover:not(:disabled) {
-    background-color: #ff8400;
+    background-color: #FF9A3D;
     transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(255, 149, 0, 0.3);
+    box-shadow: 0 4px 12px rgba(255, 122, 24, 0.25);
 }
 
 .btn-primary:disabled {

@@ -22,27 +22,27 @@
   --tv-font-title: clamp(1rem, 1.5vw, 1.15rem);
   
   /* Colors */
-  --tv-primary: #ff9500;
-  --tv-primary-dark: #e68900;
-  --tv-primary-light: #ffb033;
-  --tv-text-primary: #1f2937;
-  --tv-text-secondary: #6b7280;
-  --tv-text-muted: #9ca3af;
-  --tv-border: #e5e7eb;
-  --tv-border-light: #f3f4f6;
-  --tv-bg-card: #ffffff;
-  --tv-bg-page: #f9fafb;
-  --tv-bg-hover: #f3f4f6;
-  --tv-success: #10b981;
-  --tv-success-dark: #059669;
-  --tv-error: #ef4444;
-  --tv-warning: #f59e0b;
+  --tv-primary: #FF7A18;
+  --tv-primary-dark: #FF6B02;
+  --tv-primary-light: #FF9A3D;
+  --tv-text-primary: #0F172A;
+  --tv-text-secondary: #475569;
+  --tv-text-muted: #94A3B8;
+  --tv-border: #E2E8F0;
+  --tv-border-light: #F1F5F9;
+  --tv-bg-card: #FFFFFF;
+  --tv-bg-page: #F7F8FB;
+  --tv-bg-hover: #F0F4F8;
+  --tv-success: #34D399;
+  --tv-success-dark: #10B981;
+  --tv-error: #EF4444;
+  --tv-warning: #F59E0B;
   
   /* Elevation */
-  --tv-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.08);
-  --tv-shadow-md: 0 2px 8px rgba(0, 0, 0, 0.1);
-  --tv-shadow-lg: 0 4px 16px rgba(0, 0, 0, 0.12);
-  --tv-shadow-focus: 0 0 0 3px rgba(255, 149, 0, 0.15);
+  --tv-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.05);
+  --tv-shadow-md: 0 2px 8px rgba(0, 0, 0, 0.08);
+  --tv-shadow-lg: 0 4px 16px rgba(0, 0, 0, 0.08);
+  --tv-shadow-focus: 0 0 0 3px rgba(255, 122, 24, 0.15);
   
   /* Borders */
   --tv-radius-sm: clamp(0.375rem, 1vw, 0.5rem);
