@@ -650,8 +650,6 @@
 /* Day group spacing */
 .day-group {
     margin-bottom: clamp(1rem, 3vw, 1.5rem);
-    width: 100%;
-    max-width: 100%;
 }
 
 .day-header {
@@ -669,13 +667,6 @@
 
 .day-header i {
     color: #3b82f6;
-}
-
-/* Appointments list container - ensure no overflow */
-#appointmentsList {
-    width: 100%;
-    max-width: 100%;
-    overflow: visible;
 }
 
 /* Responsive: ensure no horizontal scroll */

@@ -1903,7 +1903,8 @@ async function handleFinalizeAction(id, appointment, openCustomModal) {
     const { panel, close } = openCustomModal({
         title: `Finalizează: ${appointment.customerName}`,
         content: modalContent,
-        size: 'large'
+        size: 'large',
+        trackUnsavedChanges: true  // Enable Back button unsaved changes protection
     });
 
     // Setup form interactivity
@@ -2341,7 +2342,8 @@ async function handleEditAction(id, appointment, openCustomModal) {
     const { panel, close } = openCustomModal({
         title: `Editează: ${appointment.customerName}`,
         content: modalContent,
-        size: 'large'
+        size: 'large',
+        trackUnsavedChanges: true  // Enable Back button unsaved changes protection
     });
 
     const form = panel.querySelector('#editAppointmentForm');
