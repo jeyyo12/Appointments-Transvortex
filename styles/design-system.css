@@ -77,13 +77,30 @@
   }
 }
 
-/* Two-column dashboard layout */
+/* Two-column dashboard layout - RESPONSIVE */
 .tvDashboard {
   display: grid;
   gap: var(--tv-gap-lg);
   grid-template-columns: 1fr;
+  width: 100%;
 }
 
+/* Mobile: 1 column (no horizontal scroll needed) */
+@media (max-width: 639px) {
+  .tvDashboard--twocol {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Tablet: 2 columns */
+@media (min-width: 640px) and (max-width: 1023px) {
+  .tvDashboard--twocol {
+    grid-template-columns: 1fr 1fr;
+    align-items: start;
+  }
+}
+
+/* Desktop: 2 columns with unequal widths (form narrower, list wider) */
 @media (min-width: 1024px) {
   .tvDashboard--twocol {
     grid-template-columns: 1fr 1.5fr;

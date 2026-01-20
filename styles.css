@@ -374,6 +374,9 @@ header {
 main {
     padding: var(--space-xl);
     background: var(--bg-warm);
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
 }
 
 /* Live Status - Activity Strip */
