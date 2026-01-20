@@ -2624,7 +2624,12 @@ function handleWhatsAppShare(id, appointment) {
         // Date/Time line: always include if date and/or time exist
         if (apt.dateStr || apt.time) {
             let whenLine = 'Când:';
-            if (apt.dateStr) whenLine += ` ${apt.dateStr}`;
+            if (apt.dateStr) {
+                // Format date as DD/MM/YYYY
+                const [year, month, day] = apt.dateStr.split('-');
+                const formattedDate = `${day}/${month}/${year}`;
+                whenLine += ` ${formattedDate}`;
+            }
             if (apt.time) whenLine += ` la ${apt.time}`;
             lines.push(whenLine);
         }
