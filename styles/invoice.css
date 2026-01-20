@@ -1,18 +1,53 @@
-/* ===== INVOICE STYLES ===== */
+/* ===== INVOICE STYLES (Aligned with Transvortex Theme) ===== */
 :root {
+    /* Brand Colors - Unified with site */
+    --accent-orange: #FF7A18;
+    --primary: #FF7A18;
+    --primary-dark: #FF6B02;
+    
+    /* Text & Dark */
+    --text: #0F172A;
+    --text-secondary: #475569;
+    --muted: rgba(15, 23, 42, 0.65);
+    
+    /* Backgrounds - Light theme */
+    --bg: #F7F8FB;
+    --surface-solid: #FFFFFF;
+    --surface-dark: #F0F4F8;
+    
+    /* Borders */
+    --border: rgba(15, 23, 42, 0.10);
+    --border-light: rgba(15, 23, 42, 0.05);
+    
+    /* Shadows - Unified with site */
+    --shadow: 0 10px 30px rgba(2, 6, 23, 0.08);
+    --shadow-lg: 0 20px 40px rgba(2, 6, 23, 0.12);
+    --shadow-sm: 0 4px 12px rgba(2, 6, 23, 0.05);
+    
+    /* Radius */
+    --radius: 16px;
+    --radius-lg: 24px;
+    --radius-sm: 8px;
+    
+    /* Status & Utilities */
+    --success: #34D399;
+    --error: #EF4444;
+    --warning: #F59E0B;
+    
+    /* Legacy aliases for compatibility */
     --color-primary: #FF7A18;
     --color-dark: #0F172A;
-    --color-graphite: #1A1F35;
+    --color-graphite: #0F172A;
     --color-grey: #475569;
     --color-light-grey: #F0F4F8;
-    --color-border: #E2E8F0;
+    --color-border: rgba(15, 23, 42, 0.10);
     --color-text: #0F172A;
     --color-success: #34D399;
     --color-error: #EF4444;
     --spacing-unit: 0.5rem;
-    --border-radius: 0.375rem;
-    --shadow-subtle: 0 1px 3px rgba(0, 0, 0, 0.05);
-    --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.08);
+    --border-radius: 16px;
+    --shadow-subtle: 0 4px 12px rgba(2, 6, 23, 0.05);
+    --shadow-card: 0 10px 30px rgba(2, 6, 23, 0.08);
 }
 
 * {
@@ -35,12 +70,11 @@ body {
 .controls-bar {
     position: sticky;
     top: 0;
-    background: linear-gradient(135deg, rgba(255, 255, 255, 0.6) 0%, rgba(255, 255, 255, 0.4) 100%);
-    backdrop-filter: blur(10px);
+    background: white;
     padding: 1rem;
-    box-shadow: var(--shadow-card);
+    box-shadow: var(--shadow-sm);
     z-index: 1000;
-    border-bottom: 1px solid var(--color-border);
+    border-bottom: 1px solid var(--border);
 }
 
 .controls-container {
@@ -69,7 +103,7 @@ body {
 }
 
 .btn-primary:hover:not(:disabled) {
-    background-color: #FF9A3D;
+    background-color: var(--primary-dark);
     transform: translateY(-2px);
     box-shadow: 0 4px 12px rgba(255, 122, 24, 0.25);
 }
@@ -104,9 +138,10 @@ body {
     max-width: 900px;
     margin: 0 auto;
     background: white;
-    border-radius: var(--border-radius);
-    box-shadow: var(--shadow-card);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
     overflow: hidden;
+    border: 1px solid var(--border);
 }
 
 /* ===== HEADER ===== */
@@ -116,8 +151,8 @@ body {
     align-items: flex-start;
     gap: 2rem;
     padding: 2rem;
-    border-bottom: 2px solid var(--color-primary);
-    background-color: #fafafa;
+    border-bottom: 1px solid var(--border);
+    background-color: #FFFFFF;
 }
 
 .header-left {
@@ -178,8 +213,8 @@ body {
     grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
     gap: 1.5rem;
     padding: 2rem;
-    border-bottom: 1px solid var(--color-border);
-    background-color: #fafafa;
+    border-bottom: 1px solid var(--border);
+    background-color: #FFFFFF;
 }
 
 .meta-box {
@@ -204,7 +239,7 @@ body {
 /* ===== BILL TO SECTION ===== */
 .bill-to {
     padding: 2rem;
-    border-bottom: 1px solid var(--color-border);
+    border-bottom: 1px solid var(--border);
 }
 
 .section-title {
@@ -225,10 +260,10 @@ body {
 }
 
 .bill-to-box {
-    background: #fafafa;
+    background: #FFFFFF;
     padding: 1.5rem;
-    border-radius: var(--border-radius);
-    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
 }
 
 .bill-to-box .label {
@@ -249,7 +284,7 @@ body {
 /* ===== SERVICES TABLE ===== */
 .services-section {
     padding: 2rem;
-    border-bottom: 1px solid var(--color-border);
+    border-bottom: 1px solid var(--border);
 }
 
 .services-table {
@@ -259,8 +294,8 @@ body {
 }
 
 .services-table thead {
-    background-color: var(--color-dark);
-    color: white;
+    background-color: rgba(15, 23, 42, 0.05);
+    color: var(--text);
 }
 
 .services-table th {
@@ -292,16 +327,16 @@ body {
 }
 
 .services-table tbody tr {
-    border-bottom: 1px solid var(--color-border);
+    border-bottom: 1px solid var(--border);
     transition: background-color 0.2s ease;
 }
 
 .services-table tbody tr:hover {
-    background-color: #fafafa;
+    background-color: rgba(15, 23, 42, 0.02);
 }
 
 .services-table tbody tr:last-child {
-    border-bottom: 2px solid var(--color-dark);
+    border-bottom: 1px solid var(--border);
 }
 
 .services-table td {
@@ -334,7 +369,7 @@ body {
 /* ===== TOTALS SECTION ===== */
 .totals-section {
     padding: 2rem;
-    border-bottom: 1px solid var(--color-border);
+    border-bottom: 1px solid var(--border);
 }
 
 .totals-box {
@@ -348,7 +383,7 @@ body {
     align-items: center;
     padding: 0.7rem 0;
     font-size: clamp(0.9rem, 1vw, 1rem);
-    border-bottom: 1px solid var(--color-border);
+    border-bottom: 1px solid var(--border);
 }
 
 .totals-row.totals-total {
@@ -356,10 +391,10 @@ body {
     padding: 1rem 0;
     font-size: clamp(1.2rem, 1.5vw, 1.4rem);
     font-weight: 700;
-    color: var(--color-dark);
-    background: linear-gradient(90deg, transparent 0%, rgba(255, 149, 0, 0.05) 100%);
+    color: var(--text);
+    background: linear-gradient(90deg, transparent 0%, rgba(255, 122, 24, 0.05) 100%);
     padding: 1rem;
-    border-radius: var(--border-radius);
+    border-radius: var(--radius);
     margin-top: 0.5rem;
 }
 
@@ -388,8 +423,8 @@ body {
 /* ===== PAYMENT TERMS ===== */
 .payment-terms {
     padding: 1.5rem 2rem;
-    border-bottom: 1px solid var(--color-border);
-    background-color: #fafafa;
+    border-bottom: 1px solid var(--border);
+    background-color: #FFFFFF;
 }
 
 .terms-text {
@@ -401,10 +436,10 @@ body {
 /* ===== LEGAL NOTES ===== */
 .legal-notes {
     padding: 1.5rem 2rem;
-    border-bottom: 1px solid var(--color-border);
-    background-color: #fafafa;
+    border-bottom: 1px solid var(--border);
+    background-color: #F7F8FB;
     font-size: 0.8rem;
-    color: var(--color-grey);
+    color: var(--text-secondary);
     line-height: 1.6;
 }
 
@@ -415,12 +450,13 @@ body {
 /* ===== FOOTER ===== */
 .invoice-footer {
     padding: 2rem;
-    background: linear-gradient(135deg, var(--color-dark) 0%, var(--color-graphite) 100%);
-    color: white;
+    background: #F7F8FB;
+    color: var(--text);
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
     gap: 2rem;
     text-align: center;
+    border-top: 1px solid var(--border);
 }
 
 .footer-section {
@@ -433,11 +469,12 @@ body {
     font-size: clamp(0.95rem, 1.1vw, 1rem);
     font-weight: 600;
     margin-bottom: 0.7rem;
+    color: var(--text);
 }
 
 .footer-subtext {
     font-size: 0.85rem;
-    opacity: 0.9;
+    color: var(--text-secondary);
 }
 
 .payment-icons {
@@ -450,10 +487,11 @@ body {
 
 .payment-icon {
     font-size: 0.8rem;
-    background: rgba(255, 255, 255, 0.15);
+    background: rgba(15, 23, 42, 0.05);
     padding: 0.4rem 0.8rem;
-    border-radius: 0.25rem;
+    border-radius: 8px;
     white-space: nowrap;
+    border: 1px solid var(--border);
 }
 
 /* ===== RESPONSIVE DESIGN ===== */

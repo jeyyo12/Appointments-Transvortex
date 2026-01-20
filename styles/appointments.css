@@ -310,9 +310,9 @@
 
 /* Status Variants */
 .status-scheduled {
-    background: linear-gradient(135deg, rgba(59, 130, 246, 0.15), rgba(99, 102, 241, 0.15));
-    color: #1e40af;
-    border-color: rgba(59, 130, 246, 0.25);
+    background: linear-gradient(135deg, rgba(255, 122, 24, 0.12), rgba(255, 154, 61, 0.12));
+    color: #FF7A18;
+    border-color: rgba(255, 122, 24, 0.25);
 }
 
 .status-done {

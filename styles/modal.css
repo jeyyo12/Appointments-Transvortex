@@ -181,15 +181,14 @@
 .tvDelayModal--show { opacity: 1; }
 
 .tvDelayModal__panel {
-    background: #0f172a;
-    color: #e2e8f0;
+    background: #FFFFFF;
     border-radius: 18px;
     width: min(640px, 96vw);
     max-height: 90vh;
     display: flex;
     flex-direction: column;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
-    border: 1px solid rgba(148, 163, 184, 0.15);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+    border: 1px solid rgba(15, 23, 42, 0.1);
     overflow: hidden;
 }
 
@@ -197,67 +196,103 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 16px 18px;
-    border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+    padding: 18px 20px;
+    border-bottom: none;
     position: sticky;
     top: 0;
-    background: #0f172a;
+    background: linear-gradient(135deg, #FF7A18 0%, #FF9A3D 100%);
     z-index: 2;
 }
 
-.tvDelayModal__title { margin: 0; font-size: 18px; }
+.tvDelayModal__title { 
+    margin: 0; 
+    font-size: 18px; 
+    font-weight: 700;
+    color: #FFFFFF;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.tvDelayModal__title::before {
+    content: '⏰';
+    font-size: 20px;
+}
 
 .tvDelayModal__close {
-    background: none;
-    border: 0;
-    color: #e2e8f0;
+    background: rgba(255, 255, 255, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    color: #FFFFFF;
     font-size: 18px;
     cursor: pointer;
+    border-radius: 8px;
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s ease;
+}
+
+.tvDelayModal__close:hover {
+    background: rgba(255, 255, 255, 0.3);
 }
 
 .tvDelayModal__body {
-    padding: 16px 18px 12px;
+    padding: 20px 22px 16px;
     overflow: auto;
+    background: #FFFFFF;
 }
 
 .tvDelayModal__footer {
-    padding: 14px 18px;
+    padding: 16px 22px;
     display: flex;
     justify-content: flex-end;
-    gap: 10px;
-    border-top: 1px solid rgba(148, 163, 184, 0.2);
+    gap: 12px;
+    border-top: 1px solid rgba(15, 23, 42, 0.08);
     position: sticky;
     bottom: 0;
-    background: #0f172a;
+    background: #F7F8FB;
     z-index: 2;
 }
 
-.tvDelay__section { margin-bottom: 16px; }
+.tvDelay__section { margin-bottom: 18px; }
 
 .tvDelay__label {
     display: block;
     font-weight: 600;
-    margin-bottom: 6px;
-    color: #e2e8f0;
+    margin-bottom: 8px;
+    color: #0F172A;
 }
 
-.tvDelay__row { display: flex; flex-direction: column; gap: 8px; }
+.tvDelay__row { display: flex; flex-direction: column; gap: 10px; }
 
 .tvDelay__radios { display: flex; gap: 12px; flex-wrap: wrap; }
 
 .tvDelay__presets { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
 
 .tvDelay__preset {
-    border: 1px solid rgba(148, 163, 184, 0.35);
-    background: rgba(148, 163, 184, 0.08);
-    color: #e2e8f0;
+    border: 2px solid rgba(255, 122, 24, 0.25);
+    background: rgba(255, 122, 24, 0.08);
+    color: #FF7A18;
     border-radius: 10px;
-    padding: 8px 12px;
+    padding: 8px 14px;
     cursor: pointer;
     transition: all 0.15s ease;
+    font-weight: 600;
 }
 
-.tvDelay__preset:hover { border-color: #38bdf8; color: #38bdf8; }
+.tvDelay__preset:hover { 
+    border-color: #FF7A18; 
+    background: rgba(255, 122, 24, 0.15);
+    transform: translateY(-1px);
+}
+
+.tvDelay__preset.active {
+    background: #FF7A18;
+    color: #FFFFFF;
+    border-color: #FF7A18;
+}
 
 .tvDelay__grid {
     display: grid;
@@ -270,29 +305,66 @@
 .tvDelay__field input,
 .tvDelay__section select,
 .tvDelay__section textarea {
-    background: rgba(148, 163, 184, 0.08);
-    border: 1px solid rgba(148, 163, 184, 0.3);
-    color: #e2e8f0;
+    background: #F7F8FB;
+    border: 1.5px solid rgba(15, 23, 42, 0.1);
+    color: #0F172A;
     border-radius: 12px;
     padding: 10px 12px;
+    font-family: inherit;
+    transition: all 0.15s ease;
+}
+
+.tvDelay__field input:focus,
+.tvDelay__section select:focus,
+.tvDelay__section textarea:focus {
+    outline: none;
+    border-color: #FF7A18;
+    box-shadow: 0 0 0 3px rgba(255, 122, 24, 0.12);
 }
 
 .tvDelay__section textarea { resize: vertical; min-height: 70px; }
 
 .tvDelay__toggleRow { display: flex; align-items: center; gap: 12px; }
-.tvDelay__toggleTitle { font-weight: 600; }
-.tvDelay__toggleDesc { font-size: 13px; color: #94a3b8; }
+.tvDelay__toggleTitle { font-weight: 600; color: #0F172A; }
+.tvDelay__toggleDesc { font-size: 13px; color: #475569; }
 
 .tvDelay__btn {
     border: 0;
     border-radius: 12px;
-    padding: 10px 14px;
+    padding: 10px 16px;
     font-weight: 600;
     cursor: pointer;
+    transition: all 0.15s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
 }
 
-.tvDelay__btn-primary { background: linear-gradient(120deg, #22d3ee, #6366f1); color: #0b1222; }
-.tvDelay__btn-secondary { background: rgba(148, 163, 184, 0.12); color: #e2e8f0; border: 1px solid rgba(148, 163, 184, 0.25); }
+.tvDelay__btn i {
+    font-size: 16px;
+}
+
+.tvDelay__btn-primary { 
+    background: linear-gradient(135deg, #FF7A18 0%, #FF9A3D 100%);
+    color: #FFFFFF;
+}
+
+.tvDelay__btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(255, 122, 24, 0.3);
+}
+
+.tvDelay__btn-secondary { 
+    background: rgba(15, 23, 42, 0.05);
+    color: #0F172A;
+    border: 1.5px solid rgba(15, 23, 42, 0.1);
+}
+
+.tvDelay__btn-secondary:hover {
+    background: rgba(15, 23, 42, 0.08);
+    border-color: rgba(15, 23, 42, 0.15);
+}
 
 @media (max-width: 640px) {
     .tvDelayModal__panel { width: 100%; max-height: 90vh; }

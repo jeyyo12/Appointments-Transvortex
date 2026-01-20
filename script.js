@@ -1829,6 +1829,10 @@ function createAppointmentCard(apt) {
                 <i class="fas fa-trash-alt"></i>
                 <span>Șterge</span>
             </button>
+            <button class="tvx-btn tvx-btn--ghost tvx-btn--icon" data-action="history" data-id="${apt.id}" aria-label="Vizualizează istoric">
+                <i class="fas fa-history"></i>
+                <span>Istoric</span>
+            </button>
         </div>
     ` : '';
     
@@ -1935,6 +1939,18 @@ function bindAppointmentsClickDelegation() {
                         showNotification('Nu s-a putut deschide factura', 'error');
                     }
                     break;
+
+                case 'history':
+                    // Open Details modal and scroll to History section
+                    await openDetailsModal(appointment);
+                    // Scroll to history section after modal opens
+                    setTimeout(() => {
+                        const historySection = document.querySelector('.tvx-history');
+                        if (historySection) {
+                            historySection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                        }
+                    }, 300);
+                    break;
                     
                 default:
                     console.warn('[Main] Unknown action:', action);
@@ -1954,6 +1970,13 @@ function bindAppointmentsClickDelegation() {
 
 let detailsModalEl = null;
 let detailsPopHandler = null;
+
+// ==========================================
+// DELAY MODAL - History integration for back button
+// ==========================================
+
+let delayModalEl = null;
+let delayPopHandler = null;
 
 function openDetailsModal(appointment) {
     if (!appointment) return;
@@ -2024,6 +2047,161 @@ function closeDetailsModal(triggerHistoryBack = true) {
     }
 }
 
+/**
+ * Log a timeline event to Firestore
+ * @param {string} aptId - Appointment ID
+ * @param {string} eventType - Event type (DELAY_MODAL_OPENED, DELAYED, RESCHEDULED, etc.)
+ * @param {Object} eventData - Additional event data (from, to, reasonCode, note, etc.)
+ */
+async function logTimelineEvent(aptId, eventType, eventData = {}) {
+    try {
+        const { doc, updateDoc, serverTimestamp, arrayUnion, Timestamp } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+        
+        const timelineEntry = {
+            type: eventType,
+            at: Timestamp.now(),
+            by: currentUser?.uid || 'unknown',
+            ...eventData
+        };
+
+        await updateDoc(doc(db, 'appointments', aptId), {
+            timeline: arrayUnion(timelineEntry),
+            lastUpdatedAt: serverTimestamp(),
+            updatedAt: serverTimestamp()
+        });
+
+        console.log(`[Timeline] Logged event: ${eventType} for ${aptId}`);
+    } catch (error) {
+        console.error(`[Timeline] Error logging ${eventType}:`, error);
+    }
+}
+
+// ==========================================
+// TIMELINE / HISTORY UTILITIES
+// ==========================================
+
+/**
+ * Map event type to human-readable label (RO)
+ */
+function getTimelineEventLabel(eventType) {
+    const typeMap = {
+        'DELAY_MODAL_OPENED': 'A deschis fereastra Întârziere/Reprogramare',
+        'DELAYED': 'Întârziere',
+        'RESCHEDULED': 'Reprogramare',
+        'FINALIZED': 'Finalizat',
+        'EDITED': 'Editat',
+        'CREATED': 'Creat',
+        'CANCELLED': 'Anulat',
+        'DELETED': 'Șters'
+    };
+    return typeMap[eventType] || eventType;
+}
+
+/**
+ * Map reasonCode to human-readable label (RO)
+ */
+function getReasonCodeLabel(code) {
+    const reasonMap = {
+        'PART_MISSING': 'Piesă lipsă',
+        'PART_WRONG': 'Piesă greșită',
+        'SUPPLIER_DELAY': 'Întârziere furnizor',
+        'TRAFFIC': 'Trafic',
+        'PREVIOUS_JOB_OVERRUN': 'Job anterior a durat mai mult',
+        'CUSTOMER_UNAVAILABLE': 'Client indisponibil',
+        'ACCESS_ISSUE': 'Acces/locație dificilă',
+        'DIAG_EXTRA': 'Diagnostic suplimentar',
+        'WEATHER': 'Condiții meteo',
+        'OTHER': 'Alt motiv'
+    };
+    return reasonMap[code] || code;
+}
+
+/**
+ * Format timestamp for display (ro-RO locale)
+ */
+function formatTimelineTimestamp(timestamp) {
+    if (!timestamp) return '';
+    const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+    return date.toLocaleDateString('ro-RO', {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+    });
+}
+
+/**
+ * Build timeline HTML from array of events
+ */
+function buildTimelineHTML(timeline) {
+    if (!timeline || !Array.isArray(timeline) || timeline.length === 0) {
+        return '<div class="tvx-history-empty">Nu există istoric.</div>';
+    }
+
+    // Sort descending (newest first)
+    const sorted = [...timeline].sort((a, b) => {
+        const aTime = a.at?.toDate?.() || new Date(a.at);
+        const bTime = b.at?.toDate?.() || new Date(b.at);
+        return bTime - aTime;
+    });
+
+    let html = '';
+    sorted.forEach(event => {
+        const eventType = event.type || 'UNKNOWN';
+        const eventLabel = getTimelineEventLabel(eventType);
+        const eventTime = formatTimelineTimestamp(event.at);
+        
+        let detailsHtml = '';
+
+        // from/to: display range
+        if (event.from && event.to) {
+            const fromStr = formatTimelineTimestamp(event.from);
+            const toStr = formatTimelineTimestamp(event.to);
+            detailsHtml += `<div class="tvx-history-item__meta">
+                <small>De la:</small> ${fromStr} <small>→ La:</small> ${toStr}
+            </div>`;
+        }
+
+        // reasonCode: display reason
+        if (event.reasonCode) {
+            const reasonLabel = getReasonCodeLabel(event.reasonCode);
+            detailsHtml += `<div class="tvx-history-item__meta">
+                <small>Motiv:</small> ${reasonLabel}
+            </div>`;
+        }
+
+        // note: display additional note
+        if (event.note) {
+            detailsHtml += `<div class="tvx-history-item__meta">
+                <small>Notă:</small> ${event.note}
+            </div>`;
+        }
+
+        // by: display operator (if available)
+        // For now, just store uid - can extend to fetch displayName later
+        if (event.by && event.by !== 'unknown') {
+            // Truncate uid for display (first 8 chars)
+            const operatorId = event.by.substring(0, 8) + '...';
+            detailsHtml += `<div class="tvx-history-item__meta">
+                <small>Operator:</small> ${operatorId}
+            </div>`;
+        }
+
+        html += `
+            <div class="tvx-history-item">
+                <div class="tvx-history-item__top">
+                    <div class="tvx-history-item__title">${eventLabel}</div>
+                    <div class="tvx-history-item__time">${eventTime}</div>
+                </div>
+                ${detailsHtml}
+            </div>
+        `;
+    });
+
+    return html;
+}
+
 function buildDetailsModalElement(normalized, rawAppointment) {
     const items = [];
 
@@ -2062,6 +2240,10 @@ function buildDetailsModalElement(normalized, rawAppointment) {
 
     const itemsHtml = items.join('');
 
+    // Build timeline section
+    const timeline = rawAppointment.timeline || [];
+    const timelineHtml = buildTimelineHTML(timeline);
+
     const overlay = document.createElement('div');
     overlay.className = 'tvDetailsModalOverlay';
     overlay.innerHTML = `
@@ -2076,6 +2258,14 @@ function buildDetailsModalElement(normalized, rawAppointment) {
                 <div class="tvDetailsGrid">
                     ${itemsHtml || '<div class="tvDetailsEmpty">Nu există informații de afișat.</div>'}
                 </div>
+                
+                <!-- HISTORY / TIMELINE SECTION -->
+                <section class="tvx-history">
+                    <h3>Istoric</h3>
+                    <div class="tvx-history-list">
+                        ${timelineHtml}
+                    </div>
+                </section>
             </div>
         </div>
     `;
@@ -2667,8 +2857,14 @@ function buildDelayModal(appointment) {
                 </form>
             </div>
             <div class="tvDelayModal__footer">
-                <button class="tvDelay__btn tvDelay__btn-secondary" data-action="cancel">Anulează</button>
-                <button class="tvDelay__btn tvDelay__btn-primary" data-action="save">Salvează</button>
+                <button class="tvDelay__btn tvDelay__btn-secondary" data-action="cancel">
+                    <i class="fas fa-arrow-left"></i>
+                    <span>Înapoi</span>
+                </button>
+                <button class="tvDelay__btn tvDelay__btn-primary" data-action="save">
+                    <i class="fas fa-save"></i>
+                    <span>Salvează</span>
+                </button>
             </div>
         </div>
     `;
@@ -2678,7 +2874,19 @@ function buildDelayModal(appointment) {
 
 async function openDelayRescheduleModal(appointment) {
     if (!appointment) return;
+    
+    // Log DELAY_MODAL_OPENED event
+    await logTimelineEvent(appointment.id, 'DELAY_MODAL_OPENED', {});
+    
+    // Close any existing delay modal
+    if (delayModalEl) {
+        delayModalEl.classList.remove('tvDelayModal--show');
+        setTimeout(() => delayModalEl.remove(), 200);
+        if (delayPopHandler) window.removeEventListener('popstate', delayPopHandler);
+    }
+    
     const overlay = buildDelayModal(appointment);
+    delayModalEl = overlay;
     document.body.appendChild(overlay);
     document.body.classList.add('modal-open');
 
@@ -2721,6 +2929,13 @@ async function openDelayRescheduleModal(appointment) {
     });
 
     const close = () => {
+        // Clean up history handler
+        if (delayPopHandler) {
+            window.removeEventListener('popstate', delayPopHandler);
+            delayPopHandler = null;
+        }
+        delayModalEl = null;
+        
         overlay.classList.remove('tvDelayModal--show');
         setTimeout(() => {
             overlay.remove();
@@ -2729,8 +2944,35 @@ async function openDelayRescheduleModal(appointment) {
         }, 200);
     };
 
-    closeBtn?.addEventListener('click', close);
-    cancelBtn?.addEventListener('click', close);
+    // History push for back button / swipe back on mobile
+    history.pushState({ tvModal: 'delay', aptId: appointment.id }, '');
+
+    delayPopHandler = (event) => {
+        if (delayModalEl) {
+            close();
+        }
+    };
+
+    window.addEventListener('popstate', delayPopHandler);
+
+    // Event delegation for close and cancel buttons
+    overlay.addEventListener('click', (e) => {
+        // Check if clicking on background overlay
+        if (e.target === overlay) {
+            return;
+        }
+
+        // Find closest button with data-action (handles clicks on icons inside buttons too)
+        const btn = e.target.closest('button[data-action]');
+        if (!btn) return;
+
+        const action = btn.dataset.action;
+        if (action === 'close' || action === 'cancel') {
+            e.preventDefault();
+            e.stopPropagation();
+            close();
+        }
+    });
 
     saveBtn?.addEventListener('click', async (e) => {
         e.preventDefault();
@@ -2829,6 +3071,14 @@ async function handleDelaySubmit({ form, overlay, appointment }) {
     } finally {
         saveBtn.disabled = false;
         saveBtn.textContent = 'Salvează';
+        
+        // Clean up history handler
+        if (delayPopHandler) {
+            window.removeEventListener('popstate', delayPopHandler);
+            delayPopHandler = null;
+        }
+        delayModalEl = null;
+        
         overlay.classList.remove('tvDelayModal--show');
         setTimeout(() => {
             overlay.remove();
