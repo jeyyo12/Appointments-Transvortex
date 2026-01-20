@@ -1,6 +1,7 @@
 /* ==========================================
-   APPOINTMENTS LIST - OVERFLOW FIX
-   Critical: prevents 2nd card from overflowing
+   APPOINTMENTS LIST - FLUID LAYOUT
+   Desktop: centered with max-width, fluid columns
+   Mobile: compact, full width
    ========================================== */
 
 #appointmentsList {
@@ -10,6 +11,15 @@
     min-width: 0;
     overflow-x: clip;
     overflow-y: visible;
+}
+
+/* Desktop: center container with max-width and padding */
+@media (min-width: 601px) {
+    #appointmentsList {
+        margin: 0 auto;
+        padding: 0 clamp(1rem, 3vw, 2rem);
+        max-width: 1400px;
+    }
 }
 
 /* ==========================================
@@ -57,7 +67,7 @@
         display: grid;
         grid-auto-flow: row;
         grid-auto-columns: unset;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
+        grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
         gap: clamp(0.8rem, 2vw, 1.1rem);
         padding: 0;
     }
@@ -68,18 +78,14 @@
 
     .tvCard {
         width: 100%;
-        min-width: 0;
+        min-width: auto;
         max-width: 100%;
         scroll-snap-align: none;
     }
 }
 
-/* Large desktop — 3 columns */
-@media (min-width: 1024px) {
-    .tvTrack {
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-    }
-}
+/* Large desktop — auto-fit handles column count automatically */
+/* No need for hardcoded column breakpoint, minmax adapts fluidly */
 
 /* DESKTOP TEXT FIX - Prevent vertical letter-by-letter rendering */
 @media (min-width: 601px) {
@@ -92,9 +98,9 @@
         writing-mode: horizontal-tb !important;
     }
     
-    /* Ensure grid children can expand properly */
+    /* Ensure grid children expand properly */
     .tvTrack > .tvCard {
-        min-width: 0;
+        min-width: auto;
         width: 100%;
     }
 }
