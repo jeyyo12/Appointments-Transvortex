@@ -16,6 +16,182 @@
     transition: opacity 0.2s ease-out;
 }
 
+/* ==========================================
+   DETAILS MODAL (Appointment Details)
+   ========================================== */
+
+.tvDetailsModalOverlay {
+    position: fixed;
+    inset: 0;
+    z-index: 12000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: clamp(0.75rem, 2vw, 1.25rem);
+    padding-top: calc(clamp(0.75rem, 2vw, 1.25rem) + env(safe-area-inset-top));
+    padding-bottom: calc(clamp(0.75rem, 2vw, 1.25rem) + env(safe-area-inset-bottom));
+    background: rgba(0, 0, 0, 0.55);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+}
+
+.tvDetailsModalOverlay--show {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.tvDetailsModal {
+    position: relative;
+    width: min(94vw, 30rem);
+    max-width: min(94vw, 30rem);
+    max-height: min(90vh, 840px);
+    background: linear-gradient(145deg, #ffffff 0%, #f7f9fb 100%);
+    border-radius: clamp(0.9rem, 1.6vw, 1.25rem);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    transform: scale(0.96);
+    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.2s ease;
+}
+
+.tvDetailsModalOverlay--show .tvDetailsModal {
+    transform: scale(1);
+    opacity: 1;
+}
+
+@media (min-width: 768px) {
+    .tvDetailsModal {
+        width: min(92vw, 46rem);
+        max-width: min(92vw, 46rem);
+    }
+}
+
+.tvDetailsModalHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: clamp(0.75rem, 1.5vw, 1rem);
+    padding: clamp(1rem, 2.5vw, 1.4rem);
+    background: linear-gradient(135deg, #2563eb 0%, #4f46e5 100%);
+    color: #ffffff;
+    flex-shrink: 0;
+}
+
+.tvDetailsTitle {
+    font-size: clamp(1rem, 0.6vw + 0.95rem, 1.25rem);
+    font-weight: 800;
+    margin: 0;
+}
+
+.tvDetailsClose {
+    width: clamp(2.5rem, 3vw + 2rem, 3rem);
+    height: clamp(2.5rem, 3vw + 2rem, 3rem);
+    border: none;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.18);
+    color: #ffffff;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+    transition: all 0.2s ease;
+}
+
+.tvDetailsClose:hover {
+    background: rgba(255, 255, 255, 0.28);
+    transform: rotate(90deg);
+}
+
+.tvDetailsModalBody {
+    padding: clamp(1rem, 2.5vw, 1.5rem);
+    flex: 1;
+    overflow: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.tvDetailsGrid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: clamp(0.8rem, 1.6vw, 1.2rem);
+    width: 100%;
+}
+
+@media (min-width: 768px) {
+    .tvDetailsGrid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+.tvDetailsItem {
+    display: flex;
+    align-items: flex-start;
+    gap: clamp(0.65rem, 1.3vw, 0.9rem);
+    padding: clamp(0.8rem, 1.6vw, 1.1rem);
+    border-radius: clamp(0.75rem, 1.4vw, 1rem);
+    border: 1px solid rgba(148, 163, 184, 0.35);
+    background: rgba(255, 255, 255, 0.85);
+    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.05);
+    min-width: 0;
+    width: 100%;
+}
+
+.tvDetailsIcon {
+    width: clamp(2.2rem, 3vw, 2.6rem);
+    height: clamp(2.2rem, 3vw, 2.6rem);
+    border-radius: clamp(0.7rem, 1.1vw, 0.9rem);
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.15), rgba(79, 70, 229, 0.15));
+    border: 1px solid rgba(59, 130, 246, 0.3);
+    color: #2563eb;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: clamp(1rem, 0.3vw + 0.95rem, 1.1rem);
+    flex-shrink: 0;
+}
+
+.tvDetailsContent {
+    display: flex;
+    flex-direction: column;
+    gap: clamp(0.2rem, 0.4vw, 0.35rem);
+    min-width: 0;
+    flex: 1;
+}
+
+.tvDetailsLabel {
+    font-size: clamp(0.78rem, 0.25vw + 0.75rem, 0.9rem);
+    font-weight: 700;
+    color: #475569;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+}
+
+.tvDetailsValue {
+    font-size: clamp(0.95rem, 0.35vw + 0.9rem, 1.05rem);
+    font-weight: 700;
+    color: #0f172a;
+    line-height: 1.5;
+    min-width: 0;
+    word-break: normal;
+    overflow-wrap: anywhere;
+    white-space: normal;
+    writing-mode: horizontal-tb;
+}
+
+.tvDetailsEmpty {
+    padding: clamp(1rem, 2.5vw, 1.5rem);
+    background: rgba(15, 23, 42, 0.03);
+    border: 1px dashed rgba(148, 163, 184, 0.5);
+    border-radius: clamp(0.75rem, 1.2vw, 0.95rem);
+    text-align: center;
+    color: #475569;
+    font-weight: 600;
+}
+
 .modern-modal-overlay.modern-modal-show {
     opacity: 1;
 }
@@ -24,6 +200,11 @@
 .modern-modal-overlay.modern-modal-show .modern-modal-panel-custom {
     transform: scale(1);
     opacity: 1;
+}
+
+/* Lock body scroll when any modal is open */
+body.modal-open {
+    overflow: hidden;
 }
 
 /* Backdrop */
@@ -406,5 +587,1002 @@
     .modern-modal-body select {
         /* Additional Android Chrome fix */
         -webkit-tap-highlight-color: transparent;
+    }
+}
+/* ==========================================
+   EDIT MODAL - Modern Clean Design
+   Highly readable, responsive, accessible
+   ========================================== */
+
+.tvEditModalOverlay {
+    position: fixed;
+    inset: 0;
+    z-index: 11000;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    display: flex;
+    align-items: flex-end;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.tvEditModalOverlay.active {
+    opacity: 1;
+}
+
+/* Mobile-first: full screen modal */
+.tvEditModal {
+    width: 100vw;
+    height: auto;
+    max-height: 100vh;
+    background: #ffffff;
+    display: flex;
+    flex-direction: column;
+    border-radius: 0;
+    box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.2);
+    animation: slideUp 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes slideUp {
+    from {
+        transform: translateY(100%);
+    }
+    to {
+        transform: translateY(0);
+    }
+}
+
+/* Desktop: centered modal */
+@media (min-width: 768px) {
+    .tvEditModalOverlay {
+        align-items: center;
+        justify-content: center;
+        padding: clamp(1rem, 3vw, 2rem);
+    }
+
+    .tvEditModal {
+        width: min(720px, 92vw);
+        max-height: min(90vh, 850px);
+        border-radius: clamp(0.9rem, 1.4vw, 1.25rem);
+        animation: slideDown 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+/* Modal Header - Sticky */
+.tvEditModalHeader {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    padding: clamp(1rem, 2.5vw, 1.5rem);
+    border-bottom: 1px solid #e5e7eb;
+    background: #ffffff;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-shrink: 0;
+}
+
+.tvEditModalTitle {
+    font-size: clamp(1.1rem, 1vw + 0.9rem, 1.35rem);
+    font-weight: 700;
+    color: #111827;
+    margin: 0;
+    flex: 1;
+}
+
+.tvEditModalClose {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: clamp(0.5rem, 1vw, 0.75rem);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #6b7280;
+    font-size: 1.25rem;
+    transition: color 0.2s ease;
+    border-radius: 0.5rem;
+}
+
+.tvEditModalClose:hover {
+    color: #1f2937;
+    background: #f3f4f6;
+}
+
+.tvEditModalClose:focus {
+    outline: 2px solid #3b82f6;
+    outline-offset: 2px;
+}
+
+/* Modal Body - Scrollable */
+.tvEditModalBody {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: clamp(0.9rem, 2vw, 1.5rem);
+    -webkit-overflow-scrolling: touch;
+}
+
+/* Modal Footer - Sticky */
+.tvEditModalFooter {
+    position: sticky;
+    bottom: 0;
+    z-index: 10;
+    padding: clamp(0.9rem, 2vw, 1.25rem);
+    border-top: 1px solid #e5e7eb;
+    background: #ffffff;
+    display: flex;
+    gap: clamp(0.75rem, 2vw, 1rem);
+    flex-shrink: 0;
+}
+
+.tvEditModalFooter button {
+    flex: 1;
+    padding: clamp(0.75rem, 2vw, 0.95rem);
+    font-size: clamp(0.9rem, 0.5vw + 0.85rem, 1rem);
+    border-radius: clamp(0.5rem, 0.8vw, 0.75rem);
+    border: none;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.tvEditModalFooter button:focus {
+    outline: 2px solid #3b82f6;
+    outline-offset: 2px;
+}
+
+.tvEditModalCancel {
+    background: #f3f4f6;
+    color: #1f2937;
+}
+
+.tvEditModalCancel:hover {
+    background: #e5e7eb;
+}
+
+.tvEditModalSave {
+    background: #3b82f6;
+    color: #ffffff;
+}
+
+.tvEditModalSave:hover {
+    background: #2563eb;
+}
+
+.tvEditModalSave:disabled {
+    background: #d1d5db;
+    cursor: not-allowed;
+}
+
+/* Form Fields */
+.tvEditField {
+    margin-bottom: clamp(1rem, 2.5vw, 1.5rem);
+}
+
+.tvEditField label {
+    display: block;
+    font-weight: 600;
+    font-size: clamp(0.92rem, 0.35vw + 0.85rem, 1rem);
+    color: #111827;
+    margin-bottom: clamp(0.4rem, 0.8vw, 0.6rem);
+}
+
+.tvEditField label i {
+    color: #3b82f6;
+    margin-right: clamp(0.4rem, 0.8vw, 0.6rem);
+}
+
+.tvEditField .required {
+    color: #ef4444;
+    font-weight: 700;
+}
+
+/* Inputs and Textareas */
+.tvEditInput,
+.tvEditTextarea,
+.tvEditSelect {
+    width: 100%;
+    padding: clamp(0.65rem, 1.5vw, 0.85rem);
+    font-size: clamp(0.92rem, 0.35vw + 0.85rem, 1rem);
+    border: 1px solid #d1d5db;
+    border-radius: clamp(0.5rem, 0.8vw, 0.7rem);
+    background: #ffffff;
+    color: #111827;
+    -webkit-text-fill-color: #111827;
+    font-family: inherit;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    box-sizing: border-box;
+}
+
+.tvEditInput:focus,
+.tvEditTextarea:focus,
+.tvEditSelect:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.tvEditTextarea {
+    resize: vertical;
+    min-height: clamp(3rem, 10vh, 5rem);
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+/* Error state */
+.tvEditInput.error,
+.tvEditTextarea.error,
+.tvEditSelect.error {
+    border-color: #ef4444;
+    background: #fef2f2;
+}
+
+.tvEditInput.error:focus,
+.tvEditTextarea.error:focus,
+.tvEditSelect.error:focus {
+    box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
+}
+
+/* Error message */
+.tvEditErrorMsg {
+    display: none;
+    font-size: clamp(0.8rem, 0.3vw + 0.75rem, 0.9rem);
+    color: #ef4444;
+    margin-top: clamp(0.3rem, 0.5vw, 0.4rem);
+    font-weight: 500;
+}
+
+.tvEditInput.error ~ .tvEditErrorMsg,
+.tvEditTextarea.error ~ .tvEditErrorMsg,
+.tvEditSelect.error ~ .tvEditErrorMsg {
+    display: block;
+}
+
+/* Field Groups - Section Headers */
+.tvEditFieldGroup {
+    margin-bottom: clamp(1.25rem, 3vw, 2rem);
+}
+
+.tvEditFieldGroupHeader {
+    font-size: clamp(0.95rem, 0.5vw + 0.9rem, 1.1rem);
+    font-weight: 700;
+    color: #1f2937;
+    margin-bottom: clamp(0.75rem, 1.5vw, 1rem);
+    padding-bottom: clamp(0.5rem, 1vw, 0.75rem);
+    border-bottom: 2px solid #e5e7eb;
+    display: flex;
+    align-items: center;
+    gap: clamp(0.5rem, 1vw, 0.75rem);
+}
+
+.tvEditFieldGroupHeader i {
+    color: #3b82f6;
+    font-size: 1.1em;
+}
+
+/* Two-column layout on desktop */
+.tvEditFieldsGrid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: clamp(0.9rem, 2vw, 1.3rem);
+}
+
+@media (min-width: 768px) {
+    .tvEditFieldsGrid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .tvEditFieldsGrid.full-width {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Helper text */
+.tvEditHelper {
+    font-size: clamp(0.8rem, 0.3vw + 0.75rem, 0.85rem);
+    color: #6b7280;
+    margin-top: clamp(0.3rem, 0.5vw, 0.4rem);
+    display: block;
+}
+
+/* Loading state */
+.tvEditModalSave.loading {
+    position: relative;
+    color: transparent;
+}
+
+.tvEditModalSave.loading::after {
+    content: '';
+    position: absolute;
+    width: 1rem;
+    height: 1rem;
+    top: 50%;
+    left: 50%;
+    margin-left: -0.5rem;
+    margin-top: -0.5rem;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-top-color: #ffffff;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* iOS specific fixes */
+@supports (-webkit-touch-callout: none) {
+    .tvEditInput,
+    .tvEditTextarea,
+    .tvEditSelect {
+        font-size: 16px;
+        /* Prevents auto-zoom on focus */
+    }
+
+    .tvEditModal {
+        max-height: 100vh;
+    }
+
+    .tvEditModalBody {
+        -webkit-user-select: text;
+        user-select: text;
+    }
+}
+
+/* Android specific fixes */
+@media screen and (-webkit-min-device-pixel-ratio: 0) {
+    .tvEditInput,
+    .tvEditTextarea,
+    .tvEditSelect {
+        -webkit-tap-highlight-color: transparent;
+    }
+}
+
+/* Autofill fix for dark inputs */
+.tvEditInput:-webkit-autofill,
+.tvEditTextarea:-webkit-autofill,
+.tvEditSelect:-webkit-autofill {
+    -webkit-text-fill-color: #111827;
+    -webkit-box-shadow: 0 0 0 1000px white inset;
+    caret-color: #111827;
+}
+
+/* Print styles */
+@media print {
+    .tvEditModalOverlay {
+        display: none;
+    }
+}
+/* ==========================================
+   DRAFT RECOVERY PROMPT (In-Modal)
+   ========================================== */
+
+.tvDraftPrompt {
+    position: absolute;
+    inset: 0;
+    z-index: 100;
+    background: rgba(0, 0, 0, 0.75);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: clamp(1rem, 3vw, 2rem);
+    animation: fadeIn 0.2s ease-out;
+}
+
+.tvDraftPromptCard {
+    background: white;
+    border-radius: clamp(0.75rem, 1.5vw, 1rem);
+    padding: clamp(1.5rem, 3vw, 2rem);
+    max-width: 420px;
+    width: 100%;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    text-align: center;
+    animation: slideUp 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.tvDraftPromptIcon {
+    width: clamp(3.5rem, 8vw, 4.5rem);
+    height: clamp(3.5rem, 8vw, 4.5rem);
+    margin: 0 auto clamp(1rem, 2vw, 1.5rem);
+    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: clamp(1.5rem, 3vw, 2rem);
+}
+
+.tvDraftPromptCard h3 {
+    font-size: clamp(1.1rem, 1.5vw, 1.35rem);
+    font-weight: 700;
+    color: #111827;
+    margin: 0 0 clamp(0.75rem, 1.5vw, 1rem);
+}
+
+.tvDraftPromptCard p {
+    font-size: clamp(0.92rem, 0.5vw, 1rem);
+    color: #6b7280;
+    margin: 0 0 clamp(1.5rem, 2.5vw, 2rem);
+    line-height: 1.6;
+}
+
+.tvDraftPromptButtons {
+    display: flex;
+    gap: clamp(0.75rem, 1.5vw, 1rem);
+    justify-content: center;
+}
+
+.tvDraftPromptBtn {
+    padding: clamp(0.75rem, 1.5vw, 0.95rem) clamp(1.5rem, 3vw, 2rem);
+    border: none;
+    border-radius: clamp(0.5rem, 0.8vw, 0.65rem);
+    font-size: clamp(0.92rem, 0.4vw, 1rem);
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    flex: 1;
+    max-width: 180px;
+}
+
+.tvDraftPromptIgnore {
+    background: #f3f4f6;
+    color: #1f2937;
+}
+
+.tvDraftPromptIgnore:hover {
+    background: #e5e7eb;
+}
+
+.tvDraftPromptRecover {
+    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    color: white;
+}
+
+.tvDraftPromptRecover:hover {
+    background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
+.tvDeleteDraftBtn {
+    padding: clamp(0.75rem, 2vw, 0.95rem) clamp(1rem, 2vw, 1.25rem);
+    background: transparent;
+    color: #ef4444;
+    border: 1px solid #fecaca;
+    border-radius: clamp(0.5rem, 0.8vw, 0.7rem);
+    font-size: clamp(0.9rem, 0.35vw, 0.95rem);
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.tvDeleteDraftBtn:hover {
+    background: #fef2f2;
+    border-color: #ef4444;
+    transform: translateY(-1px);
+}
+
+.tvDeleteDraftBtn:active {
+    transform: translateY(0);
+}
+
+.tvDeleteDraftBtn i {
+    font-size: 0.9em;
+}
+
+@media (max-width: 768px) {
+    .tvDraftPromptButtons {
+        flex-direction: column-reverse;
+    }
+    .tvDraftPromptBtn {
+        max-width: none;
+    }
+    .tvDeleteDraftBtn {
+        font-size: 0.85rem;
+        padding: 0.7rem 1rem;
+    }
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes slideUp {
+    from {
+        transform: translateY(20px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+/* ==========================================
+   FINALIZE MODAL - Modern Structured Design
+   ========================================== */
+
+.tvFinalizeModal {
+    position: fixed;
+    inset: 0;
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    pointer-events: none;
+}
+
+.tvFinalizeModal--show {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.tvFinalizeModal__backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(4px);
+}
+
+.tvFinalizeModal__panel {
+    position: relative;
+    width: 100%;
+    max-width: clamp(20rem, 95vw, 48rem);
+    max-height: 90vh;
+    background: white;
+    border-radius: clamp(0.75rem, 2vw, 1rem);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    display: flex;
+    flex-direction: column;
+    transform: scale(0.95);
+    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.tvFinalizeModal--show .tvFinalizeModal__panel {
+    transform: scale(1);
+}
+
+/* Header */
+.tvFinalizeModal__header {
+    padding: clamp(1rem, 3vw, 1.5rem);
+    border-bottom: 2px solid #e5e7eb;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+}
+
+.tvFinalizeModal__title {
+    font-size: clamp(1.125rem, 3vw, 1.5rem);
+    font-weight: 700;
+    color: #111;
+    margin: 0;
+}
+
+.tvFinalizeModal__close {
+    width: clamp(2rem, 6vw, 2.5rem);
+    height: clamp(2rem, 6vw, 2.5rem);
+    border: none;
+    background: #f3f4f6;
+    border-radius: 50%;
+    color: #6b7280;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: clamp(1rem, 2.5vw, 1.25rem);
+    transition: all 0.2s ease;
+}
+
+.tvFinalizeModal__close:hover {
+    background: #e5e7eb;
+    color: #111;
+}
+
+/* Body */
+.tvFinalizeModal__body {
+    padding: clamp(1rem, 3vw, 1.5rem);
+    overflow-y: auto;
+    flex: 1;
+}
+
+/* Summary Section */
+.tvFinalize__summary {
+    background: #f9fafb;
+    border: 2px solid #e5e7eb;
+    border-radius: clamp(0.5rem, 1.5vw, 0.75rem);
+    padding: clamp(0.75rem, 2.5vw, 1rem);
+    margin-bottom: clamp(1rem, 3vw, 1.5rem);
+}
+
+.tvFinalize__summaryTitle {
+    font-size: clamp(0.875rem, 2.5vw, 1rem);
+    font-weight: 600;
+    color: #6b7280;
+    margin: 0 0 clamp(0.5rem, 1.5vw, 0.75rem) 0;
+    text-transform: uppercase;
+    letter-spacing: 0.025em;
+}
+
+.tvFinalize__summaryGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: clamp(0.5rem, 1.5vw, 0.75rem);
+}
+
+.tvFinalize__summaryItem {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.tvFinalize__summaryItem--full {
+    grid-column: 1 / -1;
+}
+
+.tvFinalize__summaryLabel {
+    font-size: clamp(0.75rem, 2vw, 0.8125rem);
+    color: #9ca3af;
+    font-weight: 500;
+}
+
+.tvFinalize__summaryValue {
+    font-size: clamp(0.875rem, 2.5vw, 0.9375rem);
+    color: #111;
+    font-weight: 600;
+}
+
+/* Form */
+.tvFinalize__form {
+    display: flex;
+    flex-direction: column;
+    gap: clamp(1rem, 3vw, 1.5rem);
+}
+
+/* Sections */
+.tvFinalize__section {
+    background: white;
+    border: 2px solid #e5e7eb;
+    border-radius: clamp(0.5rem, 1.5vw, 0.75rem);
+    padding: clamp(0.75rem, 2.5vw, 1rem);
+}
+
+.tvFinalize__section--compact {
+    padding: clamp(0.625rem, 2vw, 0.875rem);
+}
+
+.tvFinalize__sectionTitle {
+    font-size: clamp(0.9375rem, 2.5vw, 1.0625rem);
+    font-weight: 600;
+    color: #111;
+    margin: 0 0 clamp(0.75rem, 2vw, 1rem) 0;
+    display: flex;
+    align-items: center;
+    gap: clamp(0.375rem, 1vw, 0.5rem);
+}
+
+.tvFinalize__sectionTitle i {
+    color: #3b82f6;
+    font-size: clamp(0.875rem, 2.2vw, 1rem);
+}
+
+.tvFinalize__required {
+    color: #ef4444;
+    font-size: clamp(0.875rem, 2.2vw, 1rem);
+}
+
+/* Rows Container */
+.tvFinalize__rows {
+    display: flex;
+    flex-direction: column;
+    gap: clamp(0.5rem, 1.5vw, 0.75rem);
+    margin-bottom: clamp(0.5rem, 1.5vw, 0.75rem);
+}
+
+.tvFinalize__row {
+    display: grid;
+    grid-template-columns: 2fr 1.2fr auto;
+    gap: clamp(0.375rem, 1vw, 0.5rem);
+    align-items: center;
+}
+
+/* Inputs */
+.tvFinalize__input {
+    width: 100%;
+    min-height: clamp(2.5rem, 7vw, 2.75rem);
+    padding: clamp(0.5rem, 1.5vw, 0.625rem) clamp(0.625rem, 2vw, 0.875rem);
+    border: 2px solid #e5e7eb;
+    border-radius: clamp(0.375rem, 1vw, 0.5rem);
+    font-size: clamp(0.875rem, 2.5vw, 1rem);
+    color: #111;
+    background: white;
+    transition: all 0.2s ease;
+    -webkit-appearance: none;
+    appearance: none;
+}
+
+.tvFinalize__input::-webkit-input-placeholder {
+    color: #9ca3af;
+}
+
+.tvFinalize__input::placeholder {
+    color: #9ca3af;
+}
+
+/* iOS fix: ensure text stays dark */
+.tvFinalize__input,
+.tvFinalize__input:focus {
+    -webkit-text-fill-color: #111;
+    opacity: 1;
+}
+
+.tvFinalize__input:-webkit-autofill,
+.tvFinalize__input:-webkit-autofill:hover,
+.tvFinalize__input:-webkit-autofill:focus {
+    -webkit-text-fill-color: #111 !important;
+    -webkit-box-shadow: 0 0 0 1000px white inset !important;
+}
+
+.tvFinalize__input:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.tvFinalize__input--price {
+    text-align: right;
+}
+
+.tvFinalize__input--vatRate {
+    max-width: 5rem;
+    text-align: right;
+}
+
+/* Buttons */
+.tvFinalize__removeBtn {
+    width: clamp(2rem, 6vw, 2.25rem);
+    height: clamp(2rem, 6vw, 2.25rem);
+    border: none;
+    background: #fee2e2;
+    color: #ef4444;
+    border-radius: clamp(0.375rem, 1vw, 0.5rem);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: clamp(0.875rem, 2.2vw, 1rem);
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+}
+
+.tvFinalize__removeBtn:hover {
+    background: #ef4444;
+    color: white;
+}
+
+.tvFinalize__removeBtn:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+}
+
+.tvFinalize__addBtn {
+    width: 100%;
+    min-height: clamp(2.25rem, 6vw, 2.5rem);
+    padding: clamp(0.5rem, 1.5vw, 0.625rem) clamp(0.75rem, 2vw, 1rem);
+    background: white;
+    border: 2px dashed #d1d5db;
+    border-radius: clamp(0.375rem, 1vw, 0.5rem);
+    color: #6b7280;
+    font-weight: 600;
+    font-size: clamp(0.8125rem, 2.2vw, 0.875rem);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: clamp(0.375rem, 1vw, 0.5rem);
+}
+
+.tvFinalize__addBtn:hover {
+    border-color: #3b82f6;
+    color: #3b82f6;
+    background: #eff6ff;
+}
+
+/* Subtotals */
+.tvFinalize__subtotal {
+    margin-top: clamp(0.5rem, 1.5vw, 0.75rem);
+    padding-top: clamp(0.5rem, 1.5vw, 0.75rem);
+    border-top: 2px solid #f3f4f6;
+    font-size: clamp(0.875rem, 2.5vw, 0.9375rem);
+    color: #6b7280;
+    text-align: right;
+}
+
+.tvFinalize__subtotal strong {
+    color: #111;
+    font-weight: 600;
+}
+
+/* VAT Row */
+.tvFinalize__vatRow {
+    display: flex;
+    align-items: center;
+    gap: clamp(0.5rem, 1.5vw, 0.75rem);
+}
+
+.tvFinalize__checkbox {
+    display: flex;
+    align-items: center;
+    gap: clamp(0.375rem, 1vw, 0.5rem);
+    cursor: pointer;
+    user-select: none;
+    flex: 1;
+}
+
+.tvFinalize__checkbox input[type="checkbox"] {
+    width: clamp(1.125rem, 3vw, 1.25rem);
+    height: clamp(1.125rem, 3vw, 1.25rem);
+    cursor: pointer;
+    accent-color: #3b82f6;
+}
+
+.tvFinalize__checkbox span {
+    font-size: clamp(0.875rem, 2.5vw, 0.9375rem);
+    color: #111;
+    font-weight: 500;
+}
+
+.tvFinalize__vatLabel {
+    font-size: clamp(0.875rem, 2.5vw, 1rem);
+    color: #6b7280;
+    font-weight: 600;
+}
+
+/* Totals */
+.tvFinalize__totals {
+    background: #f9fafb;
+    border: 2px solid #e5e7eb;
+    border-radius: clamp(0.5rem, 1.5vw, 0.75rem);
+    padding: clamp(0.75rem, 2.5vw, 1rem);
+}
+
+.tvFinalize__totalRow {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: clamp(0.375rem, 1vw, 0.5rem) 0;
+    font-size: clamp(0.875rem, 2.5vw, 0.9375rem);
+    color: #6b7280;
+}
+
+.tvFinalize__totalRow:not(:last-child) {
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.tvFinalize__totalRow strong {
+    color: #111;
+    font-weight: 600;
+}
+
+.tvFinalize__totalRow--grand {
+    font-size: clamp(1rem, 3vw, 1.25rem);
+    font-weight: 700;
+    color: #111;
+    padding-top: clamp(0.5rem, 1.5vw, 0.75rem);
+    border-top: 2px solid #d1d5db !important;
+}
+
+.tvFinalize__totalRow--grand strong {
+    color: #10b981;
+}
+
+/* Footer */
+.tvFinalizeModal__footer {
+    padding: clamp(1rem, 3vw, 1.5rem);
+    border-top: 2px solid #e5e7eb;
+    display: flex;
+    gap: clamp(0.5rem, 1.5vw, 0.75rem);
+    flex-shrink: 0;
+}
+
+.tvFinalize__btn {
+    flex: 1;
+    min-height: clamp(2.75rem, 8vw, 3rem);
+    padding: clamp(0.75rem, 2vw, 0.875rem) clamp(1rem, 3vw, 1.5rem);
+    border: none;
+    border-radius: clamp(0.5rem, 1.5vw, 0.75rem);
+    font-weight: 600;
+    font-size: clamp(0.875rem, 2.5vw, 1rem);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: clamp(0.375rem, 1vw, 0.5rem);
+}
+
+.tvFinalize__btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.tvFinalize__btn--cancel {
+    background: white;
+    border: 2px solid #e5e7eb;
+    color: #6b7280;
+}
+
+.tvFinalize__btn--cancel:hover:not(:disabled) {
+    background: #f9fafb;
+    border-color: #d1d5db;
+}
+
+.tvFinalize__btn--save {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    color: white;
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+}
+
+.tvFinalize__btn--save:hover:not(:disabled) {
+    box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4);
+    transform: translateY(-2px);
+}
+
+.tvFinalize__btn--save:active:not(:disabled) {
+    transform: translateY(0);
+}
+
+/* Mobile Optimizations */
+@media (max-width: 640px) {
+    .tvFinalizeModal__panel {
+        max-height: 100vh;
+        border-radius: 0;
+    }
+    
+    .tvFinalize__summaryGrid {
+        grid-template-columns: 1fr;
+    }
+    
+    .tvFinalize__row {
+        grid-template-columns: 1fr;
+    }
+    
+    .tvFinalize__removeBtn {
+        width: 100%;
+        margin-top: 0.25rem;
+    }
+    
+    .tvFinalize__vatRow {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .tvFinalize__input--vatRate {
+        max-width: none;
+    }
+    
+    .tvFinalizeModal__footer {
+        flex-direction: column-reverse;
     }
 }

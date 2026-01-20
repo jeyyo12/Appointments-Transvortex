@@ -168,15 +168,55 @@ function renderBillTo() {
     const data = currentInvoiceData;
     const client = data.client || {};
 
-    // Client details
+    // Client details - always show name and phone (required), conditionally show address
     document.getElementById('clientName').textContent = client.name || '—';
-    document.getElementById('clientAddress').textContent = client.address || '—';
     document.getElementById('clientPhone').textContent = client.phone || '—';
+    
+    // Conditionally render address
+    const addressLabel = document.querySelector('#clientAddress').previousElementSibling;
+    const addressValue = document.getElementById('clientAddress');
+    if (client.address && client.address.trim()) {
+        addressLabel.style.display = '';
+        addressValue.style.display = '';
+        addressValue.textContent = client.address;
+    } else {
+        addressLabel.style.display = 'none';
+        addressValue.style.display = 'none';
+    }
 
-    // Vehicle details
-    document.getElementById('vehicleMakeModel').textContent = client.vehicle || '—';
-    document.getElementById('vehicleRegPlate').textContent = client.regPlate || '—';
-    document.getElementById('vehicleMileage').textContent = client.mileage || '—';
+    // Vehicle details - conditionally render each field
+    const vehicleLabel = document.querySelector('#vehicleMakeModel').previousElementSibling;
+    const vehicleValue = document.getElementById('vehicleMakeModel');
+    if (client.vehicle && client.vehicle.trim()) {
+        vehicleLabel.style.display = '';
+        vehicleValue.style.display = '';
+        vehicleValue.textContent = client.vehicle;
+    } else {
+        vehicleLabel.style.display = 'none';
+        vehicleValue.style.display = 'none';
+    }
+    
+    const regLabel = document.querySelector('#vehicleRegPlate').previousElementSibling;
+    const regValue = document.getElementById('vehicleRegPlate');
+    if (client.regPlate && client.regPlate.trim()) {
+        regLabel.style.display = '';
+        regValue.style.display = '';
+        regValue.textContent = client.regPlate;
+    } else {
+        regLabel.style.display = 'none';
+        regValue.style.display = 'none';
+    }
+    
+    const mileageLabel = document.querySelector('#vehicleMileage').previousElementSibling;
+    const mileageValue = document.getElementById('vehicleMileage');
+    if (client.mileage) {
+        mileageLabel.style.display = '';
+        mileageValue.style.display = '';
+        mileageValue.textContent = client.mileage;
+    } else {
+        mileageLabel.style.display = 'none';
+        mileageValue.style.display = 'none';
+    }
 }
 
 /**
@@ -419,16 +459,25 @@ function mapFirestoreAppointmentToInvoiceData(appointment) {
         emergency: 'Mihai +44 7440787527'
     };
 
-    const vehicleMakeModel = appointment.makeModel || (
-        typeof appointment.car === 'string' ? appointment.car.split(',')[0].trim() : ''
-    );
+    // Normalize vehicle fields (support both old and new keys)
+    const vehicleMakeModel = appointment.vehicleMakeModel 
+        || appointment.makeModel 
+        || (typeof appointment.car === 'string' ? appointment.car.split(',')[0].trim() : '')
+        || '';
+
+    const regPlate = appointment.registrationPlate 
+        || appointment.regNumber 
+        || (typeof appointment.car === 'string' && appointment.car.includes(',') 
+            ? appointment.car.split(',')[1].trim() 
+            : '')
+        || '';
 
     const client = {
         name: appointment.customerName || '',
         address: appointment.address || '',
-        phone: appointment.customerPhone || '',
-        vehicle: vehicleMakeModel || '',
-        regPlate: appointment.regNumber || '',
+        phone: appointment.phone || appointment.customerPhone || '',
+        vehicle: vehicleMakeModel,
+        regPlate: regPlate,
         mileage: appointment.mileage || ''
     };
 

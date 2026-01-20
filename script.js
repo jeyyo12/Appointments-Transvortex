@@ -1153,7 +1153,7 @@ function subscribeToAppointments() {
                     const q = query(collection(db, 'appointments'), orderBy('startAt', 'asc'));
                     
                     appointmentsUnsubscribe = onSnapshot(q, (snapshot) => {
-                        appointments = snapshot.docs.map(doc => ({
+                        appointments = snapshot.docs.map(doc => normalizeAppointmentMileage({
                             id: doc.id,
                             ...doc.data()
                         }));
@@ -1186,20 +1186,20 @@ async function handleAddAppointment(e) {
     const customerName = document.getElementById('customerName').value.trim();
     const customerPhone = document.getElementById('customerPhone').value.trim();
     const contactPref = document.getElementById('contactPref').value;
-    const makeModel = document.getElementById('makeModel').value.trim();
-    const regNumber = document.getElementById('regNumber').value.trim();
+    const vehicleMakeModel = document.getElementById('makeModel').value.trim();
+    const registrationPlate = document.getElementById('regNumber').value.trim();
     const serviceLocation = document.getElementById('serviceLocation').value;
     const dateStr = document.getElementById('appointmentDate').value;
     const time = document.getElementById('appointmentTimeValue').value;
     const problemDescription = document.getElementById('problemDescription').value.trim();
     
-    // Validare câmpuri required
-    if (!customerName || !customerPhone || !contactPref || !makeModel || !regNumber || !serviceLocation || !dateStr || !time || !problemDescription) {
+    // Validare câmpuri required (vehicle and address are now OPTIONAL)
+    if (!customerName || !customerPhone || !contactPref || !registrationPlate || !serviceLocation || !dateStr || !time || !problemDescription) {
         showNotification('⚠️ Completează toate câmpurile obligatorii', 'error');
         return;
     }
     
-    // Validare locație și adresă
+    // Validare locație și adresă (address is OPTIONAL even for client service)
     let address = '';
     let postcode = '';
     
@@ -1207,12 +1207,10 @@ async function handleAddAppointment(e) {
         const clientAddress = document.getElementById('address').value.trim();
         postcode = document.getElementById('postcode').value.trim();
         
-        if (!clientAddress || !postcode) {
-            showNotification('⚠️ Completează adresa clientului (Adresă, Cod Poștal)', 'error');
-            return;
+        // Address is now optional - only validate if user entered it
+        if (clientAddress) {
+            address = clientAddress;
         }
-        
-        address = clientAddress;
     } else if (serviceLocation === 'garage') {
         address = 'TransvortexLTD Mobile Mechanic, 81 Foley Rd, Birmingham B8 2JT';
         postcode = '';
@@ -1234,39 +1232,52 @@ async function handleAddAppointment(e) {
         
         console.log('📝 Adding appointment...');
         
-        const docRef = await addDoc(collection(db, 'appointments'), {
-            // Client info
+        // Build payload with only non-empty optional fields
+        const payload = {
+            // Client info (required)
             customerName,
             customerPhone,
             contactPref,
             
-            // Vehicle info
-            makeModel,
-            regNumber,
-            vehicle: makeModel + ' (' + regNumber + ')', // Compatibility field
+            // Registration plate (required)
+            registrationPlate,
+            regNumber: registrationPlate, // Legacy compatibility
             
-            // Location
+            // Location (required)
             serviceLocation,
-            address,
-            postcode: postcode || '',
             
-            // Service details
+            // Service details (required)
             problemDescription,
             
             // Status (default to 'scheduled' for new appointments)
             status: 'scheduled',
             
-            // Legacy fields for compatibility
-            car: makeModel + ', ' + regNumber,
-            
-            // Timestamps
+            // Timestamps (required)
             time,
             startAt: Timestamp.fromDate(startDate),
             dateStr,
             createdAt: serverTimestamp(),
             updatedAt: serverTimestamp(),
             createdBy: currentUser.uid
-        });
+        };
+        
+        // Add optional fields only if they have values
+        if (vehicleMakeModel) {
+            payload.vehicleMakeModel = vehicleMakeModel;
+            payload.makeModel = vehicleMakeModel; // Legacy compatibility
+            payload.vehicle = vehicleMakeModel + ' • ' + registrationPlate; // Compatibility field
+            payload.car = vehicleMakeModel + ', ' + registrationPlate; // Legacy
+        }
+        
+        if (address) {
+            payload.address = address;
+        }
+        
+        if (postcode) {
+            payload.postcode = postcode;
+        }
+        
+        const docRef = await addDoc(collection(db, 'appointments'), payload);
         
         console.log(`✅ Appointment added with ID: ${docRef.id}`);
         
@@ -1436,6 +1447,86 @@ function isAppointmentScheduled(apt) {
     return !isAppointmentFinalized(apt);
 }
 
+// Normalize mileage to a single optional field
+function coalesceMileageValue(apt) {
+    if (!apt) return null;
+    const candidate = apt.mileage ?? apt.mileageFinal ?? apt.finalMileage ?? apt.kmFinal ?? apt.finalKm ?? apt.odometer;
+    if (candidate === undefined || candidate === null || candidate === '') return null;
+    const asNumber = Number(candidate);
+    return Number.isFinite(asNumber) ? asNumber : candidate;
+}
+
+function normalizeAppointmentMileage(apt) {
+    if (!apt) return apt;
+    const mileageValue = coalesceMileageValue(apt);
+    if (apt.mileage === undefined || apt.mileage === null || apt.mileage === '') {
+        apt.mileage = mileageValue;
+    }
+    // Do not propagate legacy keys forward
+    delete apt.mileageFinal;
+    delete apt.finalMileage;
+    delete apt.kmFinal;
+    delete apt.finalKm;
+    delete apt.odometer;
+    return apt;
+}
+
+// Normalize appointment fields with fallbacks for legacy Firestore keys
+// SINGLE SOURCE OF TRUTH - Used by all flows (Add/Edit/Finalize/Invoice)
+function normalizeAppointment(apt) {
+    if (!apt) return {};
+    
+    // Helper to extract make/model and plate from combined vehicle field (e.g., "BMW X5 • ABC123")
+    function parseVehicleField(vehicleStr) {
+        if (!vehicleStr) return { make: '', plate: '' };
+        const parts = vehicleStr.split('•').map(p => p.trim());
+        return {
+            make: parts[0] || '',
+            plate: parts[1] || ''
+        };
+    }
+    
+    // Vehicle make/model: prefer dedicated field, fallback to parsing combined vehicle field
+    let vehicleMakeModel = apt.vehicleMakeModel || apt.makeModel || '';
+    let registrationPlate = apt.registrationPlate || apt.regNumber || '';
+    
+    // Try to parse from combined "vehicle" or "car" field if dedicated fields missing
+    if (!vehicleMakeModel || !registrationPlate) {
+        const combinedVehicle = apt.vehicle || apt.car || '';
+        const parsed = parseVehicleField(combinedVehicle);
+        if (!vehicleMakeModel) vehicleMakeModel = parsed.make;
+        if (!registrationPlate) registrationPlate = parsed.plate;
+    }
+    
+    const customerName = (apt.customerName || '').trim();
+    const customerPhone = ((apt.customerPhone || apt.phone || '').trim());
+    const dateStr = (apt.dateStr || apt.date || '').trim();
+    const time = (apt.time || '').trim();
+    const address = (apt.address || '').trim();
+    const serviceLocation = (apt.serviceLocation || '').trim();
+    const contactPref = (apt.contactPref || '').trim();
+    const problemDescription = ((apt.problemDescription || apt.problem || '').trim());
+    const notes = (apt.notes || '').replace(/\s+/g, ' ').trim();
+    const registrationPlateNorm = registrationPlate.toUpperCase().trim();
+    const vehicleMakeModelNorm = vehicleMakeModel.replace(/\s+/g, ' ').trim();
+    const status = apt.status || 'scheduled';
+    
+    return {
+        customerName,
+        customerPhone,
+        vehicleMakeModel: vehicleMakeModelNorm,
+        registrationPlate: registrationPlateNorm,
+        dateStr,
+        time,
+        address,
+        serviceLocation,
+        contactPref,
+        problemDescription,
+        notes,
+        status
+    };
+}
+
 // Filter appointments (search + status select + active tab)
 function filterAppointments() {
     const filterStatus = document.getElementById('filterStatus')?.value || 'all';
@@ -1557,23 +1648,37 @@ function renderAppointments() {
     let html = '';
     
     sortedDates.forEach(dateStr => {
-        let dayLabel = dateStr;
-        if (dateStr === todayStr) dayLabel = '🗓️ Astăzi (' + dateStr + ')';
-        else if (dateStr === tomorrowStr) dayLabel = '📅 Mâine (' + dateStr + ')';
-        else {
-            const dayDate = new Date(dateStr + 'T00:00:00');
-            const dayName = dayDate.toLocaleDateString('ro-RO', { weekday: 'long' });
-            dayLabel = dayName.charAt(0).toUpperCase() + dayName.slice(1) + ' (' + dateStr + ')';
-        }
-        
-        html += `<div class="day-group">`;
-        html += `<div class="day-header"><i class="fas fa-calendar-day"></i> ${dayLabel}</div>`;
-        
-        grouped[dateStr].forEach(apt => {
-            html += createAppointmentCard(apt, now);
-        });
-        
-        html += `</div>`;
+                // Build day label string per spec (Azi/Mâine) else weekday
+                let dayLabel = dateStr;
+                if (dateStr === todayStr) dayLabel = 'Azi (' + dateStr + ')';
+                else if (dateStr === tomorrowStr) dayLabel = 'Mâine (' + dateStr + ')';
+                else {
+                        const dayDate = new Date(dateStr + 'T00:00:00');
+                        const dayName = dayDate.toLocaleDateString('ro-RO', { weekday: 'long' });
+                        dayLabel = dayName.charAt(0).toUpperCase() + dayName.slice(1) + ' (' + dateStr + ')';
+                }
+
+                // Per-day structure (header outside scroll container)
+                html += `
+<section class="tvDayGroup" data-day="${dateStr}">
+    <div class="tvDayHeader">${dayLabel}</div>
+    <div class="tvCarousel" role="region" aria-label="Appointments carousel for ${dateStr}">
+        <div class="tvTrack">
+`;
+
+                grouped[dateStr].forEach(apt => {
+                        html += `
+            <article class="tvCard" data-apt-id="${apt.id}">
+                ${createAppointmentCard(apt, now)}
+            </article>
+`;
+                });
+
+                html += `
+        </div>
+    </div>
+</section>
+`;
     });
     
     container.innerHTML = html;
@@ -1588,39 +1693,30 @@ function createAppointmentCard(apt) {
     const timeDiff = aptDate - new Date();
     const minutesDiff = Math.floor(timeDiff / 60000);
     
+    // Normalize appointment data
+    const normalized = normalizeAppointment(apt);
+    
     // Status badge
     let statusClass = 'status-scheduled';
     let statusIcon = 'fa-clock';
     let statusText = 'Programat';
     
-    if (apt.status === 'done') {
+    if (normalized.status === 'done') {
         statusClass = 'status-done';
         statusIcon = 'fa-check-circle';
         statusText = 'Finalizat';
-    } else if (apt.status === 'canceled') {
+    } else if (normalized.status === 'canceled') {
         statusClass = 'status-canceled';
         statusIcon = 'fa-times-circle';
         statusText = 'Anulat';
     }
     
     // Check if overdue
-    const isOverdue = apt.status === 'scheduled' && minutesDiff < 0;
+    const isOverdue = normalized.status === 'scheduled' && minutesDiff < 0;
     const overdueClass = isOverdue ? 'aptRow--overdue' : '';
     
-    const vehicleDisplay = apt.vehicle || apt.car || 'N/A';
-    const regPlate = apt.regPlate || apt.registration || 'N/A';
-    const mileage = apt.mileage ? ` • ${apt.mileage} km` : '';
-    const location = apt.address ? apt.address.substring(0, 40) + (apt.address.length > 40 ? '...' : '') : 'N/A';
-    
-    // Full details for collapsible section
-    const fullAddress = apt.address || 'N/A';
-    const problemText = apt.problemDescription || apt.problem || 'N/A';
-    const notesText = apt.notes || 'N/A';
-    
-    const hasDetails = apt.address || apt.problemDescription || apt.problem || apt.notes;
-    
     // Butoane de acțiune (mobile-first layout) per tab
-    const actionsHTML = apt.status !== 'canceled' ? `
+    const actionsHTML = normalized.status !== 'canceled' ? `
         <div class="aptRow__actions">
             ${activeAppointmentsTab === 'scheduled' ? `
                 <button class="apt-btn apt-btn-finalize" data-action="finalize" data-apt-id="${apt.id}" aria-label="Finalizează programarea">
@@ -1628,7 +1724,7 @@ function createAppointmentCard(apt) {
                     <span>Finalizează</span>
                 </button>
             ` : ''}
-            ${apt.address ? `
+            ${normalized.address ? `
                 <button class="apt-btn apt-btn-visit" data-action="visit" data-apt-id="${apt.id}" aria-label="Vizitează locația">
                     <i class="fas fa-map-marker-alt"></i>
                     <span>Vizitează</span>
@@ -1640,6 +1736,10 @@ function createAppointmentCard(apt) {
                     <span>Invoice</span>
                 </button>
             ` : ''}
+            <button class="apt-btn apt-btn-whatsapp" data-action="whatsapp" data-apt-id="${apt.id}" aria-label="Partajează pe WhatsApp">
+                <i class="fab fa-whatsapp"></i>
+                <span>WhatsApp</span>
+            </button>
             <button class="apt-btn apt-btn-edit" data-action="edit" data-apt-id="${apt.id}" aria-label="Editează programarea">
                 <i class="fas fa-edit"></i>
                 <span>Editează</span>
@@ -1653,59 +1753,25 @@ function createAppointmentCard(apt) {
     
     return `
         <div class="aptRow ${overdueClass}" data-apt-id="${apt.id}">
-            <div class="aptRow__header">
-                <div class="aptRow__client">
-                    <strong>${apt.customerName}</strong>
-                </div>
-                <div class="aptRow__badges">
-                    <span class="status-badge ${statusClass}">
-                        <i class="fas ${statusIcon}"></i> ${statusText}
+            <!-- Card Header: ONLY Client Name + Status Chip -->
+            <div class="tvCardHeader">
+                <h3 class="tvCardName">${normalized.customerName}</h3>
+                <div class="tvCardBadges">
+                    <span class="tvStatusChip ${statusClass}">
+                        <i class="fas ${statusIcon}"></i>
+                        <span>${statusText}</span>
                     </span>
-                    ${isOverdue ? `<span class="reminder-badge reminder-overdue"><i class="fas fa-exclamation-triangle"></i> Întârziat</span>` : ''}
+                    ${isOverdue ? `<span class="tvOverdueChip"><i class="fas fa-exclamation-triangle"></i></span>` : ''}
                 </div>
             </div>
-            <div class="aptRow__meta">
-                <div class="aptRow__meta-item">
-                    <i class="fas fa-clock"></i>
-                    <span>${apt.time || 'N/A'}</span>
-                </div>
-                <div class="aptRow__meta-item">
-                    <i class="fas fa-calendar"></i>
-                    <span>${apt.dateStr || aptDate.toLocaleDateString('ro-RO')}</span>
-                </div>
-                <div class="aptRow__meta-item">
-                    <i class="fas fa-car"></i>
-                    <span>${vehicleDisplay}</span>
-                </div>
-                <div class="aptRow__meta-item">
-                    <i class="fas fa-hashtag"></i>
-                    <span>${regPlate}${mileage}</span>
-                </div>
-                <div class="aptRow__meta-item aptRow__meta-item--location">
-                    <i class="fas fa-map-marker-alt"></i>
-                    <span>${location}</span>
-                </div>
-            </div>
-            ${hasDetails ? `
-                <button class="aptRow__toggleDetails" data-toggle="details" aria-expanded="false">
-                    <i class="fas fa-chevron-down"></i>
-                    <span>Detalii</span>
-                </button>
-                <div class="aptRow__details" hidden>
-                    <div class="aptRow__detail-row">
-                        <strong><i class="fas fa-map-marker-alt"></i> Adresă:</strong>
-                        <span>${fullAddress}</span>
-                    </div>
-                    <div class="aptRow__detail-row">
-                        <strong><i class="fas fa-clipboard"></i> Problemă:</strong>
-                        <span>${problemText}</span>
-                    </div>
-                    <div class="aptRow__detail-row">
-                        <strong><i class="fas fa-sticky-note"></i> Notițe:</strong>
-                        <span>${notesText}</span>
-                    </div>
-                </div>
-            ` : ''}
+            
+            <!-- Detalii: now opens modern modal -->
+            <button class="tvDetailsBtn" data-apt-id="${apt.id}" aria-label="Deschide detalii programare">
+                <i class="fas fa-info-circle"></i>
+                <span>Detalii</span>
+            </button>
+
+            <!-- Action Buttons -->
             ${actionsHTML}
         </div>
     `;
@@ -1719,29 +1785,20 @@ function bindAppointmentsClickDelegation() {
     if (appointmentsClicksBound) return;
 
     container.addEventListener('click', async (e) => {
-        // Handle details toggle
-        const toggleBtn = e.target.closest('[data-toggle="details"]');
-        if (toggleBtn) {
+        // Handle modern details modal open
+        const detailsBtn = e.target.closest('.tvDetailsBtn[data-apt-id]');
+        if (detailsBtn) {
             e.preventDefault();
-            const row = toggleBtn.closest('.aptRow');
-            const detailsEl = row.querySelector('.aptRow__details');
-            const icon = toggleBtn.querySelector('i');
-            const isExpanded = toggleBtn.getAttribute('aria-expanded') === 'true';
-            
-            if (isExpanded) {
-                detailsEl.hidden = true;
-                toggleBtn.setAttribute('aria-expanded', 'false');
-                icon.classList.remove('fa-chevron-up');
-                icon.classList.add('fa-chevron-down');
-            } else {
-                detailsEl.hidden = false;
-                toggleBtn.setAttribute('aria-expanded', 'true');
-                icon.classList.remove('fa-chevron-down');
-                icon.classList.add('fa-chevron-up');
+            const id = detailsBtn.dataset.aptId;
+            const appointment = appointments.find(a => a.id === id);
+            if (!appointment) {
+                showNotification('Programarea nu a fost găsită', 'error');
+                return;
             }
+            openDetailsModal(appointment);
             return;
         }
-        
+
         const btn = e.target.closest('button[data-apt-id]');
         if (!btn) return;
 
@@ -1793,6 +1850,11 @@ function bindAppointmentsClickDelegation() {
                 e.preventDefault();
                 await handleEditAction(id, appointment, openCustomModal);
                 break;
+
+            case 'whatsapp':
+                e.preventDefault();
+                handleWhatsAppShare(id, appointment);
+                break;
                 
             default:
                 console.warn('[Main] Unknown action:', action);
@@ -1803,276 +1865,615 @@ function bindAppointmentsClickDelegation() {
 }
 
 // ==========================================
+// DETAILS MODAL - Modern overlay with history integration
+// ==========================================
+
+let detailsModalEl = null;
+let detailsPopHandler = null;
+
+function openDetailsModal(appointment) {
+    if (!appointment) return;
+
+    // Close any existing details modal
+    closeDetailsModal(false);
+
+    const normalized = normalizeAppointment(appointment);
+    const overlay = buildDetailsModalElement(normalized, appointment);
+    detailsModalEl = overlay;
+
+    document.body.appendChild(overlay);
+    document.body.classList.add('modal-open');
+
+    // Show with small delay for transition
+    requestAnimationFrame(() => {
+        overlay.classList.add('tvDetailsModalOverlay--show');
+    });
+
+    // History push for back button close
+    history.pushState({ tvModal: 'details', id: appointment.id }, '');
+
+    detailsPopHandler = (event) => {
+        if (detailsModalEl) {
+            closeDetailsModal(false);
+        }
+    };
+
+    window.addEventListener('popstate', detailsPopHandler);
+
+    // Wire close interactions
+    const closeBtn = overlay.querySelector('[data-close="details"]');
+    closeBtn?.addEventListener('click', () => closeDetailsModal());
+    overlay.addEventListener('click', (e) => {
+        if (e.target.classList.contains('tvDetailsModalOverlay')) {
+            closeDetailsModal();
+        }
+    });
+}
+
+function closeDetailsModal(triggerHistoryBack = true) {
+    if (!detailsModalEl) return;
+
+    const overlay = detailsModalEl;
+    detailsModalEl = null;
+
+    overlay.classList.remove('tvDetailsModalOverlay--show');
+
+    setTimeout(() => {
+        overlay.remove();
+    }, 200);
+
+    // Remove body lock only if no other modals are active
+    if (!document.querySelector('.tvFinalizeModal--show') && !document.querySelector('.modern-modal-overlay.modern-modal-show')) {
+        document.body.classList.remove('modal-open');
+    }
+
+    if (detailsPopHandler) {
+        window.removeEventListener('popstate', detailsPopHandler);
+        detailsPopHandler = null;
+    }
+
+    if (triggerHistoryBack) {
+        const state = history.state;
+        if (state && state.tvModal === 'details') {
+            history.back();
+        }
+    }
+}
+
+function buildDetailsModalElement(normalized, rawAppointment) {
+    const items = [];
+
+    const pushItem = (label, value, icon) => {
+        if (!value) return;
+        items.push(`
+            <div class="tvDetailsItem">
+                <div class="tvDetailsIcon"><i class="fas ${icon}"></i></div>
+                <div class="tvDetailsContent">
+                    <div class="tvDetailsLabel">${label}</div>
+                    <div class="tvDetailsValue">${value}</div>
+                </div>
+            </div>
+        `);
+    };
+
+    const dateValue = rawAppointment.dateStr || '';
+    const timeValue = rawAppointment.time || '';
+    const dateTimeValue = dateValue && timeValue ? `${dateValue} • ${timeValue}` : (dateValue || timeValue || '');
+
+    const regPlate = normalized.registrationPlate;
+    const problemText = normalized.problemDescription;
+    const notesText = normalized.notes;
+    const statusText = normalized.status === 'done' ? 'Finalizat' : normalized.status === 'canceled' ? 'Anulat' : 'Programat';
+
+    pushItem('Telefon', normalized.phone, 'fa-phone');
+    pushItem('Data', dateTimeValue, 'fa-calendar');
+    pushItem('Ora', timeValue || dateValue, 'fa-clock');
+    pushItem('Mașină', normalized.vehicleMakeModel, 'fa-car');
+    pushItem('Nr. înmatriculare', regPlate, 'fa-hashtag');
+    pushItem('Locație/Adresă', normalized.address, 'fa-map-marker-alt');
+    pushItem('Tip serviciu', normalized.serviceLocation === 'garage' ? 'La garaj' : (normalized.serviceLocation ? 'La client' : ''), 'fa-wrench');
+    pushItem('Problemă', problemText, 'fa-exclamation-circle');
+    pushItem('Notițe', notesText, 'fa-clipboard');
+    pushItem('Status', statusText, normalized.status === 'done' ? 'fa-check-circle' : normalized.status === 'canceled' ? 'fa-times-circle' : 'fa-clock');
+
+    const itemsHtml = items.join('');
+
+    const overlay = document.createElement('div');
+    overlay.className = 'tvDetailsModalOverlay';
+    overlay.innerHTML = `
+        <div class="tvDetailsModal" role="dialog" aria-modal="true" aria-label="Detalii programare">
+            <div class="tvDetailsModalHeader">
+                <div class="tvDetailsTitle">Detalii: ${normalized.customerName || 'Client'}</div>
+                <button class="tvDetailsClose" data-close="details" aria-label="Închide detalii">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="tvDetailsModalBody">
+                <div class="tvDetailsGrid">
+                    ${itemsHtml || '<div class="tvDetailsEmpty">Nu există informații de afișat.</div>'}
+                </div>
+            </div>
+        </div>
+    `;
+
+    return overlay;
+}
+
+// ==========================================
 // ACTION HANDLERS
 // ==========================================
 
 /**
- * Handle Finalize Action - Deschide modal pentru finalizare cu mile, VAT, servicii
+ * Handle Finalize Action - Opens modern finalize modal
  */
 async function handleFinalizeAction(id, appointment, openCustomModal) {
     if (!appointment) {
         showNotification('Programarea nu a fost găsită', 'error');
         return;
     }
-
-    // HTML pentru modal de finalizare
-    const modalContent = `
-        <form id="finalizeForm" class="finalize-form">
-            <div class="form-field">
-                <label for="finalizeMileage" class="form-label">
-                    <i class="fas fa-road"></i> Mile la mașină <span class="required">*</span>
-                </label>
-                <input 
-                    type="number" 
-                    id="finalizeMileage" 
-                    class="form-input" 
-                    placeholder="Ex: 124500" 
-                    min="0" 
-                    step="1" 
-                    required 
-                    autocomplete="off"
-                />
-            </div>
-            
-            <div class="form-field">
-                <label for="finalizeVatRate" class="form-label">
-                    <i class="fas fa-percent"></i> VAT % (opțional)
-                </label>
-                <input 
-                    type="number" 
-                    id="finalizeVatRate" 
-                    class="form-input" 
-                    placeholder="Ex: 20" 
-                    min="0" 
-                    max="100" 
-                    step="0.1" 
-                    value="20"
-                    autocomplete="off"
-                />
-            </div>
-            
-            <div class="form-field">
-                <label class="form-label">
-                    <i class="fas fa-list"></i> Servicii / Produse
-                </label>
-                <div class="services-mini-table">
-                    <div class="services-row services-header">
-                        <span>Descriere</span>
-                        <span>Qty</span>
-                        <span>Preț (£)</span>
-                    </div>
-                    <div id="servicesContainer">
-                        <div class="services-row" data-row="1">
-                            <input type="text" class="service-desc" placeholder="Descriere serviciu" />
-                            <input type="number" class="service-qty" value="1" min="1" step="1" />
-                            <input type="number" class="service-price" placeholder="0.00" min="0" step="0.01" />
-                        </div>
-                    </div>
-                    <button type="button" class="btn-add-service" id="addServiceBtn">
-                        <i class="fas fa-plus"></i> Adaugă serviciu
-                    </button>
-                </div>
-                
-                <div class="totals-mini">
-                    <div class="totals-row">
-                        <span>Subtotal:</span>
-                        <strong id="subtotalDisplay">£0.00</strong>
-                    </div>
-                    <div class="totals-row">
-                        <span>VAT:</span>
-                        <strong id="vatDisplay">£0.00</strong>
-                    </div>
-                    <div class="totals-row totals-grand">
-                        <span>Total:</span>
-                        <strong id="totalDisplay">£0.00</strong>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="modal-footer-actions">
-                <button type="button" class="modal-btn modal-btn-cancel" id="finalizeCancelBtn">
-                    Anulează
-                </button>
-                <button type="submit" class="modal-btn modal-btn-success">
-                    <i class="fas fa-check"></i> Finalizează + Salvează
-                </button>
-            </div>
-        </form>
-    `;
-
-    const { panel, close } = openCustomModal({
-        title: `Finalizează: ${appointment.customerName}`,
-        content: modalContent,
-        size: 'large',
-        trackUnsavedChanges: true  // Enable Back button unsaved changes protection
-    });
-
-    // Setup form interactivity
-    setupFinalizeForm(panel, id, close);
+    
+    await openFinalizeModal(id, appointment);
 }
 
 /**
- * Setup finalize form - calculează totaluri, adaugă servicii, submit
+ * Open modern finalize modal with structured invoice data collection
  */
-function setupFinalizeForm(panel, appointmentId, closeModal) {
-    const form = panel.querySelector('#finalizeForm');
-    const addServiceBtn = panel.querySelector('#addServiceBtn');
-    const servicesContainer = panel.querySelector('#servicesContainer');
-    const cancelBtn = panel.querySelector('#finalizeCancelBtn');
-    const vatInput = panel.querySelector('#finalizeVatRate');
+async function openFinalizeModal(appointmentId, appointment) {
+    const apt = normalizeAppointment(appointment);
     
-    let serviceRowCount = 1;
-
-    // Calculate totals
-    const updateTotals = () => {
-        const rows = servicesContainer.querySelectorAll('.services-row');
-        let subtotal = 0;
-        
-        rows.forEach(row => {
-            const qty = parseFloat(row.querySelector('.service-qty')?.value || 0);
-            const price = parseFloat(row.querySelector('.service-price')?.value || 0);
-            subtotal += qty * price;
-        });
-        
-        const vatRate = parseFloat(vatInput.value || 0) / 100;
-        const vatAmount = subtotal * vatRate;
-        const total = subtotal + vatAmount;
-        
-        panel.querySelector('#subtotalDisplay').textContent = `£${subtotal.toFixed(2)}`;
-        panel.querySelector('#vatDisplay').textContent = `£${vatAmount.toFixed(2)}`;
-        panel.querySelector('#totalDisplay').textContent = `£${total.toFixed(2)}`;
+    // Build finalize modal DOM
+    const modal = buildFinalizeModal(apt, appointmentId);
+    
+    // Mount modal using modal.js system
+    document.body.appendChild(modal);
+    document.body.style.overflow = 'hidden';
+    
+    // History state for back button support
+    history.pushState({ modal: 'finalize', aptId: appointmentId }, '', '#finalize');
+    
+    // Handle back button
+    const popHandler = (e) => {
+        if (e.state?.modal === 'finalize') {
+            return; // Stay in finalize state
+        }
+        closeFinalizeModal(modal, popHandler, false);
     };
+    window.addEventListener('popstate', popHandler);
+    
+    // Focus trap setup
+    requestAnimationFrame(() => {
+        modal.classList.add('tvFinalizeModal--show');
+        const firstInput = modal.querySelector('input:not([readonly])');
+        if (firstInput) firstInput.focus();
+    });
+    
+    // Close handlers
+    const closeBtn = modal.querySelector('[data-action="close"]');
+    const cancelBtn = modal.querySelector('[data-action="cancel"]');
+    
+    closeBtn?.addEventListener('click', () => closeFinalizeModal(modal, popHandler, false));
+    cancelBtn?.addEventListener('click', () => closeFinalizeModal(modal, popHandler, false));
+    
+    // ESC key
+    const escHandler = (e) => {
+        if (e.key === 'Escape') {
+            closeFinalizeModal(modal, popHandler, false);
+        }
+    };
+    document.addEventListener('keydown', escHandler);
+    modal._escHandler = escHandler;
+    
+    // Form submission
+    const form = modal.querySelector('#tvFinalizeForm');
+    form.addEventListener('submit', (e) => handleFinalizeSubmit(e, modal, appointmentId, popHandler));
+    
+    // Setup interactive features
+    setupFinalizeInteractivity(modal);
+}
 
+/**
+ * Build finalize modal DOM structure
+ */
+function buildFinalizeModal(apt, appointmentId) {
+    const modal = document.createElement('div');
+    modal.className = 'tvFinalizeModal';
+    modal.setAttribute('role', 'dialog');
+    modal.setAttribute('aria-labelledby', 'tvFinalizeTitle');
+    modal.setAttribute('aria-modal', 'true');
+    
+    modal.innerHTML = `
+        <div class="tvFinalizeModal__backdrop"></div>
+        <div class="tvFinalizeModal__panel">
+            <!-- Header -->
+            <div class="tvFinalizeModal__header">
+                <h2 id="tvFinalizeTitle" class="tvFinalizeModal__title">Finalizare Programare</h2>
+                <button type="button" class="tvFinalizeModal__close" data-action="close" aria-label="Închide">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            
+            <!-- Body -->
+            <div class="tvFinalizeModal__body">
+                <!-- Appointment Summary (Read-only) -->
+                <div class="tvFinalize__summary">
+                    <h3 class="tvFinalize__summaryTitle">Detalii Programare</h3>
+                    <div class="tvFinalize__summaryGrid">
+                        <div class="tvFinalize__summaryItem">
+                            <span class="tvFinalize__summaryLabel">Client:</span>
+                            <span class="tvFinalize__summaryValue">${apt.customerName || ''}${apt.phone ? ' • ' + apt.phone : ''}</span>
+                        </div>
+                        ${apt.vehicleMakeModel || apt.registrationPlate ? `
+                        <div class="tvFinalize__summaryItem">
+                            <span class="tvFinalize__summaryLabel">Mașină:</span>
+                            <span class="tvFinalize__summaryValue">${apt.vehicleMakeModel || ''} ${apt.registrationPlate ? '• ' + apt.registrationPlate : ''}</span>
+                        </div>
+                        ` : ''}
+                        <div class="tvFinalize__summaryItem">
+                            <span class="tvFinalize__summaryLabel">Când:</span>
+                            <span class="tvFinalize__summaryValue">${apt.dateStr || ''} la ${apt.time || ''}</span>
+                        </div>
+                        ${apt.address ? `
+                        <div class="tvFinalize__summaryItem tvFinalize__summaryItem--full">
+                            <span class="tvFinalize__summaryLabel">Locație:</span>
+                            <span class="tvFinalize__summaryValue">${apt.address}</span>
+                        </div>
+                        ` : ''}
+                    </div>
+                </div>
+                
+                <!-- Form -->
+                <form id="tvFinalizeForm" class="tvFinalize__form">
+                    <!-- Section 1: Services -->
+                    <div class="tvFinalize__section">
+                        <h3 class="tvFinalize__sectionTitle">
+                            <i class="fas fa-wrench"></i> Servicii
+                            <span class="tvFinalize__required">*</span>
+                        </h3>
+                        <div id="tvServicesContainer" class="tvFinalize__rows">
+                            <div class="tvFinalize__row" data-row-id="1">
+                                <input type="text" class="tvFinalize__input tvFinalize__input--name" placeholder="Nume serviciu" data-field="name" required />
+                                <input type="number" class="tvFinalize__input tvFinalize__input--price" placeholder="Preț (£)" data-field="price" step="0.01" min="0" required />
+                                <button type="button" class="tvFinalize__removeBtn" data-action="remove-service" aria-label="Elimină" disabled>
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <button type="button" class="tvFinalize__addBtn" data-action="add-service">
+                            <i class="fas fa-plus"></i> Adaugă serviciu
+                        </button>
+                        <div class="tvFinalize__subtotal">
+                            Subtotal servicii: <strong id="tvServicesSubtotal">£0.00</strong>
+                        </div>
+                    </div>
+                    
+                    <!-- Section 2: Parts (Optional) -->
+                    <div class="tvFinalize__section">
+                        <h3 class="tvFinalize__sectionTitle">
+                            <i class="fas fa-cog"></i> Piese (opțional)
+                        </h3>
+                        <div id="tvPartsContainer" class="tvFinalize__rows">
+                            <!-- Parts rows added dynamically -->
+                        </div>
+                        <button type="button" class="tvFinalize__addBtn" data-action="add-part">
+                            <i class="fas fa-plus"></i> Adaugă piesă
+                        </button>
+                        <div class="tvFinalize__subtotal">
+                            Subtotal piese: <strong id="tvPartsSubtotal">£0.00</strong>
+                        </div>
+                    </div>
+                    
+                    <!-- Section 3: Mileage (Optional) -->
+                    <div class="tvFinalize__section tvFinalize__section--compact">
+                        <h3 class="tvFinalize__sectionTitle">
+                            <i class="fas fa-tachometer-alt"></i> Kilometraj (opțional)
+                        </h3>
+                        <input type="number" id="tvMileage" class="tvFinalize__input" placeholder="Ex: 124500" min="0" step="1" />
+                    </div>
+                    
+                    <!-- Section 4: Extra Costs (Optional) -->
+                    <div class="tvFinalize__section tvFinalize__section--compact">
+                        <h3 class="tvFinalize__sectionTitle">
+                            <i class="fas fa-pound-sign"></i> Costuri suplimentare (opțional)
+                        </h3>
+                        <input type="number" id="tvExtras" class="tvFinalize__input" placeholder="Ex: deplasare, parcare..." step="0.01" min="0" value="0" />
+                    </div>
+                    
+                    <!-- Section 5: VAT -->
+                    <div class="tvFinalize__section tvFinalize__section--compact">
+                        <h3 class="tvFinalize__sectionTitle">
+                            <i class="fas fa-percent"></i> TVA
+                        </h3>
+                        <div class="tvFinalize__vatRow">
+                            <label class="tvFinalize__checkbox">
+                                <input type="checkbox" id="tvVatEnabled" />
+                                <span>Include TVA</span>
+                            </label>
+                            <input type="number" id="tvVatRate" class="tvFinalize__input tvFinalize__input--vatRate" value="20" min="0" max="30" step="0.1" disabled />
+                            <span class="tvFinalize__vatLabel">%</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Section 6: Totals (Auto-calculated) -->
+                    <div class="tvFinalize__totals">
+                        <div class="tvFinalize__totalRow">
+                            <span>Subtotal:</span>
+                            <strong id="tvSubtotal">£0.00</strong>
+                        </div>
+                        <div class="tvFinalize__totalRow">
+                            <span>TVA:</span>
+                            <strong id="tvVatAmount">£0.00</strong>
+                        </div>
+                        <div class="tvFinalize__totalRow tvFinalize__totalRow--grand">
+                            <span>Total de plată:</span>
+                            <strong id="tvGrandTotal">£0.00</strong>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            
+            <!-- Footer -->
+            <div class="tvFinalizeModal__footer">
+                <button type="button" class="tvFinalize__btn tvFinalize__btn--cancel" data-action="cancel">
+                    Anulează
+                </button>
+                <button type="submit" form="tvFinalizeForm" class="tvFinalize__btn tvFinalize__btn--save" id="tvFinalizeSaveBtn">
+                    <i class="fas fa-check"></i> Finalizează & Salvează
+                </button>
+            </div>
+        </div>
+    `;
+    
+    return modal;
+}
+
+/**
+ * Setup interactive features (add/remove rows, calculations)
+ */
+function setupFinalizeInteractivity(modal) {
+    let serviceRowId = 1;
+    let partRowId = 0;
+    
     // Add service row
-    addServiceBtn.addEventListener('click', () => {
-        serviceRowCount++;
-        const newRow = document.createElement('div');
-        newRow.className = 'services-row';
-        newRow.dataset.row = serviceRowCount;
-        newRow.innerHTML = `
-            <input type="text" class="service-desc" placeholder="Descriere serviciu" />
-            <input type="number" class="service-qty" value="1" min="1" step="1" />
-            <input type="number" class="service-price" placeholder="0.00" min="0" step="0.01" />
-            <button type="button" class="btn-remove-service" aria-label="Elimină">
+    modal.querySelector('[data-action="add-service"]').addEventListener('click', () => {
+        serviceRowId++;
+        const container = modal.querySelector('#tvServicesContainer');
+        const row = document.createElement('div');
+        row.className = 'tvFinalize__row';
+        row.dataset.rowId = serviceRowId;
+        row.innerHTML = `
+            <input type="text" class="tvFinalize__input tvFinalize__input--name" placeholder="Nume serviciu" data-field="name" required />
+            <input type="number" class="tvFinalize__input tvFinalize__input--price" placeholder="Preț (£)" data-field="price" step="0.01" min="0" required />
+            <button type="button" class="tvFinalize__removeBtn" data-action="remove-service" aria-label="Elimină">
                 <i class="fas fa-times"></i>
             </button>
         `;
-        servicesContainer.appendChild(newRow);
-        
-        // Remove service
-        newRow.querySelector('.btn-remove-service').addEventListener('click', () => {
-            newRow.remove();
-            updateTotals();
-        });
-        
-        // Update totals on change
-        newRow.querySelectorAll('input[type="number"]').forEach(input => {
-            input.addEventListener('input', updateTotals);
-        });
+        container.appendChild(row);
+        row.querySelector('[data-field="name"]').focus();
+        calculateTotals(modal);
     });
-
-    // Update totals on existing inputs
-    servicesContainer.addEventListener('input', (e) => {
-        if (e.target.matches('input[type="number"]')) {
-            updateTotals();
+    
+    // Add part row
+    modal.querySelector('[data-action="add-part"]').addEventListener('click', () => {
+        partRowId++;
+        const container = modal.querySelector('#tvPartsContainer');
+        const row = document.createElement('div');
+        row.className = 'tvFinalize__row';
+        row.dataset.rowId = partRowId;
+        row.innerHTML = `
+            <input type="text" class="tvFinalize__input tvFinalize__input--name" placeholder="Nume piesă" data-field="name" />
+            <input type="number" class="tvFinalize__input tvFinalize__input--price" placeholder="Preț (£)" data-field="price" step="0.01" min="0" />
+            <button type="button" class="tvFinalize__removeBtn" data-action="remove-part" aria-label="Elimină">
+                <i class="fas fa-times"></i>
+            </button>
+        `;
+        container.appendChild(row);
+        row.querySelector('[data-field="name"]').focus();
+        calculateTotals(modal);
+    });
+    
+    // Remove rows (event delegation)
+    modal.addEventListener('click', (e) => {
+        const removeBtn = e.target.closest('[data-action="remove-service"], [data-action="remove-part"]');
+        if (removeBtn) {
+            const row = removeBtn.closest('.tvFinalize__row');
+            row.remove();
+            calculateTotals(modal);
         }
     });
     
-    vatInput.addEventListener('input', updateTotals);
-
-    // Cancel
-    cancelBtn.addEventListener('click', () => closeModal(false));
-
-    // Submit form
-    form.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        
-        const mileage = parseInt(panel.querySelector('#finalizeMileage').value);
-        let vatRateInput = parseFloat(panel.querySelector('#finalizeVatRate').value || 0);
-        
-        // ============================================
-        // VALIDARE VAT: Fix pentru bug 2000%
-        // Limită: 0-100%, default 20% dacă invalid
-        // ============================================
-        if (isNaN(vatRateInput) || vatRateInput < 0) {
-            vatRateInput = 20; // Default
-            showNotification('⚠️ VAT setat la 20% (default)', 'warning');
-        } else if (vatRateInput > 100) {
-            vatRateInput = 100; // Max cap
-            showNotification('⚠️ VAT nu poate depăși 100%! Setat la 100%.', 'warning');
-        }
-        
-        const vatRate = vatRateInput; // Stocat ca procent (nu decimal)
-        
-        if (!mileage || mileage < 0) {
-            showNotification('⚠️ Mile obligatorii și trebuie să fie pozitive', 'warning');
-            return;
-        }
-
-        // Collect services
-        const services = [];
-        const rows = servicesContainer.querySelectorAll('.services-row');
-        
-        rows.forEach(row => {
-            const desc = row.querySelector('.service-desc').value.trim();
-            const qty = parseFloat(row.querySelector('.service-qty').value || 0);
-            const price = parseFloat(row.querySelector('.service-price').value || 0);
-            
-            if (desc && qty > 0) {
-                services.push({
-                    description: desc,
-                    qty: qty,
-                    unitPrice: price,
-                    lineTotal: qty * price
-                });
-            }
-        });
-
-        if (services.length === 0) {
-            showNotification('⚠️ Adaugă cel puțin un serviciu cu descriere', 'warning');
-            return;
-        }
-
-        // Calculate totals
-        const subtotal = services.reduce((sum, s) => sum + s.lineTotal, 0);
-        const vatAmount = subtotal * (vatRate / 100);
-        const total = subtotal + vatAmount;
-
-        console.log(`[Finalize] VAT Rate: ${vatRate}%, VAT Amount: £${vatAmount.toFixed(2)}, Total: £${total.toFixed(2)}`);
-
-        // Disable submit button
-        const submitBtn = form.querySelector('button[type="submit"]');
-        submitBtn.disabled = true;
-        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Se salvează...';
-
-        try {
-            const { doc, updateDoc, Timestamp, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
-            
-            await updateDoc(doc(db, 'appointments', appointmentId), {
-                status: 'done',
-                mileage: mileage,
-                services: services,
-                subtotal: subtotal,
-                vatRate: vatRate / 100,
-                vatAmount: vatAmount,
-                total: total,
-                doneAt: Timestamp.now(),
-                updatedAt: serverTimestamp()
-            });
-
-            showNotification('✅ Programare finalizată cu succes!', 'success');
-            closeModal(true);
-
-        } catch (error) {
-            console.error('[Finalize] Error:', error);
-            showNotification('❌ Eroare la finalizare: ' + error.message, 'error');
-            submitBtn.disabled = false;
-            submitBtn.innerHTML = '<i class="fas fa-check"></i> Finalizează + Salvează';
+    // VAT toggle
+    const vatCheckbox = modal.querySelector('#tvVatEnabled');
+    const vatRateInput = modal.querySelector('#tvVatRate');
+    vatCheckbox.addEventListener('change', () => {
+        vatRateInput.disabled = !vatCheckbox.checked;
+        calculateTotals(modal);
+    });
+    
+    // Recalculate on input changes
+    modal.addEventListener('input', (e) => {
+        if (e.target.matches('[data-field="price"], #tvExtras, #tvVatRate')) {
+            calculateTotals(modal);
         }
     });
-
+    
+    // Format prices on blur
+    modal.addEventListener('blur', (e) => {
+        if (e.target.matches('[data-field="price"], #tvExtras')) {
+            const val = parseFloat(e.target.value);
+            if (!isNaN(val) && val >= 0) {
+                e.target.value = val.toFixed(2);
+            }
+        }
+    }, true);
+    
     // Initial calculation
-    updateTotals();
+    calculateTotals(modal);
+}
+
+/**
+ * Calculate all totals
+ */
+function calculateTotals(modal) {
+    // Services total
+    const serviceRows = modal.querySelectorAll('#tvServicesContainer .tvFinalize__row');
+    let servicesTotal = 0;
+    serviceRows.forEach(row => {
+        const price = parseFloat(row.querySelector('[data-field="price"]').value) || 0;
+        servicesTotal += price;
+    });
+    
+    // Parts total
+    const partRows = modal.querySelectorAll('#tvPartsContainer .tvFinalize__row');
+    let partsTotal = 0;
+    partRows.forEach(row => {
+        const price = parseFloat(row.querySelector('[data-field="price"]').value) || 0;
+        partsTotal += price;
+    });
+    
+    // Extras
+    const extras = parseFloat(modal.querySelector('#tvExtras').value) || 0;
+    
+    // Subtotal
+    const subtotal = servicesTotal + partsTotal + extras;
+    
+    // VAT
+    const vatEnabled = modal.querySelector('#tvVatEnabled').checked;
+    const vatRate = vatEnabled ? (parseFloat(modal.querySelector('#tvVatRate').value) || 0) / 100 : 0;
+    const vatAmount = subtotal * vatRate;
+    
+    // Grand total
+    const grandTotal = subtotal + vatAmount;
+    
+    // Update UI
+    modal.querySelector('#tvServicesSubtotal').textContent = `£${servicesTotal.toFixed(2)}`;
+    modal.querySelector('#tvPartsSubtotal').textContent = `£${partsTotal.toFixed(2)}`;
+    modal.querySelector('#tvSubtotal').textContent = `£${subtotal.toFixed(2)}`;
+    modal.querySelector('#tvVatAmount').textContent = `£${vatAmount.toFixed(2)}`;
+    modal.querySelector('#tvGrandTotal').textContent = `£${grandTotal.toFixed(2)}`;
+    
+    // Enable/disable save button
+    const saveBtn = modal.querySelector('#tvFinalizeSaveBtn');
+    const hasValidService = Array.from(serviceRows).some(row => {
+        const name = row.querySelector('[data-field="name"]').value.trim();
+        const price = parseFloat(row.querySelector('[data-field="price"]').value) || 0;
+        return name && price >= 0;
+    });
+    saveBtn.disabled = !hasValidService;
+}
+
+/**
+ * Handle finalize form submission
+ */
+async function handleFinalizeSubmit(e, modal, appointmentId, popHandler) {
+    e.preventDefault();
+    
+    const saveBtn = modal.querySelector('#tvFinalizeSaveBtn');
+    saveBtn.disabled = true;
+    saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Se salvează...';
+    
+    try {
+        // Collect services
+        const services = [];
+        const serviceRows = modal.querySelectorAll('#tvServicesContainer .tvFinalize__row');
+        serviceRows.forEach(row => {
+            const name = row.querySelector('[data-field="name"]').value.trim();
+            const price = parseFloat(row.querySelector('[data-field="price"]').value) || 0;
+            if (name && price >= 0) {
+                services.push({ name, price });
+            }
+        });
+        
+        if (services.length === 0) {
+            showNotification('⚠️ Adaugă cel puțin un serviciu', 'warning');
+            saveBtn.disabled = false;
+            saveBtn.innerHTML = '<i class="fas fa-check"></i> Finalizează & Salvează';
+            return;
+        }
+        
+        // Collect parts
+        const parts = [];
+        const partRows = modal.querySelectorAll('#tvPartsContainer .tvFinalize__row');
+        partRows.forEach(row => {
+            const name = row.querySelector('[data-field="name"]').value.trim();
+            const price = parseFloat(row.querySelector('[data-field="price"]').value) || 0;
+            if (name && price >= 0) {
+                parts.push({ name, price });
+            }
+        });
+        
+        // Mileage
+        const mileageStr = modal.querySelector('#tvMileage').value.trim();
+        const mileage = mileageStr ? parseInt(mileageStr, 10) : null;
+        
+        // Extras
+        const extras = parseFloat(modal.querySelector('#tvExtras').value) || 0;
+        
+        // VAT
+        const vatEnabled = modal.querySelector('#tvVatEnabled').checked;
+        const vatRate = vatEnabled ? (parseFloat(modal.querySelector('#tvVatRate').value) || 20) : 0;
+        
+        // Calculate totals
+        const servicesTotal = services.reduce((sum, s) => sum + s.price, 0);
+        const partsTotal = parts.reduce((sum, p) => sum + p.price, 0);
+        const subtotal = servicesTotal + partsTotal + extras;
+        const vatAmount = subtotal * (vatRate / 100);
+        const total = subtotal + vatAmount;
+        
+        // Save to Firestore
+        const { doc, updateDoc, Timestamp, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+        
+        const payload = {
+            status: 'done',
+            services,
+            parts,
+            extras,
+            vatEnabled,
+            vatRate: vatRate / 100,
+            subtotal,
+            vatAmount,
+            total,
+            finalizedAt: Timestamp.now(),
+            updatedAt: serverTimestamp()
+        };
+        
+        if (mileage !== null && !isNaN(mileage) && mileage >= 0) {
+            payload.mileage = mileage;
+        }
+        
+        await updateDoc(doc(db, 'appointments', appointmentId), payload);
+        
+        showNotification('✅ Programare finalizată cu succes!', 'success');
+        closeFinalizeModal(modal, popHandler, true);
+        
+    } catch (error) {
+        console.error('[Finalize] Error:', error);
+        showNotification('❌ Eroare la finalizare: ' + error.message, 'error');
+        saveBtn.disabled = false;
+        saveBtn.innerHTML = '<i class="fas fa-check"></i> Finalizează & Salvează';
+    }
+}
+
+/**
+ * Close finalize modal
+ */
+function closeFinalizeModal(modal, popHandler, saved) {
+    modal.classList.remove('tvFinalizeModal--show');
+    
+    // Cleanup
+    window.removeEventListener('popstate', popHandler);
+    if (modal._escHandler) {
+        document.removeEventListener('keydown', modal._escHandler);
+    }
+    
+    // Clean URL if modal was opened with hash
+    if (window.location.hash === '#finalize') {
+        history.replaceState(null, '', window.location.pathname + window.location.search);
+    }
+    
+    setTimeout(() => {
+        modal.remove();
+        document.body.style.overflow = '';
+    }, 300);
 }
 
 /**
@@ -2183,262 +2584,837 @@ async function handleDeleteAction(id, appointment, confirmModal) {
 }
 
 /**
+ * Handle WhatsApp Share action - Share appointment details via WhatsApp
+ */
+// Share appointment details via WhatsApp with professional message format
+function handleWhatsAppShare(id, appointment) {
+    if (!appointment) {
+        showNotification('Programarea nu a fost găsită', 'error');
+        return;
+    }
+
+    try {
+        const apt = normalizeAppointment(appointment);
+        
+        // Build professional WhatsApp message with conditional lines
+        const lines = [
+            'TRANSVORTEX • Programare',
+            '────────────────────'
+        ];
+        
+        // Client line: always include name, phone if available
+        if (apt.customerName) {
+            let clientLine = `Client: ${apt.customerName}`;
+            if (apt.customerPhone) clientLine += ` • ${apt.customerPhone}`;
+            lines.push(clientLine);
+        }
+        
+        // Vehicle line: always include if make/model or plate exists
+        if (apt.vehicleMakeModel || apt.registrationPlate) {
+            const make = apt.vehicleMakeModel || '?';
+            const plate = apt.registrationPlate || '?';
+            lines.push(`Mașină: ${make} • ${plate}`);
+        }
+        
+        // Date/Time line: always include if date and/or time exist
+        if (apt.dateStr || apt.time) {
+            let whenLine = 'Când:';
+            if (apt.dateStr) whenLine += ` ${apt.dateStr}`;
+            if (apt.time) whenLine += ` la ${apt.time}`;
+            lines.push(whenLine);
+        }
+        
+        // Location line: include if address exists
+        if (apt.address) {
+            lines.push(`Locație: ${apt.address}`);
+        }
+        
+        // Service type line: include if serviceLocation exists
+        if (apt.serviceLocation) {
+            const serviceText = apt.serviceLocation === 'garage' ? 'La garaj' : 'La client';
+            lines.push(`Tip: ${serviceText}`);
+        }
+        
+        // Problem line: always include if exists
+        if (apt.problemDescription) {
+            lines.push(`Lucrare: ${apt.problemDescription}`);
+        }
+        
+        // Notes line: include only if present
+        if (apt.notes) {
+            lines.push(`Notițe: ${apt.notes}`);
+        }
+        
+        // Closing
+        lines.push('────────────────────');
+        lines.push('Te rog confirmă cu OK.');
+        
+        // Invoice section for mechanic to fill in
+        lines.push('');
+        lines.push('Pentru factură (completat de mecanic):');
+        lines.push('• Servicii efectuate:');
+        lines.push('• Piese utilizate:');
+        lines.push('• Timp lucru (ore):');
+        lines.push('• Cost manoperă:');
+        lines.push('• Cost piese:');
+        lines.push('• Total:');
+        lines.push('• TVA (dacă este cazul):');
+        
+        const message = lines.join('\n');
+        const encoded = encodeURIComponent(message);
+        
+        // Open WhatsApp Web with prefilled message
+        window.open(`https://wa.me/?text=${encoded}`, '_blank', 'noopener,noreferrer');
+        
+        showNotification('✅ Deschizând WhatsApp cu detaliile programării', 'success');
+    } catch (error) {
+        console.error('[WhatsApp] Error:', error);
+        showNotification('❌ Eroare la deschiderea WhatsApp: ' + error.message, 'error');
+    }
+}
+
+/**
  * Handle edit appointment action
  */
+// Helper: Format phone number as user types
+function formatPhoneNumber(value) {
+    // Remove all non-digit characters
+    const digits = value.replace(/\D/g, '');
+    
+    // UK mobile format: +44 7XXX XXX XXX or 07XXX XXX XXX
+    if (digits.startsWith('44')) {
+        const local = digits.slice(2);
+        if (local.length === 0) return '+44';
+        if (local.length <= 3) return `+44 ${local}`;
+        if (local.length <= 6) return `+44 ${local.slice(0, 3)} ${local.slice(3)}`;
+        return `+44 ${local.slice(0, 3)} ${local.slice(3, 6)} ${local.slice(6, 10)}`;
+    } else if (digits.startsWith('0')) {
+        const local = digits.slice(1);
+        if (local.length === 0) return '0';
+        if (local.length <= 3) return `0${local}`;
+        if (local.length <= 6) return `0${local.slice(0, 3)} ${local.slice(3)}`;
+        return `0${local.slice(0, 3)} ${local.slice(3, 6)} ${local.slice(6, 10)}`;
+    }
+    return value;
+}
+
+// Helper: Validate UK phone number (mobile)
+function validatePhoneNumber(value) {
+    const digits = value.replace(/\D/g, '');
+    
+    // UK mobile numbers:
+    // National: 07XXX XXX XXX (11 digits starting with 07)
+    // International: +447XXX XXX XXX (12 digits: 44 + 10 digits starting with 7)
+    
+    if (digits.startsWith('44')) {
+        return digits.length === 12 && digits[2] === '7';
+    } else if (digits.startsWith('0')) {
+        return digits.length === 11 && digits[1] === '7';
+    }
+    
+    return false;
+}
+
+// Helper: Debounce function
+function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
+}
+
+// Helper: Save draft to localStorage
+function saveDraft(appointmentId, formData) {
+    try {
+        const draftKey = `tv_edit_draft_${appointmentId}`;
+        const draft = {
+            data: formData,
+            timestamp: Date.now()
+        };
+        localStorage.setItem(draftKey, JSON.stringify(draft));
+    } catch (e) {
+        console.warn('[Draft] Failed to save:', e);
+    }
+}
+
+// Helper: Load draft from localStorage
+function loadDraft(appointmentId) {
+    try {
+        const draftKey = `tv_edit_draft_${appointmentId}`;
+        const draftStr = localStorage.getItem(draftKey);
+        if (!draftStr) return null;
+        
+        const draft = JSON.parse(draftStr);
+        const ageMs = Date.now() - draft.timestamp;
+        const maxAge = 24 * 60 * 60 * 1000; // 24 hours
+        
+        if (ageMs > maxAge) {
+            localStorage.removeItem(draftKey);
+            return null;
+        }
+        
+        return draft.data;
+    } catch (e) {
+        console.warn('[Draft] Failed to load:', e);
+        return null;
+    }
+}
+
+// Helper: Clear draft from localStorage
+function clearDraft(appointmentId) {
+    try {
+        const draftKey = `tv_edit_draft_${appointmentId}`;
+        localStorage.removeItem(draftKey);
+    } catch (e) {
+        console.warn('[Draft] Failed to clear:', e);
+    }
+}
+
+// Helper: Validate individual field
+function validateField(input, showError = true) {
+    const isRequired = input.hasAttribute('required') || input.classList.contains('tv-required');
+    const value = input.value.trim();
+    let isValid = !isRequired || value.length > 0;
+    
+    // Special validation for phone field
+    if (input.id === 'editPhone' && value.length > 0) {
+        isValid = validatePhoneNumber(value);
+    }
+    
+    if (showError) {
+        if (isValid) {
+            input.classList.remove('error');
+            const errorMsg = input.nextElementSibling;
+            if (errorMsg && errorMsg.classList.contains('tvEditErrorMsg')) {
+                errorMsg.style.display = 'none';
+            }
+        } else {
+            input.classList.add('error');
+            const errorMsg = input.nextElementSibling;
+            if (errorMsg && errorMsg.classList.contains('tvEditErrorMsg')) {
+                errorMsg.style.display = 'block';
+            }
+        }
+    }
+    
+    return isValid;
+}
+
+// Helper: Validate all required fields in form
+function validateAllFields(form) {
+    const requiredFields = [
+        { id: 'editName', label: 'Nume Client' },
+        { id: 'editPhone', label: 'Telefon' },
+        { id: 'editDate', label: 'Data' },
+        { id: 'editTime', label: 'Ora' },
+        { id: 'editRegNumber', label: 'Nr. Înmatriculare' },
+        { id: 'editProblem', label: 'Problemă / Serviciu' }
+    ];
+    
+    let isValid = true;
+    const errors = [];
+    
+    requiredFields.forEach(field => {
+        const input = form.querySelector(`#${field.id}`);
+        if (input) {
+            const fieldValid = validateField(input, true);
+            if (!fieldValid) {
+                isValid = false;
+                errors.push(field.label);
+            }
+        }
+    });
+    
+    return { isValid, errors };
+}
+
+// Create a new Edit Modal with modern, clean design
+function createEditModalDOM(appointment) {
+    const modal = document.createElement('div');
+    modal.className = 'tvEditModal';
+    modal.setAttribute('role', 'dialog');
+    modal.setAttribute('aria-modal', 'true');
+    modal.setAttribute('aria-labelledby', 'editModalTitle');
+
+    // Parse vehicle data
+    const vehicleData = splitVehicleAndReg(
+        appointment.vehicle || appointment.makeModel || appointment.car || ''
+    );
+
+    modal.innerHTML = `
+        <!-- Header -->
+        <div class="tvEditModalHeader">
+            <h2 class="tvEditModalTitle" id="editModalTitle">
+                Editează: ${appointment.customerName || 'Programare'}
+            </h2>
+            <button type="button" class="tvEditModalClose" aria-label="Închide" data-action="close">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+
+        <!-- Body -->
+        <div class="tvEditModalBody">
+            <form id="tvEditForm" class="tvEditForm">
+                <!-- Section 1: Client -->
+                <div class="tvEditFieldGroup">
+                    <div class="tvEditFieldGroupHeader">
+                        <i class="fas fa-user"></i> Client
+                    </div>
+                    <div class="tvEditFieldsGrid">
+                        <div class="tvEditField">
+                            <label for="editName">Nume Client <span class="required">*</span></label>
+                            <input type="text" id="editName" class="tvEditInput" 
+                                placeholder="Ex: John Doe" 
+                                value="${appointment.customerName || ''}"
+                                required autocomplete="off">
+                            <span class="tvEditErrorMsg">Nume obligatoriu</span>
+                        </div>
+                        <div class="tvEditField">
+                            <label for="editPhone">Telefon <span class="required">*</span></label>
+                            <input type="tel" id="editPhone" class="tvEditInput tv-required" 
+                                placeholder="Ex: +44 7700 900 123"
+                                value="${appointment.phone || ''}"
+                                autocomplete="off">
+                            <span class="tvEditErrorMsg">Telefon obligatoriu (ex: 07700 900 123)</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Section 2: Date & Time -->
+                <div class="tvEditFieldGroup">
+                    <div class="tvEditFieldGroupHeader">
+                        <i class="fas fa-calendar"></i> Data & Ora
+                    </div>
+                    <div class="tvEditFieldsGrid">
+                        <div class="tvEditField">
+                            <label for="editDate">Data <span class="required">*</span></label>
+                            <input type="date" id="editDate" class="tvEditInput"
+                                value="${appointment.dateStr || ''}"
+                                required>
+                            <span class="tvEditErrorMsg">Data obligatorie</span>
+                        </div>
+                        <div class="tvEditField">
+                            <label for="editTime">Ora <span class="required">*</span></label>
+                            <input type="time" id="editTime" class="tvEditInput"
+                                value="${appointment.time || ''}"
+                                required>
+                            <span class="tvEditErrorMsg">Ora obligatorie</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Section 3: Vehicle -->
+                <div class="tvEditFieldGroup">
+                    <div class="tvEditFieldGroupHeader">
+                        <i class="fas fa-car"></i> Vehicul
+                    </div>
+                    <div class="tvEditFieldsGrid">
+                        <div class="tvEditField">
+                            <label for="editMakeModel">Marca / Model (opțional)</label>
+                            <input type="text" id="editMakeModel" class="tvEditInput"
+                                placeholder="Ex: OPEL VIVARA"
+                                value="${vehicleData.vehicleMakeModel || ''}"
+                                autocomplete="off">
+                        </div>
+                        <div class="tvEditField">
+                            <label for="editRegNumber">Nr. Înmatriculare <span class="required">*</span></label>
+                            <input type="text" id="editRegNumber" class="tvEditInput tv-required"
+                                placeholder="Ex: BV66HKE"
+                                value="${vehicleData.regPlate || ''}"
+                                autocomplete="off" required>
+                            <span class="tvEditErrorMsg">Nr. Înmatriculare obligatoriu</span>
+                        </div>
+                    </div>
+                    <div class="tvEditFieldsGrid">
+                        <div class="tvEditField">
+                            <label for="editMileage">Kilometraj (opțional)</label>
+                            <input type="number" id="editMileage" class="tvEditInput"
+                                placeholder="Ex: 124500"
+                                value="${coalesceMileageValue(appointment) || ''}"
+                                min="0" step="1" autocomplete="off">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Section 4: Location & Service -->
+                <div class="tvEditFieldGroup">
+                    <div class="tvEditFieldGroupHeader">
+                        <i class="fas fa-map-marker-alt"></i> Locație & Serviciu
+                    </div>
+                    <div class="tvEditFieldsGrid full-width">
+                        <div class="tvEditField">
+                            <label for="editAddress">Adresă / Locație (opțional)</label>
+                            <input type="text" id="editAddress" class="tvEditInput"
+                                placeholder="Ex: 123 Main Street, London"
+                                value="${appointment.address || ''}"
+                                autocomplete="off">
+                        </div>
+                    </div>
+                    <div class="tvEditFieldsGrid">
+                        <div class="tvEditField">
+                            <label for="editServiceLocation">Tip Serviciu</label>
+                            <select id="editServiceLocation" class="tvEditSelect">
+                                <option value="">-- Selectează --</option>
+                                <option value="garage" ${appointment.serviceLocation === 'garage' ? 'selected' : ''}>La garaj</option>
+                                <option value="client" ${appointment.serviceLocation === 'client' ? 'selected' : ''}>La client</option>
+                            </select>
+                        </div>
+                        <div class="tvEditField">
+                            <label for="editContactPref">Preferință Contact</label>
+                            <select id="editContactPref" class="tvEditSelect">
+                                <option value="">-- Selectează --</option>
+                                <option value="phone" ${appointment.contactPref === 'phone' ? 'selected' : ''}>Telefon</option>
+                                <option value="sms" ${appointment.contactPref === 'sms' ? 'selected' : ''}>SMS</option>
+                                <option value="whatsapp" ${appointment.contactPref === 'whatsapp' ? 'selected' : ''}>WhatsApp</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Section 5: Service Details -->
+                <div class="tvEditFieldGroup">
+                    <div class="tvEditFieldGroupHeader">
+                        <i class="fas fa-tools"></i> Detalii Serviciu
+                    </div>
+                    <div class="tvEditFieldsGrid full-width">
+                        <div class="tvEditField">
+                            <label for="editProblem">Problemă / Serviciu Solicitat <span class="required">*</span></label>
+                            <textarea id="editProblem" class="tvEditTextarea tv-required"
+                                placeholder="Descrierea problemei sau serviciului solicitat...">${appointment.problemDescription || appointment.problem || ''}</textarea>
+                            <span class="tvEditErrorMsg">Descrierea problemei este obligatorie</span>
+                        </div>
+                    </div>
+                    <div class="tvEditFieldsGrid full-width">
+                        <div class="tvEditField">
+                            <label for="editNotes">Notițe Adiționale</label>
+                            <textarea id="editNotes" class="tvEditTextarea"
+                                placeholder="Notițe interne...">${appointment.notes || ''}</textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Section 6: Status -->
+                <div class="tvEditFieldGroup">
+                    <div class="tvEditFieldGroupHeader">
+                        <i class="fas fa-info-circle"></i> Status
+                    </div>
+                    <div class="tvEditFieldsGrid">
+                        <div class="tvEditField">
+                            <label for="editStatus">Status</label>
+                            <select id="editStatus" class="tvEditSelect">
+                                <option value="scheduled" ${appointment.status === 'scheduled' ? 'selected' : ''}>Programat</option>
+                                <option value="done" ${appointment.status === 'done' ? 'selected' : ''}>Finalizat</option>
+                                <option value="canceled" ${appointment.status === 'canceled' ? 'selected' : ''}>Anulat</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+
+        <!-- Footer -->
+        <div class="tvEditModalFooter">
+            <button type="button" class="tvEditModalCancel" data-action="cancel" id="tvEditCancel">
+                Anulează
+            </button>
+            <button type="button" class="tvEditModalSave" data-action="save" id="tvEditSave">
+                <i class="fas fa-save"></i> Salvează Modificări
+            </button>
+        </div>
+    `;
+
+    return modal;
+}
+
+// -------------------------------------------------
+// Edit Modal state & history helpers
+// -------------------------------------------------
+const editModalHistoryState = {
+    isOpen: false,
+    suppressNextPop: false,
+    popListenerBound: false,
+    overlay: null,
+    closeFn: null
+};
+
+const logEditHistory = () => {};
+
+function ensureEditPopListener() {
+    if (editModalHistoryState.popListenerBound) return;
+
+    window.addEventListener('popstate', (e) => {
+        if (editModalHistoryState.suppressNextPop) {
+            editModalHistoryState.suppressNextPop = false;
+            return;
+        }
+
+        if (editModalHistoryState.isOpen && typeof editModalHistoryState.closeFn === 'function') {
+            editModalHistoryState.closeFn({ fromPopState: true });
+        }
+    });
+
+    editModalHistoryState.popListenerBound = true;
+}
+
+function isEditModalOpen() {
+    return editModalHistoryState.isOpen;
+}
+
+// Open Edit Modal
+async function openEditModal(appointment) {
+    if (!appointment) {
+        showNotification('Programarea nu a fost găsită', 'error');
+        return;
+    }
+
+    const appointmentId = appointment.id;
+    ensureEditPopListener();
+    
+    // Create overlay and modal
+    const overlay = document.createElement('div');
+    overlay.className = 'tvEditModalOverlay';
+    overlay.setAttribute('role', 'dialog');
+    overlay.setAttribute('aria-modal', 'true');
+    document.body.appendChild(overlay);
+
+    const modal = createEditModalDOM(appointment);
+    overlay.appendChild(modal);
+
+    // Store original data for dirty check
+    const form = modal.querySelector('#tvEditForm');
+    const getFormData = () => ({
+        name: form.querySelector('#editName').value,
+        phone: form.querySelector('#editPhone').value,
+        date: form.querySelector('#editDate').value,
+        time: form.querySelector('#editTime').value,
+        makeModel: form.querySelector('#editMakeModel').value,
+        regNumber: form.querySelector('#editRegNumber').value,
+        mileage: form.querySelector('#editMileage').value,
+        address: form.querySelector('#editAddress').value,
+        serviceLocation: form.querySelector('#editServiceLocation').value,
+        contactPref: form.querySelector('#editContactPref').value,
+        problem: form.querySelector('#editProblem').value,
+        notes: form.querySelector('#editNotes').value,
+        status: form.querySelector('#editStatus').value
+    });
+
+    const originalData = getFormData();
+
+    // Check for draft and show in-modal prompt
+    const draft = loadDraft(appointmentId);
+    if (draft) {
+        // Create draft prompt overlay
+        const draftPrompt = document.createElement('div');
+        draftPrompt.className = 'tvDraftPrompt';
+        draftPrompt.innerHTML = `
+            <div class="tvDraftPromptCard">
+                <div class="tvDraftPromptIcon">
+                    <i class="fas fa-file-alt"></i>
+                </div>
+                <h3>Draft nesalvat găsit</h3>
+                <p>Am găsit un draft nesalvat pentru această programare. Vrei să îl recuperezi?</p>
+                <div class="tvDraftPromptButtons">
+                    <button type="button" class="tvDraftPromptBtn tvDraftPromptIgnore">Ignoră</button>
+                    <button type="button" class="tvDraftPromptBtn tvDraftPromptRecover">Recuperează</button>
+                </div>
+            </div>
+        `;
+        modal.appendChild(draftPrompt);
+        
+        // Handle draft recovery
+        draftPrompt.querySelector('.tvDraftPromptRecover').addEventListener('click', () => {
+            Object.keys(draft).forEach(key => {
+                const inputId = 'edit' + key.charAt(0).toUpperCase() + key.slice(1);
+                const input = form.querySelector(`#${inputId}`);
+                if (input && draft[key]) {
+                    input.value = draft[key];
+                }
+            });
+            draftPrompt.remove();
+            showNotification('📝 Draft recuperat', 'info');
+        });
+        
+        // Handle draft ignore
+        draftPrompt.querySelector('.tvDraftPromptIgnore').addEventListener('click', () => {
+            clearDraft(appointmentId);
+            draftPrompt.remove();
+        });
+    }
+
+    // Auto-focus first input
+    setTimeout(() => form.querySelector('#editName').focus(), 100);
+
+    // Phone number formatting
+    const phoneInput = form.querySelector('#editPhone');
+    phoneInput.addEventListener('input', (e) => {
+        const cursorPos = e.target.selectionStart;
+        const oldValue = e.target.value;
+        const formatted = formatPhoneNumber(oldValue);
+        e.target.value = formatted;
+        
+        // Restore cursor position (approximate)
+        if (formatted.length >= cursorPos) {
+            e.target.setSelectionRange(cursorPos, cursorPos);
+        }
+    });
+
+    // Phone validation on blur
+    phoneInput.addEventListener('blur', () => {
+        const value = phoneInput.value.trim();
+        if (value && !validatePhoneNumber(value)) {
+            phoneInput.classList.add('error');
+            const errorMsg = phoneInput.nextElementSibling;
+            if (errorMsg && errorMsg.classList.contains('tvEditErrorMsg')) {
+                errorMsg.textContent = 'Format invalid (ex: 07700 900 123)';
+            }
+        } else {
+            phoneInput.classList.remove('error');
+        }
+    });
+
+    // Auto-uppercase for registration plate and make/model
+    const regNumberInput = form.querySelector('#editRegNumber');
+    const makeModelInput = form.querySelector('#editMakeModel');
+    
+    [regNumberInput, makeModelInput].forEach(input => {
+        input.addEventListener('input', (e) => {
+            const start = e.target.selectionStart;
+            const end = e.target.selectionEnd;
+            e.target.value = e.target.value.toUpperCase();
+            e.target.setSelectionRange(start, end);
+        });
+    });
+
+    // Inline validation on blur for required fields
+    const requiredInputs = form.querySelectorAll('[required], .tv-required');
+    requiredInputs.forEach(input => {
+        input.addEventListener('blur', () => validateField(input, true));
+        input.addEventListener('input', () => {
+            if (input.classList.contains('error')) {
+                validateField(input, true);
+            }
+        });
+    });
+
+    // Debounced autosave (saves 500ms after user stops typing)
+    const debouncedSave = debounce(() => {
+        const currentData = getFormData();
+        saveDraft(appointmentId, currentData);
+    }, 500);
+
+    // Trigger autosave on any form change
+    form.addEventListener('input', debouncedSave);
+    form.addEventListener('change', debouncedSave);
+
+    // Close function with history-aware flow
+    let closeModal = async ({ shouldSave = false, fromPopState = false, reason = 'unknown' } = {}) => {
+        if (!editModalHistoryState.isOpen) return;
+
+        const currentData = getFormData();
+        const isDirty = JSON.stringify(originalData) !== JSON.stringify(currentData);
+
+        if (!fromPopState && !shouldSave && isDirty) {
+            const confirmed = await confirmUnsavedChanges();
+            if (!confirmed) return;
+        }
+
+        editModalHistoryState.isOpen = false;
+        editModalHistoryState.overlay = null;
+        editModalHistoryState.closeFn = null;
+
+        overlay.classList.remove('active');
+        document.removeEventListener('keydown', handleEsc);
+
+        // Cleanup DOM after transition
+        setTimeout(() => {
+            if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+            document.body.style.overflow = '';
+        }, 200);
+
+        if (fromPopState) {
+            // Clean URL without adding new history entries
+            history.replaceState(history.state, '', location.pathname + location.search);
+            return;
+        }
+
+        // User-initiated close: remove the pushed state once
+        if (location.hash === '#edit') {
+            editModalHistoryState.suppressNextPop = true;
+            history.back();
+        } else {
+            history.replaceState(history.state, '', location.pathname + location.search);
+        }
+    };
+
+    // Handle close button
+    modal.querySelector('.tvEditModalClose').addEventListener('click', () => closeModal({ shouldSave: false, fromUser: true, reason: 'close-button' }));
+
+    // Add 'Șterge draft' button if draft exists
+    const addDeleteDraftButton = () => {
+        const footer = modal.querySelector('.tvEditModalFooter');
+        const existingBtn = footer.querySelector('.tvDeleteDraftBtn');
+        if (existingBtn) return;
+        
+        const hasDraft = loadDraft(appointmentId) !== null;
+        if (hasDraft) {
+            const deleteDraftBtn = document.createElement('button');
+            deleteDraftBtn.type = 'button';
+            deleteDraftBtn.className = 'tvDeleteDraftBtn';
+            deleteDraftBtn.innerHTML = '<i class="fas fa-trash-alt"></i> Șterge draft';
+            deleteDraftBtn.addEventListener('click', () => {
+                clearDraft(appointmentId);
+                deleteDraftBtn.remove();
+                showNotification('🗑️ Draft șters', 'info');
+            });
+            footer.insertBefore(deleteDraftBtn, footer.firstChild);
+        }
+    };
+    
+    // Add delete draft button after any save attempt
+    setTimeout(addDeleteDraftButton, 100);
+
+    // Handle cancel button
+    modal.querySelector('#tvEditCancel').addEventListener('click', () => closeModal({ shouldSave: false, fromUser: true, reason: 'cancel-button' }));
+
+    // Handle save button
+    modal.querySelector('#tvEditSave').addEventListener('click', async () => {
+        const saveBtn = modal.querySelector('#tvEditSave');
+        
+        // Validate all required fields
+        const validation = validateAllFields(form);
+        if (!validation.isValid) {
+            const errorList = validation.errors.join(', ');
+            showNotification(`⚠️ Câmpuri obligatorii lipsă: ${errorList}`, 'warning');
+            // Scroll to first error
+            const firstError = form.querySelector('.error');
+            if (firstError) {
+                firstError.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                firstError.focus();
+            }
+            return;
+        }
+
+        // Show loading state
+        saveBtn.disabled = true;
+        saveBtn.classList.add('loading');
+
+        try {
+            const makeModel = form.querySelector('#editMakeModel').value.trim().toUpperCase();
+            const regNumber = form.querySelector('#editRegNumber').value.trim().toUpperCase();
+            const mileage = form.querySelector('#editMileage').value;
+            const address = form.querySelector('#editAddress').value.trim();
+            const problem = form.querySelector('#editProblem').value.trim();
+            const notes = form.querySelector('#editNotes').value.trim();
+            const status = form.querySelector('#editStatus').value;
+            const phone = form.querySelector('#editPhone').value.trim();
+            const serviceLocation = form.querySelector('#editServiceLocation').value;
+            const contactPref = form.querySelector('#editContactPref').value;
+
+            const updateData = {
+                customerName: name,
+                dateStr: date,
+                time,
+                status
+            };
+
+            // Vehicle fields (optional)
+            if (makeModel) updateData.vehicleMakeModel = makeModel;
+            if (regNumber) updateData.registrationPlate = regNumber;
+            // Build combined vehicle field only if we have make/model or reg
+            if (makeModel || regNumber) {
+                updateData.vehicle = (makeModel || '') + (regNumber ? ` • ${regNumber}` : '');
+            }
+
+            // Optional fields (only save if non-empty)
+            if (phone) updateData.phone = phone;
+            if (mileage) updateData.mileage = parseInt(mileage, 10);
+            if (address) updateData.address = address;
+            if (problem) updateData.problemDescription = problem;
+            if (notes) updateData.notes = notes;
+            if (serviceLocation) updateData.serviceLocation = serviceLocation;
+            if (contactPref) updateData.contactPref = contactPref;
+
+            // Update timestamp
+            const dateTime = new Date(`${date}T${time}`);
+            const { Timestamp } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+            updateData.startAt = Timestamp.fromDate(dateTime);
+
+            // Update Firestore
+            const { doc, updateDoc } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+            await updateDoc(doc(db, 'appointments', appointmentId), updateData);
+
+            // Update local object
+            Object.assign(appointment, updateData);
+
+            // Update DOM
+            const row = document.querySelector(`.tvCard[data-apt-id="${appointmentId}"]`);
+            if (row) {
+                const newHTML = createAppointmentCard(appointment);
+                const temp = document.createElement('div');
+                temp.innerHTML = newHTML;
+                row.replaceWith(temp.firstElementChild);
+                bindAppointmentsClickDelegation();
+            }
+
+            // Clear draft on successful save
+            clearDraft(appointmentId);
+            
+            showNotification('✅ Programare actualizată cu succes', 'success');
+            await closeModal({ shouldSave: true, fromUser: true, reason: 'save-success' });
+        } catch (error) {
+            console.error('[Edit] Error:', error);
+            showNotification('❌ Eroare la salvare: ' + error.message, 'error');
+            saveBtn.disabled = false;
+            saveBtn.classList.remove('loading');
+        }
+    });
+
+    // ESC closes modal
+    const handleEsc = (e) => {
+        if (e.key === 'Escape') closeModal({ shouldSave: false, fromUser: true, reason: 'esc' });
+    };
+    document.addEventListener('keydown', handleEsc);
+
+    // History management
+    history.pushState({ tvModal: 'edit', appointmentId }, '', location.pathname + location.search + '#edit');
+    editModalHistoryState.isOpen = true;
+    editModalHistoryState.overlay = overlay;
+    editModalHistoryState.closeFn = closeModal;
+
+    // Disable background scroll
+    document.body.style.overflow = 'hidden';
+
+    // Show modal
+    setTimeout(() => overlay.classList.add('active'), 10);
+
+    // Cleanup on close handled within closeModal (no extra reassignment needed)
+}
+
+// Confirm unsaved changes dialog
+async function confirmUnsavedChanges() {
+    const { confirmModal } = await import('./src/modal.js');
+    return confirmModal({
+        title: 'Modificări nesalvate',
+        message: 'Ai modificări nesalvate. Sigur vrei să le anulezi?',
+        icon: 'fa-exclamation-triangle',
+        variant: 'danger',
+        confirmText: 'Da, anulează',
+        cancelText: 'Nu, rămân'
+    });
+}
+
 async function handleEditAction(id, appointment, openCustomModal) {
     if (!appointment) {
         showNotification('Programarea nu a fost găsită', 'error');
         return;
     }
 
-    // HTML pentru modal de editare
-    const modalContent = `
-        <form id="editAppointmentForm" class="finalize-form">
-            <div class="form-field">
-                <label for="editCustomerName" class="form-label">
-                    <i class="fas fa-user"></i> Nume Client <span class="required">*</span>
-                </label>
-                <input 
-                    type="text" 
-                    id="editCustomerName" 
-                    class="form-input" 
-                    placeholder="Ex: John Doe" 
-                    required 
-                    value="${appointment.customerName || ''}"
-                    autocomplete="off"
-                />
-            </div>
-            
-            <div class="form-field">
-                <label for="editDate" class="form-label">
-                    <i class="fas fa-calendar"></i> Data <span class="required">*</span>
-                </label>
-                <input 
-                    type="date" 
-                    id="editDate" 
-                    class="form-input" 
-                    required 
-                    value="${appointment.dateStr || ''}"
-                />
-            </div>
-            
-            <div class="form-field">
-                <label for="editTime" class="form-label">
-                    <i class="fas fa-clock"></i> Ora <span class="required">*</span>
-                </label>
-                <input 
-                    type="time" 
-                    id="editTime" 
-                    class="form-input" 
-                    required 
-                    value="${appointment.time || ''}"
-                />
-            </div>
-            
-            <div class="form-field">
-                <label for="editMakeModel" class="form-label">
-                    <i class="fas fa-car"></i> Marca/Model <span class="optional">(opțional)</span>
-                </label>
-                <input 
-                    type="text" 
-                    id="editMakeModel" 
-                    class="form-input" 
-                    placeholder="Ex: OPEL VIVARA" 
-                    autocomplete="off"
-                />
-                <small style="color: #999; margin-top: 4px; display: block;">Vehicle make and model (e.g., OPEL VIVARA)</small>
-            </div>
-            
-            <div class="form-field">
-                <label for="editRegNumber" class="form-label">
-                    <i class="fas fa-hashtag"></i> Nr. Înmatriculare <span class="optional">(opțional)</span>
-                </label>
-                <input 
-                    type="text" 
-                    id="editRegNumber" 
-                    class="form-input" 
-                    placeholder="Ex: BV66HKE" 
-                    autocomplete="off"
-                />
-                <small style="color: #999; margin-top: 4px; display: block;">Registration plate (e.g., BV66HKE)</small>
-            </div>
-            
-            <div class="form-field">
-                <label for="editMileage" class="form-label">
-                    <i class="fas fa-road"></i> Kilometraj
-                </label>
-                <input 
-                    type="number" 
-                    id="editMileage" 
-                    class="form-input" 
-                    placeholder="Ex: 124500" 
-                    min="0" 
-                    step="1" 
-                    value="${appointment.mileage || ''}"
-                    autocomplete="off"
-                />
-            </div>
-            
-            <div class="form-field">
-                <label for="editAddress" class="form-label">
-                    <i class="fas fa-map-marker-alt"></i> Adresă / Locație
-                </label>
-                <input 
-                    type="text" 
-                    id="editAddress" 
-                    class="form-input" 
-                    placeholder="Ex: 123 Main Street, London" 
-                    value="${appointment.address || ''}"
-                    autocomplete="off"
-                />
-            </div>
-            
-            <div class="form-field">
-                <label for="editProblem" class="form-label">
-                    <i class="fas fa-clipboard"></i> Problemă / Serviciu Solicitat
-                </label>
-                <textarea 
-                    id="editProblem" 
-                    class="form-input" 
-                    placeholder="Descrierea problemei sau serviciului solicitat..."
-                    rows="3"
-                >${appointment.problemDescription || appointment.problem || ''}</textarea>
-            </div>
-            
-            <div class="form-field">
-                <label for="editNotes" class="form-label">
-                    <i class="fas fa-sticky-note"></i> Notițe
-                </label>
-                <textarea 
-                    id="editNotes" 
-                    class="form-input" 
-                    placeholder="Notițe adiționale..."
-                    rows="2"
-                >${appointment.notes || ''}</textarea>
-            </div>
-            
-            <div class="form-field">
-                <label for="editStatus" class="form-label">
-                    <i class="fas fa-info-circle"></i> Status
-                </label>
-                <select id="editStatus" class="form-input">
-                    <option value="scheduled" ${appointment.status === 'scheduled' ? 'selected' : ''}>Programat</option>
-                    <option value="done" ${appointment.status === 'done' ? 'selected' : ''}>Finalizat</option>
-                    <option value="canceled" ${appointment.status === 'canceled' ? 'selected' : ''}>Anulat</option>
-                </select>
-            </div>
-            
-            <div class="modal-footer-actions">
-                <button type="button" class="modal-btn modal-btn-cancel" id="editCancelBtn">
-                    Anulează
-                </button>
-                <button type="submit" class="modal-btn modal-btn-success">
-                    <i class="fas fa-save"></i> Salvează Modificările
-                </button>
-            </div>
-        </form>
-    `;
-
-    const { panel, close } = openCustomModal({
-        title: `Editează: ${appointment.customerName}`,
-        content: modalContent,
-        size: 'large',
-        trackUnsavedChanges: true  // Enable Back button unsaved changes protection
-    });
-
-    const form = panel.querySelector('#editAppointmentForm');
-    const cancelBtn = panel.querySelector('#editCancelBtn');
-    
-    // Prefill vehicle and registration by parsing the combined string
-    const vehicleData = splitVehicleAndReg(
-        appointment.vehicle || appointment.makeModel || appointment.car || ''
-    );
-    const editMakeModelInput = panel.querySelector('#editMakeModel');
-    const editRegNumberInput = panel.querySelector('#editRegNumber');
-    
-    if (editMakeModelInput) {
-        editMakeModelInput.value = vehicleData.vehicleMakeModel;
-    }
-    if (editRegNumberInput) {
-        editRegNumberInput.value = vehicleData.regPlate;
-    }
-
-    // Cancel
-    cancelBtn.addEventListener('click', () => close(false));
-
-    // Submit form
-    form.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        
-        // Collect form data
-        const customerName = panel.querySelector('#editCustomerName').value.trim();
-        const date = panel.querySelector('#editDate').value;
-        const time = panel.querySelector('#editTime').value;
-        const makeModel = panel.querySelector('#editMakeModel').value.trim();
-        const regNumber = panel.querySelector('#editRegNumber').value.trim();
-        const mileage = panel.querySelector('#editMileage').value;
-        const address = panel.querySelector('#editAddress').value.trim();
-        const problem = panel.querySelector('#editProblem').value.trim();
-        const notes = panel.querySelector('#editNotes').value.trim();
-        const status = panel.querySelector('#editStatus').value;
-        
-        // Validate
-        if (!customerName || !date || !time) {
-            showNotification('⚠️ Nume client, dată și oră sunt obligatorii', 'warning');
-            return;
-        }
-        
-        try {
-            // Create update object
-            const updateData = {
-                customerName,
-                dateStr: date,
-                time,
-                status
-            };
-            
-            // Add vehicle fields - store as separate fields for consistency
-            if (makeModel) updateData.makeModel = makeModel;
-            if (regNumber) updateData.regNumber = regNumber;
-            
-            // Also update the combined 'vehicle' field for display compatibility
-            if (makeModel || regNumber) {
-                updateData.vehicle = makeModel + (regNumber ? ` (${regNumber})` : '');
-            }
-            
-            if (mileage) updateData.mileage = parseInt(mileage);
-            if (address) updateData.address = address;
-            if (problem) updateData.problemDescription = problem;
-            if (notes) updateData.notes = notes;
-            
-            // Update startAt timestamp
-            const dateTime = new Date(`${date}T${time}`);
-            const { Timestamp } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
-            updateData.startAt = Timestamp.fromDate(dateTime);
-            
-            // Update Firestore
-            const { doc, updateDoc } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
-            await updateDoc(doc(db, 'appointments', id), updateData);
-            
-            // Update local appointment object
-            Object.assign(appointment, updateData);
-            
-            // Update the DOM row in place
-            const row = document.querySelector(`.aptRow[data-apt-id="${id}"]`);
-            if (row) {
-                const newHTML = createAppointmentCard(appointment);
-                const temp = document.createElement('div');
-                temp.innerHTML = newHTML;
-                row.replaceWith(temp.firstElementChild);
-            }
-            
-            close(false);
-            showNotification('✅ Programare actualizată cu succes', 'success');
-        } catch (error) {
-            console.error('[Edit] Error:', error);
-            showNotification('❌ Eroare la actualizare: ' + error.message, 'error');
-        }
-    });
+    await openEditModal(appointment);
 }
 
 // Export appointments to CSV
@@ -2555,7 +3531,7 @@ function setupAppointmentFormLogic() {
         const field = document.getElementById(fieldId);
         if (field) {
             field.addEventListener('blur', () => {
-                validateField(fieldId);
+                validateField(field);
             });
         }
     });
@@ -2633,9 +3609,7 @@ function renderAppointmentsModalList(appointments) {
       </div>
       <div class="apt-modal-details">
         <div><strong>Mașină:</strong> ${apt.vehicle || 'N/A'}</div>
-        <div><strong>Mile:</strong> ${apt.mileage || 'N/A'}</div>
-        <div><strong>Total:</strong> ${formatGBP(apt.totalAmount || 0)}</div>
-      </div>
+        <div><strong>Mile:</strong> ${coalesceMileageValue(apt) || 'N/A'}</div>
     </div>
   `).join('');
 }
@@ -2826,7 +3800,7 @@ async function openInvoiceForAppointment(appointmentId) {
                 phone: appointment.customerPhone || appointment.phone || '',
                 vehicle: appointment.makeModel || appointment.vehicle || appointment.car || '',
                 regPlate: appointment.regNumber || appointment.regPlate || appointment.plate || '',
-                mileage: appointment.mileageFinal ?? appointment.mileage ?? ''
+                mileage: coalesceMileageValue(appointment) || ''
             },
             vatPercent: appointment.vatPercent ?? appointment.vat ?? 0,
             items: normalizeItems(appointment),
@@ -2852,6 +3826,14 @@ async function openInvoiceForAppointment(appointmentId) {
         showNotification('❌ A apărut o eroare la generarea facturii', 'error');
     }
 }
+
+// ==========================================
+// ==========================================
+// CAROUSEL SYSTEM
+// Mobile only: native touch scrolling with scroll-snap
+// Desktop: normal grid layout (2-3 columns)
+// No drag-to-scroll JS needed
+// ==========================================
 
 // Expose openInvoiceForAppointment globally
 window.openInvoiceForAppointment = openInvoiceForAppointment;

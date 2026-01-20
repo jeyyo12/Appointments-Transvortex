@@ -82,13 +82,22 @@
   display: grid;
   gap: var(--tv-gap-lg);
   grid-template-columns: 1fr;
+  width: 100%;
+  max-width: 100%;
 }
 
 @media (min-width: 1024px) {
   .tvDashboard--twocol {
-    grid-template-columns: 1fr 1.5fr;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr);
     align-items: start;
   }
+}
+
+/* Ensure all cards in dashboard can shrink */
+.tvDashboard > .tvCard {
+  min-width: 0;
+  width: 100%;
+  max-width: 100%;
 }
 
 /* ===== CARD COMPONENT ===== */

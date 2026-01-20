@@ -738,7 +738,7 @@
                                             id="customerPhone" 
                                             name="customerPhone" 
                                             autocomplete="tel" 
-                                            placeholder="ex: +40 750 123 456" 
+                                            placeholder="ex: +44 7700 900 123" 
                                             required 
                                             class="tvInput"
                                         />
@@ -752,17 +752,15 @@
                                 <h3 class="tvCardSection__title"><i class="fas fa-car"></i> Vehicul</h3>
                                 <div class="tvGrid tvGrid--2col">
                                     <div class="tvField">
-                                        <label for="makeModel" class="tvLabel tvLabel--required">Marca/Model</label>
+                                        <label for="makeModel" class="tvLabel">Marca/Model (opțional)</label>
                                         <input 
                                             type="text" 
                                             id="makeModel" 
                                             name="makeModel" 
                                             placeholder="ex: Dacia Logan" 
-                                            required 
                                             class="tvInput"
                                             autocomplete="off"
                                         />
-                                        <span class="tvField__error" id="makeModel-error">Marca/Model este obligatoriu</span>
                                     </div>
                                     
                                     <div class="tvField">
@@ -864,7 +862,7 @@
                                 <div id="clientAddressSection" style="display: none; margin-top: var(--tv-gap-md);">
                                     <div class="tvGrid tvGrid--2col">
                                         <div class="tvField">
-                                            <label for="address" class="tvLabel tvLabel--required">Adresă</label>
+                                            <label for="address" class="tvLabel">Adresă (opțional)</label>
                                             <input 
                                                 type="text" 
                                                 id="address" 
@@ -873,11 +871,10 @@
                                                 class="tvInput"
                                                 autocomplete="street-address"
                                             />
-                                            <span class="tvField__error" id="address-error">Adresa este obligatorie</span>
                                         </div>
                                         
                                         <div class="tvField">
-                                            <label for="postcode" class="tvLabel tvLabel--required">Cod Poștal</label>
+                                            <label for="postcode" class="tvLabel">Cod Poștal (opțional)</label>
                                             <input 
                                                 type="text" 
                                                 id="postcode" 
@@ -886,7 +883,6 @@
                                                 class="tvInput"
                                                 autocomplete="postal-code"
                                             />
-                                            <span class="tvField__error" id="postcode-error">Codul poștal este obligatoriu</span>
                                         </div>
                                     </div>
                                 </div>
