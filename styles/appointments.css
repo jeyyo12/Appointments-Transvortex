@@ -9,13 +9,20 @@
     width: 100%;
     max-width: 100%;
     min-width: 0;
-    overflow-x: clip;
     overflow-y: visible;
 }
 
-/* Desktop: center container with max-width and padding */
+/* MOBILE: allow carousel horizontal scroll */
+@media (max-width: 600px) {
+    #appointmentsList {
+        overflow-x: visible;
+    }
+}
+
+/* DESKTOP: prevent overflow, center container */
 @media (min-width: 601px) {
     #appointmentsList {
+        overflow-x: clip;
         margin: 0 auto;
         padding: 0 clamp(1rem, 3vw, 2rem);
         max-width: 1400px;
@@ -320,6 +327,17 @@
     border-color: rgba(156, 163, 175, 0.25);
 }
 
+/* Delayed / Rescheduled badges */
+.status-delayed {
+    background: linear-gradient(135deg, #f6c23e, #e0a800);
+    color: #1f1f1f;
+}
+
+.status-rescheduled {
+    background: linear-gradient(135deg, rgba(255, 122, 24, 0.15), rgba(255, 154, 61, 0.15));
+    color: #FF7A18;
+    border-color: rgba(255, 122, 24, 0.25);
+
 /* Overdue Chip */
 .tvOverdueChip {
     display: inline-flex;
@@ -344,45 +362,9 @@
 }
 
 /* ==========================================
-   DETAILS BUTTON (opens modal)
+   DETAILS BUTTON - Now uses tvx-btn--secondary
+   (Styling handled by global tvx-btn in styles.css)
    ========================================== */
-
-.tvDetailsBtn {
-    display: inline-flex;
-    align-items: center;
-    gap: clamp(0.4rem, 1vw, 0.65rem);
-    padding: clamp(0.55rem, 1.1vw, 0.75rem) clamp(0.95rem, 2vw, 1.25rem);
-    border-radius: 999px;
-    border: 1px solid rgba(59, 130, 246, 0.3);
-    background: linear-gradient(135deg, rgba(59, 130, 246, 0.12), rgba(99, 102, 241, 0.1));
-    color: #0f172a;
-    font-weight: 700;
-    font-size: clamp(0.9rem, 0.35vw + 0.85rem, 1rem);
-    cursor: pointer;
-    transition: all 0.2s ease;
-    box-shadow: 0 6px 18px rgba(59, 130, 246, 0.15);
-    align-self: flex-start;
-}
-
-.tvDetailsBtn i {
-    color: #2563eb;
-    font-size: clamp(0.95rem, 0.25vw + 0.9rem, 1.05rem);
-}
-
-.tvDetailsBtn:hover {
-    transform: translateY(-1px);
-    border-color: rgba(59, 130, 246, 0.45);
-    box-shadow: 0 8px 20px rgba(59, 130, 246, 0.22);
-}
-
-.tvDetailsBtn:active {
-    transform: translateY(0);
-}
-
-.tvDetailsBtn:focus-visible {
-    outline: 3px solid rgba(59, 130, 246, 0.4);
-    outline-offset: 2px;
-}
 
 /* ==========================================
    APPOINTMENT CARD ACTIONS
@@ -455,25 +437,9 @@
     box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
 }
 
-.apt-btn-visit {
-    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
-    color: white;
-}
-
-.apt-btn-visit:hover {
-    background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
-    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
-}
-
-.apt-btn-delete {
-    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
-    color: white;
-}
-
-.apt-btn-delete:hover {
-    background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
-    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
-}
+/* Removed: .apt-btn-visit, .apt-btn-delete classes
+   All buttons now use unified tvx-btn system (see styles.css)
+   which uses official palette colors only */
 
 /* Deleted: .apt-btn-invoice and .apt-btn-preview styles - removed per user request */
 
@@ -643,6 +609,23 @@
 @media (min-width: 640px) {
     .aptRow__actions {
         grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+    }
+}
+
+/* Modern tvx-actions layout */
+.tvx-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid rgba(226, 232, 240, 0.6);
+}
+
+@media (min-width: 768px) {
+    .tvx-actions {
+        grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+        gap: 12px;
     }
 }
 

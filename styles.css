@@ -661,6 +661,73 @@ main {
     outline-offset: 2px;
 }
 
+/* Modern unified buttons */
+.tvx-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 10px 14px;
+    border-radius: 12px;
+    border: 1px solid rgba(15, 23, 42, 0.12);
+    background: #fff;
+    color: #0f172a;
+    font-weight: 600;
+    line-height: 1;
+    cursor: pointer;
+    transition: transform 0.12s ease, box-shadow 0.12s ease, background 0.12s ease, border-color 0.12s ease;
+    box-shadow: 0 10px 25px rgba(2, 6, 23, 0.06);
+    text-decoration: none;
+    user-select: none;
+    white-space: nowrap;
+}
+
+.tvx-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 14px 30px rgba(2, 6, 23, 0.10);
+}
+
+.tvx-btn:active {
+    transform: translateY(0);
+}
+
+.tvx-btn:focus-visible {
+    outline: 0;
+    box-shadow: 0 0 0 3px rgba(255, 122, 24, 0.20), 0 12px 26px rgba(2, 6, 23, 0.10);
+}
+
+.tvx-btn svg,
+.tvx-btn i {
+    width: 18px;
+    height: 18px;
+}
+
+.tvx-btn--primary {
+    background: var(--accent-orange, #ff7a18);
+    border-color: rgba(255, 122, 24, 0.35);
+    color: #fff;
+}
+
+.tvx-btn--secondary {
+    background: rgba(255, 122, 24, 0.12);
+    border-color: rgba(255, 122, 24, 0.25);
+    color: #FF7A18;
+}
+
+.tvx-btn--ghost {
+    background: rgba(255, 255, 255, 0.65);
+}
+
+.tvx-btn--danger {
+    background: rgba(239, 68, 68, 0.14);
+    border-color: rgba(239, 68, 68, 0.35);
+    color: #7f1d1d;
+}
+
+.tvx-btn--icon {
+    gap: 8px;
+}
+
 /* Stats Section */
 .stats-section {
     display: grid;

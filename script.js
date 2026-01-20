@@ -1153,10 +1153,10 @@ function subscribeToAppointments() {
                     const q = query(collection(db, 'appointments'), orderBy('startAt', 'asc'));
                     
                     appointmentsUnsubscribe = onSnapshot(q, (snapshot) => {
-                        appointments = snapshot.docs.map(doc => normalizeAppointmentMileage({
+                        appointments = snapshot.docs.map(doc => normalizeAppointmentMileage(ensureScheduledFields({
                             id: doc.id,
                             ...doc.data()
-                        }));
+                        })));
                         
                         console.log(`✅ Appointments loaded: ${appointments.length}`);
                         
@@ -1233,6 +1233,7 @@ async function handleAddAppointment(e) {
         console.log('📝 Adding appointment...');
         
         // Build payload with only non-empty optional fields
+        const scheduledTimestamp = Timestamp.fromDate(startDate);
         const payload = {
             // Client info (required)
             customerName,
@@ -1254,8 +1255,10 @@ async function handleAddAppointment(e) {
             
             // Timestamps (required)
             time,
-            startAt: Timestamp.fromDate(startDate),
             dateStr,
+            startAt: scheduledTimestamp, // legacy compatibility
+            scheduledDateTime: scheduledTimestamp,
+            originalDateTime: scheduledTimestamp,
             createdAt: serverTimestamp(),
             updatedAt: serverTimestamp(),
             createdBy: currentUser.uid
@@ -1437,6 +1440,53 @@ async function cancelAppointment(id) {
     }
 }
 
+// Time helpers (scheduledDateTime = canonical)
+function getScheduledTimestamp(apt) {
+    return apt?.scheduledDateTime || apt?.startAt || null;
+}
+
+function getScheduledDate(apt) {
+    const ts = getScheduledTimestamp(apt);
+    if (ts?.toDate) return ts.toDate();
+    if (apt?.dateStr && apt?.time) return new Date(`${apt.dateStr}T${apt.time}`);
+    if (apt?.dateStr) return new Date(apt.dateStr);
+    return null;
+}
+
+function getOriginalDate(apt) {
+    const ts = apt?.originalDateTime;
+    if (ts?.toDate) return ts.toDate();
+    return null;
+}
+
+function formatISODate(date) {
+    return date ? date.toISOString().split('T')[0] : '';
+}
+
+function formatHHMM(date) {
+    if (!date) return '';
+    return date.toLocaleTimeString('ro-RO', { hour: '2-digit', minute: '2-digit', hour12: false });
+}
+
+function isSameDay(d1, d2) {
+    return d1 && d2 && d1.getFullYear() === d2.getFullYear() && d1.getMonth() === d2.getMonth() && d1.getDate() === d2.getDate();
+}
+
+function ensureScheduledFields(apt) {
+    if (!apt) return apt;
+    const scheduled = apt.scheduledDateTime || apt.startAt;
+    if (scheduled) {
+        apt.scheduledDateTime = scheduled;
+        apt.startAt = scheduled;
+    }
+    const scheduledDate = getScheduledDate(apt);
+    if (scheduledDate) {
+        if (!apt.dateStr) apt.dateStr = formatISODate(scheduledDate);
+        if (!apt.time) apt.time = formatHHMM(scheduledDate);
+    }
+    return apt;
+}
+
 // Helpers for appointment state
 function isAppointmentFinalized(apt) {
     return apt.finalized === true || apt.status === 'done' || apt.status === 'finalized';
@@ -1558,18 +1608,26 @@ function filterAppointments() {
         
         // Status filter (keep existing filter dropdown semantics inside selected tab)
         if (filterStatus === 'all') return true;
-        if (filterStatus === 'today') return apt.dateStr === todayStr;
+        const scheduledDate = getScheduledDate(apt);
+        const scheduledDateStr = scheduledDate ? formatISODate(scheduledDate) : apt.dateStr;
+        if (filterStatus === 'today') return scheduledDateStr === todayStr;
         if (filterStatus === 'upcoming') {
-            const aptDate = apt.startAt?.toDate ? apt.startAt.toDate() : new Date(apt.dateStr);
+            const aptDate = scheduledDate || new Date(apt.dateStr);
             return aptDate > now && apt.status === 'scheduled';
         }
         if (filterStatus === 'overdue') {
-            const aptDate = apt.startAt?.toDate ? apt.startAt.toDate() : new Date(apt.dateStr);
+            const aptDate = scheduledDate || new Date(apt.dateStr);
             return aptDate < now && apt.status === 'scheduled';
         }
         return apt.status === filterStatus;
     });
     
+    // Sort by scheduled datetime
+    filteredAppointments.sort((a, b) => {
+        const aDate = getScheduledDate(a) || new Date(a.dateStr || 0);
+        const bDate = getScheduledDate(b) || new Date(b.dateStr || 0);
+        return aDate - bDate;
+    });
     updateAppointmentsTabsUI();
     renderAppointments();
 }
@@ -1630,7 +1688,8 @@ function renderAppointments() {
     // Group by date
     const grouped = {};
     filteredAppointments.forEach(apt => {
-        const dateKey = apt.dateStr || apt.startAt.toDate().toISOString().split('T')[0];
+        const scheduledDate = getScheduledDate(apt);
+        const dateKey = scheduledDate ? formatISODate(scheduledDate) : (apt.dateStr || '');
         if (!grouped[dateKey]) {
             grouped[dateKey] = [];
         }
@@ -1666,6 +1725,12 @@ function renderAppointments() {
         <div class="tvTrack">
 `;
 
+                grouped[dateStr].sort((a, b) => {
+                    const aDate = getScheduledDate(a) || new Date(a.dateStr || 0);
+                    const bDate = getScheduledDate(b) || new Date(b.dateStr || 0);
+                    return aDate - bDate;
+                });
+
                 grouped[dateStr].forEach(apt => {
                         html += `
             <article class="tvCard" data-apt-id="${apt.id}">
@@ -1689,7 +1754,7 @@ function renderAppointments() {
 
 // Create appointment card HTML - COMPACT HORIZONTAL LAYOUT
 function createAppointmentCard(apt) {
-    const aptDate = apt.startAt.toDate();
+    const aptDate = getScheduledDate(apt) || new Date();
     const timeDiff = aptDate - new Date();
     const minutesDiff = Math.floor(timeDiff / 60000);
     
@@ -1701,7 +1766,7 @@ function createAppointmentCard(apt) {
     let statusIcon = 'fa-clock';
     let statusText = 'Programat';
     
-    if (normalized.status === 'done') {
+    if (normalized.status === 'done' || normalized.status === 'finalized') {
         statusClass = 'status-done';
         statusIcon = 'fa-check-circle';
         statusText = 'Finalizat';
@@ -1709,7 +1774,19 @@ function createAppointmentCard(apt) {
         statusClass = 'status-canceled';
         statusIcon = 'fa-times-circle';
         statusText = 'Anulat';
+    } else if (normalized.status === 'delayed') {
+        statusClass = 'status-delayed';
+        statusIcon = 'fa-hourglass-half';
+        statusText = 'Întârziat';
+    } else if (normalized.status === 'rescheduled') {
+        statusClass = 'status-rescheduled';
+        statusIcon = 'fa-rotate';
+        statusText = 'Reprogramat';
     }
+
+    // Removed: We no longer show extra delta badges with dates/times
+    // Only the single status badge is shown in the header (clean and simple)
+    let deltaBadge = '';
     
     // Check if overdue
     const isOverdue = normalized.status === 'scheduled' && minutesDiff < 0;
@@ -1717,34 +1794,38 @@ function createAppointmentCard(apt) {
     
     // Butoane de acțiune (mobile-first layout) per tab
     const actionsHTML = normalized.status !== 'canceled' ? `
-        <div class="aptRow__actions">
+        <div class="tvx-actions">
             ${activeAppointmentsTab === 'scheduled' ? `
-                <button class="apt-btn apt-btn-finalize" data-action="finalize" data-apt-id="${apt.id}" aria-label="Finalizează programarea">
+                <button class="tvx-btn tvx-btn--primary tvx-btn--icon" data-action="finalize" data-id="${apt.id}" aria-label="Finalizează programarea">
                     <i class="fas fa-check-circle"></i>
                     <span>Finalizează</span>
                 </button>
+                <button class="tvx-btn tvx-btn--secondary tvx-btn--icon" data-action="delay" data-id="${apt.id}" aria-label="Întârzie / Reprogramează">
+                    <i class="fas fa-clock-rotate-left"></i>
+                    <span>Întârzie / Reprogramează</span>
+                </button>
             ` : ''}
             ${normalized.address ? `
-                <button class="apt-btn apt-btn-visit" data-action="visit" data-apt-id="${apt.id}" aria-label="Vizitează locația">
+                <button class="tvx-btn tvx-btn--ghost tvx-btn--icon" data-action="visit" data-id="${apt.id}" aria-label="Vizitează locația">
                     <i class="fas fa-map-marker-alt"></i>
                     <span>Vizitează</span>
                 </button>
             ` : ''}
             ${activeAppointmentsTab === 'finalized' ? `
-                <button class="apt-btn apt-btn-invoice" data-apt-id="${apt.id}" aria-label="Generează factură">
+                <button class="tvx-btn tvx-btn--ghost tvx-btn--icon" data-action="invoice" data-id="${apt.id}" aria-label="Generează factură">
                     <i class="fas fa-file-invoice"></i>
                     <span>Invoice</span>
                 </button>
             ` : ''}
-            <button class="apt-btn apt-btn-whatsapp" data-action="whatsapp" data-apt-id="${apt.id}" aria-label="Partajează pe WhatsApp">
+            <button class="tvx-btn tvx-btn--ghost tvx-btn--icon" data-action="whatsapp" data-id="${apt.id}" aria-label="Partajează pe WhatsApp">
                 <i class="fab fa-whatsapp"></i>
                 <span>WhatsApp</span>
             </button>
-            <button class="apt-btn apt-btn-edit" data-action="edit" data-apt-id="${apt.id}" aria-label="Editează programarea">
+            <button class="tvx-btn tvx-btn--ghost tvx-btn--icon" data-action="edit" data-id="${apt.id}" aria-label="Editează programarea">
                 <i class="fas fa-edit"></i>
                 <span>Editează</span>
             </button>
-            <button class="apt-btn apt-btn-delete" data-action="delete" data-apt-id="${apt.id}" aria-label="Șterge programarea">
+            <button class="tvx-btn tvx-btn--danger tvx-btn--icon" data-action="delete" data-id="${apt.id}" aria-label="Șterge programarea">
                 <i class="fas fa-trash-alt"></i>
                 <span>Șterge</span>
             </button>
@@ -1761,12 +1842,13 @@ function createAppointmentCard(apt) {
                         <i class="fas ${statusIcon}"></i>
                         <span>${statusText}</span>
                     </span>
+                    ${deltaBadge}
                     ${isOverdue ? `<span class="tvOverdueChip"><i class="fas fa-exclamation-triangle"></i></span>` : ''}
                 </div>
             </div>
             
             <!-- Detalii: now opens modern modal -->
-            <button class="tvDetailsBtn" data-apt-id="${apt.id}" aria-label="Deschide detalii programare">
+            <button class="tvx-btn tvx-btn--secondary tvx-btn--icon" data-action="details" data-id="${apt.id}" aria-label="Deschide detalii programare">
                 <i class="fas fa-info-circle"></i>
                 <span>Detalii</span>
             </button>
@@ -1785,79 +1867,81 @@ function bindAppointmentsClickDelegation() {
     if (appointmentsClicksBound) return;
 
     container.addEventListener('click', async (e) => {
-        // Handle modern details modal open
-        const detailsBtn = e.target.closest('.tvDetailsBtn[data-apt-id]');
-        if (detailsBtn) {
-            e.preventDefault();
-            const id = detailsBtn.dataset.aptId;
-            const appointment = appointments.find(a => a.id === id);
-            if (!appointment) {
-                showNotification('Programarea nu a fost găsită', 'error');
-                return;
-            }
-            openDetailsModal(appointment);
-            return;
-        }
-
-        const btn = e.target.closest('button[data-apt-id]');
+        // Single unified approach: find button with data-action
+        const btn = e.target.closest('[data-action][data-id]');
         if (!btn) return;
 
-        const id = btn.dataset.aptId;
+        e.preventDefault();
+        e.stopPropagation();
+
+        const aptId = btn.dataset.id;
         const action = btn.dataset.action;
         
-        if (!id) {
-            console.error('[Main] Button clicked but data-apt-id is missing:', btn);
-            showNotification('Programarea nu are ID - vă rugăm să reîmprospătați pagina', 'error');
+        if (!aptId) {
+            console.error('[Main] Button has no data-id:', btn);
+            showNotification('Programarea nu are ID', 'error');
             return;
         }
 
-        // Special handling for Invoice button (no data-action by requirement)
-        if (btn.classList.contains('apt-btn-invoice')) {
-            e.preventDefault();
-            try {
-                const basePath = window.location.pathname.replace(/[^/]+$/, '');
-                const url = basePath + 'invoice.html?aptId=' + encodeURIComponent(id);
-                window.location.href = url;
-            } catch (err) {
-                console.error('[Main] Failed to navigate to invoice:', err);
-                showNotification('Nu s-a putut deschide factura', 'error');
-            }
+        const appointment = appointments.find(a => a.id === aptId);
+        if (!appointment && action !== 'invoice') {
+            console.error('[Main] Appointment not found:', aptId);
+            showNotification('Programarea nu a fost găsită', 'error');
             return;
         }
 
-        // Import modal component
+        // Import modal component (used by finalize/edit/delay)
         const { confirmModal, openCustomModal } = await import('./src/modal.js');
-        const appointment = appointments.find(a => a.id === id);
 
-        // Handle actions
-        switch(action) {
-            case 'finalize':
-                e.preventDefault();
-                await handleFinalizeAction(id, appointment, openCustomModal);
-                break;
+        // Route all actions through unified switch
+        try {
+            switch(action) {
+                case 'details':
+                    await openDetailsModal(appointment);
+                    break;
+
+                case 'finalize':
+                    await handleFinalizeAction(aptId, appointment, openCustomModal);
+                    break;
+
+                case 'delay':
+                    await openDelayRescheduleModal(appointment);
+                    break;
+                    
+                case 'visit':
+                    await handleVisitAction(aptId, appointment, confirmModal);
+                    break;
+
+                case 'delete':
+                    await handleDeleteAction(aptId, appointment, confirmModal);
+                    break;
                 
-            case 'visit':
-                e.preventDefault();
-                await handleVisitAction(id, appointment, confirmModal);
-                break;
+                case 'edit':
+                    await handleEditAction(aptId, appointment, openCustomModal);
+                    break;
 
-            case 'delete':
-                e.preventDefault();
-                await handleDeleteAction(id, appointment, confirmModal);
-                break;
-            
-            case 'edit':
-                e.preventDefault();
-                await handleEditAction(id, appointment, openCustomModal);
-                break;
+                case 'whatsapp':
+                    handleWhatsAppShare(aptId, appointment);
+                    break;
 
-            case 'whatsapp':
-                e.preventDefault();
-                handleWhatsAppShare(id, appointment);
-                break;
-                
-            default:
-                console.warn('[Main] Unknown action:', action);
+                case 'invoice':
+                    // Direct navigation for invoice (no need to find appointment in Finalized tab)
+                    try {
+                        const basePath = window.location.pathname.replace(/[^/]+$/, '');
+                        const url = basePath + 'invoice.html?aptId=' + encodeURIComponent(aptId);
+                        window.location.href = url;
+                    } catch (err) {
+                        console.error('[Main] Invoice navigation error:', err);
+                        showNotification('Nu s-a putut deschide factura', 'error');
+                    }
+                    break;
+                    
+                default:
+                    console.warn('[Main] Unknown action:', action);
+            }
+        } catch (error) {
+            console.error(`[Main] Error handling action "${action}":`, error);
+            showNotification(`Eroare la executarea acțiunii: ${action}`, 'error');
         }
     });
 
@@ -2479,6 +2563,279 @@ function closeFinalizeModal(modal, popHandler, saved) {
             document.body.classList.remove('modal-open');
         }
     }, 300);
+}
+
+// ==========================================
+// DELAY / RESCHEDULE FLOW
+// ==========================================
+
+const DELAY_REASON_MAP = {
+    PART_MISSING: 'piesa nu a ajuns',
+    PART_WRONG: 'piesa primită nu este potrivită',
+    SUPPLIER_DELAY: 'întârziere la furnizor',
+    TRAFFIC: 'trafic',
+    PREVIOUS_JOB_OVERRUN: 'intervenția anterioară a durat mai mult',
+    CUSTOMER_UNAVAILABLE: 'nu te-am putut găsi disponibil',
+    ACCESS_ISSUE: 'acces/locație dificilă',
+    DIAG_EXTRA: 'diagnostic suplimentar necesar',
+    WEATHER: 'condiții meteo',
+    OTHER: 'un motiv logistic'
+};
+
+function buildWhatsAppMessage(actionType, apt, reasonCode, newDate) {
+    const name = apt.customerName || '';
+    const reasonText = DELAY_REASON_MAP[reasonCode] || 'un motiv logistic';
+    const timeText = newDate ? formatHHMM(newDate) : '';
+    const dateText = newDate ? newDate.toLocaleDateString('ro-RO') : '';
+    if (actionType === 'delay') {
+        return `Salut, ${name}. Am o întârziere din cauza ${reasonText}. Estimare actualizată: ${timeText}. Îți scriu imediat când sunt aproape. Mulțumesc pentru înțelegere.`;
+    }
+    return `Salut, ${name}. Din cauza ${reasonText}, trebuie să reprogramăm intervenția. Propun: ${dateText} la ${timeText}. Confirmi că este în regulă?`;
+}
+
+function buildDelayModal(appointment) {
+    const scheduledDate = getScheduledDate(appointment) || new Date();
+    const dateStr = formatISODate(scheduledDate);
+    const timeStr = formatHHMM(scheduledDate);
+    const hasPhone = Boolean(appointment.customerPhone || appointment.phone);
+
+    const overlay = document.createElement('div');
+    overlay.className = 'tvDelayModal';
+    overlay.setAttribute('role', 'dialog');
+    overlay.setAttribute('aria-modal', 'true');
+    overlay.innerHTML = `
+        <div class="tvDelayModal__panel">
+            <div class="tvDelayModal__header">
+                <h2 class="tvDelayModal__title">Întârzie / Reprogramează</h2>
+                <button class="tvDelayModal__close" data-action="close" aria-label="Închide">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="tvDelayModal__body">
+                <form id="tvDelayForm">
+                    <div class="tvDelay__section">
+                        <div class="tvDelay__row">
+                            <label class="tvDelay__label">Tip acțiune</label>
+                            <div class="tvDelay__radios">
+                                <label class="radio">
+                                    <input type="radio" name="delayType" value="delay" checked>
+                                    <span>Întârziere (azi)</span>
+                                </label>
+                                <label class="radio">
+                                    <input type="radio" name="delayType" value="reschedule">
+                                    <span>Reprogramare (altă zi)</span>
+                                </label>
+                            </div>
+                        </div>
+                        <div class="tvDelay__presets">
+                            <button type="button" class="tvDelay__preset" data-delay-min="15">+15m</button>
+                            <button type="button" class="tvDelay__preset" data-delay-min="30">+30m</button>
+                            <button type="button" class="tvDelay__preset" data-delay-min="60">+60m</button>
+                            <button type="button" class="tvDelay__preset" data-delay-min="90">+90m</button>
+                        </div>
+                        <div class="tvDelay__grid">
+                            <label class="tvDelay__field">
+                                <span>Data</span>
+                                <input type="date" id="tvDelayDate" name="date" value="${dateStr}" required>
+                            </label>
+                            <label class="tvDelay__field">
+                                <span>Ora</span>
+                                <input type="time" id="tvDelayTime" name="time" value="${timeStr}" required>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="tvDelay__section">
+                        <label class="tvDelay__label">Motiv întârziere / reprogramare</label>
+                        <select id="tvDelayReason" name="reason" required>
+                            ${Object.entries(DELAY_REASON_MAP).map(([code, text]) => `<option value="${code}">${text}</option>`).join('')}
+                        </select>
+                        <label class="tvDelay__label">Notiță</label>
+                        <textarea id="tvDelayNote" name="note" rows="2" placeholder="Detalii scurte"></textarea>
+                    </div>
+
+                    <div class="tvDelay__section tvDelay__toggleRow">
+                        <label class="switch">
+                            <input type="checkbox" id="tvDelayWhatsapp" ${hasPhone ? '' : 'disabled'}>
+                            <span class="slider round"></span>
+                        </label>
+                        <div>
+                            <div class="tvDelay__toggleTitle">Pregătește mesaj WhatsApp</div>
+                            <div class="tvDelay__toggleDesc">${hasPhone ? 'Deschide WhatsApp cu mesaj precompletat' : 'Telefon lipsă - nu se poate trimite WhatsApp'}</div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="tvDelayModal__footer">
+                <button class="tvDelay__btn tvDelay__btn-secondary" data-action="cancel">Anulează</button>
+                <button class="tvDelay__btn tvDelay__btn-primary" data-action="save">Salvează</button>
+            </div>
+        </div>
+    `;
+
+    return overlay;
+}
+
+async function openDelayRescheduleModal(appointment) {
+    if (!appointment) return;
+    const overlay = buildDelayModal(appointment);
+    document.body.appendChild(overlay);
+    document.body.classList.add('modal-open');
+
+    requestAnimationFrame(() => overlay.classList.add('tvDelayModal--show'));
+
+    const closeBtn = overlay.querySelector('[data-action="close"]');
+    const cancelBtn = overlay.querySelector('[data-action="cancel"]');
+    const saveBtn = overlay.querySelector('[data-action="save"]');
+    const form = overlay.querySelector('#tvDelayForm');
+    const presets = overlay.querySelectorAll('[data-delay-min]');
+    const dateInput = overlay.querySelector('#tvDelayDate');
+    const timeInput = overlay.querySelector('#tvDelayTime');
+    const radios = overlay.querySelectorAll('input[name="delayType"]');
+    const baseDate = getScheduledDate(appointment) || new Date();
+
+    function updateForAction(action) {
+        if (action === 'delay') {
+            dateInput.value = formatISODate(baseDate);
+            dateInput.disabled = true;
+        } else {
+            dateInput.disabled = false;
+        }
+    }
+
+    updateForAction('delay');
+
+    radios.forEach(r => r.addEventListener('change', (e) => updateForAction(e.target.value)));
+
+    presets.forEach(btn => {
+        btn.addEventListener('click', () => {
+            const mins = Number(btn.dataset.delayMin || '0');
+            const clone = new Date(baseDate.getTime());
+            clone.setMinutes(clone.getMinutes() + mins);
+            dateInput.value = formatISODate(clone);
+            timeInput.value = formatHHMM(clone);
+            form.dataset.selectedPreset = String(mins);
+            overlay.querySelector('input[value="delay"]').checked = true;
+            updateForAction('delay');
+        });
+    });
+
+    const close = () => {
+        overlay.classList.remove('tvDelayModal--show');
+        setTimeout(() => {
+            overlay.remove();
+            const otherOpen = document.querySelector('.tvDetailsModalOverlay--show, .tvEditModalOverlay.active, .modern-modal-overlay.modern-modal-show, .modal-backdrop.modalOverlay--show, .tvFinalizeModal--show');
+            if (!otherOpen) document.body.classList.remove('modal-open');
+        }, 200);
+    };
+
+    closeBtn?.addEventListener('click', close);
+    cancelBtn?.addEventListener('click', close);
+
+    saveBtn?.addEventListener('click', async (e) => {
+        e.preventDefault();
+        await handleDelaySubmit({ form, overlay, appointment });
+    });
+}
+
+async function handleDelaySubmit({ form, overlay, appointment }) {
+    const saveBtn = overlay.querySelector('[data-action="save"]');
+    saveBtn.disabled = true;
+    saveBtn.textContent = 'Se salvează...';
+
+    try {
+        const actionType = form.querySelector('input[name="delayType"]:checked')?.value || 'delay';
+        const dateVal = form.querySelector('#tvDelayDate').value;
+        const timeVal = form.querySelector('#tvDelayTime').value;
+        const reasonCode = form.querySelector('#tvDelayReason').value;
+        const note = form.querySelector('#tvDelayNote').value.trim();
+        const wantWhatsapp = form.querySelector('#tvDelayWhatsapp')?.checked;
+
+        if (!dateVal || !timeVal) {
+            showNotification('Selectează data și ora', 'warning');
+            saveBtn.disabled = false;
+            saveBtn.textContent = 'Salvează';
+            return;
+        }
+
+        const baseDate = getScheduledDate(appointment) || new Date();
+        const targetDate = new Date(`${dateVal}T${timeVal}`);
+
+        if (actionType === 'delay' && !isSameDay(baseDate, targetDate)) {
+            showNotification('Întârzierea trebuie să fie în aceeași zi', 'error');
+            saveBtn.disabled = false;
+            saveBtn.textContent = 'Salvează';
+            return;
+        }
+
+        const status = actionType === 'delay' ? 'delayed' : 'rescheduled';
+
+        const { Timestamp, doc, updateDoc, serverTimestamp, arrayUnion } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+
+        const fromTs = getScheduledTimestamp(appointment) || Timestamp.fromDate(baseDate);
+        const toTs = Timestamp.fromDate(targetDate);
+
+        const timelineEntry = {
+            type: status === 'delayed' ? 'DELAYED' : 'RESCHEDULED',
+            at: Timestamp.now(),
+            by: currentUser?.uid || 'unknown',
+            from: fromTs,
+            to: toTs,
+            reasonCode,
+            note
+        };
+
+        const updateData = {
+            scheduledDateTime: toTs,
+            startAt: toTs,
+            dateStr: formatISODate(targetDate),
+            time: formatHHMM(targetDate),
+            status,
+            delayReason: { code: reasonCode, note },
+            lastUpdatedAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+            timeline: arrayUnion(timelineEntry)
+        };
+
+        if (!appointment.originalDateTime) {
+            updateData.originalDateTime = fromTs;
+        }
+
+        await updateDoc(doc(db, 'appointments', appointment.id), updateData);
+
+        // Local state update for instant re-sort
+        Object.assign(appointment, updateData);
+        ensureScheduledFields(appointment);
+        // Update original if set now
+        if (updateData.originalDateTime) appointment.originalDateTime = updateData.originalDateTime;
+
+        // Resort & rerender
+        appointments = appointments.map(a => a.id === appointment.id ? appointment : a);
+        filterAppointments();
+
+        // WhatsApp
+        const phone = appointment.customerPhone || appointment.phone;
+        if (wantWhatsapp && phone) {
+            const msg = buildWhatsAppMessage(actionType, appointment, reasonCode, targetDate);
+            const encoded = encodeURIComponent(msg);
+            const url = `https://wa.me/${phone.replace(/\D/g, '')}?text=${encoded}`;
+            window.open(url, '_blank');
+        }
+
+        showNotification('✅ Programarea a fost actualizată', 'success');
+    } catch (error) {
+        console.error('[Delay] Error:', error);
+        showNotification('❌ Eroare la actualizare: ' + error.message, 'error');
+    } finally {
+        saveBtn.disabled = false;
+        saveBtn.textContent = 'Salvează';
+        overlay.classList.remove('tvDelayModal--show');
+        setTimeout(() => {
+            overlay.remove();
+            const otherOpen = document.querySelector('.tvDetailsModalOverlay--show, .tvEditModalOverlay.active, .modern-modal-overlay.modern-modal-show, .modal-backdrop.modalOverlay--show, .tvFinalizeModal--show');
+            if (!otherOpen) document.body.classList.remove('modal-open');
+        }, 200);
+    }
 }
 
 /**
@@ -3355,7 +3712,12 @@ async function openEditModal(appointment) {
             // Update timestamp
             const dateTime = new Date(`${date}T${time}`);
             const { Timestamp } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
-            updateData.startAt = Timestamp.fromDate(dateTime);
+            const scheduledTs = Timestamp.fromDate(dateTime);
+            updateData.startAt = scheduledTs;
+            updateData.scheduledDateTime = scheduledTs;
+            if (!appointment.originalDateTime) {
+                updateData.originalDateTime = appointment.startAt || scheduledTs;
+            }
 
             // Update Firestore
             const { doc, updateDoc } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
