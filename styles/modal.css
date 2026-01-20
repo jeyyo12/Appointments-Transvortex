@@ -1,26 +1,22 @@
 /* ==========================================
-   MODERN MODAL COMPONENT - Mobile First
-   Optimizat pentru Android & iPhone
+   UNIFIED MODAL SYSTEM (single source of truth)
+   Compact, mobile-first, shared by all modals
    ========================================== */
 
-/* Overlay */
-.modern-modal-overlay {
-    position: fixed;
-    inset: 0;
-    z-index: 10000;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 1rem;
-    opacity: 0;
-    transition: opacity 0.2s ease-out;
+:root {
+    --tv-modal-max-width: min(92vw, 520px);
+    --tv-modal-max-height: 88vh;
+    --tv-modal-padding: clamp(0.8rem, 2.5vw, 1rem);
+    --tv-modal-radius: 16px;
 }
 
-/* ==========================================
-   DETAILS MODAL (Appointment Details)
-   ========================================== */
-
-.tvDetailsModalOverlay {
+/* Overlay: shared across all modal flavors */
+.modalOverlay,
+.modern-modal-overlay,
+.tvDetailsModalOverlay,
+.tvEditModalOverlay,
+.tvFinalizeModal,
+.modal-backdrop {
     position: fixed;
     inset: 0;
     z-index: 12000;
@@ -28,14 +24,160 @@
     align-items: center;
     justify-content: center;
     padding: clamp(0.75rem, 2vw, 1.25rem);
-    padding-top: calc(clamp(0.75rem, 2vw, 1.25rem) + env(safe-area-inset-top));
-    padding-bottom: calc(clamp(0.75rem, 2vw, 1.25rem) + env(safe-area-inset-bottom));
-    background: rgba(0, 0, 0, 0.55);
+    background: rgba(0, 0, 0, 0.45);
     backdrop-filter: blur(6px);
     -webkit-backdrop-filter: blur(6px);
     opacity: 0;
     pointer-events: none;
     transition: opacity 0.2s ease;
+}
+
+.modalOverlay--show,
+.modern-modal-overlay.modern-modal-show,
+.tvDetailsModalOverlay--show,
+.tvEditModalOverlay.active,
+.tvFinalizeModal--show,
+.modal-backdrop.modalOverlay--show {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+/* Modal box / panel sizing */
+.modalBox,
+.modern-modal-panel,
+.modern-modal-panel-custom,
+.tvDetailsModal,
+.tvEditModal,
+.tvFinalizeModal__panel,
+.modal {
+    position: relative;
+    width: var(--tv-modal-max-width);
+    max-width: var(--tv-modal-max-width);
+    max-height: var(--tv-modal-max-height);
+    background: #ffffff;
+    border-radius: var(--tv-modal-radius);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+    transform: scale(0.96);
+    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.2s ease;
+}
+
+.modern-modal-overlay.modern-modal-show .modern-modal-panel,
+.modern-modal-overlay.modern-modal-show .modern-modal-panel-custom,
+.tvDetailsModalOverlay--show .tvDetailsModal,
+.tvEditModalOverlay.active .tvEditModal,
+.tvFinalizeModal--show .tvFinalizeModal__panel,
+.modal-backdrop.modalOverlay--show .modal {
+    transform: scale(1);
+    opacity: 1;
+}
+
+/* Shared header/body/footer spacing */
+.modalHeader,
+.modal-header,
+.tvDetailsModalHeader,
+.tvEditModalHeader,
+.tvFinalizeModal__header,
+.modern-modal-header {
+    padding: var(--tv-modal-padding);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+}
+
+.modalBody,
+.modal-body,
+.tvDetailsModalBody,
+.tvEditModalBody,
+.tvFinalizeModal__body,
+.modern-modal-body {
+    padding: var(--tv-modal-padding);
+    flex: 1;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.modalFooter,
+.modal-actions,
+.tvEditModalFooter,
+.tvFinalizeModal__footer,
+.modern-modal-actions {
+    padding: var(--tv-modal-padding);
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+/* Mobile tweaks */
+@media (max-width: 600px) {
+    .modalBox,
+    .modern-modal-panel,
+    .modern-modal-panel-custom,
+    .tvDetailsModal,
+    .tvEditModal,
+    .tvFinalizeModal__panel,
+    .modal {
+        width: 94vw;
+        max-height: 90vh;
+        border-radius: 14px;
+    }
+
+    .modalBody,
+    .modal-body,
+    .tvDetailsModalBody,
+    .tvEditModalBody,
+    .tvFinalizeModal__body,
+    .modern-modal-body {
+        padding-bottom: calc(var(--tv-modal-padding) + env(safe-area-inset-bottom));
+    }
+
+    .modalBody input,
+    .modalBody select,
+    .modalBody textarea,
+    .modal-body input,
+    .modal-body select,
+    .modal-body textarea,
+    .tvEditModalBody input,
+    .tvEditModalBody select,
+    .tvEditModalBody textarea,
+    .tvFinalizeModal__body input,
+    .tvFinalizeModal__body select,
+    .tvFinalizeModal__body textarea,
+    .modern-modal-body input,
+    .modern-modal-body select,
+    .modern-modal-body textarea {
+        font-size: 16px; /* prevenire zoom iOS */
+    }
+
+    .modalFooter button,
+    .modal-actions button,
+    .tvEditModalFooter button,
+    .tvFinalizeModal__footer button,
+    .modern-modal-actions button {
+        flex: 1 1 100%;
+    }
+}
+
+/* ==========================================
+   MODERN MODAL COMPONENT - Mobile First
+   Optimizat pentru Android & iPhone
+   ========================================== */
+
+/* Overlay */
+.modern-modal-overlay {
+    z-index: 10000;
+}
+
+/* ==========================================
+   DETAILS MODAL (Appointment Details)
+   ========================================== */
+
+.tvDetailsModalOverlay {
+    padding-top: calc(clamp(0.75rem, 2vw, 1.25rem) + env(safe-area-inset-top));
+    padding-bottom: calc(clamp(0.75rem, 2vw, 1.25rem) + env(safe-area-inset-bottom));
 }
 
 .tvDetailsModalOverlay--show {
@@ -44,18 +186,11 @@
 }
 
 .tvDetailsModal {
-    position: relative;
-    width: min(94vw, 30rem);
-    max-width: min(94vw, 30rem);
-    max-height: min(90vh, 840px);
+    width: var(--tv-modal-max-width);
+    max-width: var(--tv-modal-max-width);
+    max-height: var(--tv-modal-max-height);
     background: linear-gradient(145deg, #ffffff 0%, #f7f9fb 100%);
-    border-radius: clamp(0.9rem, 1.6vw, 1.25rem);
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-    transform: scale(0.96);
-    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.2s ease;
+    border-radius: var(--tv-modal-radius);
 }
 
 .tvDetailsModalOverlay--show .tvDetailsModal {
@@ -65,17 +200,12 @@
 
 @media (min-width: 768px) {
     .tvDetailsModal {
-        width: min(92vw, 46rem);
-        max-width: min(92vw, 46rem);
+        width: min(var(--tv-modal-max-width), 720px);
+        max-width: min(var(--tv-modal-max-width), 720px);
     }
 }
 
 .tvDetailsModalHeader {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: clamp(0.75rem, 1.5vw, 1rem);
-    padding: clamp(1rem, 2.5vw, 1.4rem);
     background: linear-gradient(135deg, #2563eb 0%, #4f46e5 100%);
     color: #ffffff;
     flex-shrink: 0;
@@ -108,10 +238,7 @@
 }
 
 .tvDetailsModalBody {
-    padding: clamp(1rem, 2.5vw, 1.5rem);
-    flex: 1;
-    overflow: auto;
-    -webkit-overflow-scrolling: touch;
+    padding-top: clamp(1rem, 2.5vw, 1.5rem);
 }
 
 .tvDetailsGrid {
@@ -218,16 +345,10 @@ body.modal-open {
 
 /* Panel - Confirmare simpla */
 .modern-modal-panel {
-    position: relative;
-    width: 100%;
-    max-width: 420px;
-    background: white;
-    border-radius: 1.25rem;
-    padding: 2rem 1.5rem;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-    transform: scale(0.95);
-    opacity: 0;
-    transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    width: var(--tv-modal-max-width);
+    max-width: var(--tv-modal-max-width);
+    max-height: var(--tv-modal-max-height);
+    padding: var(--tv-modal-padding) var(--tv-modal-padding);
     text-align: center;
 }
 
@@ -367,27 +488,19 @@ body.modal-open {
 
 /* Panel Custom - Pentru formulare complexe */
 .modern-modal-panel-custom {
-    position: relative;
-    width: 100%;
-    max-width: 600px;
-    background: white;
-    border-radius: 1.25rem;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-    transform: scale(0.95);
-    opacity: 0;
-    transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-    overflow: hidden;
-    max-height: 90vh;
+    width: var(--tv-modal-max-width);
+    max-width: var(--tv-modal-max-width);
+    max-height: var(--tv-modal-max-height);
     display: flex;
     flex-direction: column;
 }
 
 .modern-modal-size-small {
-    max-width: 400px;
+    max-width: 420px;
 }
 
 .modern-modal-size-large {
-    max-width: 800px;
+    max-width: 720px;
 }
 
 .modern-modal-header {
@@ -597,12 +710,12 @@ body.modal-open {
 .tvEditModalOverlay {
     position: fixed;
     inset: 0;
-    z-index: 11000;
+    z-index: 11800;
     background: rgba(0, 0, 0, 0.5);
     backdrop-filter: blur(4px);
     -webkit-backdrop-filter: blur(4px);
     display: flex;
-    align-items: flex-end;
+    align-items: center;
     opacity: 0;
     transition: opacity 0.3s ease;
 }
@@ -613,14 +726,14 @@ body.modal-open {
 
 /* Mobile-first: full screen modal */
 .tvEditModal {
-    width: 100vw;
-    height: auto;
-    max-height: 100vh;
+    width: var(--tv-modal-max-width);
+    max-width: var(--tv-modal-max-width);
+    max-height: var(--tv-modal-max-height);
     background: #ffffff;
     display: flex;
     flex-direction: column;
-    border-radius: 0;
-    box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.2);
+    border-radius: var(--tv-modal-radius);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
     animation: slideUp 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
@@ -636,13 +749,12 @@ body.modal-open {
 /* Desktop: centered modal */
 @media (min-width: 768px) {
     .tvEditModalOverlay {
-        align-items: center;
-        justify-content: center;
         padding: clamp(1rem, 3vw, 2rem);
     }
 
     .tvEditModal {
-        width: min(720px, 92vw);
+        width: min(700px, 92vw);
+        max-width: min(700px, 92vw);
         max-height: min(90vh, 850px);
         border-radius: clamp(0.9rem, 1.4vw, 1.25rem);
         animation: slideDown 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
@@ -932,7 +1044,7 @@ body.modal-open {
     }
 
     .tvEditModal {
-        max-height: 100vh;
+        max-height: var(--tv-modal-max-height);
     }
 
     .tvEditModalBody {
@@ -1121,15 +1233,7 @@ body.modal-open {
    ========================================== */
 
 .tvFinalizeModal {
-    position: fixed;
-    inset: 0;
-    z-index: 10000;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    opacity: 0;
-    transition: opacity 0.3s ease;
-    pointer-events: none;
+    z-index: 11900;
 }
 
 .tvFinalizeModal--show {
@@ -1145,17 +1249,10 @@ body.modal-open {
 }
 
 .tvFinalizeModal__panel {
-    position: relative;
-    width: 100%;
-    max-width: clamp(20rem, 95vw, 48rem);
-    max-height: 90vh;
-    background: white;
+    width: min(94vw, 720px);
+    max-width: min(94vw, 720px);
+    max-height: var(--tv-modal-max-height);
     border-radius: clamp(0.75rem, 2vw, 1rem);
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-    display: flex;
-    flex-direction: column;
-    transform: scale(0.95);
-    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 .tvFinalizeModal--show .tvFinalizeModal__panel {

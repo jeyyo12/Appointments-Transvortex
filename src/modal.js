@@ -79,10 +79,17 @@ export function confirmModal({
         // Cleanup function
         const cleanup = (result) => {
             overlay.classList.remove('modern-modal-show');
+
+            backdrop.removeEventListener('click', handleBackdropClick);
+            document.removeEventListener('keydown', handleEscape);
+            panel.querySelector('[data-action="confirm"]').removeEventListener('click', handleConfirm);
+            panel.querySelector('[data-action="cancel"]').removeEventListener('click', handleCancel);
             
             // Așteaptă animația de ieșire
             setTimeout(() => {
-                document.body.removeChild(overlay);
+                if (overlay.parentNode === document.body) {
+                    document.body.removeChild(overlay);
+                }
                 document.body.style.overflow = '';
                 resolve(result);
             }, 200);
@@ -175,9 +182,15 @@ export function openCustomModal({
     // Cleanup function
     const close = (isConfirmed = false) => {
         overlay.classList.remove('modern-modal-show');
+
+        backdrop.removeEventListener('click', handleBackdropClick);
+        document.removeEventListener('keydown', handleEscape);
+        panel.querySelector('.modern-modal-close').removeEventListener('click', handleClose);
         
         setTimeout(() => {
-            document.body.removeChild(overlay);
+            if (overlay.parentNode === document.body) {
+                document.body.removeChild(overlay);
+            }
             document.body.style.overflow = '';
             
             if (isConfirmed && onConfirm) {

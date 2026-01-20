@@ -1923,7 +1923,7 @@ function closeDetailsModal(triggerHistoryBack = true) {
     }, 200);
 
     // Remove body lock only if no other modals are active
-    if (!document.querySelector('.tvFinalizeModal--show') && !document.querySelector('.modern-modal-overlay.modern-modal-show')) {
+    if (!document.querySelector('.tvFinalizeModal--show') && !document.querySelector('.modern-modal-overlay.modern-modal-show') && !document.querySelector('.modal-backdrop.modalOverlay--show')) {
         document.body.classList.remove('modal-open');
     }
 
@@ -2027,6 +2027,7 @@ async function openFinalizeModal(appointmentId, appointment) {
     // Mount modal using modal.js system
     document.body.appendChild(modal);
     document.body.style.overflow = 'hidden';
+    document.body.classList.add('modal-open');
     
     // History state for back button support
     history.pushState({ modal: 'finalize', aptId: appointmentId }, '', '#finalize');
@@ -2473,6 +2474,10 @@ function closeFinalizeModal(modal, popHandler, saved) {
     setTimeout(() => {
         modal.remove();
         document.body.style.overflow = '';
+        const otherOpen = document.querySelector('.tvDetailsModalOverlay--show, .tvEditModalOverlay.active, .modern-modal-overlay.modern-modal-show, .modal-backdrop.modalOverlay--show');
+        if (!otherOpen) {
+            document.body.classList.remove('modal-open');
+        }
     }, 300);
 }
 
@@ -3234,6 +3239,9 @@ async function openEditModal(appointment) {
         setTimeout(() => {
             if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
             document.body.style.overflow = '';
+            if (!document.querySelector('.tvFinalizeModal--show') && !document.querySelector('.tvDetailsModalOverlay--show') && !document.querySelector('.modern-modal-overlay.modern-modal-show') && !document.querySelector('.modal-backdrop.modalOverlay--show')) {
+                document.body.classList.remove('modal-open');
+            }
         }, 200);
 
         if (fromPopState) {
@@ -3388,6 +3396,7 @@ async function openEditModal(appointment) {
 
     // Disable background scroll
     document.body.style.overflow = 'hidden';
+    document.body.classList.add('modal-open');
 
     // Show modal
     setTimeout(() => overlay.classList.add('active'), 10);
@@ -3540,16 +3549,65 @@ function setupAppointmentFormLogic() {
 // ==============================
 // MODALS - open/close helpers
 // ==============================
+const appointmentsModalState = {
+    isOpen: false,
+    popHandler: null,
+    escHandler: null
+};
+
 function openModal(id) {
     const el = typeof id === 'string' ? document.getElementById(id) : id;
-    if (!el) return;
+    if (!el || appointmentsModalState.isOpen) return;
+
     el.style.display = 'flex';
+    el.classList.add('modalOverlay--show');
+    appointmentsModalState.isOpen = true;
+
+    document.body.classList.add('modal-open');
+
+    history.pushState({ tvModal: 'appointments' }, '', location.pathname + location.search + '#appointments');
+
+    appointmentsModalState.escHandler = (e) => {
+        if (e.key === 'Escape') closeModal(id);
+    };
+    document.addEventListener('keydown', appointmentsModalState.escHandler);
+
+    appointmentsModalState.popHandler = () => {
+        if (appointmentsModalState.isOpen) {
+            closeModal(id, { fromPopState: true });
+        }
+    };
+    window.addEventListener('popstate', appointmentsModalState.popHandler);
 }
 
-function closeModal(id) {
+function closeModal(id, { fromPopState = false } = {}) {
     const el = typeof id === 'string' ? document.getElementById(id) : id;
-    if (!el) return;
-    el.style.display = 'none';
+    if (!el || !appointmentsModalState.isOpen) return;
+
+    el.classList.remove('modalOverlay--show');
+    setTimeout(() => {
+        el.style.display = 'none';
+    }, 180);
+
+    appointmentsModalState.isOpen = false;
+
+    if (appointmentsModalState.escHandler) {
+        document.removeEventListener('keydown', appointmentsModalState.escHandler);
+        appointmentsModalState.escHandler = null;
+    }
+    if (appointmentsModalState.popHandler) {
+        window.removeEventListener('popstate', appointmentsModalState.popHandler);
+        appointmentsModalState.popHandler = null;
+    }
+
+    if (!fromPopState && location.hash === '#appointments') {
+        history.back();
+    }
+
+    const otherOpen = document.querySelector('.tvDetailsModalOverlay--show, .tvEditModalOverlay.active, .tvFinalizeModal--show, .modern-modal-overlay.modern-modal-show');
+    if (!otherOpen) {
+        document.body.classList.remove('modal-open');
+    }
 }
 
 // Close modals on backdrop click + ESC
@@ -3565,12 +3623,6 @@ function bindModalCloseBehavior() {
         });
 
         backdrop.dataset.bound = "true";
-    });
-
-    document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape') {
-            closeModal('appointmentsModal');
-        }
     });
 
     // Close buttons

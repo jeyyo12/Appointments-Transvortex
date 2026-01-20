@@ -217,6 +217,11 @@ export function confirmModal({
             isClosing = true;
             
             overlay.classList.remove('modern-modal-show');
+
+            panel.querySelector('[data-action="confirm"]').removeEventListener('click', handleConfirm);
+            panel.querySelector('[data-action="cancel"]').removeEventListener('click', handleCancel);
+            backdrop.removeEventListener('click', handleBackdropClick);
+            document.removeEventListener('keydown', handleEscape);
             
             // Unregister from modal stack
             unregisterModal(overlay);
@@ -353,6 +358,10 @@ export function openCustomModal({
         }
 
         overlay.classList.remove('modern-modal-show');
+
+        backdrop.removeEventListener('click', handleBackdropClick);
+        document.removeEventListener('keydown', handleEscape);
+        panel.querySelector('.modern-modal-close').removeEventListener('click', handleClose);
         
         // Unregister from modal stack
         unregisterModal(overlay);
