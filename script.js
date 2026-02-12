@@ -1009,6 +1009,11 @@ document.addEventListener('DOMContentLoaded', () => {
     // Initialize language switcher
     initLanguageSwitcher();
     
+    // Initialize PWA features (if pwa.js is loaded)
+    if (typeof window.initPWA === 'function') {
+        window.initPWA();
+    }
+    
     // Deleted: bindStatsPopupButtons - removed per user request (no popups on stat cards)
 });
 

@@ -1,38 +1,55 @@
-/* ===== INVOICE STYLES (Aligned with Transvortex Theme) ===== */
+/* ===== MODERN PREMIUM INVOICE STYLES (Redesigned) ===== */
+
 :root {
-    /* Brand Colors - Unified with site */
+    /* Brand Colors */
     --accent-orange: #FF7A18;
-    --primary: #FF7A18;
-    --primary-dark: #FF6B02;
+    --accent-orange-light: #FFF3E0;
+    --accent-orange-hover: #FF6B02;
     
-    /* Text & Dark */
-    --text: #0F172A;
+    /* Text Colors */
+    --text-primary: #0F172A;
     --text-secondary: #475569;
-    --muted: rgba(15, 23, 42, 0.65);
+    --text-muted: rgba(15, 23, 42, 0.65);
     
-    /* Backgrounds - Light theme */
-    --bg: #F7F8FB;
-    --surface-solid: #FFFFFF;
-    --surface-dark: #F0F4F8;
+    /* Backgrounds */
+    --bg-page: #F7F8FB;
+    --bg-surface: #FFFFFF;
+    --bg-surface-alt: #F9FAFB;
+    --bg-highlight: #FFF9F0;
     
     /* Borders */
-    --border: rgba(15, 23, 42, 0.10);
+    --border-subtle: rgba(15, 23, 42, 0.08);
     --border-light: rgba(15, 23, 42, 0.05);
+    --border-dark: rgba(15, 23, 42, 0.15);
     
-    /* Shadows - Unified with site */
-    --shadow: 0 10px 30px rgba(2, 6, 23, 0.08);
-    --shadow-lg: 0 20px 40px rgba(2, 6, 23, 0.12);
-    --shadow-sm: 0 4px 12px rgba(2, 6, 23, 0.05);
+    /* Shadows - Modern, subtle */
+    --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.05);
+    --shadow-sm: 0 4px 12px rgba(0, 0, 0, 0.06);
+    --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.08);
+    --shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.1);
     
-    /* Radius */
-    --radius: 16px;
-    --radius-lg: 24px;
+    /* Radius - Modern rounded corners */
+    --radius-xs: 4px;
     --radius-sm: 8px;
+    --radius-md: 12px;
+    --radius-lg: 16px;
+    --radius-xl: 24px;
     
-    /* Status & Utilities */
-    --success: #34D399;
-    --error: #EF4444;
-    --warning: #F59E0B;
+    /* Status Colors */
+    --status-success: #10B981;
+    --status-success-light: #D1FAE5;
+    --status-warning: #F59E0B;
+    --status-warning-light: #FEF3C7;
+    --status-error: #EF4444;
+    --status-error-light: #FEE2E2;
+    
+    /* Spacing - Consistent rhythm */
+    --spacing-xs: 0.5rem;
+    --spacing-sm: 1rem;
+    --spacing-md: 1.5rem;
+    --spacing-lg: 2rem;
+    --spacing-xl: 2.5rem;
+    --spacing-2xl: 3rem;
     
     /* Legacy aliases for compatibility */
     --color-primary: #FF7A18;
@@ -48,6 +65,18 @@
     --border-radius: 16px;
     --shadow-subtle: 0 4px 12px rgba(2, 6, 23, 0.05);
     --shadow-card: 0 10px 30px rgba(2, 6, 23, 0.08);
+    --text: #0F172A;
+    --surface-solid: #FFFFFF;
+    --surface-dark: #F0F4F8;
+    --border: rgba(15, 23, 42, 0.10);
+    --success: #34D399;
+    --error: #EF4444;
+    --warning: #F59E0B;
+    --primary: #FF7A18;
+    --primary-dark: #FF6B02;
+    --muted: rgba(15, 23, 42, 0.65);
+    --bg: #F7F8FB;
+    --radius: 16px;
 }
 
 * {
@@ -328,15 +357,26 @@ body {
     border: 1px solid var(--border);
 }
 
-/* ===== HEADER ===== */
+/* ===== HEADER SECTION (IMPROVED) ===== */
 .invoice-header {
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
-    gap: 2rem;
-    padding: 2rem;
-    border-bottom: 1px solid var(--border);
-    background-color: #FFFFFF;
+    gap: var(--spacing-lg);
+    padding: var(--spacing-lg);
+    border-bottom: 2px solid var(--border-subtle);
+    background: linear-gradient(135deg, #FAFBFC 0%, var(--bg-surface) 100%);
+    position: relative;
+}
+
+.invoice-header::after {
+    content: '';
+    position: absolute;
+    bottom: -2px;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, var(--accent-orange) 0%, transparent 100%);
 }
 
 .header-left {
@@ -344,38 +384,43 @@ body {
 }
 
 .company-name {
-    font-size: clamp(1.8rem, 3vw, 2.4rem);
-    font-weight: 700;
-    color: var(--color-dark);
-    margin-bottom: 0.2rem;
-    letter-spacing: -0.5px;
+    font-size: clamp(2rem, 4vw, 2.8rem);
+    font-weight: 800;
+    color: var(--text-primary);
+    margin-bottom: 0.3rem;
+    letter-spacing: -1px;
+    line-height: 1.1;
 }
 
 .invoice-title {
-    font-size: clamp(0.9rem, 1.5vw, 1.1rem);
-    color: var(--color-primary);
-    font-weight: 600;
+    font-size: clamp(0.9rem, 1.5vw, 1rem);
+    color: var(--accent-orange);
+    font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 2px;
-    margin-bottom: 1rem;
+    letter-spacing: 3px;
+    margin-bottom: var(--spacing-md);
+    margin-top: 0.5rem;
 }
 
 .company-contact {
-    font-size: clamp(0.75rem, 0.9vw, 0.85rem);
-    color: var(--color-grey);
-    line-height: 1.5;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    line-height: 1.7;
 }
 
 .company-contact p {
-    margin-bottom: 0.3rem;
+    margin-bottom: 0.4rem;
 }
 
 .company-contact a {
-    color: var(--color-primary);
+    color: var(--accent-orange);
     text-decoration: none;
+    font-weight: 500;
+    transition: opacity 0.2s;
 }
 
 .company-contact a:hover {
+    opacity: 0.8;
     text-decoration: underline;
 }
 
@@ -384,111 +429,153 @@ body {
 }
 
 .company-logo {
-    max-width: 120px;
-    max-height: 120px;
+    max-width: 140px;
+    max-height: 140px;
     object-fit: contain;
     display: block;
     opacity: 1;
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
 }
 
-/* ===== INVOICE META ===== */
+/* ===== INVOICE META SECTION (REDESIGNED - Modern Grid) ===== */
 .invoice-meta {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-    gap: 1.5rem;
-    padding: 2rem;
-    border-bottom: 1px solid var(--border);
-    background-color: #FFFFFF;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: var(--spacing-md);
+    padding: var(--spacing-lg);
+    background: var(--bg-surface-alt);
+    border-bottom: 1px solid var(--border-subtle);
 }
 
 .meta-box {
-    text-align: center;
+    display: flex;
+    flex-direction: column;
+    padding: var(--spacing-md);
+    background: var(--bg-surface);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-light);
+    transition: all 0.2s;
+}
+
+.meta-box:hover {
+    border-color: var(--accent-orange);
+    box-shadow: var(--shadow-xs);
 }
 
 .meta-label {
     font-size: 0.75rem;
-    color: var(--color-grey);
+    color: var(--text-secondary);
     text-transform: uppercase;
     letter-spacing: 1px;
     font-weight: 600;
-    margin-bottom: 0.5rem;
+    margin-bottom: 0.6rem;
 }
 
 .meta-value {
-    font-size: clamp(1.1rem, 1.5vw, 1.3rem);
-    font-weight: 700;
-    color: var(--color-dark);
+    font-size: clamp(1.2rem, 1.8vw, 1.4rem);
+    font-weight: 800;
+    color: var(--text-primary);
+    word-break: break-word;
 }
 
-/* ===== BILL TO SECTION ===== */
+/* ===== BILL TO & VEHICLE SECTION (ELEGANT CARDS) ===== */
 .bill-to {
-    padding: 2rem;
-    border-bottom: 1px solid var(--border);
+    padding: var(--spacing-lg);
+    border-bottom: 1px solid var(--border-subtle);
+    background: var(--bg-surface);
 }
 
 .section-title {
-    font-size: clamp(1rem, 1.5vw, 1.2rem);
-    color: var(--color-dark);
-    font-weight: 600;
-    margin-bottom: 1.5rem;
+    font-size: clamp(1.1rem, 1.5vw, 1.3rem);
+    color: var(--text-primary);
+    font-weight: 700;
+    margin-bottom: var(--spacing-md);
     text-transform: uppercase;
-    letter-spacing: 1px;
-    padding-bottom: 0.5rem;
-    border-bottom: 2px solid var(--color-primary);
+    letter-spacing: 1.5px;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.section-title::before {
+    content: '';
+    width: 4px;
+    height: 1.5em;
+    background: linear-gradient(180deg, var(--accent-orange) 0%, var(--accent-orange-hover) 100%);
+    border-radius: 2px;
 }
 
 .bill-to-content {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-    gap: 2rem;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: var(--spacing-lg);
 }
 
 .bill-to-box {
-    background: #FFFFFF;
-    padding: 1.5rem;
-    border-radius: var(--radius);
-    border: 1px solid var(--border);
+    background: linear-gradient(135deg, #FAFBFC 0%, var(--bg-surface) 100%);
+    padding: var(--spacing-lg);
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border-subtle);
+    box-shadow: var(--shadow-xs);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.bill-to-box:hover {
+    border-color: var(--accent-orange);
+    box-shadow: var(--shadow-md);
+    transform: translateY(-2px);
 }
 
 .bill-to-box .label {
-    font-size: 0.8rem;
-    color: var(--color-grey);
-    font-weight: 600;
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 0.5px;
-    margin-bottom: 0.3rem;
+    letter-spacing: 0.8px;
+    margin-bottom: 0.5rem;
 }
 
 .bill-to-box .value {
-    font-size: clamp(0.9rem, 1vw, 0.95rem);
-    color: var(--color-text);
-    font-weight: 500;
+    font-size: 1rem;
+    color: var(--text-primary);
+    font-weight: 600;
+    line-height: 1.5;
+    margin-bottom: var(--spacing-md);
+    word-break: break-word;
 }
 
-/* ===== SERVICES TABLE ===== */
+.bill-to-box .value:last-child {
+    margin-bottom: 0;
+}
+
+/* ===== SERVICES TABLE SECTION ===== */
 .services-section {
-    padding: 2rem;
-    border-bottom: 1px solid var(--border);
+    padding: var(--spacing-lg);
+    border-bottom: 1px solid var(--border-subtle);
 }
 
 .services-table {
     width: 100%;
     border-collapse: collapse;
-    margin-top: 1rem;
+    margin-top: var(--spacing-md);
 }
 
 .services-table thead {
-    background-color: rgba(15, 23, 42, 0.05);
-    color: var(--text);
+    background: linear-gradient(90deg, var(--bg-surface-alt) 0%, #FAFBFC 100%);
+}
+
+.services-table thead tr {
+    border-bottom: 2px solid var(--border-subtle);
 }
 
 .services-table th {
-    padding: 1rem;
+    padding: var(--spacing-md) var(--spacing-sm);
     text-align: left;
-    font-weight: 600;
-    font-size: 0.85rem;
+    font-weight: 700;
+    font-size: 0.8rem;
     text-transform: uppercase;
-    letter-spacing: 0.5px;
+    letter-spacing: 0.8px;
+    color: var(--text-primary);
 }
 
 .col-description {
@@ -511,197 +598,227 @@ body {
 }
 
 .services-table tbody tr {
-    border-bottom: 1px solid var(--border);
-    transition: background-color 0.2s ease;
+    border-bottom: 1px solid var(--border-light);
+    transition: background-color 0.2s;
 }
 
 .services-table tbody tr:hover {
-    background-color: rgba(15, 23, 42, 0.02);
+    background-color: var(--accent-orange-light);
 }
 
 .services-table tbody tr:last-child {
-    border-bottom: 1px solid var(--border);
+    border-bottom: 2px solid var(--border-subtle);
 }
 
 .services-table td {
-    padding: 1rem;
-    font-size: clamp(0.85rem, 0.95vw, 0.9rem);
+    padding: var(--spacing-md) var(--spacing-sm);
+    font-size: 0.95rem;
+    color: var(--text-primary);
 }
 
 .services-table td.col-description {
-    color: var(--color-text);
     font-weight: 500;
 }
 
 .services-table td.col-qty {
     text-align: center;
-    color: var(--color-grey);
+    color: var(--text-secondary);
 }
 
 .services-table td.col-unit-price {
     text-align: right;
-    color: var(--color-text);
     font-weight: 500;
 }
 
 .services-table td.col-line-total {
     text-align: right;
-    color: var(--color-dark);
-    font-weight: 600;
+    font-weight: 700;
+    color: var(--text-primary);
 }
 
-/* ===== TOTALS SECTION ===== */
+/* ===== TOTALS SECTION (VISUALLY DOMINANT) ===== */
 .totals-section {
-    padding: 2rem;
-    border-bottom: 1px solid var(--border);
+    padding: var(--spacing-lg);
+    background: linear-gradient(135deg, var(--bg-surface) 0%, var(--accent-orange-light) 100%);
+    border-bottom: 1px solid var(--border-subtle);
 }
 
 .totals-box {
-    max-width: 350px;
+    max-width: 400px;
     margin-left: auto;
+    background: var(--bg-surface);
+    padding: var(--spacing-lg);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    border: 2px solid var(--border-subtle);
 }
 
 .totals-row {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 0.7rem 0;
-    font-size: clamp(0.9rem, 1vw, 1rem);
-    border-bottom: 1px solid var(--border);
-}
-
-.totals-row.totals-total {
-    border-bottom: none;
-    padding: 1rem 0;
-    font-size: clamp(1.2rem, 1.5vw, 1.4rem);
-    font-weight: 700;
-    color: var(--text);
-    background: linear-gradient(90deg, transparent 0%, rgba(255, 122, 24, 0.05) 100%);
-    padding: 1rem;
-    border-radius: var(--radius);
-    margin-top: 0.5rem;
+    padding: var(--spacing-sm) 0;
+    font-size: 0.95rem;
+    border-bottom: 1px solid var(--border-light);
 }
 
 .totals-label {
-    color: var(--color-grey);
-    font-weight: 500;
-}
-
-.totals-total .totals-label {
-    color: var(--color-dark);
-    font-weight: 700;
+    color: var(--text-secondary);
+    font-weight: 600;
 }
 
 .totals-value {
-    color: var(--color-text);
-    font-weight: 600;
-    min-width: 100px;
+    color: var(--text-primary);
+    font-weight: 700;
+    min-width: 120px;
     text-align: right;
 }
 
+/* TOTAL Row - HIGHLIGHT */
+.totals-row.totals-total {
+    border-bottom: none;
+    padding: var(--spacing-md) var(--spacing-sm);
+    font-size: clamp(1.3rem, 2vw, 1.6rem);
+    background: linear-gradient(90deg, rgba(255, 122, 24, 0.1) 0%, transparent 100%);
+    border-radius: var(--radius-md);
+    margin: var(--spacing-md) 0 0 0;
+    padding-top: var(--spacing-lg);
+    border-top: 2px solid var(--border-subtle);
+}
+
+.totals-total .totals-label {
+    color: var(--text-primary);
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
 .totals-total .totals-value {
-    color: var(--color-primary);
-    font-weight: 700;
+    color: var(--accent-orange);
+    font-weight: 900;
+    font-size: clamp(1.5rem, 2.2vw, 1.8rem);
 }
 
-/* Payment Rows */
+/* Payment Rows - Separated */
 .payment-row {
-    border-top: 1px dashed var(--border);
-    margin-top: 0.5rem;
-    padding-top: 0.8rem;
+    border-top: 1px solid var(--border-subtle);
+    margin-top: var(--spacing-md);
+    padding-top: var(--spacing-sm);
+    padding-bottom: var(--spacing-sm);
 }
 
-.payment-row.balance-due {
+.payment-row .totals-label {
+    color: var(--text-secondary);
+    font-weight: 600;
+}
+
+.payment-row .totals-value {
+    color: var(--text-primary);
     font-weight: 700;
-    color: var(--text);
 }
 
 .payment-row.balance-due .totals-value {
-    color: var(--error);
-    font-weight: 700;
+    color: var(--status-error);
+    font-weight: 800;
 }
 
+.payment-row.balance-due.fully-paid .totals-value {
+    color: var(--status-success);
+}
+
+/* Payment Status Badge */
 .payment-status-row {
-    border-top: 1px dashed var(--border);
-    margin-top: 0.5rem;
-    padding-top: 0.8rem;
+    border-top: 1px solid var(--border-subtle);
+    margin-top: var(--spacing-md);
+    padding-top: var(--spacing-sm);
 }
 
 .payment-status-badge {
     display: inline-block;
-    padding: 0.4rem 0.8rem;
-    border-radius: var(--radius-sm);
-    font-size: 0.85rem;
-    font-weight: 600;
+    padding: 0.6rem 1.2rem;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 0.5px;
+    letter-spacing: 0.8px;
+    transition: all 0.2s;
 }
 
 .payment-status-badge.status-unpaid {
-    background: #FEE2E2;
-    color: #991B1B;
+    background: var(--status-error-light);
+    color: #7F1D1D;
 }
 
 .payment-status-badge.status-partial {
-    background: #FEF3C7;
-    color: #92400E;
+    background: var(--status-warning-light);
+    color: #78350F;
 }
 
 .payment-status-badge.status-paid {
-    background: #D1FAE5;
+    background: var(--status-success-light);
     color: #065F46;
+    box-shadow: 0 2px 8px rgba(16, 185, 129, 0.2);
 }
 
 /* ===== PAYMENT TERMS ===== */
 .payment-terms {
-    padding: 1.5rem 2rem;
-    border-bottom: 1px solid var(--border);
-    background-color: #FFFFFF;
+    padding: var(--spacing-md) var(--spacing-lg);
+    border-bottom: 1px solid var(--border-subtle);
+    background: linear-gradient(90deg, var(--bg-surface-alt) 0%, transparent 100%);
 }
 
 .terms-text {
-    font-size: clamp(0.9rem, 1vw, 0.95rem);
-    color: var(--color-dark);
-    font-weight: 500;
+    font-size: 0.95rem;
+    color: var(--text-primary);
+    font-weight: 600;
 }
 
 /* ===== LEGAL NOTES ===== */
 .legal-notes {
-    padding: 1.5rem 2rem;
-    border-bottom: 1px solid var(--border);
-    background-color: #F7F8FB;
+    padding: var(--spacing-md) var(--spacing-lg);
+    border-bottom: 1px solid var(--border-subtle);
+    background: var(--bg-surface-alt);
     font-size: 0.8rem;
     color: var(--text-secondary);
-    line-height: 1.6;
+    line-height: 1.7;
 }
 
 .legal-notes p {
-    margin-bottom: 0.5rem;
+    margin-bottom: 0.4rem;
+}
+
+.legal-notes p:last-child {
+    margin-bottom: 0;
 }
 
 /* ===== FOOTER ===== */
 .invoice-footer {
-    padding: 2rem;
-    background: #F7F8FB;
-    color: var(--text);
+    padding: var(--spacing-lg);
+    background: linear-gradient(135deg, var(--bg-surface-alt) 0%, #FAFBFC 100%);
+    color: var(--text-primary);
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-    gap: 2rem;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: var(--spacing-lg);
     text-align: center;
-    border-top: 1px solid var(--border);
+    border-top: 2px solid var(--border-subtle);
 }
 
 .footer-section {
     display: flex;
     flex-direction: column;
     justify-content: center;
+    transition: transform 0.2s;
+}
+
+.footer-section:hover {
+    transform: translateY(-2px);
 }
 
 .footer-text {
-    font-size: clamp(0.95rem, 1.1vw, 1rem);
-    font-weight: 600;
-    margin-bottom: 0.7rem;
-    color: var(--text);
+    font-size: 1rem;
+    font-weight: 700;
+    margin-bottom: var(--spacing-sm);
+    color: var(--text-primary);
 }
 
 .footer-subtext {
@@ -711,19 +828,26 @@ body {
 
 .payment-icons {
     display: flex;
-    gap: 0.7rem;
+    gap: 0.6rem;
     justify-content: center;
     flex-wrap: wrap;
-    margin-top: 0.5rem;
+    margin-top: var(--spacing-sm);
 }
 
 .payment-icon {
     font-size: 0.8rem;
-    background: rgba(15, 23, 42, 0.05);
-    padding: 0.4rem 0.8rem;
-    border-radius: 8px;
+    background: var(--bg-surface);
+    padding: 0.5rem 0.9rem;
+    border-radius: 50px;
     white-space: nowrap;
-    border: 1px solid var(--border);
+    border: 1px solid var(--border-light);
+    font-weight: 500;
+    transition: all 0.2s;
+}
+
+.payment-icon:hover {
+    border-color: var(--accent-orange);
+    background: var(--accent-orange-light);
 }
 
 /* ===== RESPONSIVE DESIGN ===== */
