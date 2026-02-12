@@ -27,10 +27,11 @@ if (firebaseConfig.apiKey === "YOUR_API_KEY_HERE" || !firebaseConfig.apiKey.star
     console.error("Go to: https://console.firebase.google.com/project/appointments-transvortex");
 }
 
-// Admin UIDs - Two administrators
+// Admin UIDs - Three administrators
 const ADMIN_UIDS = [
     "VhjWQiYKVGUrDVuOQUSJHA15Blk2", // Admin 1
-    "9tcBBsCcdqOWHc06otNpHq8XAxW2"  // Admin 2
+    "9tcBBsCcdqOWHc06otNpHq8XAxW2", // Admin 2
+    "FdZgEWNvKTUeDZuwGzKIxvAuECy2"  // Admin 3
 ];
 
 // Global variables for Firebase

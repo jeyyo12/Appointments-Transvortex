@@ -26,12 +26,13 @@ export const firebaseConfig = {
 };
 
 /**
- * Admin User IDs - Two administrators
+ * Admin User IDs - Three administrators
  * Update these with actual admin UIDs from Firebase Console
  */
 export const ADMIN_UIDS = [
   "VhjWQiYKVGUrDVuOQUSJHA15Blk2", // Admin 1
-  "9tcBBsCcdqOWHc06otNpHq8XAxW2"  // Admin 2
+  "9tcBBsCcdqOWHc06otNpHq8XAxW2", // Admin 2
+  "FdZgEWNvKTUeDZuwGzKIxvAuECy2"  // Admin 3
 ];
 
 /**

@@ -29,6 +29,13 @@ const firebaseConfig = {
     appId: "1:48926669789:web:f45caa8df57667d28b5434"
 };
 
+// Admin UIDs - Three administrators
+const ADMIN_UIDS = [
+    "VhjWQiYKVGUrDVuOQUSJHA15Blk2", // Admin 1
+    "9tcBBsCcdqOWHc06otNpHq8XAxW2", // Admin 2
+    "FdZgEWNvKTUeDZuwGzKIxvAuECy2"  // Admin 3
+];
+
 // Firebase global instances
 let app = null;
 let auth = null;
