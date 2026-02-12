@@ -80,6 +80,35 @@ window.showLastWrite = () => {
     console.log('Time:', last.timestamp);
     console.log('Stack:', last.stack);
 };
+
+// Diagnostic function to check invoice data
+window.debugInvoice = () => {
+    if (!currentInvoiceData) {
+        console.log('❌ No invoice data loaded yet');
+        return;
+    }
+    console.log('=== INVOICE DATA DEBUG ===');
+    console.log('Invoice Number:', currentInvoiceData.invoiceNumber);
+    console.log('Client:', currentInvoiceData.client);
+    console.log('Services:', currentInvoiceData.services);
+    console.log('Parts:', currentInvoiceData.parts);
+    console.log('Items:', currentInvoiceData.items);
+    console.log('---');
+    console.log('Subtotal:', currentInvoiceData.subtotal);
+    console.log('VAT Rate:', currentInvoiceData.vatRate, '%');
+    console.log('VAT Amount:', currentInvoiceData.vatAmount);
+    console.log('TOTAL:', currentInvoiceData.total);
+    console.log('---');
+    console.log('Amount Paid:', currentInvoiceData.amountPaid);
+    console.log('Payment Method:', currentInvoiceData.paymentMethod);
+    console.log('Payment Date:', currentInvoiceData.paymentDate);
+    console.log('---');
+    const balanceDue = computeBalanceDue(currentInvoiceData.total, currentInvoiceData.amountPaid);
+    const paymentStatus = computePaymentStatus(currentInvoiceData.total, currentInvoiceData.amountPaid);
+    console.log('Balance Due:', balanceDue);
+    console.log('Payment Status:', paymentStatus);
+    console.log('================');
+};
 // ===================================================
 /**
  * Format date to UK format (DD/MM/YYYY)
@@ -1456,12 +1485,15 @@ function normalizeAppointmentData(apt) {
     let total = 0;
 
     // If appointment has pre-calculated totals, use them; otherwise compute
-    if (typeof apt.subtotal === 'number') {
+    if (typeof apt.subtotal === 'number' && apt.subtotal > 0) {
         subtotal = apt.subtotal;
     } else {
-        subtotal = services.reduce((sum, s) => sum + s.price, 0) + 
-                   parts.reduce((sum, p) => sum + p.price, 0) + 
-                   (parseFloat(overrides.extras ?? apt.extras) || 0);
+        // Calculate from services and parts
+        const serviceTotal = services.reduce((sum, s) => sum + (parseFloat(s.price) || 0), 0);
+        const partsTotal = parts.reduce((sum, p) => sum + (parseFloat(p.price) || 0), 0);
+        const extras = parseFloat(overrides.extras ?? apt.extras) || 0;
+        subtotal = serviceTotal + partsTotal + extras;
+        console.log('💰 [Invoice] Calculated subtotal - Services:', serviceTotal, 'Parts:', partsTotal, 'Extras:', extras, 'Total:', subtotal);
     }
 
     // VAT handling
@@ -1469,18 +1501,29 @@ function normalizeAppointmentData(apt) {
         const _vr = parseFloat(overrides.vatRate ?? apt.vatRate);
         vatRate = (_vr * 100) || 0;  // Convert 0.2 to 20%
         vatAmount = subtotal * _vr;
-    } else if (typeof apt.vatAmount === 'number') {
+    } else if (typeof apt.vatAmount === 'number' && apt.vatAmount > 0) {
         vatAmount = apt.vatAmount;
         if (subtotal > 0) {
             vatRate = (vatAmount / subtotal) * 100;
         }
     }
 
-    if (typeof apt.total === 'number') {
+    if (typeof apt.total === 'number' && apt.total > 0) {
         total = apt.total;
     } else {
         total = subtotal + vatAmount;
+        console.log('💰 [Invoice] Calculated total - Subtotal:', subtotal, 'VAT:', vatAmount, 'Total:', total);
     }
+
+    // Payment handling - ensure amountPaid doesn't exceed or get confused with total
+    let amountPaid = 0;
+    if (apt.payment && typeof apt.payment.amountPaid === 'number') {
+        amountPaid = apt.payment.amountPaid;
+    } else if (typeof apt.amountPaid === 'number') {
+        amountPaid = apt.amountPaid;
+    }
+    
+    console.log('💳 [Invoice] Payment info - Amount Paid:', amountPaid, 'Total:', total);
 
     // Invoice dates
     let invoiceDate = null;
@@ -1510,10 +1553,10 @@ function normalizeAppointmentData(apt) {
         total,
         paymentTerms: overrides.paymentTerms || apt.paymentTerms || 'Due within 7 days',
         extras: parseFloat(overrides.extras ?? apt.extras) || 0,
-        // Payment info
-        amountPaid: parseFloat(apt.amountPaid) || 0,
-        paymentMethod: apt.paymentMethod || '',
-        paymentDate: apt.paymentDate || '',
+        // Payment info - from payment object or legacy field
+        amountPaid: amountPaid,
+        paymentMethod: (apt.payment && apt.payment.paymentMethod) || apt.paymentMethod || '',
+        paymentDate: (apt.payment && apt.payment.paymentDate) || apt.paymentDate || '',
         notes: apt.notes || ''
     };
 
@@ -1665,7 +1708,15 @@ function renderTotalsOptimized(normalizedData) {
         }
         if (balanceDueRow) {
             balanceDueRow.style.display = 'flex';
-            document.getElementById('balanceDue').textContent = formatCurrency(balanceDue);
+            const balanceDueEl = document.getElementById('balanceDue');
+            balanceDueEl.textContent = formatCurrency(balanceDue);
+            // Color code balance due
+            balanceDueRow.classList.remove('fully-paid', 'has-balance');
+            if (balanceDue <= 0) {
+                balanceDueRow.classList.add('fully-paid');
+            } else {
+                balanceDueRow.classList.add('has-balance');
+            }
         }
         if (paymentStatusRow) {
             paymentStatusRow.style.display = 'flex';
