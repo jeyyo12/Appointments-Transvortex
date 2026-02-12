@@ -1,0 +1,564 @@
+/* ==========================================
+   UNIFIED BUTTON SYSTEM
+   Single source of truth for all buttons
+   ========================================== */
+
+:root {
+    /* Button dimensions - consistent across all types */
+    --btn-height: 40px;
+    --btn-height-sm: 32px;
+    --btn-height-lg: 48px;
+    --btn-padding-x: 16px;
+    --btn-padding-x-sm: 12px;
+    --btn-padding-x-lg: 20px;
+    --btn-radius: 12px;
+    
+    /* Transitions - same for all buttons */
+    --btn-transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    
+    /* Shadows - consistent */
+    --btn-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    --btn-shadow-hover: 0 8px 16px rgba(0, 0, 0, 0.12);
+    --btn-shadow-active: 0 1px 3px rgba(0, 0, 0, 0.06);
+    
+    /* Font - consistent */
+    --btn-font-size: 0.9375rem;
+    --btn-font-size-sm: 0.8125rem;
+    --btn-font-size-lg: 1rem;
+    --btn-font-weight: 600;
+    --btn-letter-spacing: 0.01em;
+}
+
+/* ==========================================
+   BASE BUTTON STYLE - ALL BUTTONS INHERIT THIS
+   ========================================== */
+
+button,
+.btn,
+[role="button"],
+.tvx-btn,
+.tvBtn {
+    /* Dimensions */
+    height: var(--btn-height);
+    padding: 0 var(--btn-padding-x);
+    border-radius: var(--btn-radius);
+    
+    /* Font & Text */
+    font-size: var(--btn-font-size);
+    font-weight: var(--btn-font-weight);
+    letter-spacing: var(--btn-letter-spacing);
+    line-height: 1;
+    
+    /* Display */
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    white-space: nowrap;
+    
+    /* Interactions */
+    cursor: pointer;
+    border: 1px solid transparent;
+    transition: var(--btn-transition);
+    user-select: none;
+    text-decoration: none;
+    
+    /* Reset defaults */
+    margin: 0;
+    outline: none;
+}
+
+/* Remove button reset styles for input[type="button"], etc */
+input[type="button"],
+input[type="submit"],
+input[type="reset"] {
+    height: var(--btn-height);
+    padding: 0 var(--btn-padding-x);
+    border-radius: var(--btn-radius);
+    font-size: var(--btn-font-size);
+    font-weight: var(--btn-font-weight);
+    letter-spacing: var(--btn-letter-spacing);
+    cursor: pointer;
+    border: 1px solid transparent;
+    transition: var(--btn-transition);
+    user-select: none;
+}
+
+/* Icon sizing in buttons */
+button i,
+.btn i,
+[role="button"] i,
+.tvx-btn i,
+.tvBtn i,
+button svg,
+.btn svg,
+[role="button"] svg,
+.tvx-btn svg,
+.tvBtn svg {
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+}
+
+/* ==========================================
+   BUTTON SIZES
+   ========================================== */
+
+.btn-sm,
+.tvx-btn--sm,
+.tvBtn--sm {
+    height: var(--btn-height-sm);
+    padding: 0 var(--btn-padding-x-sm);
+    font-size: var(--btn-font-size-sm);
+}
+
+.btn-lg,
+.tvx-btn--lg,
+.tvBtn--lg {
+    height: var(--btn-height-lg);
+    padding: 0 var(--btn-padding-x-lg);
+    font-size: var(--btn-font-size-lg);
+}
+
+/* Icon-only buttons */
+.btn-icon,
+.tvx-btn--icon,
+.tvBtn--icon {
+    width: var(--btn-height);
+    padding: 0;
+}
+
+.btn-sm.btn-icon,
+.tvx-btn--sm.tvx-btn--icon,
+.tvBtn--sm.tvBtn--icon {
+    width: var(--btn-height-sm);
+}
+
+.btn-lg.btn-icon,
+.tvx-btn--lg.tvx-btn--icon,
+.tvBtn--lg.tvBtn--icon {
+    width: var(--btn-height-lg);
+}
+
+/* ==========================================
+   BUTTON VARIANTS - VISUAL HIERARCHY
+   ========================================== */
+
+/* PRIMARY - Green (Confirmation) */
+.btn-primary,
+.tvx-btn--primary,
+.tvBtn--primary {
+    background: #34D399;
+    color: #ffffff;
+    border-color: #10B981;
+    box-shadow: var(--btn-shadow);
+}
+
+.btn-primary:hover,
+.tvx-btn--primary:hover,
+.tvBtn--primary:hover {
+    background: #10B981;
+    box-shadow: var(--btn-shadow-hover);
+    transform: translateY(-2px);
+}
+
+.btn-primary:active,
+.tvx-btn--primary:active,
+.tvBtn--primary:active {
+    background: #059669;
+    transform: translateY(0);
+    box-shadow: var(--btn-shadow-active);
+}
+
+.btn-primary:focus-visible,
+.tvx-btn--primary:focus-visible,
+.tvBtn--primary:focus-visible {
+    outline: 2px solid #34D399;
+    outline-offset: 2px;
+}
+
+.btn-primary:disabled,
+.tvx-btn--primary:disabled,
+.tvBtn--primary:disabled {
+    background: #D1FAE5;
+    color: #10B981;
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* SECONDARY - Blue (Modification) */
+.btn-secondary,
+.tvx-btn--secondary,
+.tvBtn--secondary {
+    background: #3B82F6;
+    color: #ffffff;
+    border-color: #1D4ED8;
+    box-shadow: var(--btn-shadow);
+}
+
+.btn-secondary:hover,
+.tvx-btn--secondary:hover,
+.tvBtn--secondary:hover {
+    background: #1D4ED8;
+    box-shadow: var(--btn-shadow-hover);
+    transform: translateY(-2px);
+}
+
+.btn-secondary:active,
+.tvx-btn--secondary:active,
+.tvBtn--secondary:active {
+    background: #1E40AF;
+    transform: translateY(0);
+    box-shadow: var(--btn-shadow-active);
+}
+
+.btn-secondary:focus-visible,
+.tvx-btn--secondary:focus-visible,
+.tvBtn--secondary:focus-visible {
+    outline: 2px solid #3B82F6;
+    outline-offset: 2px;
+}
+
+.btn-secondary:disabled,
+.tvx-btn--secondary:disabled,
+.tvBtn--secondary:disabled {
+    background: #DBEAFE;
+    color: #1D4ED8;
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* SUCCESS - Light Green (WhatsApp/Communication) */
+.btn-success,
+.tvx-btn--success,
+.tvBtn--success {
+    background: #7EE8B7;
+    color: #ffffff;
+    border-color: #34D399;
+    box-shadow: var(--btn-shadow);
+}
+
+.btn-success:hover,
+.tvx-btn--success:hover,
+.tvBtn--success:hover {
+    background: #34D399;
+    box-shadow: var(--btn-shadow-hover);
+    transform: translateY(-2px);
+}
+
+.btn-success:active,
+.tvx-btn--success:active,
+.tvBtn--success:active {
+    background: #10B981;
+    transform: translateY(0);
+    box-shadow: var(--btn-shadow-active);
+}
+
+.btn-success:focus-visible,
+.tvx-btn--success:focus-visible,
+.tvBtn--success:focus-visible {
+    outline: 2px solid #7EE8B7;
+    outline-offset: 2px;
+}
+
+.btn-success:disabled,
+.tvx-btn--success:disabled,
+.tvBtn--success:disabled {
+    background: #CCFBF1;
+    color: #34D399;
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* DANGER - Red (Delete) */
+.btn-danger,
+.tvx-btn--danger,
+.tvBtn--danger {
+    background: #EF4444;
+    color: #ffffff;
+    border-color: #DC2626;
+    box-shadow: var(--btn-shadow);
+}
+
+.btn-danger:hover,
+.tvx-btn--danger:hover,
+.tvBtn--danger:hover {
+    background: #DC2626;
+    box-shadow: var(--btn-shadow-hover);
+    transform: translateY(-2px);
+}
+
+.btn-danger:active,
+.tvx-btn--danger:active,
+.tvBtn--danger:active {
+    background: #B91C1C;
+    transform: translateY(0);
+    box-shadow: var(--btn-shadow-active);
+}
+
+.btn-danger:focus-visible,
+.tvx-btn--danger:focus-visible,
+.tvBtn--danger:focus-visible {
+    outline: 2px solid #EF4444;
+    outline-offset: 2px;
+}
+
+.btn-danger:disabled,
+.tvx-btn--danger:disabled,
+.tvBtn--danger:disabled {
+    background: #FEE2E2;
+    color: #DC2626;
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* OUTLINE - Gray/Blue (Edit) */
+.btn-outline,
+.tvx-btn--outline,
+.tvBtn--outline {
+    background: #F3F4F6;
+    color: #374151;
+    border-color: #9CA3AF;
+    box-shadow: var(--btn-shadow);
+}
+
+.btn-outline:hover,
+.tvx-btn--outline:hover,
+.tvBtn--outline:hover {
+    background: #E5E7EB;
+    border-color: #6B7280;
+    box-shadow: var(--btn-shadow-hover);
+    transform: translateY(-2px);
+}
+
+.btn-outline:active,
+.tvx-btn--outline:active,
+.tvBtn--outline:active {
+    background: #D1D5DB;
+    transform: translateY(0);
+    box-shadow: var(--btn-shadow-active);
+}
+
+.btn-outline:focus-visible,
+.tvx-btn--outline:focus-visible,
+.tvBtn--outline:focus-visible {
+    outline: 2px solid #6B7280;
+    outline-offset: 2px;
+}
+
+.btn-outline:disabled,
+.tvx-btn--outline:disabled,
+.tvBtn--outline:disabled {
+    background: #F9FAFB;
+    color: #D1D5DB;
+    border-color: #E5E7EB;
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* GHOST - Transparent (Minimal) */
+.btn-ghost,
+.tvx-btn--ghost,
+.tvBtn--ghost {
+    background: transparent;
+    color: #374151;
+    border-color: transparent;
+    box-shadow: none;
+}
+
+.btn-ghost:hover,
+.tvx-btn--ghost:hover,
+.tvBtn--ghost:hover {
+    background: rgba(0, 0, 0, 0.05);
+    box-shadow: var(--btn-shadow);
+    transform: translateY(-2px);
+}
+
+.btn-ghost:active,
+.tvx-btn--ghost:active,
+.tvBtn--ghost:active {
+    background: rgba(0, 0, 0, 0.08);
+    transform: translateY(0);
+}
+
+.btn-ghost:focus-visible,
+.tvx-btn--ghost:focus-visible,
+.tvBtn--ghost:focus-visible {
+    outline: 2px solid #6B7280;
+    outline-offset: 2px;
+}
+
+.btn-ghost:disabled,
+.tvx-btn--ghost:disabled,
+.tvBtn--ghost:disabled {
+    background: transparent;
+    color: #D1D5DB;
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* ==========================================
+   BUTTON STATES - DISABLED & LOADING
+   ========================================== */
+
+button:disabled,
+.btn:disabled,
+[role="button"][disabled],
+.tvx-btn:disabled,
+.tvBtn:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+/* Loading state */
+.btn--loading,
+.tvx-btn--loading,
+.tvBtn--loading {
+    pointer-events: none;
+    position: relative;
+}
+
+.btn--loading::after,
+.tvx-btn--loading::after,
+.tvBtn--loading::after {
+    content: '';
+    position: absolute;
+    width: 14px;
+    height: 14px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-top-color: #ffffff;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* ==========================================
+   BUTTON GROUPS - BUTTON BAR
+   ========================================== */
+
+.btn-group,
+.btn-bar {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.btn-group--stacked,
+.btn-bar--vertical {
+    flex-direction: column;
+}
+
+.btn-group--full {
+    width: 100%;
+}
+
+.btn-group--full > button,
+.btn-group--full > .btn,
+.btn-bar--full > button,
+.btn-bar--full > .btn {
+    flex: 1;
+    min-width: auto;
+}
+
+/* ==========================================
+   COMMON PATTERNS - RESPONSIVE
+   ========================================== */
+
+/* Full width buttons (e.g., in modals) */
+.btn-full,
+.tvx-btn--full,
+.tvBtn--full {
+    width: 100%;
+    justify-content: center;
+}
+
+/* Responsive: stack on mobile */
+@media (max-width: 640px) {
+    .btn-group--responsive,
+    .btn-bar--responsive {
+        flex-direction: column;
+    }
+    
+    .btn-group--responsive > button,
+    .btn-group--responsive > .btn,
+    .btn-bar--responsive > button,
+    .btn-bar--responsive > .btn {
+        width: 100%;
+    }
+}
+
+/* ==========================================
+   BUTTON TEXT TRUNCATION
+   ========================================== */
+
+.btn-text,
+.tvx-btn span,
+.tvBtn span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* ==========================================
+   ANIMATIONS & TRANSITIONS
+   ========================================== */
+
+/* Ripple effect on click */
+button,
+.btn,
+[role="button"],
+.tvx-btn,
+.tvBtn {
+    position: relative;
+}
+
+/* Prevents double hover effect on mobile */
+@media (hover: hover) {
+    button:hover,
+    .btn:hover,
+    [role="button"]:hover,
+    .tvx-btn:hover,
+    .tvBtn:hover {
+        /* Hover effects defined per variant */
+    }
+}
+
+/* Accessibility: Remove hover on touch devices */
+@media (hover: none) {
+    button:active,
+    .btn:active,
+    [role="button"]:active,
+    .tvx-btn:active,
+    .tvBtn:active {
+        /* Active effects defined per variant */
+    }
+}
+
+/* ==========================================
+   DARK MODE (Optional - Future)
+   ========================================== */
+
+@media (prefers-color-scheme: dark) {
+    /* Define dark mode button colors if needed */
+}
+
+/* ==========================================
+   PRINT STYLES
+   ========================================== */
+
+@media print {
+    button,
+    .btn,
+    [role="button"],
+    .tvx-btn,
+    .tvBtn {
+        background: transparent !important;
+        color: #000 !important;
+        border: 1px solid #000 !important;
+        box-shadow: none !important;
+    }
+}

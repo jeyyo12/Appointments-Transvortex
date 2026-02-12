@@ -6,15 +6,60 @@
     <title>Manager Pagini Facebook - Transvortex LTD</title>
     <link rel="stylesheet" href="styles.css">
     <link rel="stylesheet" href="styles/design-system.css">
+    <link rel="stylesheet" href="styles/buttons.css">
     <link rel="stylesheet" href="styles/modal.css">
     <link rel="stylesheet" href="styles/appointments.css">
     <link rel="stylesheet" href="styles/appointment-form.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         /* Firebase Auth Bar */
-        /* MODERN REDESIGN: Hide old header bar */
         .firebase-auth-bar {
-            display: none !important;
+            background: linear-gradient(135deg, rgba(0,0,0,0.05) 0%, rgba(0,0,0,0.02) 100%);
+            border-bottom: 1px solid var(--border);
+            padding: 0.875rem 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.95rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            z-index: 100;
+        }
+
+        .firebase-auth-bar .user-info {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .firebase-auth-bar .badge {
+            background: #FFD700;
+            color: #000;
+            padding: 0.25rem 0.75rem;
+            border-radius: 1rem;
+            font-weight: 600;
+            font-size: 0.85rem;
+        }
+
+        .firebase-auth-bar button {
+            background: var(--accent-orange);
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 0.375rem;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+        }
+
+        .firebase-auth-bar button:hover {
+            background: #FF6B02;
+            box-shadow: 0 0 10px rgba(255, 122, 24, 0.3);
+        }
+
+        .firebase-auth-bar button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
         }
 
         /* Modern Hero Section */
@@ -621,6 +666,9 @@
             <button class="tab-btn" data-tab="appointments" onclick="switchTab('appointments')">
                 <i class="fas fa-calendar-check"></i> Programări
             </button>
+            <button class="tab-btn" data-tab="invoices" onclick="switchTab('invoices')">
+                <i class="fas fa-file-invoice"></i> Facturi
+            </button>
         </nav>
 
         <main>
@@ -1035,6 +1083,98 @@
                     </section>
                 </div>
             </div>
+        
+            <!-- ============================================ -->
+            <!-- TAB 3: FACTURI -->
+            <!-- ============================================ -->
+            <div id="invoicesTab" class="tab-content" style="display:none;">
+                <section class="add-section">
+                    <h2><i class="fas fa-file-invoice"></i> Factură - Detalii</h2>
+
+                    <div class="form-group">
+                        <label for="invoiceAppointmentSelect">Alege Programarea (Finalizate):</label>
+                        <select id="invoiceAppointmentSelect">
+                            <option value="">— Selectează —</option>
+                        </select>
+                    </div>
+
+                    <div class="btn-row" style="display:flex; gap: 10px; flex-wrap:wrap; margin-top: 10px;">
+                        <button type="button" class="btn-primary" id="openInvoicePreviewBtn">
+                            <i class="fas fa-external-link-alt"></i> Deschide Invoice (new tab)
+                        </button>
+                        <span id="invoiceSaveStatus" style="align-self:center; opacity:.8;"></span>
+                    </div>
+
+                    <hr style="margin: 16px 0; opacity:.2;" />
+
+                    <form id="invoiceDetailsForm" autocomplete="off">
+                        <div class="form-group">
+                            <label for="invClientName">Client Name</label>
+                            <input type="text" id="invClientName" placeholder="ex: John Smith">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="invClientPhone">Phone</label>
+                            <input type="text" id="invClientPhone" placeholder="ex: +44 7...">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="invClientAddress">Address</label>
+                            <input type="text" id="invClientAddress" placeholder="ex: Manchester, ...">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="invVehicle">Vehicle Make/Model</label>
+                            <input type="text" id="invVehicle" placeholder="ex: Renault Grand Scenic 1.5 dCi">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="invRegPlate">Reg Plate</label>
+                            <input type="text" id="invRegPlate" placeholder="ex: AB12 CDE">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="invMileage">Mileage</label>
+                            <input type="number" id="invMileage" placeholder="ex: 120000">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="invPaymentTerms">Payment Terms</label>
+                            <input type="text" id="invPaymentTerms" placeholder="ex: Due within 7 days">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="invExtras">Extras (£)</label>
+                            <input type="number" step="0.01" id="invExtras" placeholder="0.00">
+                        </div>
+
+                        <div class="form-group" style="display:flex; gap: 10px; align-items:center;">
+                            <input type="checkbox" id="invVatEnabled" style="width:auto;">
+                            <label for="invVatEnabled" style="margin:0;">VAT enabled</label>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="invVatRate">VAT Rate (ex: 0.2 pentru 20%)</label>
+                            <input type="number" step="0.01" id="invVatRate" placeholder="0.2">
+                        </div>
+
+                        <div class="btn-row" style="display:flex; gap: 10px; flex-wrap:wrap;">
+                            <button type="button" class="btn-primary" id="saveInvoiceDetailsBtn">
+                                <i class="fas fa-save"></i> Salvează Detaliile
+                            </button>
+                            <button type="button" class="btn-secondary" id="clearInvoiceOverridesBtn">
+                                <i class="fas fa-eraser"></i> Reset (șterge override)
+                            </button>
+                        </div>
+                    </form>
+
+                    <p style="margin-top:10px; opacity:.8;">
+                        Notă: aceste câmpuri se salvează în Firestore la <code>appointments/{aptId}.invoiceOverrides</code>.
+                        Invoice-ul (<code>invoice.html</code>) le va folosi automat când există.
+                    </p>
+                </section>
+            </div>
+
         </main>
 
         <footer>

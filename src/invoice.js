@@ -4,17 +4,29 @@
  * Supports dynamic content, validation, and print-to-PDF via window.print()
  */
 
+// Import AppointmentHistoryService
+import AppointmentHistoryService from './services/historyService.js';
+
 // ==========================================
-// FIREBASE CONFIGURATION (Same as script.js)
+// FIREBASE CONFIGURATION (Appointments-Transvortex)
+// ==========================================
+// ⚠️ IMPORTANT: Keep this config in sync with src/config/firebase.config.js
+// 
+// SETUP INSTRUCTIONS:
+// 1. Go to: https://console.firebase.google.com/project/appointments-transvortex
+// 2. Click ⚙️ Project Settings (top-left)
+// 3. Scroll to "Your apps" → find "Web" app
+// 4. Click "</> Code" to copy the firebaseConfig object
+// 5. Update BOTH this file AND src/config/firebase.config.js AND script.js
+// 6. Ensure projectId is: "appointments-transvortex"
 // ==========================================
 const firebaseConfig = {
-    apiKey: "AIzaSyDKyqAb198h6VdbHXZtciMdn_KIg-L2zZU",
-    authDomain: "transvortexltdcouk.firebaseapp.com",
-    projectId: "transvortexltdcouk",
-    storageBucket: "transvortexltdcouk.firebasestorage.app",
-    messagingSenderId: "980773899679",
-    appId: "1:980773899679:web:1d741dd11f75cd238581aa",
-    measurementId: "G-RL8PTZS34D"
+    apiKey: "AIzaSyDHBcoZWlAitqA29JC7jviABaiOjE6PcuY",
+    authDomain: "appoiments-transvortex.firebaseapp.com",
+    projectId: "appoiments-transvortex",
+    storageBucket: "appoiments-transvortex.firebasestorage.app",
+    messagingSenderId: "48926669789",
+    appId: "1:48926669789:web:f45caa8df57667d28b5434"
 };
 
 // Firebase global instances
@@ -215,6 +227,25 @@ function loadInvoiceDataFromStorage() {
 // Global unsubscribe function for Firestore listener
 let unsubscribeInvoiceListener = null;
 
+
+/**
+ * Wait until Firebase Auth has resolved the current user (no arbitrary timeout).
+ * Resolves with the user object (or null if logged out).
+ */
+async function waitForAuth() {
+    return new Promise((resolve) => {
+        const unsubscribe = auth.onAuthStateChanged((user) => {
+            currentUser = user || null;
+            if (user) {
+                appointmentHistoryService = new AppointmentHistoryService(db, user);
+            }
+            unsubscribe();
+            resolve(currentUser);
+        });
+    });
+}
+
+
 /**
  * Initialize invoice page
  */
@@ -227,6 +258,7 @@ async function initInvoice() {
     // Read aptId from URL
     const params = new URLSearchParams(window.location.search);
     const aptId = params.get('aptId');
+    currentAptId = aptId;
 
     console.log('📍 [Invoice] aptId from URL:', aptId);
 
@@ -242,25 +274,8 @@ async function initInvoice() {
             await initializeFirebase();
         }
 
-        // Wait for user authentication
-        await new Promise((resolve) => {
-            if (currentUser) {
-                resolve();
-            } else {
-                const unsubscribe = auth.onAuthStateChanged((user) => {
-                    if (user) {
-                        currentUser = user;
-                        unsubscribe();
-                        resolve();
-                    }
-                });
-                // Timeout after 5 seconds if no auth
-                setTimeout(() => {
-                    unsubscribe();
-                    resolve();
-                }, 5000);
-            }
-        });
+        // Wait for user authentication (first auth state resolution)
+        await waitForAuth();
 
         // Check if user is authenticated
         if (!currentUser) {
@@ -283,6 +298,13 @@ async function initInvoice() {
                     const appointment = { id: snap.id, ...snap.data() };
                     const normalizedData = normalizeAppointmentData(appointment);
                     renderInvoiceFromAppointment(normalizedData);
+                    
+                    // Log invoice opened
+                    if (appointmentHistoryService) {
+                        appointmentHistoryService.logEvent(aptId, 'INVOICE_OPENED', {
+                            invoiceNumber: currentInvoiceData?.invoiceNumber || 'NEW'
+                        }).catch(err => console.error('History log error:', err));
+                    }
                 } else {
                     console.error('❌ [Invoice] Appointment document does not exist');
                     showValidationError(['Appointment not found in database']);
@@ -351,12 +373,33 @@ async function initializeFirebase() {
 /**
  * Set up event listeners
  */
+// Global state for invoice editing
+let isEditMode = false;
+let currentAptId = null;
+let appointmentHistoryService = null;
+let currentUser = null;
+
 function setupEventListeners() {
     const downloadBtn = document.getElementById('downloadPdfBtn');
+    const editBtn = document.getElementById('editBtn');
+    const saveBtn = document.getElementById('saveInvoiceBtn');
+    const cancelBtn = document.getElementById('cancelEditBtn');
     const backBtn = document.getElementById('backBtn');
 
     if (downloadBtn) {
         downloadBtn.addEventListener('click', downloadPDF);
+    }
+
+    if (editBtn) {
+        editBtn.addEventListener('click', toggleEditMode);
+    }
+
+    if (saveBtn) {
+        saveBtn.addEventListener('click', saveInvoiceChanges);
+    }
+
+    if (cancelBtn) {
+        cancelBtn.addEventListener('click', cancelEditMode);
     }
 
     if (backBtn) {
@@ -371,6 +414,142 @@ function setupEventListeners() {
 }
 
 /**
+ * Toggle edit mode
+ */
+function toggleEditMode() {
+    isEditMode = !isEditMode;
+    const editBtn = document.getElementById('editBtn');
+    const downloadBtn = document.getElementById('downloadPdfBtn');
+    const saveBtn = document.getElementById('saveInvoiceBtn');
+    const cancelBtn = document.getElementById('cancelEditBtn');
+    const servicesBody = document.getElementById('servicesTableBody');
+
+    if (isEditMode) {
+        editBtn.style.display = 'none';
+        downloadBtn.style.display = 'none';
+        saveBtn.style.display = 'block';
+        cancelBtn.style.display = 'block';
+        
+        // Make table editable
+        if (servicesBody) {
+            servicesBody.contentEditable = 'true';
+            servicesBody.style.backgroundColor = 'rgba(255, 122, 24, 0.05)';
+        }
+    } else {
+        // Exit edit mode without saving
+        cancelEditMode();
+    }
+}
+
+/**
+ * Cancel edit mode without saving
+ */
+function cancelEditMode() {
+    isEditMode = false;
+    const editBtn = document.getElementById('editBtn');
+    const downloadBtn = document.getElementById('downloadPdfBtn');
+    const saveBtn = document.getElementById('saveInvoiceBtn');
+    const cancelBtn = document.getElementById('cancelEditBtn');
+    const servicesBody = document.getElementById('servicesTableBody');
+
+    editBtn.style.display = 'block';
+    downloadBtn.style.display = 'block';
+    saveBtn.style.display = 'none';
+    cancelBtn.style.display = 'none';
+
+    if (servicesBody) {
+        servicesBody.contentEditable = 'false';
+        servicesBody.style.backgroundColor = '';
+    }
+
+    // Re-render to discard changes
+    if (currentInvoiceData) {
+        renderServicesOptimized(currentInvoiceData);
+    }
+}
+
+/**
+ * Save invoice changes to Firestore
+ */
+async function saveInvoiceChanges() {
+    if (!currentAptId || !currentUser) {
+        showValidationError(['Not authenticated']);
+        return;
+    }
+
+    try {
+        const saveBtn = document.getElementById('saveInvoiceBtn');
+        saveBtn.disabled = true;
+        saveBtn.innerHTML = '💾 Saving...';
+
+        // Collect edited data
+        const servicesBody = document.getElementById('servicesTableBody');
+        const rows = servicesBody.querySelectorAll('tr');
+        const services = [];
+        const parts = [];
+
+        rows.forEach(row => {
+            const cells = row.querySelectorAll('td');
+            if (cells.length >= 4) {
+                const description = cells[0].textContent.trim();
+                const qty = parseInt(cells[1].textContent) || 1;
+                const price = parseFloat(cells[2].textContent) || 0;
+
+                if (description && price > 0) {
+                    // For now, classify all as services (can be improved with UI selection)
+                    services.push({
+                        name: description,
+                        price: price,
+                        qty: qty
+                    });
+                }
+            }
+        });
+
+        if (services.length === 0) {
+            showValidationError(['Add at least one service']);
+            saveBtn.disabled = false;
+            saveBtn.innerHTML = '💾 Save Changes';
+            return;
+        }
+
+        // Update Firestore appointment with invoice details
+        const { doc, updateDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+
+        const invoiceUpdate = {
+            services: services,
+            parts: parts,
+            invoiceUpdatedAt: serverTimestamp(),
+            invoiceUpdatedBy: currentUser.uid || currentUser.email
+        };
+
+        await updateDoc(doc(db, 'appointments', currentAptId), invoiceUpdate);
+
+        // Log to history
+        if (appointmentHistoryService) {
+            await appointmentHistoryService.logInvoiceUpdated(
+                currentAptId,
+                currentInvoiceData?.invoiceNumber,
+                { services: services.length, parts: parts.length }
+            );
+        }
+
+        // Exit edit mode
+        isEditMode = false;
+        cancelEditMode();
+        showValidationError(['✅ Invoice saved successfully']);
+
+    } catch (error) {
+        console.error('[Invoice] Save error:', error);
+        showValidationError(['Error saving invoice: ' + error.message]);
+    } finally {
+        const saveBtn = document.getElementById('saveInvoiceBtn');
+        saveBtn.disabled = false;
+        saveBtn.innerHTML = '💾 Save Changes';
+    }
+}
+
+/**
  * Normalize and extract appointment data from Firestore
  * Supports multiple field name variations for compatibility
  * @param {object} apt - Raw appointment document
@@ -381,6 +560,11 @@ function normalizeAppointmentData(apt) {
 
     console.log('📋 [Invoice] Raw appointment data:', apt);
 
+    // Apply invoice overrides (from Invoice tab) if present
+    const overrides = (apt && typeof apt === 'object' && apt.invoiceOverrides && typeof apt.invoiceOverrides === 'object')
+        ? apt.invoiceOverrides
+        : {};
+
     // Helper: extract first non-empty value
     const getFirstValue = (...values) => {
         return values.find(v => v !== null && v !== undefined && v !== '') || '';
@@ -388,23 +572,32 @@ function normalizeAppointmentData(apt) {
 
     // Client data with fallback to multiple field names
     const client = {
-        name: getFirstValue(apt.customerName, apt.clientName, apt.name || ''),
-        phone: getFirstValue(apt.phone, apt.customerPhone, apt.tel, apt.telefon || ''),
-        address: getFirstValue(apt.address, apt.location, apt.clientAddress || ''),
+        name: getFirstValue(overrides.customerName, overrides.clientName, overrides.name, apt.customerName, apt.clientName, apt.name || ''),
+        phone: getFirstValue(overrides.phone, overrides.customerPhone, overrides.tel, overrides.telefon, apt.phone, apt.customerPhone, apt.tel, apt.telefon || ''),
+        address: getFirstValue(overrides.address, overrides.location, overrides.clientAddress, apt.address, apt.location, apt.clientAddress || ''),
         vehicle: getFirstValue(
+            overrides.carMakeModel,
+            overrides.vehicleMakeModel,
+            overrides.makeModel,
+            overrides.make,
             apt.carMakeModel, 
             apt.vehicleMakeModel, 
             apt.makeModel,
             apt.make || ''
         ),
         regPlate: getFirstValue(
+            overrides.registrationPlate,
+            overrides.regPlate,
+            overrides.regNumber,
+            overrides.plate,
+            overrides.registration,
             apt.registrationPlate, 
             apt.regPlate, 
             apt.regNumber, 
             apt.plate,
             apt.registration || ''
         ),
-        mileage: apt.mileage || apt.km || ''
+        mileage: overrides.mileage || overrides.km || apt.mileage || apt.km || ''
     };
 
     // Services array - normalize from Firestore structure
@@ -448,13 +641,14 @@ function normalizeAppointmentData(apt) {
     } else {
         subtotal = services.reduce((sum, s) => sum + s.price, 0) + 
                    parts.reduce((sum, p) => sum + p.price, 0) + 
-                   (parseFloat(apt.extras) || 0);
+                   (parseFloat(overrides.extras ?? apt.extras) || 0);
     }
 
     // VAT handling
-    if (apt.vatEnabled && apt.vatRate) {
-        vatRate = (parseFloat(apt.vatRate) * 100) || 0;  // Convert 0.2 to 20%
-        vatAmount = subtotal * (parseFloat(apt.vatRate));
+    if ((overrides.vatEnabled ?? apt.vatEnabled) && (overrides.vatRate ?? apt.vatRate)) {
+        const _vr = parseFloat(overrides.vatRate ?? apt.vatRate);
+        vatRate = (_vr * 100) || 0;  // Convert 0.2 to 20%
+        vatAmount = subtotal * _vr;
     } else if (typeof apt.vatAmount === 'number') {
         vatAmount = apt.vatAmount;
         if (subtotal > 0) {
@@ -492,8 +686,8 @@ function normalizeAppointmentData(apt) {
         vatRate: vatRate ? Math.round(vatRate) : 0,  // Round to nearest integer for display
         vatAmount,
         total,
-        paymentTerms: apt.paymentTerms || 'Due within 7 days',
-        extras: parseFloat(apt.extras) || 0
+        paymentTerms: overrides.paymentTerms || apt.paymentTerms || 'Due within 7 days',
+        extras: parseFloat(overrides.extras ?? apt.extras) || 0
     };
 
     console.log('✅ [Invoice] Normalized data:', normalized);

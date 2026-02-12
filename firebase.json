@@ -1,0 +1,65 @@
+{
+  "hosting": {
+    "public": ".",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**",
+      "_archive_unused/**",
+      ".git/**",
+      ".gitignore",
+      ".github/**",
+      "README.md",
+      "REFACTORING_PROGRESS.md",
+      "REFACTORING_SUMMARY.md",
+      "CODEBASE_AUDIT_AND_REFACTORING_BLUEPRINT.md"
+    ],
+    "rewrites": [
+      {
+        "source": "/",
+        "destination": "/index.html"
+      },
+      {
+        "source": "/invoice",
+        "destination": "/invoice.html"
+      },
+      {
+        "source": "!/invoice.html",
+        "destination": "/invoice.html"
+      }
+    ],
+    "headers": [
+      {
+        "source": "**/*.@(js|css|woff2|woff|ttf|eot)",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "public, max-age=31536000"
+          }
+        ]
+      },
+      {
+        "source": "**/*.@(html)",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "public, max-age=3600"
+          }
+        ]
+      },
+      {
+        "source": "**/*",
+        "headers": [
+          {
+            "key": "X-Content-Type-Options",
+            "value": "nosniff"
+          },
+          {
+            "key": "X-Frame-Options",
+            "value": "SAMEORIGIN"
+          }
+        ]
+      }
+    ]
+  }
+}
