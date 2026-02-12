@@ -17,22 +17,23 @@
  */
 
 export const firebaseConfig = {
-  apiKey: "AIzaSyDHBcoZWlAitqA29JC7jviABaiOjE6PcuY",
+  apiKey: "AIzaSyB_OXB7ZayMsFNlm_111acbBw2woyc6m8M",
   authDomain: "appointments-transvortex.firebaseapp.com",
   projectId: "appointments-transvortex",
   storageBucket: "appointments-transvortex.firebasestorage.app",
-  messagingSenderId: "48926669789",
-  appId: "1:48926669789:web:f45caa8df57667d28b5434"
+  messagingSenderId: "426663884080",
+  appId: "1:426663884080:web:8bdbfe1915e3bab89d44f5"
 };
 
 /**
- * Admin User IDs - Three administrators
+ * Admin User IDs - Four administrators
  * Update these with actual admin UIDs from Firebase Console
  */
 export const ADMIN_UIDS = [
   "VhjWQiYKVGUrDVuOQUSJHA15Blk2", // Admin 1
   "9tcBBsCcdqOWHc06otNpHq8XAxW2", // Admin 2
-  "FdZgEWNvKTUeDZuwGzKIxvAuECy2"  // Admin 3
+  "FdZgEWNvKTUeDZuwGzKIxvAuECy2", // Admin 3
+  "7wY8ayldIygdA9wbJspCoOgZteo1"  // Admin 4 (added 2026-02-12)
 ];
 
 /**

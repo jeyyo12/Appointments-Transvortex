@@ -11,11 +11,172 @@
     <div class="controls-bar">
         <div class="controls-container">
             <button id="editBtn" class="btn-primary">✏️ Edit Invoice</button>
+            <button id="printBtn" class="btn-primary">🖨️ Print</button>
+            <button id="sendBtn" class="btn-primary">📤 Send to Client</button>
             <button id="downloadPdfBtn" class="btn-primary" style="display:none;">📥 Download PDF</button>
             <button id="saveInvoiceBtn" class="btn-success" style="display:none;">💾 Save Changes</button>
             <button id="cancelEditBtn" class="btn-secondary" style="display:none;">Cancel</button>
             <button id="backBtn" class="btn-secondary">← Back</button>
             <div id="validationMessage" class="validation-message"></div>
+        </div>
+    </div>
+
+    <!-- Send Modal (hidden by default) -->
+    <div id="sendModal" class="modal" style="display:none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Share Invoice</h2>
+                <button class="modal-close" id="closeSendModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p class="modal-subtitle">Choose how to share this invoice with your client:</p>
+                
+                <div class="send-options">
+                    <!-- Email Option -->
+                    <div class="send-option-group">
+                        <h3>📧 Send via Email</h3>
+                        <div class="send-option-fields">
+                            <input type="email" id="clientEmailInput" class="send-input" placeholder="Client email address">
+                            <button class="btn-send-option" id="sendEmailBtn">Send Email</button>
+                        </div>
+                    </div>
+
+                    <!-- WhatsApp Option -->
+                    <div class="send-option-group">
+                        <h3>💬 Send via WhatsApp</h3>
+                        <div class="send-option-fields">
+                            <input type="tel" id="clientPhoneInput" class="send-input" placeholder="Client phone (e.g., +44 7xxx xxxxxx)">
+                            <button class="btn-send-option" id="sendWhatsAppBtn">Send WhatsApp</button>
+                        </div>
+                    </div>
+
+                    <!-- Copy Link Option -->
+                    <div class="send-option-group">
+                        <h3>🔗 Copy Invoice Link</h3>
+                        <div class="send-option-fields">
+                            <div class="invoice-link-display">
+                                <span id="invoiceLinkText">Link will be copied to clipboard</span>
+                            </div>
+                            <button class="btn-send-option" id="copyLinkBtn">Copy Link</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <p class="modal-note">💡 Tip: Client can view the invoice online using the shared link or printed PDF.</p>
+                <button class="btn-secondary" id="closeSendModalFooter">Done</button>
+            </div>
+        </div>
+    </div>
+    <!-- Modal backdrop -->
+    <div id="sendModalBackdrop" class="modal-backdrop" style="display:none;"></div>
+
+    <!-- Edit Mode Container (hidden by default) -->
+    <div id="editModeOverlay" class="edit-mode-overlay" style="display:none;">
+        <div class="edit-form-container">
+            <form id="invoiceEditForm" class="edit-form">
+                <!-- Client Section -->
+                <details class="edit-section" open>
+                    <summary class="edit-section-title">👤 Client Details</summary>
+                    <div class="edit-fields">
+                        <div class="edit-field">
+                            <label>Client Name:</label>
+                            <input type="text" data-field="client.name" class="edit-input" placeholder="Client name">
+                        </div>
+                        <div class="edit-field">
+                            <label>Address:</label>
+                            <textarea data-field="client.address" class="edit-input edit-textarea" placeholder="Full address" rows="3"></textarea>
+                        </div>
+                        <div class="edit-field">
+                            <label>Phone:</label>
+                            <input type="tel" data-field="client.phone" class="edit-input" placeholder="+44 or 0...">
+                        </div>
+                    </div>
+                </details>
+
+                <!-- Vehicle Section -->
+                <details class="edit-section" open>
+                    <summary class="edit-section-title">🚗 Vehicle Details</summary>
+                    <div class="edit-fields">
+                        <div class="edit-field">
+                            <label>Make/Model:</label>
+                            <input type="text" data-field="client.vehicle" class="edit-input" placeholder="e.g., 2020 BMW 3 Series">
+                        </div>
+                        <div class="edit-field">
+                            <label>Registration Plate:</label>
+                            <input type="text" data-field="client.regPlate" class="edit-input" placeholder="e.g., XX20 ABC">
+                        </div>
+                        <div class="edit-field">
+                            <label>Mileage:</label>
+                            <input type="text" data-field="client.mileage" class="edit-input" placeholder="e.g., 25,000 miles">
+                        </div>
+                    </div>
+                </details>
+
+                <!-- Services Section -->
+                <details class="edit-section">
+                    <summary class="edit-section-title">🛠️ Services</summary>
+                    <div class="edit-fields" id="servicesEditContainer">
+                        <!-- Services rows will be inserted here -->
+                    </div>
+                    <button type="button" class="btn-add-item" id="addServiceBtn">+ Add Service</button>
+                </details>
+
+                <!-- Parts Section -->
+                <details class="edit-section">
+                    <summary class="edit-section-title">📦 Parts</summary>
+                    <div class="edit-fields" id="partsEditContainer">
+                        <!-- Parts rows will be inserted here -->
+                    </div>
+                    <button type="button" class="btn-add-item" id="addPartBtn">+ Add Part</button>
+                </details>
+
+                <!-- Notes Section -->
+                <details class="edit-section">
+                    <summary class="edit-section-title">📝 Notes</summary>
+                    <div class="edit-fields">
+                        <div class="edit-field">
+                            <label>Additional Notes:</label>
+                            <textarea data-field="notes" class="edit-input edit-textarea" placeholder="Any additional notes..." rows="4"></textarea>
+                        </div>
+                    </div>
+                </details>
+
+                <!-- Payment Section -->
+                <details class="edit-section">
+                    <summary class="edit-section-title">💰 Payment</summary>
+                    <div class="edit-fields">
+                        <div class="edit-field">
+                            <label>Amount Paid (£):</label>
+                            <input type="number" data-field="payment.amountPaid" class="edit-input" placeholder="0.00" step="0.01" min="0" inputmode="decimal">
+                        </div>
+                        <div class="edit-field">
+                            <label>Payment Method:</label>
+                            <select data-field="payment.paymentMethod" class="edit-input">
+                                <option value="">— Not specified —</option>
+                                <option value="Cash">Cash</option>
+                                <option value="Card">Card</option>
+                                <option value="Bank Transfer">Bank Transfer</option>
+                                <option value="Other">Other</option>
+                            </select>
+                        </div>
+                        <div class="edit-field">
+                            <label>Payment Date:</label>
+                            <input type="date" data-field="payment.paymentDate" class="edit-input">
+                        </div>
+                        <div class="edit-field" style="display: flex; gap: 0.5rem; margin-top: 0.5rem;">
+                            <button type="button" class="btn-add-item" id="markAsPaidBtn" style="flex: 1;">✓ Mark as Paid</button>
+                            <button type="button" class="btn-add-item" id="clearPaymentBtn" style="flex: 1; border-color: #EF4444; color: #EF4444;">✕ Clear Payment</button>
+                        </div>
+                    </div>
+                </details>
+            </form>
+
+            <!-- Sticky Actions (Bottom on Mobile) -->
+            <div class="edit-sticky-actions">
+                <button id="editSaveBtn" class="btn-primary btn-wide">💾 Save Changes</button>
+                <button id="editCancelBtn" class="btn-secondary btn-wide">Cancel</button>
+            </div>
         </div>
     </div>
 
@@ -119,6 +280,18 @@
                     <div class="totals-row totals-total">
                         <span class="totals-label">TOTAL:</span>
                         <span class="totals-value" id="total">£0.00</span>
+                    </div>
+                    <div class="totals-row payment-row" id="amountPaidRow" style="display: none;">
+                        <span class="totals-label">Amount Paid:</span>
+                        <span class="totals-value" id="amountPaid">£0.00</span>
+                    </div>
+                    <div class="totals-row payment-row balance-due" id="balanceDueRow" style="display: none;">
+                        <span class="totals-label">Balance Due:</span>
+                        <span class="totals-value" id="balanceDue">£0.00</span>
+                    </div>
+                    <div class="totals-row payment-status-row" id="paymentStatusRow" style="display: none;">
+                        <span class="totals-label">Payment Status:</span>
+                        <span class="payment-status-badge" id="paymentStatus">Unpaid</span>
                     </div>
                 </div>
             </section>

@@ -126,18 +126,24 @@ button svg,
 .tvBtn--icon {
     width: var(--btn-height);
     padding: 0;
+    min-width: var(--btn-height);
+    min-height: var(--btn-height);
 }
 
 .btn-sm.btn-icon,
 .tvx-btn--sm.tvx-btn--icon,
 .tvBtn--sm.tvBtn--icon {
     width: var(--btn-height-sm);
+    min-width: var(--btn-height-sm);
+    min-height: var(--btn-height-sm);
 }
 
 .btn-lg.btn-icon,
 .tvx-btn--lg.tvx-btn--icon,
 .tvBtn--lg.tvBtn--icon {
     width: var(--btn-height-lg);
+    min-width: var(--btn-height-lg);
+    min-height: var(--btn-height-lg);
 }
 
 /* ==========================================

@@ -629,6 +629,10 @@
             <span id="authStatus">🔒 Se verifică...</span>
             <span class="badge" id="adminBadge" style="display: none;">👑 ADMIN</span>
         </div>
+        <div class="language-switcher">
+            <button class="lang-btn" id="btnLangEN" aria-label="Switch to English">EN</button>
+            <button class="lang-btn" id="btnLangRO" aria-label="Switch to Romanian">RO</button>
+        </div>
         <button id="authButton" onclick="handleAuthToggle()">Se încarcă...</button>
     </div>
 
@@ -644,15 +648,15 @@
                 <div class="header-content">
                     <div class="title-wrapper">
                         <h1 class="header-title">
-                            <span class="glow-text">Manager</span>
-                            <span class="highlight-orange">Companie</span>
-                            <span class="glow-text">Transvortex</span>
+                            <span class="glow-text" data-i18n="headerManager">Manager</span>
+                            <span class="highlight-orange" data-i18n="headerCompany">Companie</span>
+                            <span class="glow-text" data-i18n="headerTransvortex">Transvortex</span>
                         </h1>
                         <div class="accent-line"></div>
                     </div>
                     <p class="header-subtitle">
-                        <span class="subtitle-highlight">Organizează-ți</span> programările și postările 
-                        <span class="subtitle-bold">pentru compania ta</span>
+                        <span class="subtitle-highlight" data-i18n="headerSubtitle1">Organizează-ți</span> <span data-i18n="headerSubtitle2">programările și postările</span> 
+                        <span class="subtitle-bold" data-i18n="headerSubtitle3">pentru compania ta</span>
                     </p>
                 </div>
             </div>
@@ -661,13 +665,13 @@
         <!-- Tab Navigation -->
         <nav class="tab-navigation">
             <button class="tab-btn active" data-tab="pages" onclick="switchTab('pages')">
-                <i class="fab fa-facebook"></i> Pagini Facebook
+                <i class="fab fa-facebook"></i> <span data-i18n="tabPagesFacebook">Pagini Facebook</span>
             </button>
             <button class="tab-btn" data-tab="appointments" onclick="switchTab('appointments')">
-                <i class="fas fa-calendar-check"></i> Programări
+                <i class="fas fa-calendar-check"></i> <span data-i18n="tabAppointments">Programări</span>
             </button>
             <button class="tab-btn" data-tab="invoices" onclick="switchTab('invoices')">
-                <i class="fas fa-file-invoice"></i> Facturi
+                <i class="fas fa-file-invoice"></i> <span data-i18n="tabInvoices">Facturi</span>
             </button>
         </nav>
 
@@ -678,22 +682,22 @@
             <div id="pagesTab" class="tab-content active">
             <!-- Formular adăugare pagină nouă (ADMIN ONLY) -->
             <section class="add-section" data-admin-only>
-                <h2><i class="fab fa-facebook"></i> Adaugă Pagină Nouă</h2>
+                <h2><i class="fab fa-facebook"></i> <span data-i18n="addNewPage">Adaugă Pagină Nouă</span></h2>
                 <form id="pageForm">
                     <div class="form-group">
-                        <label for="pageName">Nume Pagină:</label>
-                        <input type="text" id="pageName" name="pageName" autocomplete="off" placeholder="ex: Transvortex LTD Official" required>
+                        <label for="pageName"><span data-i18n="pageName">Nume Pagină:</span></label>
+                        <input type="text" id="pageName" name="pageName" autocomplete="off" data-i18n-placeholder="pageNamePlaceholder" placeholder="ex: Transvortex LTD Official" required>
                     </div>
                     <div class="form-group">
-                        <label for="pageUrl">URL Pagină Facebook:</label>
-                        <input type="url" id="pageUrl" name="pageUrl" autocomplete="url" placeholder="https://facebook.com/..." required>
+                        <label for="pageUrl"><span data-i18n="pageUrl">URL Pagină Facebook:</span></label>
+                        <input type="url" id="pageUrl" name="pageUrl" autocomplete="url" data-i18n-placeholder="pageUrlPlaceholder" placeholder="https://facebook.com/..." required>
                     </div>
                     <div class="form-group">
-                        <label for="pageAvatar">URL Avatar (opțional):</label>
-                        <input type="url" id="pageAvatar" name="pageAvatar" autocomplete="off" placeholder="https://... (logo sau poză de profil)">
+                        <label for="pageAvatar"><span data-i18n="pageAvatar">URL Avatar (opțional):</span></label>
+                        <input type="url" id="pageAvatar" name="pageAvatar" autocomplete="off" data-i18n-placeholder="pageAvatarPlaceholder" placeholder="https://... (logo sau poză de profil)">
                     </div>
                     <button type="submit" class="btn-primary">
-                        <i class="fas fa-plus"></i> Adaugă Pagină
+                        <i class="fas fa-plus"></i> <span data-i18n="btnAddPage">Adaugă Pagină</span>
                     </button>
                 </form>
             </section>
@@ -777,28 +781,28 @@
                         <i class="fas fa-calendar"></i>
                         <div class="tvStatCard__content">
                             <h3 id="totalAppointments">0</h3>
-                            <p>Total Programări</p>
+                            <p data-i18n="statsTotalAppointments">Total Programări</p>
                         </div>
                     </div>
                     <div class="tvStatCard">
                         <i class="fas fa-calendar-day"></i>
                         <div class="tvStatCard__content">
                             <h3 id="todayAppointments">0</h3>
-                            <p>Astăzi</p>
+                            <p data-i18n="statsToday">Astăzi</p>
                         </div>
                     </div>
                     <div class="tvStatCard">
                         <i class="fas fa-calendar-week"></i>
                         <div class="tvStatCard__content">
                             <h3 id="upcomingAppointments">0</h3>
-                            <p>Următoarele</p>
+                            <p data-i18n="statsUpcoming">Următoarele</p>
                         </div>
                     </div>
                     <div class="tvStatCard">
                         <i class="fas fa-check-circle"></i>
                         <div class="tvStatCard__content">
                             <h3 id="doneAppointments">0</h3>
-                            <p>Finalizate</p>
+                            <p data-i18n="statsCompleted">Finalizate</p>
                         </div>
                     </div>
                 </div>
@@ -809,56 +813,59 @@
                     <section class="tvCard tvCard--compact tvCard--accent tvCard--sticky" data-admin-only>
                         <div class="tvCardHeader">
                             <div>
-                                <h2><i class="fas fa-calendar-plus"></i> Adaugă Programare Nouă</h2>
-                                <p>Completează formularul pentru a programa o nouă reparație</p>
+                                <h2><i class="fas fa-calendar-plus"></i> <span data-i18n="addNewAppointment">Adaugă Programare Nouă</span></h2>
+                                <p data-i18n="formSubtitle">Completează formularul pentru a programa o nouă reparație</p>
                             </div>
                         </div>
                         
                         <form id="appointmentForm" class="tvGrid">
                             <!-- Client Info -->
                             <div class="tvCardSection">
-                                <h3 class="tvCardSection__title"><i class="fas fa-user"></i> Client</h3>
+                                <h3 class="tvCardSection__title"><i class="fas fa-user"></i> <span data-i18n="sectionClient">Client</span></h3>
                                 <div class="tvGrid tvGrid--2col">
                                     <div class="tvField">
-                                        <label for="customerName" class="tvLabel tvLabel--required">Nume</label>
+                                        <label for="customerName" class="tvLabel tvLabel--required"><span data-i18n="fieldName">Nume</span></label>
                                         <input 
                                             type="text" 
                                             id="customerName" 
                                             name="customerName" 
                                             autocomplete="name" 
+                                            data-i18n-placeholder="fieldNamePlaceholder"
                                             placeholder="ex: Ion Popescu" 
                                             required 
                                             class="tvInput"
                                         />
-                                        <span class="tvField__error" id="customerName-error">Numele este obligatoriu</span>
+                                        <span class="tvField__error" id="customerName-error" data-i18n="errorNameRequired">Numele este obligatoriu</span>
                                     </div>
                                     
                                     <div class="tvField">
-                                        <label for="customerPhone" class="tvLabel tvLabel--required">Telefon</label>
+                                        <label for="customerPhone" class="tvLabel tvLabel--required"><span data-i18n="fieldPhone">Telefon</span></label>
                                         <input 
                                             type="tel" 
                                             id="customerPhone" 
                                             name="customerPhone" 
                                             autocomplete="tel" 
+                                            data-i18n-placeholder="fieldPhonePlaceholder"
                                             placeholder="ex: +44 7700 900 123" 
                                             required 
                                             class="tvInput"
                                         />
-                                        <span class="tvField__error" id="customerPhone-error">Telefonul este obligatoriu</span>
+                                        <span class="tvField__error" id="customerPhone-error" data-i18n="errorPhoneRequired">Telefonul este obligatoriu</span>
                                     </div>
                                 </div>
                             </div>
 
                             <!-- Vehicle Info -->
                             <div class="tvCardSection">
-                                <h3 class="tvCardSection__title"><i class="fas fa-car"></i> Vehicul</h3>
+                                <h3 class="tvCardSection__title"><i class="fas fa-car"></i> <span data-i18n="sectionVehicle">Vehicul</span></h3>
                                 <div class="tvGrid tvGrid--2col">
                                     <div class="tvField">
-                                        <label for="makeModel" class="tvLabel">Marca/Model (opțional)</label>
+                                        <label for="makeModel" class="tvLabel"><span data-i18n="fieldMakeModel">Marca/Model (opțional)</span></label>
                                         <input 
                                             type="text" 
                                             id="makeModel" 
                                             name="makeModel" 
+                                            data-i18n-placeholder="fieldMakeModelPlaceholder"
                                             placeholder="ex: Dacia Logan" 
                                             class="tvInput"
                                             autocomplete="off"
@@ -866,25 +873,26 @@
                                     </div>
                                     
                                     <div class="tvField">
-                                        <label for="regNumber" class="tvLabel tvLabel--required">Nr. Înmatriculare</label>
+                                        <label for="regNumber" class="tvLabel tvLabel--required"><span data-i18n="fieldRegNumber">Nr. Înmatriculare</span></label>
                                         <input 
                                             type="text" 
                                             id="regNumber" 
                                             name="regNumber" 
+                                            data-i18n-placeholder="fieldRegNumberPlaceholder"
                                             placeholder="ex: AB-12-XYZ" 
                                             required 
                                             class="tvInput"
                                             autocomplete="off"
                                             maxlength="10"
                                         />
-                                        <span class="tvField__error" id="regNumber-error">Nr. înmatriculare este obligatoriu</span>
+                                        <span class="tvField__error" id="regNumber-error" data-i18n="errorRegRequired">Nr. înmatriculare este obligatoriu</span>
                                     </div>
                                 </div>
                             </div>
 
                             <!-- Service Details -->
                             <div class="tvCardSection">
-                                <h3 class="tvCardSection__title"><i class="fas fa-calendar-alt"></i> Data & Ora</h3>
+                                <h3 class="tvCardSection__title"><i class="fas fa-calendar-alt"></i> <span data-i18n="sectionDateTime">Data & Ora</span></h3>
                                 <div class="tvGrid tvGrid--2col">
                                     <div class="tvField">
                                         <label for="appointmentDate" class="tvLabel tvLabel--required">Data</label>
@@ -992,12 +1000,13 @@
 
                             <!-- Problem Description -->
                             <div class="tvCardSection">
-                                <h3 class="tvCardSection__title"><i class="fas fa-wrench"></i> Detalii Serviciu</h3>
+                                <h3 class="tvCardSection__title"><i class="fas fa-wrench"></i> <span data-i18n="sectionProblem">Problemă / Serviciu</span></h3>
                                 <div class="tvField">
-                                    <label for="problemDescription" class="tvLabel tvLabel--required">Problemă</label>
+                                    <label for="problemDescription" class="tvLabel tvLabel--required"><span data-i18n="fieldProblem">Problemă</span></label>
                                     <textarea 
                                         id="problemDescription" 
                                         name="problemDescription" 
+                                        data-i18n-placeholder="fieldProblemPlaceholder"
                                         placeholder="Descrie problema sau serviciul solicitat..." 
                                         rows="3"
                                         required 
@@ -1007,21 +1016,21 @@
                                 </div>
 
                                 <div class="tvField">
-                                    <label for="notes" class="tvLabel">Notițe Adiționale</label>
+                                    <label for="notes" class="tvLabel"><span data-i18n="fieldShortNote">Notă scurtă (opțional)</span></label>
                                     <textarea 
                                         id="notes" 
                                         name="notes" 
-                                        placeholder="Notițe sau cerințe speciale (opțional)..." 
+                                        data-i18n-placeholder="fieldShortNotePlaceholder"
+                                        placeholder="Detalii adiționale..." 
                                         rows="2"
                                         class="tvTextarea"
                                     ></textarea>
-                                    <span class="tvField__hint">Acest câmp este opțional</span>
                                 </div>
                             </div>
 
                             <!-- Submit Button -->
                             <button type="submit" class="tvBtn tvBtn--primary tvBtn--full tvBtn--sticky" id="submitAppointmentBtn">
-                                <i class="fas fa-plus"></i> Salvează Programarea
+                                <i class="fas fa-plus"></i> <span data-i18n="btnSaveAppointment">Save Appointment</span>
                             </button>
                         </form>
                     </section>
@@ -1040,33 +1049,33 @@
                         <!-- Tabs -->
                         <div class="appointments-tabs" id="appointmentsTabs" style="margin-bottom: var(--tv-gap-md);">
                             <button class="tab-btn" data-apt-tab="scheduled">
-                                Programate <span class="tab-count" id="tabCountScheduled">0</span>
+                                <span data-i18n="tabScheduled">Scheduled</span> <span class="tab-count" id="tabCountScheduled">0</span>
                             </button>
                             <button class="tab-btn" data-apt-tab="finalized">
-                                Finalizate <span class="tab-count" id="tabCountFinalized">0</span>
+                                <span data-i18n="tabFinalized">Finalized</span> <span class="tab-count" id="tabCountFinalized">0</span>
                             </button>
                         </div>
 
                         <!-- Filters -->
                         <div class="filters-wrapper" style="margin-bottom: var(--tv-gap-lg);">
                             <div class="filter-group">
-                                <label for="filterStatus">Filtrează:</label>
+                                <label for="filterStatus"><span data-i18n="filterLabel">Filter:</span></label>
                                 <select id="filterStatus" onchange="filterAppointments()">
-                                    <option value="all">Toate</option>
-                                    <option value="today">Astăzi</option>
-                                    <option value="upcoming">Următoarele</option>
-                                    <option value="scheduled">Programate</option>
-                                    <option value="done">Finalizate</option>
-                                    <option value="canceled">Anulate</option>
-                                    <option value="overdue">Întârziate</option>
+                                    <option value="all" data-i18n="filterAll">All</option>
+                                    <option value="today" data-i18n="today">Today</option>
+                                    <option value="upcoming">Upcoming</option>
+                                    <option value="scheduled" data-i18n="filterScheduled">Scheduled</option>
+                                    <option value="done" data-i18n="filterFinalized">Finalized</option>
+                                    <option value="canceled" data-i18n="filterCanceled">Canceled</option>
+                                    <option value="overdue">Overdue</option>
                                 </select>
                             </div>
                             <div class="filter-group">
-                                <label for="searchAppointments">Caută:</label>
-                                <input type="text" id="searchAppointments" placeholder="Nume client sau mașină..." oninput="filterAppointments()">
+                                <label for="searchAppointments"><span data-i18n="searchLabel">Search:</span></label>
+                                <input type="text" id="searchAppointments" data-i18n-placeholder="searchPlaceholder" placeholder="Search client or vehicle..." oninput="filterAppointments()">
                             </div>
                             <button class="btn-export" onclick="exportAppointmentsCSV()">
-                                <i class="fas fa-file-csv"></i> <span class="tvHideMobile">Export</span>
+                                <i class="fas fa-file-csv"></i> <span class="tvHideMobile" data-i18n="csv">CSV</span>
                             </button>
                         </div>
 
@@ -1078,7 +1087,7 @@
                         <div id="emptyStateAppointments" class="empty-state">
                             <i class="fas fa-calendar-times"></i>
                             <h3>Nicio programare adăugată încă</h3>
-                            <p>Adaugă prima ta programare folosind formularul din stânga.</p>
+                            <p data-i18n="emptyStateAppointments">Adaugă prima ta programare folosind formularul din stânga.</p>
                         </div>
                     </section>
                 </div>
@@ -1258,6 +1267,7 @@
         </div>
     </div>
 
+    <script type="module" src="./init-language.js"></script>
     <script type="module" src="./script.js"></script>
 </body>
 </html>

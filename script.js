@@ -1,6 +1,8 @@
-import { initFirebase } from './src/config/firebase.js';
+import { initFirebase, logFirebaseStatus } from './src/config/firebase.js';
 import { initAuthListener, onAuthStateChange } from './src/core/auth-state.js';
 import { bindActionDelegation } from './src/core/events.js';
+import { t, getLanguage, setLanguage } from './language.js';
+import { applyTranslations } from './init-language.js';
 
 // ==========================================
 // FIREBASE CONFIGURATION - SINGLE SOURCE
@@ -23,6 +25,84 @@ let appointments = [];
 let filteredAppointments = [];
 let appointmentsUnsubscribe = null;
 
+// ========== DIAGNOSTICS ==========
+let renderAppointmentsCallCount = 0;
+let invoiceNumberGenerationCount = 0;
+let firebaseListenerCount = 0;
+// ==================================
+
+// ========== WRITE TRACING (TEMPORARY DEBUG) ==========
+const writeTraces = [];
+let writeTraceEnabled = true;
+
+async function tracedUpdateDoc(ref, data, reason="") {
+    if (writeTraceEnabled) {
+        const trace = new Error().stack;
+        const info = {
+            type: 'updateDoc',
+            reason,
+            path: ref?.path || 'unknown',
+            timestamp: new Date().toISOString(),
+            stack: trace
+        };
+        writeTraces.push(info);
+        console.warn('🔥 WRITE updateDoc triggered:', reason);
+        console.warn('📍 Path:', info.path);
+        console.warn('📋 Data:', data);
+        console.trace('Call stack:');
+        
+        // Limit trace array to last 20 writes
+        if (writeTraces.length > 20) writeTraces.shift();
+    }
+    
+    const { updateDoc: originalUpdateDoc } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+    return originalUpdateDoc(ref, data);
+}
+
+async function tracedSetDoc(ref, data, opts=undefined, reason="") {
+    if (writeTraceEnabled) {
+        const trace = new Error().stack;
+        const info = {
+            type: 'setDoc',
+            reason,
+            path: ref?.path || 'unknown',
+            timestamp: new Date().toISOString(),
+            stack: trace
+        };
+        writeTraces.push(info);
+        console.warn('🔥 WRITE setDoc triggered:', reason);
+        console.warn('📍 Path:', info.path);
+        console.warn('📋 Data:', data);
+        console.trace('Call stack:');
+        
+        if (writeTraces.length > 20) writeTraces.shift();
+    }
+    
+    const { setDoc: originalSetDoc } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+    return opts ? originalSetDoc(ref, data, opts) : originalSetDoc(ref, data);
+}
+
+// Expose for use in console
+window.toggleWriteTrace = () => {
+    writeTraceEnabled = !writeTraceEnabled;
+    console.log('Write trace:', writeTraceEnabled ? 'ENABLED' : 'DISABLED');
+};
+window.getWriteTraces = () => writeTraces;
+window.showLastWrite = () => {
+    if (writeTraces.length === 0) {
+        console.log('No writes recorded');
+        return;
+    }
+    const last = writeTraces[writeTraces.length - 1];
+    console.log('=== LAST WRITE ===');
+    console.log('Type:', last.type);
+    console.log('Reason:', last.reason);
+    console.log('Path:', last.path);
+    console.log('Time:', last.timestamp);
+    console.log('Stack:', last.stack);
+};
+// ===================================================
+
 // Current active tab
 let currentTab = 'pages';
 
@@ -35,6 +115,55 @@ let appointmentsClicksBound = false;
 
 // History Service - for appointment timeline logging
 let appointmentHistory = null;
+
+// ==========================================
+// PAYMENT HELPER FUNCTIONS
+// ==========================================
+
+/**
+ * Format amount as GBP currency
+ * @param {number} amount - The amount to format
+ * @returns {string} Formatted currency string (£X.XX)
+ */
+function formatCurrencyGBP(amount) {
+    const num = toNumber(amount);
+    return '£' + num.toFixed(2);
+}
+
+/**
+ * Safely parse a value to number
+ * @param {any} value - Value to parse
+ * @returns {number} Parsed number or 0
+ */
+function toNumber(value) {
+    if (typeof value === 'number') return value;
+    const parsed = parseFloat(value);
+    return isNaN(parsed) ? 0 : parsed;
+}
+
+/**
+ * Compute payment status based on total and amount paid
+ * @param {number} total - Total invoice amount
+ * @param {number} amountPaid - Amount paid by client
+ * @returns {string} Payment status: 'Unpaid', 'Partially Paid', or 'Paid'
+ */
+function computePaymentStatus(total, amountPaid) {
+    const t = toNumber(total);
+    const p = toNumber(amountPaid);
+    if (p === 0) return 'Unpaid';
+    if (p >= t) return 'Paid';
+    return 'Partially Paid';
+}
+
+/**
+ * Compute balance due
+ * @param {number} total - Total invoice amount
+ * @param {number} amountPaid - Amount paid by client
+ * @returns {number} Balance due (never negative)
+ */
+function computeBalance(total, amountPaid) {
+    return Math.max(0, toNumber(total) - toNumber(amountPaid));
+}
 
 // ==========================================
 // FIREBASE INITIALIZATION (Single Source)
@@ -50,6 +179,9 @@ async function initializeFirebase() {
         app = fbApp;
         auth = fbAuth;
         db = fbDb;
+
+        // Log Firebase status
+        logFirebaseStatus();
 
         await initAuthListener();
 
@@ -184,7 +316,7 @@ function updateAuthUI() {
             });
         }
     } else {
-        authStatus.innerHTML = '🔓 Conectează-te pentru a continua';
+        authStatus.innerHTML = '🔓 ' + t('connectToStart');
         authButton.textContent = 'Conectare cu Google';
         authButton.disabled = false;
         adminBadge.style.display = 'none';
@@ -201,27 +333,53 @@ function updateAuthStatus(status) {
 }
 
 // ==========================================
+// FIRESTORE GUARD - Ensure auth before operations
+// ==========================================
+/**
+ * Guard function: Ensure user is authenticated and db is ready
+ * All Firestore operations should call this first
+ */
+function ensureFirestoreReady(operationName) {
+    if (!currentUser) {
+        console.error(`❌ [${operationName}] Firestore not ready: No authenticated user`);
+        console.error('   Firestore Rules will deny this operation - PERMISSION DENIED');
+        return false;
+    }
+    
+    if (!db) {
+        console.error(`❌ [${operationName}] Firestore not ready: db not initialized`);
+        return false;
+    }
+    
+    console.log(`✅ [${operationName}] Firestore ready - User: ${currentUser.uid}`);
+    return true;
+}
+
+// ==========================================
 // PAGE MANAGEMENT FUNCTIONS
 // ==========================================
 async function loadPages() {
     if (!currentUser) {
-        console.log('⏳ Not logged in yet, skipping loadPages');
+        console.error('❌ loadPages: No user authenticated - Firestore will deny access');
         pages = [];
         renderPages();
         return;
     }
 
     if (!db) {
-        console.error('❌ Firestore not initialized yet');
+        console.error('❌ loadPages: Firestore not initialized yet');
         return;
     }
+    
+    console.log('✅ loadPages: Auth ready, user:', currentUser.email, 'UID:', currentUser.uid);
 
     try {
         const { collection, getDocs, query, orderBy } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
         
-        console.log('📥 Loading pages from Firestore collection: "pages"...');
+        console.log('📥 [Firestore] Executing getDocs on pages collection with user:', currentUser.uid);
         const q = query(collection(db, 'pages'), orderBy('addedDate', 'desc'));
         const snapshot = await getDocs(q);
+        console.log('📊 [Firestore] getDocs succeeded, loaded', snapshot.docs.length, 'pages');
         
         // Map Firestore documents to pages array
         pages = snapshot.docs.map(doc => ({
@@ -384,14 +542,14 @@ async function markAsPosted(docId) {
     try {
         const { doc, updateDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
         
-        console.log(`📝 Marking page ${docId} as posted...`);
+        console.log(`📝 [Firestore] Updating page ${docId} as posted with user:`, currentUser?.uid);
         
         await updateDoc(doc(db, 'pages', docId), {
             postedToday: true,
             lastPosted: serverTimestamp()
         });
 
-        console.log(`✅ Page ${docId} marked as posted`);
+        console.log(`✅ [Firestore] Page ${docId} marked as posted`);
         
         // Reload pages from Firestore (this will also render and update stats)
         await loadPages();
@@ -433,7 +591,7 @@ async function deletePage(docId) {
     if (!isAdmin) return;
 
     // Simple native confirmation
-    if (!confirm('Șterge pagina? Această acțiune nu poate fi anulată.')) return;
+    if (!confirm(t('confirmDeletePage'))) return;
 
     try {
         const { doc, deleteDoc } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
@@ -451,7 +609,7 @@ async function deletePage(docId) {
     } catch (error) {
         console.error('❌ Error deleting page:', error);
         console.error('Error code:', error.code);
-        showNotification('❌ Eroare la ștergere: ' + error.message, 'error');
+        showNotification(t('errorDeleting') + ' ' + error.message, 'error');
     }
 }
 
@@ -491,7 +649,7 @@ function createPageCard(page) {
         cardClass = 'to-delete';
         statusClass = 'status-delete';
         statusIcon = 'fa-exclamation-triangle';
-        statusText = 'Neactivă - Sugestie ștergere';
+        statusText = t('statusInactiveSuggestDelete');
     } else {
         cardClass = 'pending';
         statusClass = 'status-pending';
@@ -681,7 +839,7 @@ function updateHumanMessage(postedCount, pendingCount) {
     const span = messageElement.querySelector('span');
     
     if (pendingCount === 0) {
-        span.innerHTML = '<i class="fas fa-party-horn"></i> Felicitări! Ai postat în toate paginile programate.';
+        span.innerHTML = '<i class="fas fa-party-horn"></i> ' + t('msgCongratulations');
     } else if (postedCount === 0) {
         span.innerHTML = `${pendingCount} ${pendingCount === 1 ? 'pagină necesită' : 'pagini necesită'} atenția ta.`;
     } else if (pendingCount === 1) {
@@ -810,6 +968,19 @@ window.handleRefreshAppointments = handleRefreshAppointments;
 window.exportAppointmentsCSV = exportAppointmentsCSV;
 
 document.addEventListener('DOMContentLoaded', () => {
+    console.log('%c🔍 APPOINTMENT SYSTEM DIAGNOSTICS', 'font-size: 14px; font-weight: bold; color: #FF7A24;');
+    console.log('Watch the console for these diagnostic messages:');
+    console.log('- 📊 [DIAG] renderAppointments called - shows how often render is triggered');
+    console.log('- 🔐 [DIAG] Active Firestore listener status');
+    console.log('- 🆕 [DIAG] Invoice number generation tracking');
+    console.log('%cURL: ' + window.location.href, 'color: #666; font-size: 11px;');
+    
+    // ✅ Add WebChannel error diagnostics
+    console.log('%c🔌 Firestore Connection Diagnostics', 'font-size: 12px; font-weight: bold; color: #0066cc;');
+    console.log('If you see WebChannel 404/400 errors: This is Firebase SDK handling transport fallback.');
+    console.log('It will automatically use REST if WebChannel is unavailable.');
+    console.log('---');
+    
     initializeFirebase();
     
     // Set today's date as default in appointment form
@@ -834,6 +1005,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Initialize Invoice tab UI
     initInvoiceTabUI();
+    
+    // Initialize language switcher
+    initLanguageSwitcher();
     
     // Deleted: bindStatsPopupButtons - removed per user request (no popups on stat cards)
 });
@@ -1110,24 +1284,44 @@ function switchTab(tabName) {
 
 // Subscribe to appointments real-time updates
 function subscribeToAppointments() {
-    if (!currentUser || !db) {
-        console.log('⏳ Not ready to subscribe to appointments yet');
+    if (!currentUser) {
+        console.error('❌ subscribeToAppointments: No user authenticated - Firestore will deny access');
         return;
     }
     
+    if (!db) {
+        console.error('❌ subscribeToAppointments: db not initialized - Firestore not ready');
+        return;
+    }
+    
+    console.log('✅ subscribeToAppointments: Auth ready, user:', currentUser.email, 'UID:', currentUser.uid);
+    
     import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js')
                 .then(({ collection, query, orderBy, onSnapshot }) => {
-                    console.log('📥 Subscribing to appointments collection...');
+                    // CRITICAL FIX: Unsubscribe previous listener if it exists to prevent duplicate listeners
+                    if (appointmentsUnsubscribe) {
+                        console.log('🧹 [Firestore] Unsubscribing from previous appointments listener...');
+                        appointmentsUnsubscribe();
+                        appointmentsUnsubscribe = null;
+                        firebaseListenerCount = 0;
+                    }
+                    
+                    console.log('📥 [Firestore] Setting up real-time listener on appointments collection...');
                     
                     const q = query(collection(db, 'appointments'), orderBy('startAt', 'asc'));
                     
+                    console.log('🔐 [Firestore] onSnapshot listener attached. Current user:', currentUser?.email);
+                    firebaseListenerCount = 1;
+                    
                     appointmentsUnsubscribe = onSnapshot(q, (snapshot) => {
+                        console.log('📊 [Firestore] Real-time update received:', snapshot.docs.length, 'appointments');
+                        
                         appointments = snapshot.docs.map(doc => normalizeAppointmentMileage(ensureScheduledFields({
                             id: doc.id,
                             ...doc.data()
                         })));
                         
-                        console.log(`✅ Appointments loaded: ${appointments.length}`);
+                        console.log(`✅ [Firestore] Appointments loaded: ${appointments.length}`);
                         
                         // Filter and render
                         filterAppointments();
@@ -1194,6 +1388,8 @@ async function handleAddAppointment(e) {
     try {
         const { collection, addDoc, serverTimestamp, Timestamp } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
         
+        console.log('🔐 [Firestore] User ready for addDoc:', currentUser?.uid, 'Firestore db ready:', !!db);
+        
         // Crează obiect de dată cu oră
         const [year, month, day] = dateStr.split('-').map(Number);
         const [hours, minutes] = time.split(':').map(Number);
@@ -1251,7 +1447,7 @@ async function handleAddAppointment(e) {
         
         const docRef = await addDoc(collection(db, 'appointments'), payload);
         
-        console.log(`✅ Appointment added with ID: ${docRef.id}`);
+        console.log(`✅ [Firestore] Appointment added with ID: ${docRef.id}`);
         
         // Reset form
         e.target.reset();
@@ -1420,7 +1616,7 @@ async function cancelAppointment(id) {
         });
         
         console.log(`✅ Appointment ${id} canceled`);
-        showNotification('✅ Programare anulată', 'info');
+        showNotification(t('msgAppointmentCanceled'), 'info');
         
     } catch (error) {
         console.error('❌ Error canceling appointment:', error);
@@ -1656,11 +1852,14 @@ function bindAppointmentsTabs() {
 
 // Render appointments grouped by day
 function renderAppointments() {
+    renderAppointmentsCallCount++;
+    console.log(`📊 [DIAG] renderAppointments called (${renderAppointmentsCallCount} times), Active Firestore listener: ${!!appointmentsUnsubscribe}`);
+    
     const container = document.getElementById('appointmentsList');
     const emptyState = document.getElementById('emptyStateAppointments');
     const tabEmptyMsg = activeAppointmentsTab === 'scheduled'
-        ? 'Nu ai programări programate încă.'
-        : 'Nu ai lucrări finalizate încă.';
+        ? t('msgNoAppointmentsScheduled')
+        : t('msgNoAppointmentsFinalized');
 
     if (!filteredAppointments || filteredAppointments.length === 0) {
         container.innerHTML = '';
@@ -1697,8 +1896,8 @@ function renderAppointments() {
     sortedDates.forEach(dateStr => {
                 // Build day label string per spec (Azi/Mâine) else weekday
                 let dayLabel = dateStr;
-                if (dateStr === todayStr) dayLabel = 'Azi (' + dateStr + ')';
-                else if (dateStr === tomorrowStr) dayLabel = 'Mâine (' + dateStr + ')';
+                if (dateStr === todayStr) dayLabel = t('today') + ' (' + dateStr + ')';
+                else if (dateStr === tomorrowStr) dayLabel = t('tomorrow') + ' (' + dateStr + ')';
                 else {
                         const dayDate = new Date(dateStr + 'T00:00:00');
                         const dayName = dayDate.toLocaleDateString('ro-RO', { weekday: 'long' });
@@ -1755,24 +1954,24 @@ function createAppointmentCard(apt) {
     // Status badge
     let statusClass = 'status-scheduled';
     let statusIcon = 'fa-clock';
-    let statusText = 'Programat';
+    let statusText = t('statusScheduled');
     
     if (normalized.status === 'done' || normalized.status === 'finalized') {
         statusClass = 'status-done';
         statusIcon = 'fa-check-circle';
-        statusText = 'Finalizat';
+        statusText = t('statusFinalized');
     } else if (normalized.status === 'canceled') {
         statusClass = 'status-canceled';
         statusIcon = 'fa-times-circle';
-        statusText = 'Anulat';
+        statusText = t('statusCanceled');
     } else if (normalized.status === 'delayed') {
         statusClass = 'status-delayed';
         statusIcon = 'fa-hourglass-half';
-        statusText = 'Întârziat';
+        statusText = t('statusDelayed');
     } else if (normalized.status === 'rescheduled') {
         statusClass = 'status-rescheduled';
         statusIcon = 'fa-rotate';
-        statusText = 'Reprogramat';
+        statusText = t('statusRescheduled');
     }
 
     // Removed: We no longer show extra delta badges with dates/times
@@ -1783,46 +1982,73 @@ function createAppointmentCard(apt) {
     const isOverdue = normalized.status === 'scheduled' && minutesDiff < 0;
     const overdueClass = isOverdue ? 'aptRow--overdue' : '';
     
+    // Payment summary for finalized appointments
+    let paymentSummary = '';
+    if (activeAppointmentsTab === 'finalized' && (normalized.status === 'done' || normalized.status === 'finalized')) {
+        const amountPaid = toNumber(apt.amountPaid || 0);
+        const total = toNumber(apt.total || 0);
+        
+        if (amountPaid > 0 || total > 0) {
+            const balance = computeBalance(total, amountPaid);
+            const status = computePaymentStatus(total, amountPaid);
+            
+            let statusClass = 'payment-unpaid';
+            if (status === 'Paid') statusClass = 'payment-paid';
+            else if (status === 'Partially Paid') statusClass = 'payment-partial';
+            
+            paymentSummary = `
+                <div class="tvPaymentSummary">
+                    <span class="tvPaymentLabel">Plată:</span>
+                    <span class="tvPaymentAmount">${formatCurrencyGBP(amountPaid)}</span>
+                    ${balance > 0 ? `<span class="tvPaymentSeparator">|</span>
+                    <span class="tvPaymentLabel">Restant:</span>
+                    <span class="tvPaymentBalance">${formatCurrencyGBP(balance)}</span>` : ''}
+                    <span class="tvPaymentStatus ${statusClass}">${status}</span>
+                </div>
+            `;
+        }
+    }
+    
     // Butoane de acțiune (mobile-first layout) per tab
     const actionsHTML = normalized.status !== 'canceled' ? `
         <div class="tvx-actions">
             ${activeAppointmentsTab === 'scheduled' ? `
-                <button class="btn btn-primary btn-sm" data-action="finalize" data-id="${apt.id}" aria-label="Finalizează programarea">
+                <button class="btn btn-primary btn-sm" data-action="finalize" data-id="${apt.id}" aria-label="${t('btnFinalize')}">
                     <i class="fas fa-check-circle"></i>
-                    <span>Finalizează</span>
+                    <span>${t('btnFinalize')}</span>
                 </button>
-                <button class="btn btn-secondary btn-sm" data-action="delay" data-id="${apt.id}" aria-label="Întârzie / Reprogramează">
+                <button class="btn btn-secondary btn-sm" data-action="delay" data-id="${apt.id}" aria-label="${t('btnDelay')}">
                     <i class="fas fa-clock-rotate-left"></i>
-                    <span>Întârzie / Reprogramează</span>
+                    <span>${t('btnDelay')}</span>
                 </button>
             ` : ''}
             ${normalized.address ? `
-                <button class="btn btn-outline btn-sm" data-action="visit" data-id="${apt.id}" aria-label="Vizitează locația">
+                <button class="btn btn-outline btn-sm" data-action="visit" data-id="${apt.id}" aria-label="${t('btnVisit')}">
                     <i class="fas fa-map-marker-alt"></i>
-                    <span>Vizitează</span>
+                    <span>${t('btnVisit')}</span>
                 </button>
             ` : ''}
             ${activeAppointmentsTab === 'finalized' ? `
-                <button class="btn btn-outline btn-sm" data-action="invoice" data-id="${apt.id}" aria-label="Generează factură">
+                <button class="btn btn-outline btn-sm" data-action="invoice" data-id="${apt.id}" aria-label="${t('btnInvoice')}">
                     <i class="fas fa-file-invoice"></i>
-                    <span>Invoice</span>
+                    <span>${t('btnInvoice')}</span>
                 </button>
             ` : ''}
-            <button class="btn btn-success btn-sm" data-action="whatsapp" data-id="${apt.id}" aria-label="Partajează pe WhatsApp">
+            <button class="btn btn-success btn-sm" data-action="whatsapp" data-id="${apt.id}" aria-label="${t('btnWhatsApp')}">
                 <i class="fab fa-whatsapp"></i>
-                <span>WhatsApp</span>
+                <span>${t('btnWhatsApp')}</span>
             </button>
-            <button class="btn btn-outline btn-sm" data-action="edit" data-id="${apt.id}" aria-label="Editează programarea">
+            <button class="btn btn-outline btn-sm" data-action="edit" data-id="${apt.id}" aria-label="${t('btnEdit')}">
                 <i class="fas fa-edit"></i>
-                <span>Editează</span>
+                <span>${t('btnEdit')}</span>
             </button>
-            <button class="btn btn-danger btn-sm" data-action="delete" data-id="${apt.id}" aria-label="Șterge programarea">
-                <i class="fas fa-trash-alt"></i>
-                <span>Șterge</span>
-            </button>
-            <button class="btn btn-outline btn-sm" data-action="history" data-id="${apt.id}" aria-label="Vizualizează istoric">
+            <button class="btn btn-outline btn-sm" data-action="history" data-id="${apt.id}" aria-label="${t('btnHistory')}">
                 <i class="fas fa-history"></i>
-                <span>Istoric</span>
+                <span>${t('btnHistory')}</span>
+            </button>
+            <button class="btn btn-danger btn-sm" data-action="delete" data-id="${apt.id}" aria-label="${t('btnDelete')}">
+                <i class="fas fa-trash-alt"></i>
+                <span>${t('btnDelete')}</span>
             </button>
         </div>
     ` : '';
@@ -1842,10 +2068,13 @@ function createAppointmentCard(apt) {
                 </div>
             </div>
             
-            <!-- Detalii: now opens modern modal -->
-            <button class="tvx-btn tvx-btn--secondary tvx-btn--icon" data-action="details" data-id="${apt.id}" aria-label="Deschide detalii programare">
+            <!-- Payment Summary (for finalized appointments) -->
+            ${paymentSummary}
+            
+            <!-- Details button -->
+            <button class="tvx-btn tvx-btn--secondary tvx-btn--sm" data-action="details" data-id="${apt.id}" aria-label="${t('btnDetails')}">
                 <i class="fas fa-info-circle"></i>
-                <span>Detalii</span>
+                <span>${t('btnDetails')}</span>
             </button>
 
             <!-- Action Buttons -->
@@ -1872,11 +2101,11 @@ function bindAppointmentsClickDelegation() {
         const appointment = appointments.find(a => a.id === aptId);
         if (!appointment && action !== 'invoice') {
             console.error('[Main] Appointment not found:', aptId);
-            showNotification('Programarea nu a fost găsită', 'error');
+            showNotification(t('errorAppointmentNotFound'), 'error');
             return;
         }
 
-        const { confirmModal, openCustomModal } = await import('./src/modal.js');
+        const { confirmModal, openCustomModal } = await import('./src/shared/modal.js');
 
         try {
             switch (action) {
@@ -1923,10 +2152,10 @@ function bindAppointmentsClickDelegation() {
                     break;
 
                 case 'invoice':
-                    // Log invoice access
+                    // Ensure invoice identifiers are generated once and persisted
+                    const identifiers = await ensureInvoiceIdentifiers(aptId, appointment);
                     if (appointmentHistory) {
-                        const invoiceNum = 'INV-' + Date.now();
-                        await appointmentHistory.logAppointmentInvoiced(aptId, invoiceNum);
+                        await appointmentHistory.logAppointmentInvoiced(aptId, identifiers?.invoiceNumber || appointment?.invoiceNumber || 'NEW');
                     }
                     // Direct navigation for invoice (no need to find appointment in Finalized tab)
                     try {
@@ -2434,6 +2663,70 @@ function buildQuickFinalizeModal(apt, appointmentId) {
                             rows="2"
                         ></textarea>
                     </div>
+                    
+                    <!-- Payment Section -->
+                    <details class="tvQuickFinalize__section">
+                        <summary class="tvQuickFinalize__sectionHeader">
+                            <i class="fas fa-credit-card"></i> Suma Plătită
+                        </summary>
+                        <div class="tvQuickFinalize__sectionBody">
+                            <!-- Amount Paid -->
+                            <div class="tvQuickFinalize__field">
+                                <label for="tvQuickFinalizeAmountPaid" class="tvQuickFinalize__label">
+                                    Suma Plătită <span class="tvQuickFinalize__optional">(opțional)</span>
+                                </label>
+                                <input 
+                                    type="number" 
+                                    id="tvQuickFinalizeAmountPaid" 
+                                    class="tvQuickFinalize__input" 
+                                    placeholder="0.00"
+                                    value="0"
+                                    min="0"
+                                    step="0.01"
+                                    inputmode="decimal"
+                                />
+                            </div>
+                            
+                            <!-- Payment Method -->
+                            <div class="tvQuickFinalize__field">
+                                <label for="tvQuickFinalizePaymentMethod" class="tvQuickFinalize__label">
+                                    Metodă Plată
+                                </label>
+                                <select id="tvQuickFinalizePaymentMethod" class="tvQuickFinalize__input">
+                                    <option value="">-- Selectează --</option>
+                                    <option value="Cash">Numerar</option>
+                                    <option value="Card">Card</option>
+                                    <option value="Bank Transfer">Transfer Bancar</option>
+                                    <option value="Other">Altă metodă</option>
+                                </select>
+                            </div>
+                            
+                            <!-- Payment Date -->
+                            <div class="tvQuickFinalize__field">
+                                <label for="tvQuickFinalizePaymentDate" class="tvQuickFinalize__label">
+                                    Data Plății <span class="tvQuickFinalize__optional">(opțional)</span>
+                                </label>
+                                <input 
+                                    type="date" 
+                                    id="tvQuickFinalizePaymentDate" 
+                                    class="tvQuickFinalize__input"
+                                />
+                            </div>
+                            
+                            <!-- Payment Note -->
+                            <div class="tvQuickFinalize__field">
+                                <label for="tvQuickFinalizePaymentNote" class="tvQuickFinalize__label">
+                                    Notă plată <span class="tvQuickFinalize__optional">(opțional)</span>
+                                </label>
+                                <textarea 
+                                    id="tvQuickFinalizePaymentNote" 
+                                    class="tvQuickFinalize__textarea" 
+                                    placeholder="Ex: Avans, plata parțială"
+                                    rows="2"
+                                ></textarea>
+                            </div>
+                        </div>
+                    </details>
                 </form>
             </div>
             
@@ -2458,6 +2751,13 @@ function buildQuickFinalizeModal(apt, appointmentId) {
 async function handleQuickFinalizeSubmit(e, modal, appointmentId, popHandler) {
     e.preventDefault();
     
+    // Ensure db is initialized
+    if (!db) {
+        console.error('[QuickFinalize] Firebase db not initialized');
+        showNotification('❌ Eroare: Database nu este inițializată', 'error');
+        return;
+    }
+    
     const saveBtn = modal.querySelector('#tvQuickFinalizeSaveBtn');
     saveBtn.disabled = true;
     saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Se salvează...';
@@ -2468,9 +2768,23 @@ async function handleQuickFinalizeSubmit(e, modal, appointmentId, popHandler) {
         const regPlate = modal.querySelector('#tvQuickFinalizeRegPlate').value.trim();
         const shortNote = modal.querySelector('#tvQuickFinalizeNote').value.trim();
         
+        // Collect payment data
+        const amountPaid = toNumber(modal.querySelector('#tvQuickFinalizeAmountPaid').value);
+        const paymentMethod = modal.querySelector('#tvQuickFinalizePaymentMethod').value.trim();
+        const paymentDate = modal.querySelector('#tvQuickFinalizePaymentDate').value.trim();
+        const paymentNote = modal.querySelector('#tvQuickFinalizePaymentNote').value.trim();
+        
         // Validate required fields
         if (!customerName || !regPlate) {
             showNotification('⚠️ Completează nume client și numere mașină', 'warning');
+            saveBtn.disabled = false;
+            saveBtn.innerHTML = '<i class="fas fa-check"></i> Finalizează';
+            return;
+        }
+        
+        // Validate payment amount
+        if (amountPaid < 0) {
+            showNotification('⚠️ Suma plătită nu poate fi negativă', 'warning');
             saveBtn.disabled = false;
             saveBtn.innerHTML = '<i class="fas fa-check"></i> Finalizează';
             return;
@@ -2486,7 +2800,12 @@ async function handleQuickFinalizeSubmit(e, modal, appointmentId, popHandler) {
             regPlate: regPlate,
             finalizedAt: serverTimestamp(),
             finalizedBy: currentUser?.uid || currentUser?.email || 'system',
-            updatedAt: serverTimestamp()
+            updatedAt: serverTimestamp(),
+            // Payment fields
+            amountPaid: amountPaid,
+            paymentMethod: paymentMethod || '',
+            paymentDate: paymentDate || '',
+            paymentNote: paymentNote || ''
         };
         
         // Add optional note if provided
@@ -2496,6 +2815,7 @@ async function handleQuickFinalizeSubmit(e, modal, appointmentId, popHandler) {
         
         // Update appointment in Firestore
         await updateDoc(doc(db, 'appointments', appointmentId), payload);
+        console.log('[QuickFinalize] ✅ Appointment finalized:', appointmentId);
         
         // Log to history service
         if (appointmentHistory) {
@@ -2538,10 +2858,8 @@ function closeQuickFinalizeModal(modal, popHandler, saved) {
             document.body.classList.remove('modal-open');
         }
         
-        // Refresh appointment list if modal was saved
-        if (saved) {
-            loadAppointments();
-        }
+        // Note: Firestore real-time listener (subscribeToAppointments) automatically refreshes the UI
+        // No manual reload needed
     }, 300);
 }
 
@@ -3416,6 +3734,47 @@ function createEditModalDOM(appointment) {
                         </div>
                     </div>
                 </div>
+                
+                <!-- Section 7: Payment Information -->
+                <details class="tvEditFieldGroup">
+                    <summary class="tvEditFieldGroupHeader" style="cursor: pointer;">
+                        <i class="fas fa-credit-card"></i> Informații Plată
+                    </summary>
+                    <div class="tvEditFieldsGrid">
+                        <div class="tvEditField">
+                            <label for="editAmountPaid">Suma Plătită</label>
+                            <input type="number" id="editAmountPaid" class="tvEditInput"
+                                placeholder="0.00"
+                                value="${appointment.amountPaid || 0}"
+                                min="0" step="0.01" autocomplete="off" inputmode="decimal">
+                        </div>
+                        <div class="tvEditField">
+                            <label for="editPaymentMethod">Metodă Plată</label>
+                            <select id="editPaymentMethod" class="tvEditSelect">
+                                <option value="">-- Selectează --</option>
+                                <option value="Cash" ${appointment.paymentMethod === 'Cash' ? 'selected' : ''}>Numerar</option>
+                                <option value="Card" ${appointment.paymentMethod === 'Card' ? 'selected' : ''}>Card</option>
+                                <option value="Bank Transfer" ${appointment.paymentMethod === 'Bank Transfer' ? 'selected' : ''}>Transfer Bancar</option>
+                                <option value="Other" ${appointment.paymentMethod === 'Other' ? 'selected' : ''}>Altă metodă</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="tvEditFieldsGrid">
+                        <div class="tvEditField">
+                            <label for="editPaymentDate">Data Plății</label>
+                            <input type="date" id="editPaymentDate" class="tvEditInput"
+                                value="${appointment.paymentDate || ''}"
+                                autocomplete="off">
+                        </div>
+                    </div>
+                    <div class="tvEditFieldsGrid full-width">
+                        <div class="tvEditField">
+                            <label for="editPaymentNote">Notă Plată</label>
+                            <textarea id="editPaymentNote" class="tvEditTextarea"
+                                placeholder="Ex: Avans, plata parțială...">${appointment.paymentNote || ''}</textarea>
+                        </div>
+                    </div>
+                </details>
             </form>
         </div>
 
@@ -3502,7 +3861,12 @@ async function openEditModal(appointment) {
         contactPref: form.querySelector('#editContactPref').value,
         problem: form.querySelector('#editProblem').value,
         notes: form.querySelector('#editNotes').value,
-        status: form.querySelector('#editStatus').value
+        status: form.querySelector('#editStatus').value,
+        // Payment fields
+        amountPaid: form.querySelector('#editAmountPaid').value,
+        paymentMethod: form.querySelector('#editPaymentMethod').value,
+        paymentDate: form.querySelector('#editPaymentDate').value,
+        paymentNote: form.querySelector('#editPaymentNote').value
     });
 
     const originalData = getFormData();
@@ -3709,6 +4073,10 @@ async function openEditModal(appointment) {
         saveBtn.classList.add('loading');
 
         try {
+            const name = form.querySelector('#editName').value.trim();
+            const phone = form.querySelector('#editPhone').value.trim();
+            const date = form.querySelector('#editDate').value;
+            const time = form.querySelector('#editTime').value;
             const makeModel = form.querySelector('#editMakeModel').value.trim().toUpperCase();
             const regNumber = form.querySelector('#editRegNumber').value.trim().toUpperCase();
             const mileage = form.querySelector('#editMileage').value;
@@ -3716,15 +4084,33 @@ async function openEditModal(appointment) {
             const problem = form.querySelector('#editProblem').value.trim();
             const notes = form.querySelector('#editNotes').value.trim();
             const status = form.querySelector('#editStatus').value;
-            const phone = form.querySelector('#editPhone').value.trim();
             const serviceLocation = form.querySelector('#editServiceLocation').value;
             const contactPref = form.querySelector('#editContactPref').value;
+            
+            // Payment fields
+            const amountPaid = toNumber(form.querySelector('#editAmountPaid').value);
+            const paymentMethod = form.querySelector('#editPaymentMethod').value;
+            const paymentDate = form.querySelector('#editPaymentDate').value;
+            const paymentNote = form.querySelector('#editPaymentNote').value.trim();
+            
+            // Validate payment amount
+            if (amountPaid < 0) {
+                showNotification('⚠️ Suma plătită nu poate fi negativă', 'warning');
+                saveBtn.disabled = false;
+                saveBtn.classList.remove('loading');
+                return;
+            }
 
             const updateData = {
                 customerName: name,
                 dateStr: date,
                 time,
-                status
+                status,
+                // Payment fields
+                amountPaid: amountPaid,
+                paymentMethod: paymentMethod || '',
+                paymentDate: paymentDate || '',
+                paymentNote: paymentNote || ''
             };
 
             // Vehicle fields (optional)
@@ -4333,6 +4719,52 @@ async function clearInvoiceOverrides() {
 // ============================================
 
 /**
+ * Ensure invoice identifiers exist for an appointment.
+ * Generates once and persists to Firestore if missing.
+ */
+async function ensureInvoiceIdentifiers(appointmentId, appointmentData) {
+    if (!appointmentId || !ensureFirestoreReady('ensureInvoiceIdentifiers')) return null;
+
+    const existingNumber = appointmentData?.invoiceNumber || null;
+    const existingPin = appointmentData?.pin || null;
+
+    if (existingNumber && existingPin) {
+        console.log(`✅ [Invoice] Using existing identifiers - Number: ${existingNumber}, PIN: ${existingPin}`);
+        return { invoiceNumber: existingNumber, pin: existingPin };
+    }
+
+    invoiceNumberGenerationCount++;
+    console.log(`🆕 [DIAG] Generating new invoice identifiers (generation #${invoiceNumberGenerationCount})`);
+
+    const generatePin = () => `TVX-${Math.floor(Math.random() * 10000).toString().padStart(4, '0')}`;
+    const generateInvoiceNumberStable = (id) => {
+        const now = new Date();
+        const yy = String(now.getFullYear()).slice(2);
+        const mm = String(now.getMonth() + 1).padStart(2, '0');
+        const dd = String(now.getDate()).padStart(2, '0');
+        const short = (id || 'INV').toString().slice(-6).toUpperCase();
+        return `INV-${short}-${yy}${mm}${dd}`;
+    };
+
+    const invoiceNumber = existingNumber || generateInvoiceNumberStable(appointmentId);
+    const pin = existingPin || generatePin();
+
+    console.log(`📝 [Invoice] Generated - Number: ${invoiceNumber}, PIN: ${pin}`);
+
+    const updateData = {};
+    if (!existingNumber) updateData.invoiceNumber = invoiceNumber;
+    if (!existingPin) updateData.pin = pin;
+
+    if (Object.keys(updateData).length > 0) {
+        const { doc, updateDoc } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+        await updateDoc(doc(db, 'appointments', appointmentId), updateData);
+        console.log(`💾 [Invoice] Persisted to Firestore for appointment ${appointmentId}`);
+    }
+
+    return { invoiceNumber, pin };
+}
+
+/**
  * Create invoice data from appointment
  * Called when user clicks "View Invoice" or "Download Invoice" on an appointment
  * Stores data in sessionStorage and opens invoice.html
@@ -4372,7 +4804,7 @@ function createInvoiceFromAppointment(appointment) {
         invoiceNumber: appointment.invoiceNumber || null,
         invoiceDate: appointment.appointmentDate || new Date().toISOString().split('T')[0],
         dueDate: null, // Will be calculated (7 days after invoice date)
-        pin: null, // Will be generated
+        pin: appointment.pin || null,
         paymentTerms: 'Due within 7 days',
         vatPercent: 0,
         
@@ -4425,6 +4857,8 @@ async function openInvoiceForAppointment(appointmentId) {
             return;
         }
 
+        const identifiers = await ensureInvoiceIdentifiers(appointmentId, appointment);
+
         const normalizeItems = (apt) => {
             const src = apt.invoiceItems || apt.items || apt.services || null;
             if (Array.isArray(src) && src.length) {
@@ -4444,16 +4878,6 @@ async function openInvoiceForAppointment(appointmentId) {
             d.setDate(d.getDate() + days);
             return d.toISOString().split('T')[0];
         };
-        const generatePin = () => `TVX-${Math.floor(Math.random()*10000).toString().padStart(4,'0')}`;
-        const generateInvoiceNumberStable = (id) => {
-            const now = new Date();
-            const yy = String(now.getFullYear()).slice(2);
-            const mm = String(now.getMonth()+1).padStart(2,'0');
-            const dd = String(now.getDate()).padStart(2,'0');
-            const short = (id || 'INV').toString().slice(-6).toUpperCase();
-            return `INV-${short}-${yy}${mm}${dd}`;
-        };
-
         const invoiceData = {
             company: {
                 name: 'Transvortex LTD',
@@ -4463,10 +4887,10 @@ async function openInvoiceForAppointment(appointmentId) {
                 call: 'Iulian +44 7478280954',
                 emergency: 'Mihai +44 7440787527'
             },
-            invoiceNumber: generateInvoiceNumberStable(appointmentId),
+            invoiceNumber: identifiers?.invoiceNumber || appointment.invoiceNumber || null,
             invoiceDate: todayISO(),
             dueDate: plusDaysISO(7),
-            pin: generatePin(),
+            pin: identifiers?.pin || appointment.pin || null,
             paymentTerms: 'Due within 7 days',
             client: {
                 name: appointment.customerName || appointment.clientName || appointment.name || '',
@@ -4511,6 +4935,109 @@ async function openInvoiceForAppointment(appointmentId) {
 
 // Expose openInvoiceForAppointment globally
 window.openInvoiceForAppointment = openInvoiceForAppointment;
+
+// ==========================================
+// LANGUAGE SWITCHING
+// ==========================================
+
+/**
+ * Update language button states to reflect current language
+ */
+function updateLangButtonActiveState(lang) {
+    const enBtn = document.getElementById('btnLangEN');
+    const roBtn = document.getElementById('btnLangRO');
+    
+    if (enBtn && roBtn) {
+        enBtn.classList.toggle('active', lang === 'en');
+        roBtn.classList.toggle('active', lang === 'ro');
+        console.log('[LANG] Button active state updated:', lang);
+    } else {
+        console.warn('[LANG] Buttons not found for state update');
+    }
+}
+
+/**
+ * Refresh dynamic UI strings after language change
+ * Updates appointment cards, tabs, and other JS-generated content
+ */
+window.refreshUIStrings = function() {
+    // Re-render appointments with new language
+    if (typeof renderAppointments === 'function') {
+        renderAppointments();
+    }
+};
+
+/**
+ * Apply language change and trigger UI updates
+ */
+function applyLanguage(lang) {
+    // Validate language
+    if (lang !== 'en' && lang !== 'ro') {
+        lang = 'en';
+    }
+    
+    // Set new language in localStorage
+    setLanguage(lang);
+    
+    // Dispatch custom event for language change
+    const event = new CustomEvent('languagechange', { detail: { lang } });
+    window.dispatchEvent(event);
+}
+
+/**
+ * Switch language and update all UI
+ */
+function switchLang(lang) {
+    // Apply language change (sets localStorage + dispatches event)
+    applyLanguage(lang);
+    
+    // Re-apply translations to static HTML elements with data-i18n
+    applyTranslations(document);
+    console.log('[LANG] Applied translations to document');
+    
+    // Update dynamic UI text created by JS
+    if (typeof window.refreshUIStrings === 'function') {
+        window.refreshUIStrings();
+    }
+    
+    // Re-render appointments list if available and safe
+    if (typeof renderAppointments === 'function') {
+        renderAppointments();
+    }
+    
+    // Update button active states
+    updateLangButtonActiveState(lang);
+}
+
+/**
+ * Initialize language switcher event handlers
+ */
+function initLanguageSwitcher() {
+    const enBtn = document.getElementById('btnLangEN');
+    const roBtn = document.getElementById('btnLangRO');
+    
+    if (!enBtn || !roBtn) {
+        console.error('[LANG] EN/RO buttons not found in DOM!');
+        return;
+    }
+    
+    // Attach click handlers
+    enBtn.addEventListener('click', () => {
+        switchLang('en');
+    });
+    
+    roBtn.addEventListener('click', () => {
+        switchLang('ro');
+    });
+    
+    // Set initial button states based on saved language
+    const currentLang = getLanguage();
+    updateLangButtonActiveState(currentLang);
+    
+    // Apply translations for the saved language on load
+    applyTranslations(document);
+}
+
 
 
 

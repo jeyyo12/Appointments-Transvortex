@@ -21,6 +21,13 @@ export function initAuthListener() {
         isAdmin = Boolean(user && ADMIN_UIDS.includes(user.uid));
         isInitialized = true;
 
+        // DEBUG: Log auth state resolution
+        console.log('🔐 Auth state changed:', {
+          user: user ? user.email : null,
+          isAdmin: isAdmin,
+          timestamp: new Date().toISOString()
+        });
+
         listeners.forEach((cb) => {
           try {
             cb(currentUser, isAdmin);

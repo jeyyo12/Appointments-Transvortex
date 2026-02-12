@@ -6,6 +6,7 @@
 
 // Import AppointmentHistoryService
 import AppointmentHistoryService from './services/historyService.js';
+import { ADMIN_UIDS } from './config/firebase.config.js';
 
 // ==========================================
 // FIREBASE CONFIGURATION (Single Source)
@@ -20,10 +21,66 @@ let app = null;
 let auth = null;
 let db = null;
 let currentUser = null;
+let isAdmin = false;
 
 // Global state
 let currentInvoiceData = null;
 
+let invoiceInitialized = false;
+let invoiceListenersBound = false;
+let firebaseInitialized = false;
+
+// ========== DIAGNOSTICS (Invoice) ==========
+let invoiceListenerCount = 0;
+// ==========================================
+
+// ========== WRITE TRACING (TEMPORARY DEBUG) ==========
+const writeTraces = [];
+let writeTraceEnabled = true;
+
+async function tracedUpdateDoc(ref, data, reason="") {
+    if (writeTraceEnabled) {
+        const trace = new Error().stack;
+        const info = {
+            type: 'updateDoc',
+            reason,
+            path: ref?.path || 'unknown',
+            timestamp: new Date().toISOString(),
+            stack: trace
+        };
+        writeTraces.push(info);
+        console.warn('🔥 WRITE updateDoc triggered:', reason);
+        console.warn('📍 Path:', info.path);
+        console.warn('📋 Data:', data);
+        console.trace('Call stack:');
+        
+        if (writeTraces.length > 20) writeTraces.shift();
+    }
+    
+    const { updateDoc: originalUpdateDoc } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+    return originalUpdateDoc(ref, data);
+}
+
+// Expose for use in console
+window.toggleWriteTrace = () => {
+    writeTraceEnabled = !writeTraceEnabled;
+    console.log('Write trace:', writeTraceEnabled ? 'ENABLED' : 'DISABLED');
+};
+window.getWriteTraces = () => writeTraces;
+window.showLastWrite = () => {
+    if (writeTraces.length === 0) {
+        console.log('No writes recorded');
+        return;
+    }
+    const last = writeTraces[writeTraces.length - 1];
+    console.log('=== LAST WRITE (Invoice) ===');
+    console.log('Type:', last.type);
+    console.log('Reason:', last.reason);
+    console.log('Path:', last.path);
+    console.log('Time:', last.timestamp);
+    console.log('Stack:', last.stack);
+};
+// ===================================================
 /**
  * Format date to UK format (DD/MM/YYYY)
  */
@@ -60,6 +117,7 @@ function generatePIN() {
  */
 function generateInvoiceNumber() {
     const now = new Date();
+
     const pad = (n, size = 2) => n.toString().padStart(size, '0');
     
     const yy = pad(now.getFullYear() % 100);
@@ -90,7 +148,6 @@ function calculateDueDate(invoiceDate) {
  */
 function validateInvoiceData(data) {
     const errors = [];
-
     if (!data) {
         errors.push('No invoice data provided');
         return { isValid: false, errors };
@@ -195,6 +252,192 @@ function downloadPDF() {
 }
 
 /**
+ * Handle Print action
+ */
+function handlePrint() {
+    if (!currentInvoiceData) {
+        showValidationError(['No invoice data to print']);
+        return;
+    }
+    window.print();
+}
+
+/**
+ * Sanitize phone number for WhatsApp (remove spaces, +44 to 0, etc)
+ */
+function sanitizePhoneForWhatsApp(phone) {
+    if (!phone) return '';
+    // Remove all spaces and non-digit characters except +
+    let cleaned = phone.replace(/\s/g, '');
+    // Keep + at start, but convert to 44 notation for WhatsApp
+    if (cleaned.startsWith('+44')) {
+        cleaned = '44' + cleaned.slice(3);
+    } else if (cleaned.startsWith('0')) {
+        cleaned = '44' + cleaned.slice(1);
+    }
+    return cleaned;
+}
+
+/**
+ * Build invoice link with current aptId
+ */
+function buildInvoiceLink() {
+    if (!currentAptId) return '';
+    const baseUrl = window.location.origin + window.location.pathname;
+    return `${baseUrl}?aptId=${encodeURIComponent(currentAptId)}`;
+}
+
+/**
+ * Build message text for sharing
+ */
+function buildShareMessage() {
+    const invoiceNum = currentInvoiceData?.invoiceNumber || 'Invoice';
+    const total = currentInvoiceData?.total ? formatCurrency(currentInvoiceData.total) : 'Amount TBA';
+    const link = buildInvoiceLink();
+    
+    return `Hello,
+
+Your invoice is ready!
+
+📋 Invoice Number: ${invoiceNum}
+💰 Total: ${total}
+
+View your invoice online: ${link}
+
+You can also download the PDF from the invoice page.
+
+Thank you!`;
+}
+
+/**
+ * Open Send to Client modal
+ */
+function openSendModal() {
+    const modal = document.getElementById('sendModal');
+    const backdrop = document.getElementById('sendModalBackdrop');
+    
+    // Pre-fill email and phone if available
+    const emailInput = document.getElementById('clientEmailInput');
+    const phoneInput = document.getElementById('clientPhoneInput');
+    
+    if (currentInvoiceData) {
+        // Try to extract email from client data
+        if (currentInvoiceData.clientEmail) {
+            emailInput.value = currentInvoiceData.clientEmail;
+        }
+        // Try to extract phone from client data
+        if (currentInvoiceData.clientPhone || currentInvoiceData.phone) {
+            phoneInput.value = currentInvoiceData.clientPhone || currentInvoiceData.phone || '';
+        }
+    }
+    
+    if (modal) {
+        modal.style.display = 'block';
+    }
+    if (backdrop) {
+        backdrop.style.display = 'block';
+    }
+}
+
+/**
+ * Close Send to Client modal
+ */
+function closeSendModal() {
+    const modal = document.getElementById('sendModal');
+    const backdrop = document.getElementById('sendModalBackdrop');
+    
+    if (modal) {
+        modal.style.display = 'none';
+    }
+    if (backdrop) {
+        backdrop.style.display = 'none';
+    }
+}
+
+/**
+ * Send invoice via email
+ */
+function sendViaEmail() {
+    const emailInput = document.getElementById('clientEmailInput');
+    const email = emailInput.value.trim();
+    
+    if (!email) {
+        showValidationError(['Please enter a valid email address']);
+        return;
+    }
+    
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+        showValidationError(['Please enter a valid email address']);
+        return;
+    }
+    
+    const invoiceNum = currentInvoiceData?.invoiceNumber || 'Invoice';
+    const subject = encodeURIComponent(`Invoice ${invoiceNum} - Transvortex LTD`);
+    const body = encodeURIComponent(buildShareMessage());
+    
+    window.location.href = `mailto:${email}?subject=${subject}&body=${body}`;
+    
+    // Show confirmation
+    setTimeout(() => {
+        showValidationError([`✅ Email client opened for: ${email}`]);
+    }, 100);
+}
+
+/**
+ * Send invoice via WhatsApp
+ */
+function sendViaWhatsApp() {
+    const phoneInput = document.getElementById('clientPhoneInput');
+    const phone = phoneInput.value.trim();
+    
+    if (!phone) {
+        showValidationError(['Please enter a valid phone number']);
+        return;
+    }
+    
+    const sanitized = sanitizePhoneForWhatsApp(phone);
+    if (!sanitized || sanitized.length < 10) {
+        showValidationError(['Please enter a valid phone number']);
+        return;
+    }
+    
+    const message = encodeURIComponent(buildShareMessage());
+    const whatsappUrl = `https://wa.me/${sanitized}?text=${message}`;
+    
+    window.open(whatsappUrl, '_blank');
+    showValidationError([`✅ WhatsApp opened for: ${phone}`]);
+}
+
+/**
+ * Copy invoice link to clipboard
+ */
+async function copyInvoiceLink() {
+    const link = buildInvoiceLink();
+    
+    if (!link) {
+        showValidationError(['Could not generate invoice link']);
+        return;
+    }
+    
+    try {
+        await navigator.clipboard.writeText(link);
+        showValidationError([`✅ Invoice link copied to clipboard!`]);
+        
+        // Reset after 3 seconds
+        setTimeout(() => {
+            clearValidationError();
+        }, 3000);
+    } catch (error) {
+        console.error('Error copying to clipboard:', error);
+        
+        // Fallback: show link in alert
+        showValidationError([`🔗 Link: ${link}`]);
+    }
+}
+
+/**
  * Load invoice data from sessionStorage
  * Returns null if no data found
  */
@@ -244,6 +487,22 @@ async function waitForAuth() {
  * Initialize invoice page
  */
 async function initInvoice() {
+    if (invoiceInitialized) return;
+    invoiceInitialized = true;
+
+    console.log('%c📄 INVOICE SYSTEM DIAGNOSTICS', 'font-size: 14px; font-weight: bold; color: #FF7A24;');
+    console.log('Watch for these diagnostic messages:');
+    console.log('- 📊 [DIAG] Invoice listener update count - tracks onSnapshot callbacks');
+    console.log('- 🔐 [DIAG] Listener count status');
+    console.log('- 🧹 [Invoice] Unsubscribe logs - shown when previous listener cleaned up');
+    
+    // ✅ Add WebChannel error diagnostics
+    console.log('%c🔌 Firestore Connection Diagnostics', 'font-size: 12px; font-weight: bold; color: #0066cc;');
+    console.log('If you see WebChannel 404/400 errors: This is Firebase SDK handling transport fallback.');
+    console.log('The SDK will automatically use REST transport if WebChannel is unavailable.');
+    console.log('This is normal on GitHub Pages and is being handled automatically.');
+    console.log('---');
+
     console.log('📄 [Invoice] Page loaded, initializing...');
     
     // Set up event listeners
@@ -265,40 +524,83 @@ async function initInvoice() {
     try {
         // Initialize Firebase if not already done
         if (!db) {
+            console.log('🔥 [Invoice] Initializing Firebase...');
             await initializeFirebase();
+            console.log('✅ [Invoice] Firebase initialized');
         }
 
         // Wait for user authentication (first auth state resolution)
+        console.log('⏳ [Invoice] Waiting for auth state resolution...');
         await waitForAuth();
+        console.log('🔐 [Invoice] Auth state resolved');
 
         // Check if user is authenticated
         if (!currentUser) {
+            console.error('❌ [Invoice] User not authenticated - Firestore will deny access');
             showValidationError(['You must be logged in to view invoices']);
+            disableDownloadButton();
+            return;
+        }
+        
+        console.log('✅ [Invoice] User authenticated:', currentUser.email, 'UID:', currentUser.uid);
+
+        // Double-check db is initialized
+        if (!db) {
+            console.error('❌ [Invoice] Firebase database not initialized');
+            showValidationError(['Database connection failed']);
             disableDownloadButton();
             return;
         }
 
         console.log('✅ [Invoice] User authenticated, setting up listener for appointment...');
 
+        // Log invoice opened - ONCE, before setting up the snapshot
+        // (moved out of snapshot callback to prevent infinite loop from Firestore writes)
+        if (appointmentHistoryService && !sessionStorage.getItem(`invoiceOpened_${aptId}`)) {
+            // Use setTimeout(..., 0) instead of setImmediate (better browser compatibility)
+            setTimeout(async () => {
+                try {
+                    await appointmentHistoryService.logEvent(aptId, 'INVOICE_OPENED', {
+                        invoiceNumber: 'pending'
+                    });
+                    sessionStorage.setItem(`invoiceOpened_${aptId}`, 'true');
+                    console.log('✅ [Invoice] History logged - INVOICE_OPENED');
+                } catch (err) {
+                    console.warn('⚠️ [Invoice] Could not log history event:', err);
+                }
+            }, 0);
+        }
+
         // Import Firestore functions
         const { doc, onSnapshot } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
 
         // Use onSnapshot for live updates
+        console.log('🔐 [Invoice] Setting up Firestore listener for aptId:', aptId, 'with user:', currentUser.uid);
+        
+        // CRITICAL FIX: Unsubscribe previous listener if it exists to prevent duplicate listeners
+        if (unsubscribeInvoiceListener) {
+            console.log('🧹 [Invoice] Unsubscribing from previous listener...');
+            unsubscribeInvoiceListener();
+            unsubscribeInvoiceListener = null;
+            invoiceListenerCount = 0;
+        }
+        
         unsubscribeInvoiceListener = onSnapshot(
             doc(db, 'appointments', aptId),
             (snap) => {
+                console.log('📊 [Invoice] onSnapshot fired - Firestore document received:', { exists: snap.exists(), id: snap.id });
+                invoiceListenerCount++;
+                console.log(`📊 [DIAG] Invoice listener update #${invoiceListenerCount}`);
+                
                 if (snap.exists()) {
-                    console.log('🔄 [Invoice] Appointment data received from Firestore');
+                    console.log('✅ [Invoice] Appointment document found in Firestore');
                     const appointment = { id: snap.id, ...snap.data() };
                     const normalizedData = normalizeAppointmentData(appointment);
                     renderInvoiceFromAppointment(normalizedData);
                     
-                    // Log invoice opened
-                    if (appointmentHistoryService) {
-                        appointmentHistoryService.logEvent(aptId, 'INVOICE_OPENED', {
-                            invoiceNumber: currentInvoiceData?.invoiceNumber || 'NEW'
-                        }).catch(err => console.error('History log error:', err));
-                    }
+                    // 🔴 REMOVED: History logging from snapshot callback to prevent infinite loop
+                    // History logging was causing updateDoc → updates document → triggers snapshot again
+                    // History logging only belongs in explicit user action handlers, not in automatic Firestore updates
                 } else {
                     console.error('❌ [Invoice] Appointment document does not exist');
                     showValidationError(['Appointment not found in database']);
@@ -311,6 +613,8 @@ async function initInvoice() {
                 disableDownloadButton();
             }
         );
+        
+        console.log(`🔐 [DIAG] Invoice listener attached (ID: ${aptId}). Total listeners: 1`);
 
     } catch (error) {
         console.error('❌ [Invoice] Error initializing:', error);
@@ -324,7 +628,11 @@ async function initInvoice() {
  */
 async function initializeFirebase() {
     try {
-        const { initFirebase } = await import('./config/firebase.js');
+        if (firebaseInitialized) {
+            return;
+        }
+
+        const { initFirebase, logFirebaseStatus } = await import('./config/firebase.js');
         const { initAuthListener, onAuthStateChange } = await import('./core/auth-state.js');
 
         console.log("🔥 Firebase SDK: Initializing (Invoice, single source)...");
@@ -335,17 +643,41 @@ async function initializeFirebase() {
         auth = fbAuth;
         db = fbDb;
 
+        // Log Firebase status
+        logFirebaseStatus();
+
         await initAuthListener();
 
-        onAuthStateChange(async (user) => {
+        onAuthStateChange(async (user, isAdminFlag) => {
             currentUser = user;
+            isAdmin = isAdminFlag || false;
             if (user) {
                 console.log(`✅ User authenticated on invoice: ${user.email}`);
-                await loadInvoiceData();
+                console.log(`👑 Admin status: ${isAdmin}`);
+                
+                // Disable/enable edit button based on admin status
+                const editBtn = document.getElementById('editBtn');
+                if (editBtn) {
+                    if (isAdmin) {
+                        editBtn.disabled = false;
+                        editBtn.title = 'Edit Invoice';
+                    } else {
+                        editBtn.disabled = true;
+                        editBtn.title = 'Only administrators can edit invoices';
+                        editBtn.style.opacity = '0.5';
+                        editBtn.style.cursor = 'not-allowed';
+                    }
+                }
+                
+                // Invoice data loading is handled by initInvoice() snapshot listener
+                // No need to call loadInvoiceData() here
             } else {
                 console.log("🔓 User logged out (invoice)");
+                isAdmin = false;
             }
         });
+
+        firebaseInitialized = true;
 
     } catch (error) {
         console.error("❌ Firebase initialization error:", error);
@@ -361,28 +693,40 @@ async function initializeFirebase() {
 let isEditMode = false;
 let currentAptId = null;
 let appointmentHistoryService = null;
+let originalInvoiceData = null;  // Deep clone for cancel/reset
+let draftData = {};  // Working copy during edit mode
 
 function setupEventListeners() {
+    if (invoiceListenersBound) return;
+
     const downloadBtn = document.getElementById('downloadPdfBtn');
+    const printBtn = document.getElementById('printBtn');
+    const sendBtn = document.getElementById('sendBtn');
     const editBtn = document.getElementById('editBtn');
-    const saveBtn = document.getElementById('saveInvoiceBtn');
-    const cancelBtn = document.getElementById('cancelEditBtn');
     const backBtn = document.getElementById('backBtn');
+    
+    // Send modal buttons
+    const closeSendModalBtn = document.getElementById('closeSendModal');
+    const closeSendModalFooterBtn = document.getElementById('closeSendModalFooter');
+    const sendEmailBtn = document.getElementById('sendEmailBtn');
+    const sendWhatsAppBtn = document.getElementById('sendWhatsAppBtn');
+    const copyLinkBtn = document.getElementById('copyLinkBtn');
+    const sendModalBackdrop = document.getElementById('sendModalBackdrop');
 
     if (downloadBtn) {
         downloadBtn.addEventListener('click', downloadPDF);
     }
 
+    if (printBtn) {
+        printBtn.addEventListener('click', handlePrint);
+    }
+
+    if (sendBtn) {
+        sendBtn.addEventListener('click', openSendModal);
+    }
+
     if (editBtn) {
         editBtn.addEventListener('click', toggleEditMode);
-    }
-
-    if (saveBtn) {
-        saveBtn.addEventListener('click', saveInvoiceChanges);
-    }
-
-    if (cancelBtn) {
-        cancelBtn.addEventListener('click', cancelEditMode);
     }
 
     if (backBtn) {
@@ -394,33 +738,411 @@ function setupEventListeners() {
             window.history.back();
         });
     }
+
+    // Send modal event listeners
+    if (closeSendModalBtn) {
+        closeSendModalBtn.addEventListener('click', closeSendModal);
+    }
+
+    if (closeSendModalFooterBtn) {
+        closeSendModalFooterBtn.addEventListener('click', closeSendModal);
+    }
+
+    if (sendEmailBtn) {
+        sendEmailBtn.addEventListener('click', sendViaEmail);
+    }
+
+    if (sendWhatsAppBtn) {
+        sendWhatsAppBtn.addEventListener('click', sendViaWhatsApp);
+    }
+
+    if (copyLinkBtn) {
+        copyLinkBtn.addEventListener('click', copyInvoiceLink);
+    }
+
+    if (sendModalBackdrop) {
+        sendModalBackdrop.addEventListener('click', closeSendModal);
+    }
+
+    // Keyboard shortcuts in send modal
+    const emailInput = document.getElementById('clientEmailInput');
+    const phoneInput = document.getElementById('clientPhoneInput');
+
+    if (emailInput) {
+        emailInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                sendViaEmail();
+            }
+        });
+    }
+
+    if (phoneInput) {
+        phoneInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                sendViaWhatsApp();
+            }
+        });
+    }
+
+    invoiceListenersBound = true;
 }
 
 /**
  * Toggle edit mode
  */
+/**
+ * Toggle edit mode - Open edit form with mobile-friendly UI
+ */
 function toggleEditMode() {
-    isEditMode = !isEditMode;
-    const editBtn = document.getElementById('editBtn');
-    const downloadBtn = document.getElementById('downloadPdfBtn');
-    const saveBtn = document.getElementById('saveInvoiceBtn');
-    const cancelBtn = document.getElementById('cancelEditBtn');
-    const servicesBody = document.getElementById('servicesTableBody');
+    if (!isAdmin) {
+        showValidationError(['Only administrators can edit invoices']);
+        return;
+    }
 
     if (isEditMode) {
-        editBtn.style.display = 'none';
-        downloadBtn.style.display = 'none';
-        saveBtn.style.display = 'block';
-        cancelBtn.style.display = 'block';
-        
-        // Make table editable
-        if (servicesBody) {
-            servicesBody.contentEditable = 'true';
-            servicesBody.style.backgroundColor = 'rgba(255, 122, 24, 0.05)';
+        // Already in edit mode, don't toggle (use Cancel instead)
+        return;
+    }
+
+    if (!currentInvoiceData) {
+        showValidationError(['No invoice data to edit']);
+        return;
+    }
+
+    isEditMode = true;
+    
+    // Deep clone current data for undo/cancel
+    originalInvoiceData = JSON.parse(JSON.stringify(currentInvoiceData));
+    
+    // Initialize draft data from current invoice
+    draftData = {
+        client: {
+            name: currentInvoiceData.client?.name || '',
+            address: currentInvoiceData.client?.address || '',
+            phone: currentInvoiceData.client?.phone || '',
+            vehicle: currentInvoiceData.client?.vehicle || '',
+            regPlate: currentInvoiceData.client?.regPlate || '',
+            mileage: currentInvoiceData.client?.mileage || ''
+        },
+        services: (currentInvoiceData.services || []).map(s => ({
+            description: s.description || '',
+            qty: s.qty || 1,
+            price: s.price || 0
+        })),
+        parts: (currentInvoiceData.parts || []).map(p => ({
+            description: p.description || '',
+            qty: p.qty || 1,
+            price: p.price || 0
+        })),
+        notes: currentInvoiceData.notes || '',
+        vatRate: currentInvoiceData.vatRate || 0,
+        payment: {
+            amountPaid: currentInvoiceData.amountPaid || 0,
+            paymentMethod: currentInvoiceData.paymentMethod || '',
+            paymentDate: currentInvoiceData.paymentDate || ''
+        },
+        total: currentInvoiceData.total || 0
+    };
+
+    // Show edit form
+    const editOverlay = document.getElementById('editModeOverlay');
+    const invoiceContainer = document.querySelector('.invoice-container');
+    
+    if (editOverlay) {
+        editOverlay.style.display = 'block';
+    }
+    if (invoiceContainer) {
+        invoiceContainer.style.display = 'none';
+    }
+
+    // Hide main action buttons
+    const editBtn = document.getElementById('editBtn');
+    const printBtn = document.getElementById('printBtn');
+    const sendBtn = document.getElementById('sendBtn');
+    const downloadBtn = document.getElementById('downloadPdfBtn');
+    
+    if (editBtn) editBtn.style.display = 'none';
+    if (printBtn) printBtn.style.display = 'none';
+    if (sendBtn) sendBtn.style.display = 'none';
+    if (downloadBtn) downloadBtn.style.display = 'none';
+
+    // Build and populate edit form
+    buildEditForm();
+    setupEditEventListeners();
+
+    console.log('✏️ [Invoice] Edit mode enabled');
+}
+
+/**
+ * Build edit form UI from draft data
+ */
+function buildEditForm() {
+    // Populate client fields
+    populateClientFields();
+    
+    // Populate services
+    populateServicesSection();
+    
+    // Populate parts
+    populatePartsSection();
+    
+    // Populate notes
+    const notesInput = document.querySelector('[data-field="notes"]');
+    if (notesInput) {
+        notesInput.value = draftData.notes || '';
+    }
+    
+    // Populate payment fields
+    populatePaymentFields();
+}
+
+/**
+ * Populate client fields in edit form
+ */
+function populateClientFields() {
+    const clientFields = {
+        'client.name': draftData.client?.name || '',
+        'client.address': draftData.client?.address || '',
+        'client.phone': draftData.client?.phone || '',
+        'client.vehicle': draftData.client?.vehicle || '',
+        'client.regPlate': draftData.client?.regPlate || '',
+        'client.mileage': draftData.client?.mileage || ''
+    };
+
+    Object.entries(clientFields).forEach(([fieldName, value]) => {
+        const input = document.querySelector(`[data-field="${fieldName}"]`);
+        if (input) {
+            input.value = value;
         }
-    } else {
-        // Exit edit mode without saving
-        cancelEditMode();
+    });
+}
+
+/**
+ * Render service rows in edit form
+ */
+function populateServicesSection() {
+    const container = document.getElementById('servicesEditContainer');
+    if (!container) return;
+
+    container.innerHTML = '';
+
+    (draftData.services || []).forEach((service, index) => {
+        const row = createEditItemRow('service', index, service);
+        container.appendChild(row);
+    });
+}
+
+/**
+ * Render part rows in edit form
+ */
+function populatePartsSection() {
+    const container = document.getElementById('partsEditContainer');
+    if (!container) return;
+
+    container.innerHTML = '';
+
+    (draftData.parts || []).forEach((part, index) => {
+        const row = createEditItemRow('part', index, part);
+        container.appendChild(row);
+    });
+}
+
+/**
+ * Populate payment fields in edit form
+ */
+function populatePaymentFields() {
+    const amountPaidInput = document.querySelector('[data-field="payment.amountPaid"]');
+    const paymentMethodSelect = document.querySelector('[data-field="payment.paymentMethod"]');
+    const paymentDateInput = document.querySelector('[data-field="payment.paymentDate"]');
+
+    if (amountPaidInput) {
+        amountPaidInput.value = draftData.payment?.amountPaid || 0;
+    }
+    if (paymentMethodSelect) {
+        paymentMethodSelect.value = draftData.payment?.paymentMethod || '';
+    }
+    if (paymentDateInput) {
+        paymentDateInput.value = draftData.payment?.paymentDate || '';
+    }
+}
+
+/**
+ * Mark invoice as fully paid
+ */
+function markInvoiceAsPaid() {
+    if (!draftData.payment) {
+        draftData.payment = {};
+    }
+
+    const total = draftData.total || 0;
+    draftData.payment.amountPaid = total;
+    draftData.payment.paymentDate = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+
+    // Update UI
+    populatePaymentFields();
+}
+
+/**
+ * Clear payment data
+ */
+function clearPaymentData() {
+    if (!draftData.payment) {
+        draftData.payment = {};
+    }
+
+    draftData.payment.amountPaid = 0;
+    draftData.payment.paymentMethod = '';
+    draftData.payment.paymentDate = '';
+
+    // Update UI
+    populatePaymentFields();
+}
+
+/**
+ * Compute balance due
+ */
+function computeBalanceDue(total, amountPaid) {
+    return Math.max(0, total - (amountPaid || 0));
+}
+
+/**
+ * Compute payment status
+ */
+function computePaymentStatus(total, amountPaid) {
+    const paid = amountPaid || 0;
+    if (paid === 0) return 'Unpaid';
+    if (paid >= total) return 'Paid';
+    return 'Partially Paid';
+}
+
+/**
+ * Create editable row for service or part
+ */
+function createEditItemRow(type, index, item) {
+    const row = document.createElement('div');
+    row.className = 'edit-item-row';
+    row.dataset.type = type;
+    row.dataset.index = index;
+
+    row.innerHTML = `
+        <div>
+            <div class="edit-item-label">Description</div>
+            <input type="text" data-item-field="description" value="${escapeHtml(item.description || '')}" class="edit-input" placeholder="Description">
+        </div>
+        <div>
+            <div class="edit-item-label">Qty</div>
+            <input type="number" data-item-field="qty" value="${item.qty || 1}" min="1" class="edit-input" style="width: 80px;">
+        </div>
+        <div>
+            <div class="edit-item-label">Price (£)</div>
+            <input type="number" data-item-field="price" value="${item.price || 0}" step="0.01" min="0" class="edit-input" style="width: 100px;">
+        </div>
+        <button type="button" class="edit-item-remove" data-remove-item>✕</button>
+    `;
+
+    // Remove button listener
+    row.querySelector('[data-remove-item]').addEventListener('click', (e) => {
+        e.preventDefault();
+        const itemType = row.dataset.type === 'service' ? 'services' : 'parts';
+        const itemIndex = parseInt(row.dataset.index);
+        draftData[itemType].splice(itemIndex, 1);
+        if (itemType === 'service') {
+            populateServicesSection();
+        } else {
+            populatePartsSection();
+        }
+    });
+
+    return row;
+}
+
+/**
+ * Setup edit form event listeners (event delegation)
+ */
+function setupEditEventListeners() {
+    const form = document.getElementById('invoiceEditForm');
+    if (!form) return;
+
+    // Input change listener for client fields
+    form.addEventListener('change', (e) => {
+        if (e.target.dataset.field) {
+            updateDraftData(e.target.dataset.field, e.target.value);
+        }
+    });
+
+    // Input listener for real-time editing (without waiting for blur)
+    form.addEventListener('input', (e) => {
+        if (e.target.dataset.field) {
+            updateDraftData(e.target.dataset.field, e.target.value);
+        }
+
+        // Update services/parts from item inputs
+        if (e.target.dataset.itemField) {
+            const row = e.target.closest('.edit-item-row');
+            if (row) {
+                const type = row.dataset.type === 'service' ? 'services' : 'parts';
+                const index = parseInt(row.dataset.index);
+                const field = e.target.dataset.itemField;
+
+                if (draftData[type][index]) {
+                    if (field === 'qty' || field === 'price') {
+                        draftData[type][index][field] = parseFloat(e.target.value) || 0;
+                    } else {
+                        draftData[type][index][field] = e.target.value;
+                    }
+                }
+            }
+        }
+    });
+
+    // Add service button
+    const addServiceBtn = document.getElementById('addServiceBtn');
+    if (addServiceBtn) {
+        addServiceBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            draftData.services.push({ description: '', qty: 1, price: 0 });
+            populateServicesSection();
+        });
+    }
+
+    // Add part button
+    const addPartBtn = document.getElementById('addPartBtn');
+    if (addPartBtn) {
+        addPartBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            draftData.parts.push({ description: '', qty: 1, price: 0 });
+            populatePartsSection();
+        });
+    }
+
+    // Save button
+    const saveBtn = document.getElementById('editSaveBtn');
+    if (saveBtn) {
+        saveBtn.addEventListener('click', saveInvoiceChanges);
+    }
+
+    // Cancel button
+    const cancelBtn = document.getElementById('editCancelBtn');
+    if (cancelBtn) {
+        cancelBtn.addEventListener('click', cancelEditMode);
+    }
+
+    // Mark as Paid button
+    const markAsPaidBtn = document.getElementById('markAsPaidBtn');
+    if (markAsPaidBtn) {
+        markAsPaidBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            markInvoiceAsPaid();
+        });
+    }
+
+    // Clear Payment button
+    const clearPaymentBtn = document.getElementById('clearPaymentBtn');
+    if (clearPaymentBtn) {
+        clearPaymentBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            clearPaymentData();
+        });
     }
 }
 
@@ -429,107 +1151,222 @@ function toggleEditMode() {
  */
 function cancelEditMode() {
     isEditMode = false;
+    
+    // Hide edit overlay
+    const editOverlay = document.getElementById('editModeOverlay');
+    const invoiceContainer = document.querySelector('.invoice-container');
+    
+    if (editOverlay) {
+        editOverlay.style.display = 'none';
+    }
+    if (invoiceContainer) {
+        invoiceContainer.style.display = 'block';
+    }
+
+    // Show main action buttons
     const editBtn = document.getElementById('editBtn');
+    const printBtn = document.getElementById('printBtn');
+    const sendBtn = document.getElementById('sendBtn');
     const downloadBtn = document.getElementById('downloadPdfBtn');
-    const saveBtn = document.getElementById('saveInvoiceBtn');
-    const cancelBtn = document.getElementById('cancelEditBtn');
-    const servicesBody = document.getElementById('servicesTableBody');
+    
+    if (editBtn && isAdmin) editBtn.style.display = 'inline-block';
+    if (printBtn) printBtn.style.display = 'inline-block';
+    if (sendBtn) sendBtn.style.display = 'inline-block';
+    if (downloadBtn) downloadBtn.style.display = 'inline-block';
 
-    editBtn.style.display = 'block';
-    downloadBtn.style.display = 'block';
-    saveBtn.style.display = 'none';
-    cancelBtn.style.display = 'none';
+    // Clear edit state
+    draftData = {};
+    originalInvoiceData = null;
 
-    if (servicesBody) {
-        servicesBody.contentEditable = 'false';
-        servicesBody.style.backgroundColor = '';
+    clearValidationError();
+    console.log('❌ [Invoice] Edit mode cancelled');
+}
+
+/**
+ * Update draft data using dot notation path
+ */
+function updateDraftData(path, value) {
+    const parts = path.split('.');
+    let obj = draftData;
+
+    for (let i = 0; i < parts.length - 1; i++) {
+        if (!obj[parts[i]]) {
+            obj[parts[i]] = {};
+        }
+        obj = obj[parts[i]];
     }
 
-    // Re-render to discard changes
-    if (currentInvoiceData) {
-        renderServicesOptimized(currentInvoiceData);
+    obj[parts[parts.length - 1]] = value;
+}
+
+/**
+ * Get data from dot notation path
+ */
+function getDraftData(path) {
+    const parts = path.split('.');
+    let obj = draftData;
+
+    for (const part of parts) {
+        obj = obj?.[part];
+        if (obj === undefined) return undefined;
     }
+
+    return obj;
+}
+
+/**
+ * Escape HTML to prevent injection
+ */
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
 }
 
 /**
  * Save invoice changes to Firestore
  */
-async function saveInvoiceChanges() {
-    if (!currentAptId || !currentUser) {
-        showValidationError(['Not authenticated']);
+async function saveInvoiceChanges(e) {
+    if (e) {
+        e.preventDefault();
+    }
+
+    if (!currentAptId || !currentUser || !isAdmin) {
+        showValidationError(['Not authenticated or not admin']);
         return;
     }
 
     try {
-        const saveBtn = document.getElementById('saveInvoiceBtn');
-        saveBtn.disabled = true;
-        saveBtn.innerHTML = '💾 Saving...';
+        const saveBtn = document.getElementById('editSaveBtn');
+        if (saveBtn) {
+            saveBtn.disabled = true;
+            saveBtn.innerHTML = '💾 Saving...';
+        }
 
-        // Collect edited data
-        const servicesBody = document.getElementById('servicesTableBody');
-        const rows = servicesBody.querySelectorAll('tr');
-        const services = [];
-        const parts = [];
-
-        rows.forEach(row => {
-            const cells = row.querySelectorAll('td');
-            if (cells.length >= 4) {
-                const description = cells[0].textContent.trim();
-                const qty = parseInt(cells[1].textContent) || 1;
-                const price = parseFloat(cells[2].textContent) || 0;
-
-                if (description && price > 0) {
-                    // For now, classify all as services (can be improved with UI selection)
-                    services.push({
-                        name: description,
-                        price: price,
-                        qty: qty
-                    });
-                }
+        // Validate data
+        const validation = validateEditData(draftData);
+        if (!validation.isValid) {
+            showValidationError(validation.errors);
+            if (saveBtn) {
+                saveBtn.disabled = false;
+                saveBtn.innerHTML = '💾 Save Changes';
             }
-        });
-
-        if (services.length === 0) {
-            showValidationError(['Add at least one service']);
-            saveBtn.disabled = false;
-            saveBtn.innerHTML = '💾 Save Changes';
             return;
         }
 
-        // Update Firestore appointment with invoice details
-        const { doc, updateDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
-
-        const invoiceUpdate = {
-            services: services,
-            parts: parts,
-            invoiceUpdatedAt: serverTimestamp(),
+        // Prepare update object
+        const updateData = {
+            // Client info
+            name: draftData.client?.name || '',
+            address: draftData.client?.address || '',
+            phone: draftData.client?.phone || '',
+            carMakeModel: draftData.client?.vehicle || '',
+            regPlate: draftData.client?.regPlate || '',
+            mileage: draftData.client?.mileage || '',
+            
+            // Services and parts
+            services: draftData.services || [],
+            parts: draftData.parts || [],
+            
+            // Notes
+            notes: draftData.notes || '',
+            
+            // Payment info
+            amountPaid: parseFloat(draftData.payment?.amountPaid) || 0,
+            paymentMethod: draftData.payment?.paymentMethod || '',
+            paymentDate: draftData.payment?.paymentDate || '',
+            
+            // Metadata
+            invoiceUpdatedAt: new Date().toISOString(),
             invoiceUpdatedBy: currentUser.uid || currentUser.email
         };
 
-        await updateDoc(doc(db, 'appointments', currentAptId), invoiceUpdate);
+        // Update Firestore
+        const { doc, updateDoc } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+        await updateDoc(doc(db, 'appointments', currentAptId), updateData);
 
         // Log to history
         if (appointmentHistoryService) {
             await appointmentHistoryService.logInvoiceUpdated(
                 currentAptId,
                 currentInvoiceData?.invoiceNumber,
-                { services: services.length, parts: parts.length }
+                {
+                    services: draftData.services?.length || 0,
+                    parts: draftData.parts?.length || 0
+                }
             );
         }
 
-        // Exit edit mode
-        isEditMode = false;
-        cancelEditMode();
-        showValidationError(['✅ Invoice saved successfully']);
+        // Success - exit edit mode
+        showValidationError(['✅ Invoice saved successfully!']);
+        
+        setTimeout(() => {
+            isEditMode = false;
+            cancelEditMode();
+            // The Firestore listener will update the view automatically
+        }, 1000);
 
     } catch (error) {
         console.error('[Invoice] Save error:', error);
-        showValidationError(['Error saving invoice: ' + error.message]);
+        showValidationError(['Error saving invoice: ' + (error.message || 'Unknown error')]);
     } finally {
-        const saveBtn = document.getElementById('saveInvoiceBtn');
-        saveBtn.disabled = false;
-        saveBtn.innerHTML = '💾 Save Changes';
+        const saveBtn = document.getElementById('editSaveBtn');
+        if (saveBtn) {
+            saveBtn.disabled = false;
+            saveBtn.innerHTML = '💾 Save Changes';
+        }
     }
+}
+
+/**
+ * Validate edit data
+ */
+function validateEditData(data) {
+    const errors = [];
+
+    if (!data.client?.name?.trim()) {
+        errors.push('Client name is required');
+    }
+
+    if (!data.services || data.services.length === 0) {
+        errors.push('At least one service is required');
+    }
+
+    // Validate services
+    data.services.forEach((service, i) => {
+        if (!service.description?.trim()) {
+            errors.push(`Service ${i + 1}: Description is required`);
+        }
+        if (service.qty < 1) {
+            errors.push(`Service ${i + 1}: Quantity must be at least 1`);
+        }
+        if (service.price < 0) {
+            errors.push(`Service ${i + 1}: Price cannot be negative`);
+        }
+    });
+
+    // Validate parts (optional but if present, validate)
+    if (data.parts) {
+        data.parts.forEach((part, i) => {
+            if (part.description?.trim() && part.price < 0) {
+                errors.push(`Part ${i + 1}: Price cannot be negative`);
+            }
+        });
+    }
+
+    // Validate payment (optional but if present, validate)
+    if (data.payment) {
+        const amountPaid = parseFloat(data.payment.amountPaid) || 0;
+        if (amountPaid < 0) {
+            errors.push('Amount paid cannot be negative');
+        }
+        // Note: We allow amountPaid > total for cases like overpayment or deposits
+    }
+
+    return {
+        isValid: errors.length === 0,
+        errors: errors.length === 0 ? ['All data valid'] : errors
+    };
 }
 
 /**
@@ -664,13 +1501,20 @@ function normalizeAppointmentData(apt) {
         items,
         services,
         parts,
+        invoiceNumber: apt.invoiceNumber || '',
+        pin: apt.pin || '',
         invoiceDate,
         subtotal,
         vatRate: vatRate ? Math.round(vatRate) : 0,  // Round to nearest integer for display
         vatAmount,
         total,
         paymentTerms: overrides.paymentTerms || apt.paymentTerms || 'Due within 7 days',
-        extras: parseFloat(overrides.extras ?? apt.extras) || 0
+        extras: parseFloat(overrides.extras ?? apt.extras) || 0,
+        // Payment info
+        amountPaid: parseFloat(apt.amountPaid) || 0,
+        paymentMethod: apt.paymentMethod || '',
+        paymentDate: apt.paymentDate || '',
+        notes: apt.notes || ''
     };
 
     console.log('✅ [Invoice] Normalized data:', normalized);
@@ -802,6 +1646,50 @@ function renderTotalsOptimized(normalizedData) {
     } else {
         vatRow.style.display = 'none';
     }
+
+    // Payment information
+    const amountPaid = parseFloat(normalizedData.amountPaid) || 0;
+    const balanceDue = computeBalanceDue(total, amountPaid);
+    const paymentStatus = computePaymentStatus(total, amountPaid);
+
+    // Show/hide payment rows
+    const amountPaidRow = document.getElementById('amountPaidRow');
+    const balanceDueRow = document.getElementById('balanceDueRow');
+    const paymentStatusRow = document.getElementById('paymentStatusRow');
+
+    if (amountPaid > 0) {
+        // Show payment info
+        if (amountPaidRow) {
+            amountPaidRow.style.display = 'flex';
+            document.getElementById('amountPaid').textContent = formatCurrency(amountPaid);
+        }
+        if (balanceDueRow) {
+            balanceDueRow.style.display = 'flex';
+            document.getElementById('balanceDue').textContent = formatCurrency(balanceDue);
+        }
+        if (paymentStatusRow) {
+            paymentStatusRow.style.display = 'flex';
+            const statusBadge = document.getElementById('paymentStatus');
+            if (statusBadge) {
+                statusBadge.textContent = paymentStatus;
+                // Remove all status classes
+                statusBadge.classList.remove('status-unpaid', 'status-partial', 'status-paid');
+                // Add appropriate status class
+                if (paymentStatus === 'Unpaid') {
+                    statusBadge.classList.add('status-unpaid');
+                } else if (paymentStatus === 'Partially Paid') {
+                    statusBadge.classList.add('status-partial');
+                } else if (paymentStatus === 'Paid') {
+                    statusBadge.classList.add('status-paid');
+                }
+            }
+        }
+    } else {
+        // Hide payment rows if no payment
+        if (amountPaidRow) amountPaidRow.style.display = 'none';
+        if (balanceDueRow) balanceDueRow.style.display = 'none';
+        if (paymentStatusRow) paymentStatusRow.style.display = 'none';
+    }
 }
 
 /**
@@ -814,8 +1702,8 @@ function renderInvoiceFromAppointment(normalizedData) {
         return;
     }
 
-    // Generate invoice metadata
-    const invoiceNumber = generateInvoiceNumber();
+    // Use stored invoice identifiers if present
+    const invoiceNumber = normalizedData.invoiceNumber || '';
     const dueDate = calculateDueDate(normalizedData.invoiceDate);
 
     // Store for later use
@@ -823,7 +1711,7 @@ function renderInvoiceFromAppointment(normalizedData) {
         invoiceNumber,
         invoiceDate: normalizedData.invoiceDate,
         dueDate,
-        pin: generatePIN(),
+        pin: normalizedData.pin || '',
         ...normalizedData
     };
 

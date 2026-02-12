@@ -36,6 +36,19 @@ class AppointmentHistoryService {
             });
             return;
         }
+        
+        // Auth check before Firestore call
+        if (!this.currentUser) {
+            console.error('❌ [HistoryService] logEvent: User not authenticated - Firestore will deny access');
+            return;
+        }
+        
+        if (!this.db) {
+            console.error('❌ [HistoryService] logEvent: Firestore not initialized');
+            return;
+        }
+        
+        console.log('🔐 [HistoryService] logEvent with user:', this.currentUser.uid, 'eventType:', eventType);
 
         try {
             const {
@@ -54,6 +67,8 @@ class AppointmentHistoryService {
                 ...data
             };
 
+            console.log('📝 [HistoryService] Writing to Firestore - appointmentId:', appointmentId, 'eventType:', eventType);
+            
             await updateDoc(doc(this.db, 'appointments', appointmentId), {
                 timeline: arrayUnion(timelineEntry),
                 lastUpdatedAt: serverTimestamp(),
