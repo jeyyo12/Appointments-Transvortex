@@ -1,38 +1,14 @@
-// ==========================================
-// 🔴 FIREBASE CONFIGURATION - INSTRUCTIONS 🔴
-// ==========================================
-// ⚠️ IMPORTANT: Keep this config in sync with src/config/firebase.config.js
-// 1. Go to: https://console.firebase.google.com/project/appointments-transvortex
-// 2. Click ⚙️ Project Settings (top-left)
-// 3. Scroll to "Your apps" → find "Web" app
-// 4. Click "</> Code" to copy the firebaseConfig object
-// 5. Update BOTH this file AND src/config/firebase.config.js
-// 6. Ensure projectId is: "appointments-transvortex"
-// ==========================================
+import { initFirebase } from './src/config/firebase.js';
+import { initAuthListener, onAuthStateChange } from './src/core/auth-state.js';
+import { bindActionDelegation } from './src/core/events.js';
 
-// For Firebase JS SDK v10.7.1 and later, measurementId is optional
-const firebaseConfig = {
-  apiKey: "AIzaSyDHBcoZWlAitqA29JC7jviABaiOjE6PcuY",
-  authDomain: "appoiments-transvortex.firebaseapp.com",
-  projectId: "appoiments-transvortex",
-  storageBucket: "appoiments-transvortex.firebasestorage.app",
-  messagingSenderId: "48926669789",
-  appId: "1:48926669789:web:f45caa8df57667d28b5434"
-};
-
-// Validation check
-if (firebaseConfig.apiKey === "YOUR_API_KEY_HERE" || !firebaseConfig.apiKey.startsWith("AIzaSy")) {
-    console.error("❌ FIREBASE CONFIG NOT SET! Follow instructions above.");
-    console.error("Update BOTH script.js AND src/config/firebase.config.js with your project credentials.");
-    console.error("Go to: https://console.firebase.google.com/project/appointments-transvortex");
-}
-
-// Admin UIDs - Three administrators
-const ADMIN_UIDS = [
-    "VhjWQiYKVGUrDVuOQUSJHA15Blk2", // Admin 1
-    "9tcBBsCcdqOWHc06otNpHq8XAxW2", // Admin 2
-    "FdZgEWNvKTUeDZuwGzKIxvAuECy2"  // Admin 3
-];
+// ==========================================
+// FIREBASE CONFIGURATION - SINGLE SOURCE
+// ==========================================
+// Firebase config lives in src/config/firebase.config.js
+// Firebase initialization lives in src/config/firebase.js
+// Auth state lives in src/core/auth-state.js
+// ==========================================
 
 // Global variables for Firebase
 let app = null;
@@ -61,52 +37,33 @@ let appointmentsClicksBound = false;
 let appointmentHistory = null;
 
 // ==========================================
-// FIREBASE INITIALIZATION (Web SDK only)
+// FIREBASE INITIALIZATION (Single Source)
 // ==========================================
+// Firebase is initialized ONCE in src/config/firebase.js
+// Auth state is managed in src/core/auth-state.js
 async function initializeFirebase() {
     try {
-        // Import Firebase App module
-        const { initializeApp } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js');
-        
-        // Import Firebase Auth module (Web SDK)
-        const { 
-            getAuth, 
-            onAuthStateChanged, 
-            signInWithPopup, 
-            GoogleAuthProvider, 
-            signOut 
-        } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js');
-        
-        // Import Firestore module
-        const { getFirestore } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+        console.log("🔥 Firebase SDK: Initializing (single source)...");
 
-        console.log("🔥 Firebase SDK: Initializing...");
-        
-        // Initialize Firebase App with Web config
-        app = initializeApp(firebaseConfig);
-        console.log("✅ Firebase App initialized");
-        
-        // Get Auth instance (Web SDK)
-        auth = getAuth(app);
-        console.log("✅ Firebase Auth initialized");
-        
-        // Get Firestore instance
-        db = getFirestore(app);
-        console.log("✅ Firestore initialized");
+        const { app: fbApp, auth: fbAuth, db: fbDb } = initFirebase();
 
-        // Setup authentication state listener
-        onAuthStateChanged(auth, async (user) => {
+        app = fbApp;
+        auth = fbAuth;
+        db = fbDb;
+
+        await initAuthListener();
+
+        onAuthStateChange(async (user, isAdminFlag) => {
             currentUser = user;
-            isAdmin = user ? ADMIN_UIDS.includes(user.uid) : false;
+            isAdmin = isAdminFlag;
             updateAuthUI();
-            
+
             if (user) {
                 console.log(`✅ User authenticated: ${user.email}`);
                 if (isAdmin) {
                     console.log("👑 Admin access granted");
                 }
-                
-                // Initialize history service after Firebase & user are ready
+
                 const { default: HistoryService } = await import('./src/services/historyService.js').catch(() => {
                     console.warn('⚠️  History service not available');
                     return { default: null };
@@ -115,16 +72,11 @@ async function initializeFirebase() {
                     appointmentHistory = new HistoryService(db, user);
                     console.log("✅ Appointment history service initialized");
                 }
-                
-                // Setup event listeners first
+
                 setupEventListeners();
-                
-                // Load pages from Firestore (this will also render)
                 await loadPages();
-                
-                // Subscribe to appointments if on appointments tab
                 subscribeToAppointments();
-                
+
             } else {
                 console.log("🔓 User logged out");
                 pages = [];
@@ -165,8 +117,8 @@ async function handleAuthToggle() {
     if (currentUser) {
         // User logged in → Logout
         try {
-            const { signOut: firebaseSignOut } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js');
-            await firebaseSignOut(auth);
+            const { signOut } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js');
+            await signOut(auth);
             console.log("✅ User logged out successfully");
         } catch (error) {
             console.error("❌ Logout error:", error);
@@ -176,20 +128,12 @@ async function handleAuthToggle() {
         // User not logged in → Google Sign-In
         try {
             const { signInWithPopup, GoogleAuthProvider } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js');
-            
-            // Create Google provider
+
             const provider = new GoogleAuthProvider();
-            
-            // Set language to Romanian
             auth.languageCode = 'ro';
-            
-            // Request scopes (optional - for accessing more user data)
             provider.addScope('profile');
             provider.addScope('email');
-            
-            console.log("🔐 Initiating Google Sign-In...");
-            
-            // Sign in with popup
+
             const result = await signInWithPopup(auth, provider);
             console.log("✅ Google Sign-In successful:", result.user.email);
             
@@ -203,7 +147,7 @@ async function handleAuthToggle() {
                 return;
             } else if (error.code === "auth/api-key-not-valid") {
                 updateAuthStatus("❌ API Key invalid - check Firebase Console.");
-                console.error("SOLUTION: Verify firebaseConfig in script.js matches Console");
+                console.error("SOLUTION: Verify firebaseConfig in src/config/firebase.config.js matches Console");
             } else if (error.code === "auth/unauthorized-domain") {
                 updateAuthStatus("❌ Domain not authorized - add to Firebase Console.");
                 console.error("SOLUTION: Firebase Console > Auth > Settings > Authorized domains");
@@ -859,6 +803,12 @@ function highlightAndScrollToAppointment(appointmentId) {
 // ==========================================
 // INITIALIZE ON PAGE LOAD
 // ==========================================
+window.handleAuthToggle = handleAuthToggle;
+window.switchTab = switchTab;
+window.handleRefresh = handleRefresh;
+window.handleRefreshAppointments = handleRefreshAppointments;
+window.exportAppointmentsCSV = exportAppointmentsCSV;
+
 document.addEventListener('DOMContentLoaded', () => {
     initializeFirebase();
     
@@ -1376,52 +1326,62 @@ function splitVehicleAndReg(inputString) {
     };
 }
 
-// Utility: Validate individual field (using design system classes)
-function validateField(fieldId) {
-    const field = document.getElementById(fieldId);
+// Utility: Validate individual field (supports id or element)
+function validateField(inputOrId, showError = true) {
+    const field = typeof inputOrId === 'string'
+        ? document.getElementById(inputOrId)
+        : inputOrId;
     if (!field) return true;
     
     // Find parent .tvField container
     const tvField = field.closest('.tvField');
     
     // Legacy error element (fallback)
-    const errorEl = document.getElementById(fieldId + '-error');
+    const fieldId = field.id || '';
+    const errorEl = fieldId ? document.getElementById(fieldId + '-error') : null;
     
     let isValid = true;
     let errorMsg = '';
     
     const value = field.value.trim();
     
+    const isRequired = field.hasAttribute('required') || field.classList.contains('tv-required');
+
     // Check if required and empty
-    if (field.hasAttribute('required') && !value) {
+    if (isRequired && !value) {
         isValid = false;
         errorMsg = 'Câmp obligatoriu';
     } else if (fieldId === 'regNumber' && value && value.length < 6) {
         isValid = false;
         errorMsg = 'Înmatriculare invalidă';
+    } else if (fieldId === 'editPhone' && value && !validatePhoneNumber(value)) {
+        isValid = false;
+        errorMsg = 'Telefon invalid';
     }
     
     // Apply design system error state
-    if (tvField) {
-        if (!isValid) {
-            tvField.classList.add('tvField--error');
-            // Add error message if doesn't exist
-            let errorSpan = tvField.querySelector('.tvError');
-            if (!errorSpan) {
-                errorSpan = document.createElement('span');
-                errorSpan.className = 'tvError';
-                tvField.appendChild(errorSpan);
+    if (showError) {
+        if (tvField) {
+            if (!isValid) {
+                tvField.classList.add('tvField--error');
+                // Add error message if doesn't exist
+                let errorSpan = tvField.querySelector('.tvError');
+                if (!errorSpan) {
+                    errorSpan = document.createElement('span');
+                    errorSpan.className = 'tvError';
+                    tvField.appendChild(errorSpan);
+                }
+                errorSpan.textContent = errorMsg;
+            } else {
+                tvField.classList.remove('tvField--error');
+                const errorSpan = tvField.querySelector('.tvError');
+                if (errorSpan) errorSpan.remove();
             }
-            errorSpan.textContent = errorMsg;
-        } else {
-            tvField.classList.remove('tvField--error');
-            const errorSpan = tvField.querySelector('.tvError');
-            if (errorSpan) errorSpan.remove();
         }
     }
     
     // Legacy error display (fallback for old markup)
-    if (errorEl) {
+    if (showError && errorEl) {
         if (!isValid) {
             errorEl.textContent = errorMsg;
             field.classList.add('error');
@@ -1429,6 +1389,15 @@ function validateField(fieldId) {
             errorEl.textContent = '';
             field.classList.remove('error');
         }
+    }
+
+    // Edit modal error display (inline message)
+    if (showError && !tvField) {
+        const errorMsgEl = field.nextElementSibling;
+        if (errorMsgEl && errorMsgEl.classList.contains('tvEditErrorMsg')) {
+            errorMsgEl.style.display = isValid ? 'none' : 'block';
+        }
+        field.classList.toggle('error', !isValid);
     }
     
     return isValid;
@@ -1891,20 +1860,11 @@ function bindAppointmentsClickDelegation() {
     if (!container) return;
 
     if (appointmentsClicksBound) return;
+    bindActionDelegation(container, async ({ action, id, target }) => {
+        const aptId = id;
 
-    container.addEventListener('click', async (e) => {
-        // Single unified approach: find button with data-action
-        const btn = e.target.closest('[data-action][data-id]');
-        if (!btn) return;
-
-        e.preventDefault();
-        e.stopPropagation();
-
-        const aptId = btn.dataset.id;
-        const action = btn.dataset.action;
-        
         if (!aptId) {
-            console.error('[Main] Button has no data-id:', btn);
+            console.error('[Main] Button has no data-id:', target);
             showNotification('Programarea nu are ID', 'error');
             return;
         }
@@ -1916,12 +1876,10 @@ function bindAppointmentsClickDelegation() {
             return;
         }
 
-        // Import modal component (used by finalize/edit/delay)
         const { confirmModal, openCustomModal } = await import('./src/modal.js');
 
-        // Route all actions through unified switch
         try {
-            switch(action) {
+            switch (action) {
                 case 'details':
                     if (appointmentHistory) {
                         await appointmentHistory.logDetailsOpened(aptId);
@@ -1974,7 +1932,10 @@ function bindAppointmentsClickDelegation() {
                     try {
                         const basePath = window.location.pathname.replace(/[^/]+$/, '');
                         const url = basePath + 'invoice.html?aptId=' + encodeURIComponent(aptId);
-                        window.location.href = url;
+                        const popup = window.open(url, '_blank');
+                        if (!popup) {
+                            window.location.href = url;
+                        }
                     } catch (err) {
                         console.error('[Main] Invoice navigation error:', err);
                         showNotification('Nu s-a putut deschide factura', 'error');
@@ -3245,35 +3206,6 @@ function clearDraft(appointmentId) {
     }
 }
 
-// Helper: Validate individual field
-function validateField(input, showError = true) {
-    const isRequired = input.hasAttribute('required') || input.classList.contains('tv-required');
-    const value = input.value.trim();
-    let isValid = !isRequired || value.length > 0;
-    
-    // Special validation for phone field
-    if (input.id === 'editPhone' && value.length > 0) {
-        isValid = validatePhoneNumber(value);
-    }
-    
-    if (showError) {
-        if (isValid) {
-            input.classList.remove('error');
-            const errorMsg = input.nextElementSibling;
-            if (errorMsg && errorMsg.classList.contains('tvEditErrorMsg')) {
-                errorMsg.style.display = 'none';
-            }
-        } else {
-            input.classList.add('error');
-            const errorMsg = input.nextElementSibling;
-            if (errorMsg && errorMsg.classList.contains('tvEditErrorMsg')) {
-                errorMsg.style.display = 'block';
-            }
-        }
-    }
-    
-    return isValid;
-}
 
 // Helper: Validate all required fields in form
 function validateAllFields(form) {

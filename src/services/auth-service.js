@@ -21,10 +21,12 @@ export class AuthService {
    * @returns {Function} Unsubscribe function
    */
   initializeAuthListener() {
-    return import('https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js')
-      .then(({ onAuthStateChanged }) => {
-        return onAuthStateChanged(this.auth, (user) => {
-          this._handleAuthStateChange(user);
+    return import('../core/auth-state.js')
+      .then(({ initAuthListener, onAuthStateChange }) => {
+        return initAuthListener().then(() => {
+          return onAuthStateChange((user, isAdminFlag) => {
+            this._handleAuthStateChange(user, isAdminFlag);
+          });
         });
       });
   }
@@ -34,9 +36,11 @@ export class AuthService {
    * @private
    * @param {Object} user - Firebase user object
    */
-  _handleAuthStateChange(user) {
+  _handleAuthStateChange(user, isAdminOverride) {
     if (user) {
-      const isAdmin = ADMIN_UIDS.includes(user.uid);
+      const isAdmin = typeof isAdminOverride === 'boolean'
+        ? isAdminOverride
+        : ADMIN_UIDS.includes(user.uid);
       
       appState.batchUpdate({
         'auth.currentUser': user,

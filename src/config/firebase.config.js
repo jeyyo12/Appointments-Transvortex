@@ -18,9 +18,9 @@
 
 export const firebaseConfig = {
   apiKey: "AIzaSyDHBcoZWlAitqA29JC7jviABaiOjE6PcuY",
-  authDomain: "appoiments-transvortex.firebaseapp.com",
-  projectId: "appoiments-transvortex",
-  storageBucket: "appoiments-transvortex.firebasestorage.app",
+  authDomain: "appointments-transvortex.firebaseapp.com",
+  projectId: "appointments-transvortex",
+  storageBucket: "appointments-transvortex.firebasestorage.app",
   messagingSenderId: "48926669789",
   appId: "1:48926669789:web:f45caa8df57667d28b5434"
 };

@@ -8,35 +8,14 @@
 import AppointmentHistoryService from './services/historyService.js';
 
 // ==========================================
-// FIREBASE CONFIGURATION (Appointments-Transvortex)
+// FIREBASE CONFIGURATION (Single Source)
 // ==========================================
-// ⚠️ IMPORTANT: Keep this config in sync with src/config/firebase.config.js
-// 
-// SETUP INSTRUCTIONS:
-// 1. Go to: https://console.firebase.google.com/project/appointments-transvortex
-// 2. Click ⚙️ Project Settings (top-left)
-// 3. Scroll to "Your apps" → find "Web" app
-// 4. Click "</> Code" to copy the firebaseConfig object
-// 5. Update BOTH this file AND src/config/firebase.config.js AND script.js
-// 6. Ensure projectId is: "appointments-transvortex"
+// Firebase config: src/config/firebase.config.js
+// Firebase init: src/config/firebase.js
+// Auth state: src/core/auth-state.js
 // ==========================================
-const firebaseConfig = {
-    apiKey: "AIzaSyDHBcoZWlAitqA29JC7jviABaiOjE6PcuY",
-    authDomain: "appoiments-transvortex.firebaseapp.com",
-    projectId: "appoiments-transvortex",
-    storageBucket: "appoiments-transvortex.firebasestorage.app",
-    messagingSenderId: "48926669789",
-    appId: "1:48926669789:web:f45caa8df57667d28b5434"
-};
 
-// Admin UIDs - Three administrators
-const ADMIN_UIDS = [
-    "VhjWQiYKVGUrDVuOQUSJHA15Blk2", // Admin 1
-    "9tcBBsCcdqOWHc06otNpHq8XAxW2", // Admin 2
-    "FdZgEWNvKTUeDZuwGzKIxvAuECy2"  // Admin 3
-];
-
-// Firebase global instances
+// Firebase instances will be assigned by initializeFirebase()
 let app = null;
 let auth = null;
 let db = null;
@@ -239,17 +218,25 @@ let unsubscribeInvoiceListener = null;
  * Wait until Firebase Auth has resolved the current user (no arbitrary timeout).
  * Resolves with the user object (or null if logged out).
  */
+/**
+ * Wait for auth initialization from shared auth-state module
+ * ⚠️ IMPORTANT: Do NOT create another onAuthStateChanged listener here
+ * Use src/core/auth-state.js instead
+ */
 async function waitForAuth() {
-    return new Promise((resolve) => {
-        const unsubscribe = auth.onAuthStateChanged((user) => {
-            currentUser = user || null;
-            if (user) {
-                appointmentHistoryService = new AppointmentHistoryService(db, user);
-            }
-            unsubscribe();
-            resolve(currentUser);
-        });
-    });
+    try {
+        const { waitForAuthReady } = await import('./core/auth-state.js');
+        const { user } = await waitForAuthReady();
+        
+        currentUser = user || null;
+        if (user) {
+            appointmentHistoryService = new AppointmentHistoryService(db, user);
+        }
+        return currentUser;
+    } catch (error) {
+        console.error('❌ Error waiting for auth:', error);
+        return null;
+    }
 }
 
 
@@ -333,40 +320,30 @@ async function initInvoice() {
 }
 
 /**
- * Initialize Firebase
+ * Initialize Firebase (single source)
  */
 async function initializeFirebase() {
     try {
-        // Import Firebase App module
-        const { initializeApp } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js');
-        
-        // Import Firebase Auth module
-        const { getAuth, onAuthStateChanged } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js');
-        
-        // Import Firestore module
-        const { getFirestore } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+        const { initFirebase } = await import('./config/firebase.js');
+        const { initAuthListener, onAuthStateChange } = await import('./core/auth-state.js');
 
-        console.log("🔥 Firebase SDK: Initializing (Invoice)...");
-        
-        // Initialize Firebase App
-        app = initializeApp(firebaseConfig);
-        console.log("✅ Firebase App initialized");
-        
-        // Get Auth instance
-        auth = getAuth(app);
-        console.log("✅ Firebase Auth initialized");
-        
-        // Get Firestore instance
-        db = getFirestore(app);
-        console.log("✅ Firestore initialized");
+        console.log("🔥 Firebase SDK: Initializing (Invoice, single source)...");
 
-        // Setup authentication state listener
-        onAuthStateChanged(auth, async (user) => {
+        const { app: fbApp, auth: fbAuth, db: fbDb } = initFirebase();
+
+        app = fbApp;
+        auth = fbAuth;
+        db = fbDb;
+
+        await initAuthListener();
+
+        onAuthStateChange(async (user) => {
             currentUser = user;
             if (user) {
-                console.log(`✅ User authenticated: ${user.email}`);
+                console.log(`✅ User authenticated on invoice: ${user.email}`);
+                await loadInvoiceData();
             } else {
-                console.log("🔓 User logged out");
+                console.log("🔓 User logged out (invoice)");
             }
         });
 
@@ -384,7 +361,6 @@ async function initializeFirebase() {
 let isEditMode = false;
 let currentAptId = null;
 let appointmentHistoryService = null;
-let currentUser = null;
 
 function setupEventListeners() {
     const downloadBtn = document.getElementById('downloadPdfBtn');

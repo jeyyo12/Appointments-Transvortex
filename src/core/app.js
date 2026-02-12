@@ -4,7 +4,7 @@
  * Main entry point that initializes all services and wires the application together.
  */
 
-import { firebaseConfig, validateFirebaseConfig, ADMIN_UIDS } from './config/firebase.config.js';
+import { initFirebase } from '../config/firebase.js';
 import { appState } from './core/app-state.js';
 import { eventBus, EVENT_TYPES } from './core/event-bus.js';
 import { FirebaseService } from './services/firebase-service.js';
@@ -21,24 +21,7 @@ import { showError } from './utils/notifications.js';
  */
 async function initializeFirebase() {
   try {
-    // Validate config
-    validateFirebaseConfig();
-
-    // Dynamic import Firebase modules
-    const { initializeApp } = await import(
-      'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js'
-    );
-    const { getAuth } = await import(
-      'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js'
-    );
-    const { getFirestore } = await import(
-      'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js'
-    );
-
-    // Initialize Firebase
-    const app = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
-    const db = getFirestore(app);
+    const { app, auth, db } = initFirebase();
 
     console.log('✅ Firebase initialized successfully');
 
