@@ -293,11 +293,18 @@ export async function getOrCreateInvoiceForAppointment(appointmentId, prefillDat
  * 
  * @param {string} appointmentId - Appointment ID
  * @param {string} keepInvoiceId - Invoice ID to keep (optional)
+ * @param {Set} validAppointmentIds - Cache of valid appointment IDs to skip orphaned invoices (optional)
  */
-export async function dedupeInvoicesForAppointment(appointmentId, keepInvoiceId = null) {
+export async function dedupeInvoicesForAppointment(appointmentId, keepInvoiceId = null, validAppointmentIds = null) {
   logger.info('🧹 Deduplicating invoices for appointment:', appointmentId);
   
   try {
+    // SKIP: If appointment doesn't exist and we have validation info
+    if (validAppointmentIds && !validAppointmentIds.has(appointmentId)) {
+      logger.warn(`⏭️ Skipping dedupe - appointment ${appointmentId} not found (orphaned invoice). Use cleanup-orphans feature to handle.`);
+      return;
+    }
+    
     // Query all invoices for this appointment
     const invoicesQuery = query(
       collection(db, 'invoices'),
@@ -305,7 +312,18 @@ export async function dedupeInvoicesForAppointment(appointmentId, keepInvoiceId 
       orderBy('createdAt', 'desc')
     );
     
-    const invoicesSnap = await getDocs(invoicesQuery);
+    let invoicesSnap;
+    try {
+      invoicesSnap = await getDocs(invoicesQuery);
+    } catch (queryError) {
+      // Handle missing composite index gracefully
+      if (queryError.code === 'failed-precondition' || queryError.message?.includes('requires an index')) {
+        logger.warn('⚠️ Missing composite index for invoices(appointmentId, createdAt). Skipping dedupe.');
+        logger.info('📍 Create index here: https://console.firebase.google.com/project/' + (db?.app?.options?.projectId || 'YOUR_PROJECT') + '/firestore/indexes?create_composite=...');
+        return; // Gracefully skip dedupe without crashing
+      }
+      throw queryError; // Re-throw other errors
+    }
     
     if (invoicesSnap.size <= 1) {
       logger.info('✅ No duplicates found');
@@ -369,6 +387,7 @@ export async function dedupeInvoicesForAppointment(appointmentId, keepInvoiceId 
 
 /**
  * Cleanup duplicates across all appointments
+ * Skips orphaned invoices (appointments that no longer exist)
  */
 export async function cleanupInvoiceDuplicatesAcrossAppointments() {
   const currentUser = getCurrentUser();
@@ -378,26 +397,111 @@ export async function cleanupInvoiceDuplicatesAcrossAppointments() {
 
   logger.info('🧹 Starting global invoice dedupe...');
 
-  const appointmentIds = new Set();
+  try {
+    // STEP 1: Collect all actual appointment IDs from appointments collection
+    const appointmentsSnap = await getDocs(collection(db, 'appointments'));
+    const validAppointmentIds = new Set();
+    appointmentsSnap.forEach(docSnap => validAppointmentIds.add(docSnap.id));
+    logger.info('✅ Found', validAppointmentIds.size, 'active appointments');
 
-  // Collect appointment IDs
-  const appointmentsSnap = await getDocs(collection(db, 'appointments'));
-  appointmentsSnap.forEach(docSnap => appointmentIds.add(docSnap.id));
+    // STEP 2: Scan invoices and detect orphaned ones
+    const invoicesSnap = await getDocs(collection(db, 'invoices'));
+    const orphanedInvoices = [];
 
-  // Collect appointment IDs from invoices (in case appointments missing invoiceId)
-  const invoicesSnap = await getDocs(collection(db, 'invoices'));
-  invoicesSnap.forEach(docSnap => {
-    const data = docSnap.data();
-    if (data?.appointmentId) appointmentIds.add(data.appointmentId);
-  });
+    invoicesSnap.forEach(docSnap => {
+      const data = docSnap.data();
+      const aptId = data?.appointmentId;
+      
+      if (aptId && !validAppointmentIds.has(aptId)) {
+        logger.warn('⚠️ Orphan invoice detected:', docSnap.id, '-> appointment', aptId, 'not found');
+        orphanedInvoices.push({ invoiceId: docSnap.id, appointmentId: aptId });
+      }
+    });
 
-  logger.info('🧹 Deduping invoices for appointment count:', appointmentIds.size);
+    if (orphanedInvoices.length > 0) {
+      logger.warn(`📋 Found ${orphanedInvoices.length} orphaned invoices (appointments missing)`);
+      logger.info('💡 Tip: Call cleanupOrphanedInvoices() to remove them, or manage manually via Firestore console');
+    }
 
-  for (const appointmentId of appointmentIds) {
-    await dedupeInvoicesForAppointment(appointmentId);
+    // STEP 3: Dedupe only valid appointments (skip orphans)
+    logger.info('🧹 Deduping invoices for', validAppointmentIds.size, 'valid appointments (ignoring', orphanedInvoices.length, 'orphaned)...');
+
+    for (const appointmentId of validAppointmentIds) {
+      await dedupeInvoicesForAppointment(appointmentId, null, validAppointmentIds);
+    }
+
+    logger.info('✅ Global invoice dedupe complete');
+
+  } catch (error) {
+    logger.error('❌ Error in cleanupInvoiceDuplicatesAcrossAppointments:', error);
+    throw error;
+  }
+}
+
+/**
+ * Cleanup orphaned invoices (invoices whose appointments no longer exist)
+ * Optional feature for administrators
+ * 
+ * @returns {Promise<Object>} { orphanedCount, archivedCount }
+ */
+export async function cleanupOrphanedInvoices() {
+  const currentUser = getCurrentUser();
+  if (!db || !currentUser) {
+    throw new Error('Please wait for authentication to complete');
   }
 
-  logger.info('✅ Global invoice dedupe complete');
+  logger.info('🧹 Starting orphaned invoice cleanup...');
+
+  try {
+    // Collect valid appointment IDs
+    const appointmentsSnap = await getDocs(collection(db, 'appointments'));
+    const validAppointmentIds = new Set(
+      appointmentsSnap.docs.map(d => d.id)
+    );
+
+    logger.info('✅ Found', validAppointmentIds.size, 'valid appointments');
+
+    // Find and delete orphaned invoices
+    const invoicesSnap = await getDocs(collection(db, 'invoices'));
+    const orphaned = [];
+
+    invoicesSnap.forEach(docSnap => {
+      const data = docSnap.data();
+      const aptId = data?.appointmentId;
+      if (aptId && !validAppointmentIds.has(aptId)) {
+        orphaned.push({ id: docSnap.id, data });
+      }
+    });
+
+    logger.info('🗑️ Found', orphaned.length, 'orphaned invoices to remove');
+
+    let archivedCount = 0;
+    for (const item of orphaned) {
+      try {
+        // Archive to invoices_archive first
+        await addDoc(collection(db, 'invoices_archive'), {
+          ...item.data,
+          deletedAt: serverTimestamp(),
+          deletedReason: 'Orphaned invoice - appointment no longer exists',
+          originalId: item.id
+        });
+        
+        // Delete from invoices
+        await deleteDoc(doc(db, 'invoices', item.id));
+        archivedCount++;
+        logger.info('✅ Archived and deleted orphaned invoice:', item.id);
+      } catch (delError) {
+        logger.error('❌ Error deleting orphaned invoice:', item.id, delError);
+      }
+    }
+
+    logger.info('✅ Orphaned invoice cleanup complete. Archived:', archivedCount, '/', orphaned.length);
+    return { orphanedCount: orphaned.length, archivedCount };
+    
+  } catch (error) {
+    logger.error('❌ Error in cleanupOrphanedInvoices:', error);
+    throw error;
+  }
 }
 
 /**

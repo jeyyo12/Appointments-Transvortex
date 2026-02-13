@@ -2294,30 +2294,8 @@
                             </button>
                         </div>
 
-                        <!-- Tabs -->
-                        <div class="appointments-tabs" id="appointmentsTabs" style="margin-bottom: var(--tv-gap-md);">
-                            <button class="tab-btn" data-apt-tab="scheduled">
-                                <span data-i18n="tabScheduled">Scheduled</span> <span class="tab-count" id="tabCountScheduled">0</span>
-                            </button>
-                            <button class="tab-btn" data-apt-tab="finalized">
-                                <span data-i18n="tabFinalized">Finalized</span> <span class="tab-count" id="tabCountFinalized">0</span>
-                            </button>
-                        </div>
-
-                        <!-- Filters -->
+                        <!-- Search Filter -->
                         <div class="filters-wrapper" style="margin-bottom: var(--tv-gap-lg);">
-                            <div class="filter-group">
-                                <label for="filterStatus"><span data-i18n="filterLabel">Filter:</span></label>
-                                <select id="filterStatus" onchange="filterAppointments()">
-                                    <option value="all" data-i18n="filterAll">All</option>
-                                    <option value="today" data-i18n="today">Today</option>
-                                    <option value="upcoming">Upcoming</option>
-                                    <option value="scheduled" data-i18n="filterScheduled">Scheduled</option>
-                                    <option value="done" data-i18n="filterFinalized">Finalized</option>
-                                    <option value="canceled" data-i18n="filterCanceled">Canceled</option>
-                                    <option value="overdue">Overdue</option>
-                                </select>
-                            </div>
                             <div class="filter-group">
                                 <label for="searchAppointments"><span data-i18n="searchLabel">Search:</span></label>
                                 <input type="text" id="searchAppointments" data-i18n-placeholder="searchPlaceholder" placeholder="Search client or vehicle..." oninput="filterAppointments()">

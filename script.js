@@ -116,10 +116,6 @@ window.showLastWrite = () => {
 // Current active tab
 let currentTab = 'pages';
 
-// Appointments tab state (Programate / Finalizate)
-const APPOINTMENTS_TAB_KEY = 'tvx.activeAppointmentsTab';
-let activeAppointmentsTab = localStorage.getItem(APPOINTMENTS_TAB_KEY) || 'scheduled';
-
 // Appointment buttons delegation flag
 let appointmentsClicksBound = false;
 
@@ -2704,93 +2700,33 @@ function normalizeAppointment(apt) {
     };
 }
 
-// Filter appointments (search + status select + active tab)
+// Filter appointments (search only + show only scheduled/upcoming)
 function filterAppointments() {
-    const filterStatus = document.getElementById('filterStatus')?.value || 'all';
     const searchTerm = document.getElementById('searchAppointments')?.value.toLowerCase() || '';
     
-    const now = new Date();
-    const todayStr = now.toISOString().split('T')[0];
-
-    // Update tab counts (unfiltered)
-    const scheduledCount = appointments.filter(isAppointmentScheduled).length;
-    const finalizedCount = appointments.filter(isAppointmentFinalized).length;
-    const scheduledCountEl = document.getElementById('tabCountScheduled');
-    const finalizedCountEl = document.getElementById('tabCountFinalized');
-    if (scheduledCountEl) scheduledCountEl.textContent = scheduledCount;
-    if (finalizedCountEl) finalizedCountEl.textContent = finalizedCount;
-    
+    // Show only SCHEDULED appointments (exclude finalized)
     filteredAppointments = appointments.filter(apt => {
-        // Tab filter
-        const inTab = activeAppointmentsTab === 'scheduled' ? isAppointmentScheduled(apt) : isAppointmentFinalized(apt);
-        if (!inTab) return false;
+        // Only include scheduled appointments
+        if (!isAppointmentScheduled(apt)) return false;
 
-        // Search filter
+        // Search filter (client name, car, make/model, reg number)
         const matchesSearch = !searchTerm ||
             (apt.customerName && apt.customerName.toLowerCase().includes(searchTerm)) ||
             (apt.car && apt.car.toLowerCase().includes(searchTerm)) ||
             (apt.makeModel && apt.makeModel.toLowerCase().includes(searchTerm)) ||
             (apt.regNumber && apt.regNumber.toLowerCase().includes(searchTerm));
-        if (!matchesSearch) return false;
         
-        // Status filter (keep existing filter dropdown semantics inside selected tab)
-        if (filterStatus === 'all') return true;
-        const scheduledDate = getScheduledDate(apt);
-        const scheduledDateStr = scheduledDate ? formatISODate(scheduledDate) : apt.dateStr;
-        if (filterStatus === 'today') return scheduledDateStr === todayStr;
-        if (filterStatus === 'upcoming') {
-            const aptDate = scheduledDate || new Date(apt.dateStr);
-            return aptDate > now && apt.status === 'scheduled';
-        }
-        if (filterStatus === 'overdue') {
-            const aptDate = scheduledDate || new Date(apt.dateStr);
-            return aptDate < now && apt.status === 'scheduled';
-        }
-        return apt.status === filterStatus;
+        return matchesSearch;
     });
     
-    // Sort by scheduled datetime
+    // Sort by scheduled datetime (nearest first)
     filteredAppointments.sort((a, b) => {
         const aDate = getScheduledDate(a) || new Date(a.dateStr || 0);
         const bDate = getScheduledDate(b) || new Date(b.dateStr || 0);
         return aDate - bDate;
     });
-    updateAppointmentsTabsUI();
+    
     renderAppointments();
-}
-
-function setActiveAppointmentsTab(tab) {
-    if (!tab || (tab !== 'scheduled' && tab !== 'finalized')) return;
-    activeAppointmentsTab = tab;
-    localStorage.setItem(APPOINTMENTS_TAB_KEY, tab);
-    updateAppointmentsTabsUI();
-    filterAppointments();
-}
-
-function updateAppointmentsTabsUI() {
-    const tabs = document.querySelectorAll('[data-apt-tab]');
-    tabs.forEach(btn => {
-        const isActive = btn.dataset.aptTab === activeAppointmentsTab;
-        if (isActive) btn.classList.add('active');
-        else btn.classList.remove('active');
-    });
-    const container = document.getElementById('appointmentsTabs');
-    if (container) container.setAttribute('data-active-tab', activeAppointmentsTab);
-}
-
-function bindAppointmentsTabs() {
-    const tabContainer = document.getElementById('appointmentsTabs');
-    if (!tabContainer || tabContainer.dataset.bound) return;
-
-    tabContainer.addEventListener('click', (e) => {
-        const btn = e.target.closest('[data-apt-tab]');
-        if (!btn) return;
-        const tab = btn.dataset.aptTab;
-        setActiveAppointmentsTab(tab);
-    });
-
-    tabContainer.dataset.bound = 'true';
-    updateAppointmentsTabsUI();
 }
 
 // Render appointments grouped by day
@@ -2800,14 +2736,11 @@ function renderAppointments() {
     
     const container = document.getElementById('appointmentsList');
     const emptyState = document.getElementById('emptyStateAppointments');
-    const tabEmptyMsg = activeAppointmentsTab === 'scheduled'
-        ? t('msgNoAppointmentsScheduled')
-        : t('msgNoAppointmentsFinalized');
 
     if (!filteredAppointments || filteredAppointments.length === 0) {
         container.innerHTML = '';
         if (emptyState) {
-            emptyState.querySelector('h3').textContent = tabEmptyMsg;
+            emptyState.querySelector('h3').textContent = t('msgNoAppointmentsScheduled');
             emptyState.style.display = 'block';
         }
         return;
@@ -2888,23 +2821,8 @@ function createAppointmentCard(apt) {
     // Normalize appointment data
     const normalized = normalizeAppointment(apt);
     
-    // Status badge
-    let statusBadgeClass = 'badge--scheduled';
-    let statusIcon = 'fa-clock';
-    let statusText = t('statusScheduled');
-    
-    if (normalized.status === 'done' || normalized.status === 'finalized') {
-        statusBadgeClass = 'badge--done';
-        statusIcon = 'fa-check-circle';
-        statusText = t('statusFinalized');
-    } else if (normalized.status === 'canceled') {
-        statusBadgeClass = 'badge--canceled';
-        statusIcon = 'fa-times-circle';
-        statusText = t('statusCanceled');
-    }
-    
     // Check if overdue
-    const isOverdue = normalized.status === 'scheduled' && minutesDiff < 0;
+    const isOverdue = minutesDiff < 0;
     
     // Compute payment status - READ FROM FIELD FIRST, then fallback to computation
     const amountPaid = toNumber(apt.amountPaid || apt.paidAmount || 0);
@@ -2982,13 +2900,7 @@ function createAppointmentCard(apt) {
         <div class="app-card" data-apt-id="${apt.id}">
             <div class="app-card__top">
                 <h3 class="app-card__name">${normalized.customerName}</h3>
-                <div class="app-card__badges">
-                    <span class="badge ${statusBadgeClass}">
-                        <i class="fas ${statusIcon}"></i>
-                        ${statusText}
-                    </span>
-                    ${isOverdue ? `<span class="badge badge--overdue"><i class="fas fa-exclamation-triangle"></i></span>` : ''}
-                </div>
+                ${isOverdue ? `<div class="app-card__badges"><span class="badge badge--overdue"><i class="fas fa-exclamation-triangle"></i></span></div>` : ''}
             </div>
             ${paymentMeta}
             ${actionsHTML}
@@ -3034,10 +2946,6 @@ function bindAppointmentsClickDelegation() {
                     toggleActionsMenu(target, aptId);
                     break;
 
-                case 'mark-paid':
-                    await finalizeAppointment(aptId);
-                    break;
-                    
                 case 'visit':
                     // Close dropdown after selection
                     closeActionsDropdown(aptId);
@@ -3108,96 +3016,6 @@ function bindAppointmentsClickDelegation() {
 
 let delayModalEl = null;
 let delayPopHandler = null;
-
-// ==========================================
-// FINALIZE / MARK AS PAID FUNCTION
-// ==========================================
-
-/**
- * Finalize appointment and mark as paid
- * Updates both appointment and linked invoice documents
- */
-async function finalizeAppointment(appointmentId) {
-    try {
-        if (!appointmentId) {
-            showNotification('❌ Invalid appointment ID', 'error');
-            return;
-        }
-
-        console.log('[FinalizeAppointment] Starting finalization for:', appointmentId);
-
-        const { doc, getDoc, updateDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
-
-        // Get appointment
-        const appointmentRef = doc(db, 'appointments', appointmentId);
-        const appointmentSnap = await getDoc(appointmentRef);
-
-        if (!appointmentSnap.exists()) {
-            showNotification('❌ Appointment not found', 'error');
-            return;
-        }
-
-        const appointment = appointmentSnap.data();
-        console.log('[FinalizeAppointment] Appointment data:', { id: appointmentId, invoiceId: appointment.invoiceId, total: appointment.total });
-
-        // Update appointment
-        await updateDoc(appointmentRef, {
-            status: 'finalized',
-            paid: true,
-            finalizedAt: serverTimestamp(),
-            finalizedBy: currentUser?.uid || currentUser?.email || 'system',
-            updatedAt: serverTimestamp()
-        });
-
-        console.log('[FinalizeAppointment] ✅ Appointment updated to finalized/paid');
-
-        // If linked invoice exists, update it
-        if (appointment.invoiceId) {
-            try {
-                const invoiceRef = doc(db, 'invoices', appointment.invoiceId);
-                const invoiceSnap = await getDoc(invoiceRef);
-
-                if (invoiceSnap.exists()) {
-                    const invoice = invoiceSnap.data();
-                    const total = toNumber(invoice.total || 0);
-
-                    console.log('[FinalizeAppointment] Updating invoice:', { invoiceId: appointment.invoiceId, total });
-
-                    await updateDoc(invoiceRef, {
-                        amountPaid: total,
-                        remainingBalance: 0,
-                        status: 'PAID',
-                        paymentStatus: 'PAID',
-                        paidAt: serverTimestamp(),
-                        updatedAt: serverTimestamp()
-                    });
-
-                    // Also sync payment data back to appointment for UI rendering
-                    await updateDoc(appointmentRef, {
-                        amountPaid: total,
-                        remainingBalance: 0
-                    });
-
-                    console.log('[FinalizeAppointment] ✅ Invoice and appointment payment fields synced');
-                }
-            } catch (err) {
-                console.warn('[FinalizeAppointment] Could not update invoice:', err);
-                // Don't fail appointment finalization if invoice update fails
-            }
-        }
-
-        showNotification('✅ Appointment marked as paid', 'success');
-
-        // Log to history service
-        if (appointmentHistory) {
-            await appointmentHistory.logAppointmentFinalized(appointmentId, 'Mark as Paid');
-        }
-
-    } catch (error) {
-        console.error('[FinalizeAppointment] Error:', error);
-        showNotification('❌ Error finalizing appointment: ' + error.message, 'error');
-    }
-}
 
 /**
  * NEW: Toggle appointment payment status (PAID ↔ UNPAID)
@@ -3645,359 +3463,8 @@ function buildTimelineHTML(timeline) {
 // ==========================================
 
 /**
- * Handle Finalize Action - Opens modern finalize modal
+ * Handle appointment view - opens details modal
  */
-async function handleFinalizeAction(id, appointment, openCustomModal) {
-    if (!appointment) {
-        showNotification('Programarea nu a fost găsită', 'error');
-        return;
-    }
-    
-    // Log that finalize modal was opened
-    if (appointmentHistory) {
-        await appointmentHistory.logFinalizeModalOpened(id);
-    }
-    
-    await openFinalizeModal(id, appointment);
-}
-
-/**
- * Open quick finalize modal - minimal fields: customerName + regPlate only
- */
-async function openFinalizeModal(appointmentId, appointment) {
-    const apt = normalizeAppointment(appointment);
-    
-    // Build quick finalize modal DOM
-    const modal = buildQuickFinalizeModal(apt, appointmentId);
-    
-    // Mount modal using modal.js system
-    document.body.appendChild(modal);
-    document.body.style.overflow = 'hidden';
-    document.body.classList.add('modal-open');
-    
-    // History state for back button support
-    history.pushState({ modal: 'finalize', aptId: appointmentId }, '', '#finalize');
-    
-    // Handle back button
-    const popHandler = (e) => {
-        if (e.state?.modal === 'finalize') {
-            return; // Stay in finalize state
-        }
-        closeQuickFinalizeModal(modal, popHandler, false);
-    };
-    window.addEventListener('popstate', popHandler);
-    
-    // Focus trap setup
-    requestAnimationFrame(() => {
-        modal.classList.add('tvQuickFinalizeModal--show');
-        const firstInput = modal.querySelector('input:not([readonly])');
-        if (firstInput) firstInput.focus();
-    });
-    
-    // Close handlers
-    const closeBtn = modal.querySelector('[data-action="close"]');
-    const cancelBtn = modal.querySelector('[data-action="cancel"]');
-    
-    closeBtn?.addEventListener('click', () => closeQuickFinalizeModal(modal, popHandler, false));
-    cancelBtn?.addEventListener('click', () => closeQuickFinalizeModal(modal, popHandler, false));
-    
-    // ESC key
-    const escHandler = (e) => {
-        if (e.key === 'Escape') {
-            closeQuickFinalizeModal(modal, popHandler, false);
-        }
-    };
-    document.addEventListener('keydown', escHandler);
-    modal._escHandler = escHandler;
-    
-    // Form submission
-    const form = modal.querySelector('#tvQuickFinalizeForm');
-    form.addEventListener('submit', (e) => handleQuickFinalizeSubmit(e, modal, appointmentId, popHandler));
-}
-
-/**
- * Build finalize modal DOM structure
- */
-function buildQuickFinalizeModal(apt, appointmentId) {
-    const modal = document.createElement('div');
-    modal.className = 'tvQuickFinalizeModal';
-    modal.setAttribute('role', 'dialog');
-    modal.setAttribute('aria-labelledby', 'tvQuickFinalizeTitle');
-    modal.setAttribute('aria-modal', 'true');
-    
-    modal.innerHTML = `
-        <div class="tvQuickFinalizeModal__backdrop"></div>
-        <div class="tvQuickFinalizeModal__panel">
-            <!-- Header -->
-            <div class="tvQuickFinalizeModal__header">
-                <h2 id="tvQuickFinalizeTitle" class="tvQuickFinalizeModal__title">Finalizare Rapidă</h2>
-                <button type="button" class="tvQuickFinalizeModal__close" data-action="close" aria-label="Închide">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
-            
-            <!-- Body -->
-            <div class="tvQuickFinalizeModal__body">
-                <!-- Appointment Summary (Read-only) -->
-                <div class="tvQuickFinalize__summary">
-                    <h3 class="tvQuickFinalize__summaryTitle">Detalii Programare</h3>
-                    <div class="tvQuickFinalize__summaryGrid">
-                        <div class="tvQuickFinalize__summaryItem">
-                            <span class="tvQuickFinalize__summaryLabel">Programare:</span>
-                            <span class="tvQuickFinalize__summaryValue">${apt.dateStr || ''} la ${apt.time || ''}</span>
-                        </div>
-                        ${apt.address ? `
-                        <div class="tvQuickFinalize__summaryItem">
-                            <span class="tvQuickFinalize__summaryLabel">Locație:</span>
-                            <span class="tvQuickFinalize__summaryValue">${apt.address}</span>
-                        </div>
-                        ` : ''}
-                    </div>
-                </div>
-                
-                <!-- Form -->
-                <form id="tvQuickFinalizeForm" class="tvQuickFinalize__form">
-                    <!-- Customer Name -->
-                    <div class="tvQuickFinalize__field">
-                        <label for="tvQuickFinalizeName" class="tvQuickFinalize__label">
-                            Nume Client <span class="tvQuickFinalize__required">*</span>
-                        </label>
-                        <input 
-                            type="text" 
-                            id="tvQuickFinalizeName" 
-                            class="tvQuickFinalize__input" 
-                            placeholder="ex: Ion Popescu"
-                            value="${apt.customerName || ''}"
-                            required
-                        />
-                    </div>
-                    
-                    <!-- Registration Plate -->
-                    <div class="tvQuickFinalize__field">
-                        <label for="tvQuickFinalizeRegPlate" class="tvQuickFinalize__label">
-                            Numere Mașină <span class="tvQuickFinalize__required">*</span>
-                        </label>
-                        <input 
-                            type="text" 
-                            id="tvQuickFinalizeRegPlate" 
-                            class="tvQuickFinalize__input" 
-                            placeholder="ex: AB 12 CD"
-                            value="${apt.registrationPlate || apt.regPlate || ''}"
-                            required
-                        />
-                    </div>
-                    
-                    <!-- Optional Short Note -->
-                    <div class="tvQuickFinalize__field">
-                        <label for="tvQuickFinalizeNote" class="tvQuickFinalize__label">
-                            Notă scurtă <span class="tvQuickFinalize__optional">(opțional)</span>
-                        </label>
-                        <textarea 
-                            id="tvQuickFinalizeNote" 
-                            class="tvQuickFinalize__textarea" 
-                            placeholder="Ex: Trebuie factura în 2 zile"
-                            rows="2"
-                        ></textarea>
-                    </div>
-                    
-                    <!-- Payment Section -->
-                    <details class="tvQuickFinalize__section">
-                        <summary class="tvQuickFinalize__sectionHeader">
-                            <i class="fas fa-credit-card"></i> Suma Plătită
-                        </summary>
-                        <div class="tvQuickFinalize__sectionBody">
-                            <!-- Amount Paid -->
-                            <div class="tvQuickFinalize__field">
-                                <label for="tvQuickFinalizeAmountPaid" class="tvQuickFinalize__label">
-                                    Suma Plătită <span class="tvQuickFinalize__optional">(opțional)</span>
-                                </label>
-                                <input 
-                                    type="number" 
-                                    id="tvQuickFinalizeAmountPaid" 
-                                    class="tvQuickFinalize__input" 
-                                    placeholder="0.00"
-                                    value="0"
-                                    min="0"
-                                    step="0.01"
-                                    inputmode="decimal"
-                                />
-                            </div>
-                            
-                            <!-- Payment Method -->
-                            <div class="tvQuickFinalize__field">
-                                <label for="tvQuickFinalizePaymentMethod" class="tvQuickFinalize__label">
-                                    Metodă Plată
-                                </label>
-                                <select id="tvQuickFinalizePaymentMethod" class="tvQuickFinalize__input">
-                                    <option value="">-- Selectează --</option>
-                                    <option value="Cash">Numerar</option>
-                                    <option value="Card">Card</option>
-                                    <option value="Bank Transfer">Transfer Bancar</option>
-                                    <option value="Other">Altă metodă</option>
-                                </select>
-                            </div>
-                            
-                            <!-- Payment Date -->
-                            <div class="tvQuickFinalize__field">
-                                <label for="tvQuickFinalizePaymentDate" class="tvQuickFinalize__label">
-                                    Data Plății <span class="tvQuickFinalize__optional">(opțional)</span>
-                                </label>
-                                <input 
-                                    type="date" 
-                                    id="tvQuickFinalizePaymentDate" 
-                                    class="tvQuickFinalize__input"
-                                />
-                            </div>
-                            
-                            <!-- Payment Note -->
-                            <div class="tvQuickFinalize__field">
-                                <label for="tvQuickFinalizePaymentNote" class="tvQuickFinalize__label">
-                                    Notă plată <span class="tvQuickFinalize__optional">(opțional)</span>
-                                </label>
-                                <textarea 
-                                    id="tvQuickFinalizePaymentNote" 
-                                    class="tvQuickFinalize__textarea" 
-                                    placeholder="Ex: Avans, plata parțială"
-                                    rows="2"
-                                ></textarea>
-                            </div>
-                        </div>
-                    </details>
-                </form>
-            </div>
-            
-            <!-- Footer -->
-            <div class="tvQuickFinalizeModal__footer">
-                <button type="button" class="tvQuickFinalize__btn tvQuickFinalize__btn--cancel" data-action="cancel">
-                    Anulează
-                </button>
-                <button type="submit" form="tvQuickFinalizeForm" class="tvQuickFinalize__btn tvQuickFinalize__btn--save" id="tvQuickFinalizeSaveBtn">
-                    <i class="fas fa-check"></i> Finalizează
-                </button>
-            </div>
-        </div>
-    `;
-    
-    return modal;
-}
-
-/**
- * Handle quick finalize form submission
- */
-async function handleQuickFinalizeSubmit(e, modal, appointmentId, popHandler) {
-    e.preventDefault();
-    
-    // Ensure db is initialized
-    if (!db) {
-        console.error('[QuickFinalize] Firebase db not initialized');
-        showNotification('❌ Eroare: Database nu este inițializată', 'error');
-        return;
-    }
-    
-    const saveBtn = modal.querySelector('#tvQuickFinalizeSaveBtn');
-    saveBtn.disabled = true;
-    saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Se salvează...';
-    
-    try {
-        // Collect form data
-        const customerName = modal.querySelector('#tvQuickFinalizeName').value.trim();
-        const regPlate = modal.querySelector('#tvQuickFinalizeRegPlate').value.trim();
-        const shortNote = modal.querySelector('#tvQuickFinalizeNote').value.trim();
-        
-        // Collect payment data
-        const amountPaid = toNumber(modal.querySelector('#tvQuickFinalizeAmountPaid').value);
-        const paymentMethod = modal.querySelector('#tvQuickFinalizePaymentMethod').value.trim();
-        const paymentDate = modal.querySelector('#tvQuickFinalizePaymentDate').value.trim();
-        const paymentNote = modal.querySelector('#tvQuickFinalizePaymentNote').value.trim();
-        
-        // Validate required fields
-        if (!customerName || !regPlate) {
-            showNotification('⚠️ Completează nume client și numere mașină', 'warning');
-            saveBtn.disabled = false;
-            saveBtn.innerHTML = '<i class="fas fa-check"></i> Finalizează';
-            return;
-        }
-        
-        // Validate payment amount
-        if (amountPaid < 0) {
-            showNotification('⚠️ Suma plătită nu poate fi negativă', 'warning');
-            saveBtn.disabled = false;
-            saveBtn.innerHTML = '<i class="fas fa-check"></i> Finalizează';
-            return;
-        }
-        
-        // Save to Firestore
-        const { doc, updateDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
-        
-        const payload = {
-            status: 'finalized',
-            customerName: customerName,
-            registrationPlate: regPlate,
-            regPlate: regPlate,
-            finalizedAt: serverTimestamp(),
-            finalizedBy: currentUser?.uid || currentUser?.email || 'system',
-            updatedAt: serverTimestamp(),
-            // Payment fields
-            amountPaid: amountPaid,
-            paymentMethod: paymentMethod || '',
-            paymentDate: paymentDate || '',
-            paymentNote: paymentNote || ''
-        };
-        
-        // Add optional note if provided
-        if (shortNote) {
-            payload.finalizationNote = shortNote;
-        }
-        
-        // Update appointment in Firestore
-        await updateDoc(doc(db, 'appointments', appointmentId), payload);
-        console.log('[QuickFinalize] ✅ Appointment finalized:', appointmentId);
-        
-        // Log to history service
-        if (appointmentHistory) {
-            await appointmentHistory.logFinalizeQuick(appointmentId, customerName, regPlate, shortNote || null);
-        }
-        
-        showNotification('✅ Programare finalizată! Deschide factura pentru detalii complete.', 'success');
-        closeQuickFinalizeModal(modal, popHandler, true);
-        
-    } catch (error) {
-        console.error('[QuickFinalize] Error:', error);
-        showNotification('❌ Eroare la finalizare: ' + error.message, 'error');
-        saveBtn.disabled = false;
-        saveBtn.innerHTML = '<i class="fas fa-check"></i> Finalizează';
-    }
-}
-
-/**
- * Close quick finalize modal
- */
-function closeQuickFinalizeModal(modal, popHandler, saved) {
-    modal.classList.remove('tvQuickFinalizeModal--show');
-    
-    // Cleanup
-    window.removeEventListener('popstate', popHandler);
-    if (modal._escHandler) {
-        document.removeEventListener('keydown', modal._escHandler);
-    }
-    
-    // Clean URL if modal was opened with hash
-    if (window.location.hash === '#finalize') {
-        history.replaceState(null, '', window.location.pathname + window.location.search);
-    }
-    
-    setTimeout(() => {
-        modal.remove();
-        document.body.style.overflow = '';
-        const otherOpen = document.querySelector('.tvDetailsModalOverlay--show, .tvEditModalOverlay.active, .modern-modal-overlay.modern-modal-show, .modal-backdrop.modalOverlay--show');
-        if (!otherOpen) {
-            document.body.classList.remove('modal-open');
-        }
-        
-        // Note: Firestore real-time listener (subscribeToAppointments) automatically refreshes the UI
-        // No manual reload needed
-    }, 300);
-}
 
 // ==========================================
 // DELAY / RESCHEDULE FLOW
@@ -4767,8 +4234,7 @@ function setupEventListeners() {
         setupAppointmentFormLogic();
     }
 
-    // Tabs for appointments list
-    bindAppointmentsTabs();
+
 }
 
 // Modern appointment form logic
