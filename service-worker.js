@@ -1,9 +1,11 @@
 /**
  * Service Worker for Transvortex PWA
- * Implements cache-first strategy for offline support
+ * Implements network-first for HTML, stale-while-revalidate for assets
+ * Ensures fresh invoice UI on normal refresh
  */
 
-const CACHE_NAME = 'transvortex-v1';
+const CACHE_VERSION = '2026-02-12-05'; // Increment this to force cache update
+const CACHE_NAME = `transvortex-v${CACHE_VERSION}`;
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
@@ -12,6 +14,8 @@ const ASSETS_TO_CACHE = [
   './styles.css',
   './language.js',
   './init-language.js',
+  './pwa.js',
+  './sw-update.js',
   './manifest.webmanifest',
   './assets/images/Logo.png',
   './icons/icon-192x192.png',
@@ -31,6 +35,8 @@ const ASSETS_TO_CACHE = [
   './src/services/appointment-service.js',
   './src/services/page-service.js',
   './src/services/historyService.js',
+  './src/invoice.js',
+  './src/modal.js',
   './src/shared/modal.js',
   './src/ui/components/base-modal.js',
   './src/ui/components/details-modal.js',
@@ -93,7 +99,10 @@ self.addEventListener('activate', (event) => {
 });
 
 /**
- * Fetch event - cache-first strategy
+ * Fetch event - smart caching strategy
+ * HTML: network-first (always try to get latest)
+ * Invoice assets (CSS, JS): network-first with cache fallback
+ * Other assets: stale-while-revalidate
  */
 self.addEventListener('fetch', (event) => {
   const { request } = event;
@@ -104,65 +113,112 @@ self.addEventListener('fetch', (event) => {
     return;
   }
   
-  // For Firebase API calls, use network-first
+  // For Firebase API calls, use network-only
   if (url.pathname.includes('/firestore.googleapis.com') || 
       url.pathname.includes('/.netlify/functions')) {
+    event.respondWith(fetch(request));
+    return;
+  }
+  
+  // NETWORK-FIRST for HTML files (invoice.html, index.html)
+  // This ensures users always get the latest HTML on normal refresh
+  const isHTMLRequest = request.mode === 'navigate' || 
+                        request.destination === 'document' ||
+                        url.pathname.endsWith('.html');
+  
+  if (isHTMLRequest) {
     event.respondWith(
-      fetch(request)
-        .catch(() => caches.match(request))
+      fetch(request, { cache: 'no-store' })
+        .then((response) => {
+          // Cache the fresh HTML for offline use
+          if (response && response.status === 200) {
+            const responseToCache = response.clone();
+            caches.open(CACHE_NAME).then((cache) => {
+              cache.put(request, responseToCache);
+            });
+          }
+          return response;
+        })
+        .catch(() => {
+          // Network failed, use cached version
+          console.log('[Service Worker] Network failed for HTML, using cache:', url.pathname);
+          return caches.match(request).then((cachedResponse) => {
+            return cachedResponse || caches.match('./index.html');
+          });
+        })
     );
     return;
   }
   
-  // For everything else, use cache-first strategy
-  event.respondWith(
-    caches.match(request).then((response) => {
-      if (response) {
-        return response;
-      }
-      
-      return fetch(request).then((response) => {
-        // Don't cache non-successful responses
-        if (!response || response.status !== 200 || response.type !== 'basic') {
+  // NETWORK-FIRST for invoice-specific assets
+  // Ensures invoice.js and invoice.css always load fresh
+  const isInvoiceAsset = url.pathname.includes('/styles/invoice.css') ||
+                         url.pathname.includes('/src/invoice.js');
+  
+  if (isInvoiceAsset) {
+    event.respondWith(
+      fetch(request, { cache: 'no-store' })
+        .then((response) => {
+          // Cache the fresh version for offline use
+          if (response && response.status === 200) {
+            const responseToCache = response.clone();
+            caches.open(CACHE_NAME).then((cache) => {
+              cache.put(request, responseToCache);
+            });
+          }
           return response;
-        }
+        })
+        .catch(() => {
+          // Network failed, use cached version
+          console.log('[Service Worker] Network failed for invoice asset, using cache:', url.pathname);
+          return caches.match(request);
+        })
+    );
+    return;
+  }
+  
+  // STALE-WHILE-REVALIDATE for other CSS, JS, images, fonts
+  // Serve from cache immediately, update cache in background
+  const isAsset = request.destination === 'style' ||
+                  request.destination === 'script' ||
+                  request.destination === 'image' ||
+                  request.destination === 'font' ||
+                  url.pathname.endsWith('.js') ||
+                  url.pathname.endsWith('.css') ||
+                  url.pathname.endsWith('.png') ||
+                  url.pathname.endsWith('.jpg') ||
+                  url.pathname.endsWith('.jpeg') ||
+                  url.pathname.endsWith('.gif') ||
+                  url.pathname.endsWith('.svg') ||
+                  url.pathname.endsWith('.woff') ||
+                  url.pathname.endsWith('.woff2');
+  
+  if (isAsset) {
+    event.respondWith(
+      caches.match(request).then((cachedResponse) => {
+        const fetchPromise = fetch(request).then((networkResponse) => {
+          // Update cache with fresh version
+          if (networkResponse && networkResponse.status === 200) {
+            const responseToCache = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => {
+              cache.put(request, responseToCache);
+            });
+          }
+          return networkResponse;
+        }).catch((error) => {
+          console.log('[Service Worker] Fetch failed for asset, using cache:', url.pathname);
+          return cachedResponse;
+        });
         
-        // Clone the response
-        const responseToCache = response.clone();
-        
-        // Cache successful responses for certain file types
-        const isCacheable = 
-          request.method === 'GET' &&
-          (request.destination === 'style' ||
-           request.destination === 'script' ||
-           request.destination === 'image' ||
-           request.destination === 'font' ||
-           request.destination === 'document' ||
-           url.pathname.endsWith('.html') ||
-           url.pathname.endsWith('.js') ||
-           url.pathname.endsWith('.css') ||
-           url.pathname.endsWith('.png') ||
-           url.pathname.endsWith('.jpg') ||
-           url.pathname.endsWith('.jpeg') ||
-           url.pathname.endsWith('.gif') ||
-           url.pathname.endsWith('.svg'));
-        
-        if (isCacheable) {
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(request, responseToCache);
-          });
-        }
-        
-        return response;
-      });
-    }).catch(() => {
-      // Return index.html as fallback for navigation requests
-      if (request.mode === 'navigate') {
-        return caches.match('./index.html');
-      }
-      return null;
-    })
-  );
+        // Return cached version immediately if available, otherwise wait for network
+        return cachedResponse || fetchPromise;
+      })
+    );
+    return;
+  }
+  
+  // For other requests, use network-only
+  event.respondWith(fetch(request));
 });
 
 // Handle messages from clients

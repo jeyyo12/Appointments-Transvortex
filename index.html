@@ -87,23 +87,7 @@
             box-shadow: var(--shadow);
         }
 
-        .tvx-logo {
-            flex-shrink: 0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .tvx-logo img {
-            width: clamp(180px, 50vw, 220px);
-            height: auto;
-            object-fit: contain;
-            filter: drop-shadow(0 0 15px rgba(255, 122, 24, 0.3))
-                    drop-shadow(0 0 20px rgba(34, 211, 238, 0.25))
-                    drop-shadow(0 2px 8px rgba(0, 0, 0, 0.1));
-        }
-
-        .tvx-hero-content {
+       .tvx-hero-content {
             flex: 1;
             min-width: 0;
         }
@@ -242,6 +226,41 @@
             max-width: 87.5rem;
             padding: 0 clamp(1rem, 4vw, 2rem);
             border-bottom: 0.125rem solid rgba(255, 138, 61, 0.2);
+            /* Mobile: horizontal scroll */
+            overflow-x: auto;
+            overflow-y: hidden;
+            -webkit-overflow-scrolling: touch;
+            scroll-behavior: smooth;
+            scrollbar-width: thin;
+            scrollbar-color: rgba(255, 138, 61, 0.3) transparent;
+        }
+
+        /* Hide scrollbar but keep scroll functional */
+        .tab-navigation::-webkit-scrollbar {
+            height: 3px;
+        }
+
+        .tab-navigation::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .tab-navigation::-webkit-scrollbar-thumb {
+            background: rgba(255, 138, 61, 0.3);
+            border-radius: 3px;
+        }
+
+        .tab-navigation::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 138, 61, 0.5);
+        }
+
+        /* Mobile: prevent tab shrinking, enable horizontal scroll */
+        @media (max-width: 768px) {
+            .tab-navigation {
+                flex-wrap: nowrap;
+                gap: 0.5rem;
+                padding: 0 1rem;
+                margin: 1rem auto;
+            }
         }
 
         .tab-btn {
@@ -258,6 +277,26 @@
             display: flex;
             align-items: center;
             gap: 0.5rem;
+            /* Prevent shrinking on mobile */
+            flex-shrink: 0;
+            white-space: nowrap;
+        }
+
+        /* Mobile: compact tabs */
+        @media (max-width: 768px) {
+            .tab-btn {
+                padding: 0.75rem 1rem;
+                font-size: 0.875rem;
+                gap: 0.375rem;
+            }
+        }
+
+        /* Extra small screens: icon + minimal text */
+        @media (max-width: 480px) {
+            .tab-btn {
+                padding: 0.75rem 0.875rem;
+                font-size: 0.8125rem;
+            }
         }
 
         .tab-btn:hover {
@@ -626,52 +665,1173 @@
         .input-wrap input[type="date"]:hover::-webkit-calendar-picker-indicator {
             opacity: 0.6;
         }
+
+        /* Responsive button layout for appointment form */
+        @media (max-width: 56.25rem) {
+            div[style*="grid-template-columns: 1fr 1fr"] {
+                grid-template-columns: 1fr !important;
+            }
+        }
+
+        /* Invoice storage grid responsive */
+        @media (max-width: 48rem) {
+            #invoicesList {
+                grid-template-columns: 1fr !important;
+            }
+        }
+
+        /* Invoice card styling */
+        .invoice-card {
+            background: var(--tv-surface, white);
+            border: 1px solid var(--tv-border, #e5e7eb);
+            border-radius: var(--tv-radius-md, 0.75rem);
+            padding: var(--tv-padding-md, 1rem);
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+            box-shadow: var(--tv-shadow-sm, 0 1px 2px rgba(0,0,0,0.05));
+            transition: all 0.3s ease;
+        }
+
+        .invoice-card:hover {
+            box-shadow: var(--tv-shadow, 0 4px 6px rgba(0,0,0,0.1));
+            transform: translateY(-2px);
+        }
+
+        .invoice-card__header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 0.75rem;
+            border-bottom: 1px solid var(--tv-border, #f3f4f6);
+            padding-bottom: 0.75rem;
+        }
+
+        .invoice-card__number {
+            font-weight: 700;
+            font-size: 1rem;
+            color: var(--tv-text, #1f2937);
+        }
+
+        .invoice-card__date {
+            font-size: 0.85rem;
+            color: var(--tv-text-secondary, #6b7280);
+            margin-top: 0.25rem;
+        }
+
+        .invoice-card__status {
+            padding: 0.375rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .invoice-card__status.draft {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .invoice-card__status.final {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .invoice-card__meta {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            font-size: 0.9rem;
+        }
+
+        .invoice-card__meta-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: var(--tv-text-secondary, #6b7280);
+        }
+
+        .invoice-card__meta-item i {
+            width: 1.25rem;
+            text-align: center;
+            color: #FF8A3D;
+        }
+
+        .invoice-card__total {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: #FF8A3D;
+            padding: 0.75rem 0;
+        }
+
+        .invoice-card__actions {
+            display: flex;
+            gap: 0.5rem;
+            padding-top: 0.75rem;
+            border-top: 1px solid var(--tv-border, #f3f4f6);
+        }
+
+        .invoice-card__action-btn {
+            flex: 1;
+            padding: 0.5rem;
+            border: 1px solid var(--tv-border, #e5e7eb);
+            background: var(--tv-surface, white);
+            border-radius: var(--tv-radius-sm, 0.5rem);
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 600;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.375rem;
+        }
+
+        .invoice-card__action-btn:hover {
+            background: var(--tv-surface-dark, #f9fafb);
+            border-color: var(--tv-primary, #FF8A3D);
+        }
+
+        .invoice-card__action-btn.danger {
+            color: #dc2626;
+        }
+
+        .invoice-card__action-btn.danger:hover {
+            background: #fee2e2;
+            border-color: #dc2626;
+        }
+
+        /* Payment toggle button for invoice cards */
+        .invoice-card__action-btn.paid {
+            background: rgba(34, 197, 94, 0.12);
+            border-color: rgba(34, 197, 94, 0.35);
+            color: rgba(16, 163, 127, 0.95);
+        }
+
+        .invoice-card__action-btn.paid:hover {
+            background: rgba(34, 197, 94, 0.18);
+            border-color: rgba(34, 197, 94, 0.5);
+        }
+
+        .invoice-card__action-btn.unpaid {
+            background: rgba(239, 68, 68, 0.10);
+            border-color: rgba(239, 68, 68, 0.35);
+            color: rgba(185, 28, 28, 0.95);
+        }
+
+        .invoice-card__action-btn.unpaid:hover {
+            background: rgba(239, 68, 68, 0.15);
+            border-color: rgba(239, 68, 68, 0.5);
+        }
+
+        /* ===== PREMIUM GARAGE SAAS COMPACT REDESIGN ===== */
+        
+        /* A. Global Design Tokens */
+        :root {
+            --tv-font-saas: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+            --tv-fs-1: clamp(0.82rem, 0.8rem + 0.2vw, 0.95rem);
+            --tv-fs-2: clamp(0.95rem, 0.92rem + 0.25vw, 1.05rem);
+            --tv-fs-3: clamp(1.05rem, 1rem + 0.4vw, 1.25rem);
+            --tv-gap-xs: clamp(6px, 0.6rem, 8px);
+            --tv-gap-sm: clamp(8px, 0.8rem, 12px);
+            --tv-gap-md: clamp(10px, 1rem, 14px);
+            --tv-pad-xs: clamp(8px, 0.8rem, 10px);
+            --tv-pad-sm: clamp(10px, 1.1vw, 14px);
+            --tv-pad-md: clamp(12px, 1.3vw, 16px);
+            --tv-rad-saas: 16px;
+            --tv-rad-sm-saas: 12px;
+            --tv-rad-xs-saas: 10px;
+            --tv-shadow-saas: 0 10px 25px rgba(15, 23, 42, 0.06);
+            --tv-border-saas: 1px solid rgba(15, 23, 42, 0.08);
+            --tv-min-tap: 44px;
+        }
+
+        /* B. Appointments Grid Layout */
+        .appointments-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: var(--tv-gap-md);
+        }
+        @media (min-width: 680px) {
+            .appointments-grid { 
+                grid-template-columns: repeat(2, minmax(0, 1fr)); 
+            }
+        }
+        @media (min-width: 1100px) {
+            .appointments-grid { 
+                grid-template-columns: repeat(3, minmax(0, 1fr)); 
+            }
+        }
+
+        /* C. Compact Appointment Card */
+        .app-card {
+            border: var(--tv-border-saas);
+            border-radius: var(--tv-rad-saas);
+            box-shadow: var(--tv-shadow-saas);
+            background: #fff;
+            padding: var(--tv-pad-sm);
+            transition: all 0.2s ease;
+            overflow: visible;
+            position: relative;
+        }
+        .app-card:hover {
+            box-shadow: 0 12px 30px rgba(15, 23, 42, 0.1);
+            transform: translateY(-2px);
+        }
+
+        /* Card Top (Name + Badges) */
+        .app-card__top {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: var(--tv-gap-sm);
+            margin-bottom: var(--tv-gap-xs);
+        }
+        .app-card__name {
+            font-size: var(--tv-fs-3);
+            font-weight: 750;
+            line-height: 1.2;
+            color: rgba(15, 23, 42, 0.95);
+            word-break: break-word;
+        }
+        .app-card__badges {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+            flex-shrink: 0;
+        }
+
+        /* Compact Badges */
+        .badge {
+            font-size: var(--tv-fs-1);
+            padding: 6px 10px;
+            border-radius: 999px;
+            border: 1px solid rgba(15, 23, 42, 0.10);
+            background: rgba(2, 6, 23, 0.02);
+            white-space: nowrap;
+            line-height: 1;
+        }
+        .badge--scheduled { 
+            background: rgba(59, 130, 246, 0.10); 
+            border-color: rgba(59, 130, 246, 0.25); 
+            color: rgba(29, 78, 216, 0.95);
+        }
+        .badge--done, .badge--finalized { 
+            background: rgba(16, 185, 129, 0.12); 
+            border-color: rgba(16, 185, 129, 0.25); 
+            color: rgba(5, 150, 105, 0.95);
+        }
+        .badge--canceled { 
+            background: rgba(239, 68, 68, 0.10); 
+            border-color: rgba(239, 68, 68, 0.22); 
+            color: rgba(185, 28, 28, 0.95);
+        }
+        .badge--overdue {
+            background: rgba(245, 158, 11, 0.12);
+            border-color: rgba(245, 158, 11, 0.30);
+            color: rgba(180, 83, 9, 0.95);
+        }
+
+        /* Compact Meta Row - Vehicle + Payment Info */
+        .app-card__meta {
+            margin-top: var(--tv-gap-xs);
+            margin-bottom: var(--tv-gap-sm);
+            font-size: var(--tv-fs-2);
+            color: rgba(15, 23, 42, 0.75);
+            display: flex;
+            flex-direction: column;
+            gap: clamp(6px, 1vw, 10px);
+        }
+        
+        /* Vehicle info row: plate + make/model */
+        .app-card__vehicle {
+            display: flex;
+            gap: clamp(8px, 2vw, 12px);
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        .app-card__plate {
+            display: inline-flex;
+            align-items: center;
+            padding: clamp(4px, 0.5vw, 6px) clamp(8px, 1vw, 10px);
+            background: rgba(59, 130, 246, 0.10);
+            border: 1px solid rgba(59, 130, 246, 0.25);
+            border-radius: 6px;
+            font-weight: 700;
+            color: rgba(29, 78, 216, 0.95);
+            font-size: clamp(0.75rem, 1vw, 0.875rem);
+        }
+        .app-card__model {
+            font-size: clamp(0.75rem, 1vw, 0.875rem);
+            color: rgba(15, 23, 42, 0.85);
+            font-weight: 500;
+        }
+        
+        /* Payment info row */
+        .app-card__payment {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            align-items: center;
+            font-size: clamp(0.875rem, 1vw, 0.95rem);
+        }
+        .app-card__meta strong { 
+            color: rgba(15, 23, 42, 0.95); 
+        }
+        .app-card__meta-sep {
+            color: rgba(15, 23, 42, 0.3);
+        }
+        .app-card__meta-paid {
+            color: rgba(34, 197, 94, 0.95);
+            font-weight: 600;
+        }
+        .app-card__meta-due {
+            color: rgba(239, 68, 68, 0.95);
+            font-weight: 600;
+        }
+
+        /* Bottom section: actions + controls */
+        .app-card__bottom {
+            margin-top: var(--tv-gap-md);
+            display: flex;
+            flex-direction: column;
+            gap: clamp(8px, 1vw, 10px);
+            overflow: visible;
+            position: relative;
+            z-index: 1;
+        }
+        
+        /* Primary action buttons row */
+        .app-card__actions-row {
+            display: flex;
+            gap: clamp(6px, 1.2vw, 10px);
+            flex-wrap: wrap;
+            align-items: center;
+            position: relative;
+            overflow: visible;
+        }
+        
+        /* Payment status toggle button */
+        .app-card__toggle-paid {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            padding: clamp(8px, 1vw, 10px) clamp(12px, 1.5vw, 14px);
+            border-radius: 6px;
+            border: 1px solid;
+            font-size: clamp(0.75rem, 0.9vw, 0.875rem);
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            min-height: clamp(40px, 4vh, 44px);
+            user-select: none;
+        }
+        
+        .app-card__toggle-paid.unpaid {
+            background: rgba(239, 68, 68, 0.10);
+            border-color: rgba(239, 68, 68, 0.35);
+            color: rgba(185, 28, 28, 0.95);
+        }
+        .app-card__toggle-paid.unpaid:hover {
+            background: rgba(239, 68, 68, 0.15);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.2);
+        }
+        
+        .app-card__toggle-paid.paid {
+            background: rgba(34, 197, 94, 0.12);
+            border-color: rgba(34, 197, 94, 0.35);
+            color: rgba(16, 163, 127, 0.95);
+        }
+        .app-card__toggle-paid.paid:hover {
+            background: rgba(34, 197, 94, 0.18);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(34, 197, 94, 0.2);
+        }
+        
+        .app-card__toggle-paid:active {
+            transform: scale(0.97);
+        }
+        
+        /* Actions dropdown wrapper */
+        .app-card__actions-dropdown-wrapper {
+            position: relative;
+            margin-left: auto;
+        }
+        
+        /* Actions dropdown button */
+        .app-card__actions-dropdown-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            padding: clamp(8px, 1vw, 10px) clamp(12px, 1.5vw, 14px);
+            border-radius: 6px;
+            border: 1px solid rgba(107, 114, 128, 0.25);
+            background: rgba(107, 114, 128, 0.05);
+            color: rgba(55, 65, 81, 0.95);
+            font-size: clamp(0.75rem, 0.9vw, 0.875rem);
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            min-height: clamp(40px, 4vh, 44px);
+            user-select: none;
+        }
+        .app-card__actions-dropdown-btn:hover {
+            background: rgba(107, 114, 128, 0.12);
+            transform: translateY(-1px);
+        }
+        .app-card__actions-dropdown-btn:active {
+            transform: scale(0.97);
+        }
+        .app-card__actions-dropdown-btn i {
+            font-size: clamp(0.65rem, 0.8vw, 0.75rem);
+            transition: transform 0.2s ease;
+        }
+        .app-card__actions-dropdown-btn.open i {
+            transform: scaleY(-1);
+        }
+        
+        /* Actions dropdown menu */
+        .app-card__actions-dropdown-menu {
+            position: absolute;
+            top: calc(100% + 4px);
+            right: 0;
+            background: #fff;
+            border: 1px solid rgba(15, 23, 42, 0.10);
+            border-radius: 8px;
+            box-shadow: 0 8px 20px rgba(15, 23, 42, 0.12);
+            min-width: 160px;
+            z-index: 9999;
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(-8px);
+            transition: all 0.2s ease;
+            overflow: visible;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        .app-card__actions-dropdown-menu.open {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
+        
+        /* Dropdown items in Actions menu */
+        .app-card__dropdown-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            width: 100%;
+            padding: clamp(10px, 1vw, 12px) clamp(12px, 1.5vw, 14px);
+            background: transparent;
+            border: none;
+            border-bottom: 1px solid rgba(15, 23, 42, 0.05);
+            color: rgba(55, 65, 81, 0.95);
+            cursor: pointer;
+            font-size: clamp(0.75rem, 0.9vw, 0.875rem);
+            transition: all 0.15s ease;
+            text-align: left;
+        }
+        
+        .app-card__dropdown-item:last-child {
+            border-bottom: none;
+        }
+        
+        .app-card__dropdown-item:hover {
+            background: rgba(59, 130, 246, 0.08);
+            color: rgba(29, 78, 216, 0.95);
+        }
+        .app-card__dropdown-item:active {
+            background: rgba(59, 130, 246, 0.12);
+        }
+        
+        .app-card__dropdown-item i {
+            width: 16px;
+            text-align: center;
+        }
+        
+        /* Portal Dropdown Menu - Appended to body to avoid clipping */
+        .portal-dropdown-menu {
+            position: fixed;
+            background: #fff;
+            border: 1px solid rgba(15, 23, 42, 0.10);
+            border-radius: 8px;
+            box-shadow: 0 8px 20px rgba(15, 23, 42, 0.12);
+            min-width: 160px;
+            max-width: 240px;
+            z-index: 99999;
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(-8px);
+            transition: all 0.2s ease;
+            overflow: visible;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        .portal-dropdown-menu.open {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
+        
+        .portal-dropdown-menu .app-card__dropdown-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            width: 100%;
+            padding: clamp(10px, 1vw, 12px) clamp(12px, 1.5vw, 14px);
+            background: transparent;
+            border: none;
+            border-bottom: 1px solid rgba(15, 23, 42, 0.05);
+            color: rgba(55, 65, 81, 0.95);
+            cursor: pointer;
+            font-size: clamp(0.75rem, 0.9vw, 0.875rem);
+            transition: all 0.15s ease;
+            text-align: left;
+        }
+        
+        .portal-dropdown-menu .app-card__dropdown-item:last-child {
+            border-bottom: none;
+        }
+        
+        .portal-dropdown-menu .app-card__dropdown-item:hover {
+            background: rgba(59, 130, 246, 0.08);
+            color: rgba(29, 78, 216, 0.95);
+        }
+        
+        .portal-dropdown-menu .app-card__dropdown-item:active {
+            background: rgba(59, 130, 246, 0.12);
+        }
+        
+        .portal-dropdown-menu .app-card__dropdown-item i {
+            width: 16px;
+            text-align: center;
+        }
+        
+        /* OLD LEGACY STYLES (kept for backward compatibility) */
+        
+        /* Controls row: toggle + dropdown */
+        .app-card__controls {
+            display: flex;
+            gap: clamp(8px, 1vw, 10px);
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        
+        /* Dropdown wrapper */
+        .app-card__dropdown-wrapper {
+            position: relative;
+        }
+        
+        /* Dropdown toggle button (three dots) */
+        .app-card__dropdown-toggle {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: clamp(36px, 4vh, 44px);
+            height: clamp(36px, 4vh, 44px);
+            padding: 0;
+            border-radius: 6px;
+            border: 1px solid rgba(107, 114, 128, 0.25);
+            background: rgba(107, 114, 128, 0.05);
+            color: rgba(55, 65, 81, 0.95);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: clamp(0.75rem, 1vw, 0.875rem);
+        }
+        .app-card__dropdown-toggle:hover {
+            background: rgba(107, 114, 128, 0.12);
+            transform: translateY(-1px);
+        }
+        .app-card__dropdown-toggle:active {
+            transform: scale(0.97);
+        }
+        
+        /* Dropdown menu */
+        .app-card__dropdown-menu {
+            position: absolute;
+            top: calc(100% + 4px);
+            right: 0;
+            background: #fff;
+            border: 1px solid rgba(15, 23, 42, 0.10);
+            border-radius: 8px;
+            box-shadow: 0 8px 20px rgba(15, 23, 42, 0.12);
+            min-width: 160px;
+            z-index: 10;
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(-8px);
+            transition: all 0.2s ease;
+            overflow: hidden;
+        }
+        
+        .app-card__dropdown-menu.open {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
+        
+        /* Dropdown items */
+        .dropdown-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            width: 100%;
+            padding: clamp(10px, 1vw, 12px) clamp(12px, 2vw, 14px);
+            background: transparent;
+            border: none;
+            border-bottom: 1px solid rgba(15, 23, 42, 0.05);
+            color: rgba(55, 65, 81, 0.95);
+            cursor: pointer;
+            font-size: clamp(0.75rem, 1vw, 0.875rem);
+            transition: all 0.15s ease;
+            text-align: left;
+        }
+        
+        .dropdown-item:last-child {
+            border-bottom: none;
+        }
+        
+        .dropdown-item:hover {
+            background: rgba(59, 130, 246, 0.08);
+            color: rgba(29, 78, 216, 0.95);
+        }
+        .dropdown-item:active {
+            background: rgba(59, 130, 246, 0.12);
+        }
+        
+        .dropdown-item i {
+            width: 16px;
+            text-align: center;
+        }
+
+        /* Icon-first Actions Row - OLD STYLE (kept for compatibility) */
+        .app-card__actions {
+            margin-top: var(--tv-gap-md);
+            display: flex;
+            gap: var(--tv-gap-xs);
+            flex-wrap: wrap;
+        }
+        .action-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            padding: clamp(8px, 1vw, 10px) clamp(12px, 1.5vw, 14px);
+            border-radius: 6px;
+            border: 1px solid rgba(15, 23, 42, 0.15);
+            background: #fff;
+            min-height: clamp(40px, 4vh, 44px);
+            font-size: clamp(0.75rem, 0.9vw, 0.875rem);
+            line-height: 1;
+            user-select: none;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-weight: 600;
+        }
+        .action-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(15, 23, 42, 0.12);
+        }
+        .action-btn:active {
+            transform: scale(0.98);
+        }
+        .action-btn--danger {
+            border-color: rgba(239, 68, 68, 0.35);
+            background: rgba(239, 68, 68, 0.08);
+            color: rgba(185, 28, 28, 0.95);
+        }
+        .action-btn--primary {
+            border-color: rgba(59, 130, 246, 0.35);
+            background: rgba(59, 130, 246, 0.08);
+            color: rgba(29, 78, 216, 0.95);
+        }
+        .action-btn--success {
+            border-color: rgba(34, 197, 94, 0.35);
+            background: rgba(34, 197, 94, 0.10);
+            color: rgba(22, 163, 74, 0.95);
+        }
+        .action-btn--secondary {
+            border-color: rgba(107, 114, 128, 0.25);
+            background: rgba(107, 114, 128, 0.05);
+            color: rgba(55, 65, 81, 0.95);
+        }
+        .action-btn[disabled] {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* Mobile: compact button layout on small screens */
+        @media (max-width: 420px) {
+            .action-btn span { 
+                display: none; 
+            }
+            .action-btn { 
+                padding: 10px; 
+                width: var(--tv-min-tap); 
+            }
+            
+            /* Compact paid toggle on mobile */
+            .app-card__toggle-paid span {
+                display: none;
+            }
+            .app-card__toggle-paid {
+                padding: 10px 8px;
+                min-width: 44px;
+                min-height: 44px;
+            }
+            
+            /* Compact actions button on mobile */
+            .app-card__actions-dropdown-btn span {
+                display: none;
+            }
+            .app-card__actions-dropdown-btn {
+                padding: 10px 8px;
+                min-width: 44px;
+                min-height: 44px;
+                gap: 0;
+            }
+            
+            /* Position dropdown on left for mobile */
+            .app-card__actions-dropdown-menu {
+                right: auto;
+                left: 0;
+            }
+            
+            /* Adjust dropdown on mobile */
+            .app-card__dropdown-menu {
+                right: auto;
+                left: 0;
+            }
+        }
+
+        /* D. Invoice Storage Grid */
+        .storage-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: var(--tv-gap-md);
+        }
+        @media (min-width: 900px) {
+            .storage-grid { 
+                grid-template-columns: repeat(2, minmax(0, 1fr)); 
+            }
+        }
+
+        /* E. Compact Storage Card */
+        .storage-card {
+            border: var(--tv-border-saas);
+            border-radius: var(--tv-rad-saas);
+            box-shadow: var(--tv-shadow-saas);
+            background: #fff;
+            padding: var(--tv-pad-sm);
+            transition: all 0.2s ease;
+        }
+        .storage-card:hover {
+            box-shadow: 0 12px 30px rgba(15, 23, 42, 0.1);
+            transform: translateY(-2px);
+        }
+
+        .storage-card__top {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: var(--tv-gap-sm);
+            margin-bottom: var(--tv-gap-xs);
+        }
+        .storage-card__id {
+            font-weight: 800;
+            font-size: var(--tv-fs-2);
+            color: rgba(15, 23, 42, 0.95);
+        }
+        .storage-card__meta-date {
+            font-size: var(--tv-fs-1);
+            color: rgba(15, 23, 42, 0.65);
+            margin-top: 2px;
+        }
+        .storage-card__badges {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+        }
+
+        .storage-card__line {
+            margin-top: var(--tv-gap-xs);
+            font-size: var(--tv-fs-2);
+            color: rgba(15, 23, 42, 0.78);
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
+        }
+        .storage-card__line strong {
+            color: rgba(15, 23, 42, 0.95);
+        }
+
+        .storage-card__actions {
+            margin-top: var(--tv-gap-md);
+            display: flex;
+            gap: var(--tv-gap-xs);
+        }
+
+        /* F. iOS Safe Area + Mobile Refinements */
+        .page-wrap {
+            padding-bottom: calc(16px + env(safe-area-inset-bottom));
+        }
+
+        /* G. Reduce Section Spacing */
+        .tvCardSection {
+            margin-bottom: var(--tv-gap-md) !important;
+        }
+        .tvDayHeader {
+            margin-bottom: var(--tv-gap-sm) !important;
+            padding: var(--tv-pad-xs) var(--tv-pad-sm) !important;
+        }
+
+        /* ===== COMPACT APPOINTMENT FORM - GARAGE SAAS ===== */
+        
+        .appt-form {
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+        }
+
+        .appt-form__grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: clamp(10px, 1.2vw, 14px);
+        }
+
+        @media (min-width: 860px) {
+            .appt-form__grid {
+                grid-template-columns: 1fr 1fr;
+                align-items: start;
+            }
+            .appt-card--full {
+                grid-column: 1 / -1;
+            }
+        }
+
+        .card.appt-card {
+            border: 1px solid rgba(15, 23, 42, 0.08);
+            border-radius: 16px;
+            box-shadow: 0 10px 25px rgba(15, 23, 42, 0.06);
+            padding: clamp(10px, 1.2vw, 14px);
+            background: #fff;
+            margin-bottom: 0;
+        }
+
+        .appt-card h3 {
+            margin: 0 0 10px 0;
+            font-size: clamp(1rem, 0.9rem + 0.4vw, 1.15rem);
+            font-weight: 700;
+            color: rgba(15, 23, 42, 0.95);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .appt-card h3 i {
+            font-size: 0.9em;
+            color: #FF8A3D;
+        }
+
+        .appt-label {
+            font-size: 0.85rem;
+            color: rgba(15, 23, 42, 0.75);
+            margin-bottom: 4px;
+            display: block;
+            font-weight: 600;
+        }
+
+        .appt-input,
+        .appt-select,
+        .appt-textarea {
+            width: 100%;
+            border: 1px solid rgba(15, 23, 42, 0.14);
+            border-radius: 14px;
+            padding: 10px 12px;
+            font-size: 0.95rem;
+            font-family: inherit;
+            transition: border-color 0.2s ease;
+        }
+
+        .appt-input:focus,
+        .appt-select:focus,
+        .appt-textarea:focus {
+            outline: none;
+            border-color: #FF8A3D;
+            box-shadow: 0 0 0 3px rgba(255, 138, 61, 0.1);
+        }
+
+        .appt-textarea {
+            min-height: 70px;
+            resize: vertical;
+        }
+
+        .field-row {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        @media (min-width: 560px) {
+            .field-row.two {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+
+        .field-hint {
+            margin: 4px 0 0 0;
+            font-size: 0.82rem;
+            color: rgba(15, 23, 42, 0.65);
+        }
+
+        .field-hint.warn {
+            color: rgba(234, 88, 12, 0.9);
+        }
+
+        /* Collapsible Sections */
+        .collapsible {
+            margin-top: 12px;
+        }
+
+        .collapsible > summary {
+            cursor: pointer;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            padding: 8px 0;
+            list-style: none;
+            user-select: none;
+            color: rgba(15, 23, 42, 0.85);
+            font-size: 0.95rem;
+        }
+
+        .collapsible > summary::-webkit-details-marker {
+            display: none;
+        }
+
+        .collapsible > summary::before {
+            content: "▸";
+            margin-right: 6px;
+            transition: transform 0.2s ease;
+        }
+
+        .collapsible[open] > summary::before {
+            transform: rotate(90deg);
+        }
+
+        .collapsible .count {
+            font-size: 0.82rem;
+            padding: 4px 8px;
+            border-radius: 999px;
+            border: 1px solid rgba(15, 23, 42, 0.10);
+            background: rgba(2, 6, 23, 0.03);
+            font-weight: 600;
+        }
+
+        .collapsible-content {
+            margin-top: 10px;
+        }
+
+        /* Compact Jobs/Parts Rows */
+        .job-row,
+        .part-row {
+            border: 1px solid rgba(15, 23, 42, 0.08);
+            border-radius: 14px;
+            padding: 10px;
+            margin-top: 10px;
+            background: rgba(2, 6, 23, 0.02);
+        }
+
+        .row-top {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .row-top .smart-select {
+            flex: 1;
+        }
+
+        .remove-mini {
+            width: 44px;
+            height: 44px;
+            min-width: 44px;
+            border-radius: 14px;
+            border: 1px solid rgba(239, 68, 68, 0.25);
+            background: rgba(239, 68, 68, 0.08);
+            color: rgba(185, 28, 28, 0.95);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+        }
+
+        .remove-mini:hover {
+            background: rgba(239, 68, 68, 0.15);
+            transform: scale(1.05);
+        }
+
+        .row-bottom {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 8px;
+        }
+
+        /* Sticky Action Bar */
+        .appt-form__actions {
+            position: sticky;
+            bottom: 0;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 12px 0 calc(12px + env(safe-area-inset-bottom));
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            border-top: 1px solid rgba(15, 23, 42, 0.08);
+            margin-top: 16px;
+            z-index: 10;
+        }
+
+        .appt-form__actions button {
+            min-height: 44px;
+            border-radius: 14px;
+            padding: 10px 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 0.95rem;
+        }
+
+        .btn-primary-apt {
+            background: linear-gradient(135deg, #FF8A3D 0%, #F47C2C 100%);
+            color: white;
+            border: none;
+        }
+
+        .btn-primary-apt:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(255, 138, 61, 0.3);
+        }
+
+        .btn-ghost {
+            background: transparent;
+            border: 1px solid rgba(15, 23, 42, 0.14);
+            color: rgba(15, 23, 42, 0.85);
+        }
+
+        .btn-ghost:hover {
+            background: rgba(15, 23, 42, 0.05);
+        }
+
+        /* Add buttons */
+        .add-item-btn {
+            margin-top: 10px;
+            padding: 8px 12px;
+            border-radius: 12px;
+            border: 1px solid rgba(15, 23, 42, 0.14);
+            background: white;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s ease;
+        }
+
+        .add-item-btn:hover {
+            background: rgba(15, 23, 42, 0.03);
+            border-color: #FF8A3D;
+        }
+
+        /* Edit Mode Banner */
+        .edit-mode-banner {
+            background: #e3f2fd;
+            border-left: 4px solid #2196f3;
+            border-radius: 14px;
+            padding: 12px;
+            margin-bottom: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+        }
+
+        .edit-mode-banner p {
+            margin: 0;
+            font-weight: 600;
+            color: #1976d2;
+            font-size: 0.95rem;
+        }
+
+        /* Totals Box Compact */
+        .totals-compact {
+            background: rgba(255, 138, 61, 0.08);
+            border: 1px solid rgba(255, 138, 61, 0.2);
+            border-radius: 14px;
+            padding: 12px;
+        }
+
+        .totals-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 6px;
+            font-size: 0.9rem;
+        }
+
+        .totals-row:last-child {
+            margin-bottom: 0;
+            padding-top: 8px;
+            border-top: 1px solid rgba(15, 23, 42, 0.1);
+            font-weight: 700;
+            font-size: 1rem;
+        }
+
+        .totals-row strong {
+            color: #FF8A3D;
+        }
     </style>
 </head>
 <body>
-    <!-- Floating logo (global, non-interactive) -->
-    <div class="floating-logo" aria-hidden="true">
-        <img src="assets/images/Logo.png" alt="Transvortex" />
-    </div>
-
     <!-- Firebase Authentication Bar -->
-    <div class="firebase-auth-bar" id="authBar">
-        <div class="user-info">
-            <span id="authStatus">🔒 Se verifică...</span>
-            <span class="badge" id="adminBadge" style="display: none;">👑 ADMIN</span>
-        </div>
-        <div class="language-switcher">
-            <button class="lang-btn" id="btnLangEN" aria-label="Switch to English">EN</button>
-            <button class="lang-btn" id="btnLangRO" aria-label="Switch to Romanian">RO</button>
-        </div>
-        <button id="authButton" onclick="handleAuthToggle()">Se încarcă...</button>
-    </div>
+<div class="firebase-auth-bar" id="authBar">
+  <div class="auth-left">
+    <span id="authStatus" class="auth-status">🔒 Checking…</span>
+    <span class="badge" id="adminBadge" style="display:none;">👑 ADMIN</span>
+  </div>
 
-    <div class="container">
-        <header>
-            <div class="header-bg-glow"></div>
-            <div class="header-noise"></div>
-            <div class="header-wrapper">
-                <div class="logo-container">
-                    <div class="logo-glow"></div>
-                    <img src="assets/images/Logo.png" alt="Transvortex LTD Logo" class="logo-large">
-                </div>
-                <div class="header-content">
-                    <div class="title-wrapper">
-                        <h1 class="header-title">
-                            <span class="glow-text" data-i18n="headerManager">Manager</span>
-                            <span class="highlight-orange" data-i18n="headerCompany">Companie</span>
-                            <span class="glow-text" data-i18n="headerTransvortex">Transvortex</span>
-                        </h1>
-                        <div class="accent-line"></div>
-                    </div>
-                    <p class="header-subtitle">
-                        <span class="subtitle-highlight" data-i18n="headerSubtitle1">Organizează-ți</span> <span data-i18n="headerSubtitle2">programările și postările</span> 
-                        <span class="subtitle-bold" data-i18n="headerSubtitle3">pentru compania ta</span>
-                    </p>
-                </div>
-            </div>
-        </header>
+  <div class="auth-right">
+    <!-- Hamburger -->
+    <button id="menuBtn" class="icon-btn" aria-label="Open menu" aria-expanded="false">
+      ☰
+    </button>
+
+    <!-- Small Connect Button -->
+    <button id="authButton" class="btn-auth-small" onclick="handleAuthToggle()">
+      Connect
+    </button>
+
+    <!-- Dropdown -->
+    <div id="menuDropdown" class="menu-dropdown" hidden>
+      <button class="menu-item" id="langEN" aria-label="English">
+        🇬🇧
+      </button>
+      <button class="menu-item" id="langRO" aria-label="Romanian">
+        🇷🇴
+      </button>
+    </div>
+  </div>
+</div>
 
         <!-- Tab Navigation -->
         <nav class="tab-navigation">
@@ -680,9 +1840,6 @@
             </button>
             <button class="tab-btn" data-tab="appointments" onclick="switchTab('appointments')">
                 <i class="fas fa-calendar-check"></i> <span data-i18n="tabAppointments">Programări</span>
-            </button>
-            <button class="tab-btn" data-tab="invoices" onclick="switchTab('invoices')">
-                <i class="fas fa-file-invoice"></i> <span data-i18n="tabInvoices">Facturi</span>
             </button>
         </nav>
 
@@ -829,220 +1986,300 @@
                             </div>
                         </div>
                         
-                        <form id="appointmentForm" class="tvGrid">
-                            <!-- Client Info -->
-                            <div class="tvCardSection">
-                                <h3 class="tvCardSection__title"><i class="fas fa-user"></i> <span data-i18n="sectionClient">Client</span></h3>
-                                <div class="tvGrid tvGrid--2col">
-                                    <div class="tvField">
-                                        <label for="customerName" class="tvLabel tvLabel--required"><span data-i18n="fieldName">Nume</span></label>
-                                        <input 
-                                            type="text" 
-                                            id="customerName" 
-                                            name="customerName" 
-                                            autocomplete="name" 
-                                            data-i18n-placeholder="fieldNamePlaceholder"
-                                            placeholder="ex: Ion Popescu" 
-                                            required 
-                                            class="tvInput"
-                                        />
-                                        <span class="tvField__error" id="customerName-error" data-i18n="errorNameRequired">Numele este obligatoriu</span>
-                                    </div>
-                                    
-                                    <div class="tvField">
-                                        <label for="customerPhone" class="tvLabel tvLabel--required"><span data-i18n="fieldPhone">Telefon</span></label>
-                                        <input 
-                                            type="tel" 
-                                            id="customerPhone" 
-                                            name="customerPhone" 
-                                            autocomplete="tel" 
-                                            data-i18n-placeholder="fieldPhonePlaceholder"
-                                            placeholder="ex: +44 7700 900 123" 
-                                            required 
-                                            class="tvInput"
-                                        />
-                                        <span class="tvField__error" id="customerPhone-error" data-i18n="errorPhoneRequired">Telefonul este obligatoriu</span>
-                                    </div>
-                                </div>
+                        <form id="appointmentForm" class="appt-form">
+                            <!-- Edit Mode Banner -->
+                            <div id="editModeBanner" class="edit-mode-banner" style="display: none;">
+                                <p><i class="fas fa-edit"></i> <span id="editingAppointmentText">Editing appointment</span></p>
+                                <button type="button" id="cancelEditBtn" class="btn-ghost" style="min-height: 36px; padding: 8px 12px;">
+                                    <i class="fas fa-times"></i> Cancel
+                                </button>
                             </div>
 
-                            <!-- Vehicle Info -->
-                            <div class="tvCardSection">
-                                <h3 class="tvCardSection__title"><i class="fas fa-car"></i> <span data-i18n="sectionVehicle">Vehicul</span></h3>
-                                <div class="tvGrid tvGrid--2col">
-                                    <div class="tvField">
-                                        <label for="makeModel" class="tvLabel"><span data-i18n="fieldMakeModel">Marca/Model (opțional)</span></label>
-                                        <input 
-                                            type="text" 
-                                            id="makeModel" 
-                                            name="makeModel" 
-                                            data-i18n-placeholder="fieldMakeModelPlaceholder"
-                                            placeholder="ex: Dacia Logan" 
-                                            class="tvInput"
-                                            autocomplete="off"
-                                        />
+                            <!-- Grid Layout -->
+                            <div class="appt-form__grid">
+                                <!-- Client Info Card -->
+                                <section class="card appt-card">
+                                    <h3><i class="fas fa-user"></i> <span data-i18n="sectionClient">Client</span></h3>
+                                    <div class="field-row two">
+                                        <div>
+                                            <label for="customerName" class="appt-label"><span data-i18n="fieldName">Nume</span></label>
+                                            <input 
+                                                type="text" 
+                                                id="customerName" 
+                                                name="customerName" 
+                                                autocomplete="name" 
+                                                data-i18n-placeholder="fieldNamePlaceholder"
+                                                placeholder="ex: Ion Popescu" 
+                                                class="appt-input"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label for="customerPhone" class="appt-label"><span data-i18n="fieldPhone">Telefon</span></label>
+                                            <input 
+                                                type="tel" 
+                                                id="customerPhone" 
+                                                name="customerPhone" 
+                                                autocomplete="tel" 
+                                                data-i18n-placeholder="fieldPhonePlaceholder"
+                                                placeholder="ex: +44 7700 900 123" 
+                                                class="appt-input"
+                                            />
+                                        </div>
                                     </div>
-                                    
-                                    <div class="tvField">
-                                        <label for="regNumber" class="tvLabel tvLabel--required"><span data-i18n="fieldRegNumber">Nr. Înmatriculare</span></label>
-                                        <input 
-                                            type="text" 
-                                            id="regNumber" 
-                                            name="regNumber" 
-                                            data-i18n-placeholder="fieldRegNumberPlaceholder"
-                                            placeholder="ex: AB-12-XYZ" 
-                                            required 
-                                            class="tvInput"
-                                            autocomplete="off"
-                                            maxlength="10"
-                                        />
-                                        <span class="tvField__error" id="regNumber-error" data-i18n="errorRegRequired">Nr. înmatriculare este obligatoriu</span>
-                                    </div>
-                                </div>
-                            </div>
+                                </section>
 
-                            <!-- Service Details -->
-                            <div class="tvCardSection">
-                                <h3 class="tvCardSection__title"><i class="fas fa-calendar-alt"></i> <span data-i18n="sectionDateTime">Data & Ora</span></h3>
-                                <div class="tvGrid tvGrid--2col">
-                                    <div class="tvField">
-                                        <label for="appointmentDate" class="tvLabel tvLabel--required">Data</label>
-                                        <div class="tvInputWrap">
-                                            <i class="fas fa-calendar-alt tvInputWrap__icon"></i>
+                                <!-- Date/Time Card -->
+                                <section class="card appt-card">
+                                    <h3><i class="fas fa-calendar-alt"></i> <span data-i18n="sectionDateTime">Data & Ora</span></h3>
+                                    <div class="field-row two">
+                                        <div>
+                                            <label for="appointmentDate" class="appt-label">Data</label>
                                             <input 
                                                 id="appointmentDate" 
                                                 name="appointmentDate" 
                                                 type="date" 
                                                 autocomplete="off" 
-                                                required 
-                                                class="tvInput"
+                                                class="appt-input"
                                             />
                                         </div>
-                                        <span class="tvField__error" id="appointmentDate-error">Data este obligatorie</span>
-                                    </div>
-                                    
-                                    <div class="tvField">
-                                        <label for="appointmentTime" class="tvLabel tvLabel--required">Ora</label>
-                                        <div class="tvInputWrap">
-                                            <i class="fas fa-clock tvInputWrap__icon"></i>
+                                        <div>
+                                            <label for="appointmentTime" class="appt-label">Ora</label>
                                             <input 
                                                 id="appointmentTime" 
                                                 type="text" 
                                                 readonly 
                                                 placeholder="Selectează ora" 
                                                 autocomplete="off" 
-                                                required 
-                                                class="tvInput"
+                                                class="appt-input"
                                             />
                                             <input id="appointmentTimeValue" type="hidden" name="time" />
                                         </div>
-                                        <span class="tvField__error" id="appointmentTime-error">Ora este obligatorie</span>
                                     </div>
-                                </div>
-                            </div>
+                                </section>
 
-                            <!-- Location -->
-                            <div class="tvCardSection">
-                                <h3 class="tvCardSection__title"><i class="fas fa-map-marker-alt"></i> Locație</h3>
-                                <div class="tvGrid tvGrid--2col">
-                                    <div class="tvField">
-                                        <label for="serviceLocation" class="tvLabel tvLabel--required">Tip Serviciu</label>
-                                        <select id="serviceLocation" name="serviceLocation" required class="tvSelect">
-                                            <option value="">Selectează...</option>
-                                            <option value="garage">La garaj</option>
-                                            <option value="client">La client</option>
-                                        </select>
-                                        <span class="tvField__error" id="serviceLocation-error">Tipul este obligatoriu</span>
-                                    </div>
-                                    
-                                    <div class="tvField">
-                                        <label for="contactPref" class="tvLabel tvLabel--required">Preferință Contact</label>
-                                        <select id="contactPref" name="contactPref" required class="tvSelect">
-                                            <option value="">Selectează...</option>
-                                            <option value="phone">Telefon</option>
-                                            <option value="sms">SMS</option>
-                                            <option value="whatsapp">WhatsApp</option>
-                                            <option value="email">Email</option>
-                                        </select>
-                                        <span class="tvField__error" id="contactPref-error">Preferința este obligatorie</span>
-                                    </div>
-                                </div>
-
-                                <!-- Garage Address (hidden initially) -->
-                                <div id="garageAddressSection" style="display: none; margin-top: var(--tv-gap-md);">
-                                    <div class="tvField">
-                                        <label class="tvLabel">Adresa Garajului</label>
-                                        <div style="display: flex; align-items: center; gap: var(--tv-gap-sm); padding: var(--tv-padding-sm); background: var(--tv-bg-hover); border-radius: var(--tv-radius-sm); border: 1px solid var(--tv-border);">
-                                            <i class="fas fa-building" style="color: var(--tv-primary);"></i>
-                                            <span style="font-size: var(--tv-font-sm); color: var(--tv-text-secondary);">TransvortexLTD Mobile Mechanic, 81 Foley Rd, Birmingham B8 2JT</span>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <!-- Client Address (hidden initially) -->
-                                <div id="clientAddressSection" style="display: none; margin-top: var(--tv-gap-md);">
-                                    <div class="tvGrid tvGrid--2col">
-                                        <div class="tvField">
-                                            <label for="address" class="tvLabel">Adresă (opțional)</label>
+                                <!-- Vehicle Info Card -->
+                                <section class="card appt-card">
+                                    <h3><i class="fas fa-car"></i> <span data-i18n="sectionVehicle">Vehicul</span></h3>
+                                    <div class="field-row two">
+                                        <div>
+                                            <label for="makeModel" class="appt-label"><span data-i18n="fieldMakeModel">Marca/Model</span></label>
                                             <input 
                                                 type="text" 
-                                                id="address" 
-                                                name="address" 
-                                                placeholder="ex: Str. Principală nr. 10, Birmingham" 
-                                                class="tvInput"
-                                                autocomplete="street-address"
+                                                id="makeModel" 
+                                                name="makeModel" 
+                                                data-i18n-placeholder="fieldMakeModelPlaceholder"
+                                                placeholder="ex: Dacia Logan" 
+                                                class="appt-input"
+                                                autocomplete="off"
                                             />
+                                        </div>
+                                        <div>
+                                            <label for="regNumber" class="appt-label">Registration (optional)</label>
+                                            <input 
+                                                type="text" 
+                                                id="regNumber" 
+                                                name="regNumber" 
+                                                placeholder="e.g., AB12 XYZ" 
+                                                class="appt-input"
+                                                autocomplete="off"
+                                                maxlength="10"
+                                            />
+                                        </div>
+                                    </div>
+                                    <div class="field-row">
+                                        <div>
+                                            <label for="mileage" class="appt-label">Mileage (optional)</label>
+                                            <input 
+                                                type="text" 
+                                                id="mileage" 
+                                                name="mileage" 
+                                                placeholder="e.g., 12,000" 
+                                                class="appt-input"
+                                                inputmode="numeric"
+                                                autocomplete="off"
+                                            />
+                                            <div class="field-hint" id="mileage-hint">Enter miles (numbers only)</div>
+                                        </div>
+                                    </div>
+                                </section>
+
+                                <!-- Location Card -->
+                                <section class="card appt-card">
+                                    <h3><i class="fas fa-map-marker-alt"></i> Locație</h3>
+                                    <div class="field-row two">
+                                        <div>
+                                            <label for="serviceLocation" class="appt-label">Tip Serviciu</label>
+                                            <select id="serviceLocation" name="serviceLocation" class="appt-select">
+                                                <option value="">Selectează...</option>
+                                                <option value="garage">La garaj</option>
+                                                <option value="client">La client</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label for="contactPref" class="appt-label">Preferință Contact</label>
+                                            <select id="contactPref" name="contactPref" class="appt-select">
+                                                <option value="">Selectează...</option>
+                                                <option value="phone">Telefon</option>
+                                                <option value="sms">SMS</option>
+                                                <option value="whatsapp">WhatsApp</option>
+                                                <option value="email">Email</option>
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    <!-- Garage Address (hidden initially) -->
+                                    <div id="garageAddressSection" style="display: none; margin-top: 10px;">
+                                        <p style="padding: 10px; background: rgba(255,138,61,0.08); border-radius: 12px; margin: 0; font-size: 0.9rem;">
+                                            <i class="fas fa-building" style="color: #FF8A3D;"></i> 
+                                            TransvortexLTD Mobile Mechanic, 81 Foley Rd, Birmingham B8 2JT
+                                        </p>
+                                    </div>
+
+                                    <!-- Client Address Collapsible -->
+                                    <details id="clientAddressSection" class="collapsible">
+                                        <summary>Adresă Client (opțional)</summary>
+                                        <div class="collapsible-content">
+                                            <div class="field-row two">
+                                                <div>
+                                                    <label for="address" class="appt-label">Adresă</label>
+                                                    <input 
+                                                        type="text" 
+                                                        id="address" 
+                                                        name="address" 
+                                                        placeholder="ex: Str. Principală nr. 10, Birmingham" 
+                                                        class="appt-input"
+                                                        autocomplete="street-address"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label for="postcode" class="appt-label">Cod Poștal</label>
+                                                    <input 
+                                                        type="text" 
+                                                        id="postcode" 
+                                                        name="postcode" 
+                                                        placeholder="ex: E1 6AN" 
+                                                        class="appt-input"
+                                                        autocomplete="postal-code"
+                                                    />
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </details>
+                                </section>
+
+                                <!-- Compact Items Panel (Jobs + Parts + Totals) -->
+                                <section class="itemsPanel">
+                                    <div class="itemsPanelHeader">
+                                        <div class="itemsTabs">
+                                            <button type="button" class="tabBtn active" data-tab="jobs">
+                                                <i class="fas fa-wrench"></i> Jobs
+                                            </button>
+                                            <button type="button" class="tabBtn" data-tab="parts">
+                                                <i class="fas fa-cogs"></i> Parts
+                                            </button>
+                                        </div>
+
+                                        <div class="itemsQuickActions">
+                                            <button type="button" class="miniBtn" data-action="addJob" id="addJobBtn">
+                                                <i class="fas fa-plus"></i> Job
+                                            </button>
+                                            <button type="button" class="miniBtn" data-action="addPart" id="addPartBtn">
+                                                <i class="fas fa-plus"></i> Part
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <!-- Jobs Tab with Chips Mode -->
+                                    <div class="itemsTabBody active" id="tabJobs">
+                                        <!-- Search/Add Input -->
+                                        <div class="chipAdder">
+                                            <div class="chipSearch">
+                                                <input class="chipInput" id="jobSearchInput" placeholder="Search or type new job..." autocomplete="off" />
+                                                <div class="suggestBox" id="jobSuggestBox"></div>
+                                            </div>
+                                            <button type="button" class="chipAddBtn" data-action="add-job">Add</button>
                                         </div>
                                         
-                                        <div class="tvField">
-                                            <label for="postcode" class="tvLabel">Cod Poștal (opțional)</label>
-                                            <input 
-                                                type="text" 
-                                                id="postcode" 
-                                                name="postcode" 
-                                                placeholder="ex: E1 6AN" 
-                                                class="tvInput"
-                                                autocomplete="postal-code"
-                                            />
+                                        <!-- Chips Display -->
+                                        <div class="chipsWrap" data-kind="job">
+                                            <div class="chipsHeader">
+                                                <span class="chipsTitle">Jobs added</span>
+                                                <span class="chipsCount" id="jobsCount">0</span>
+                                            </div>
+                                            <div class="chipsList" id="jobsChips"></div>
+                                        </div>
+                                        
+                                        <!-- Legacy container (hidden, for backwards compatibility) -->
+                                        <div id="jobsContainer" class="itemsContainer" style="display:none;"></div>
+                                    </div>
+
+                                    <!-- Parts Tab with Chips Mode -->
+                                    <div class="itemsTabBody" id="tabParts">
+                                        <!-- Search/Add Input -->
+                                        <div class="chipAdder">
+                                            <div class="chipSearch">
+                                                <input class="chipInput" id="partSearchInput" placeholder="Search or type new part..." autocomplete="off" />
+                                                <div class="suggestBox" id="partSuggestBox"></div>
+                                            </div>
+                                            <button type="button" class="chipAddBtn" data-action="add-part">Add</button>
+                                        </div>
+                                        
+                                        <!-- Chips Display -->
+                                        <div class="chipsWrap" data-kind="part">
+                                            <div class="chipsHeader">
+                                                <span class="chipsTitle">Parts added</span>
+                                                <span class="chipsCount" id="partsCount">0</span>
+                                            </div>
+                                            <div class="chipsList" id="partsChips"></div>
+                                        </div>
+                                        
+                                        <!-- Legacy container (hidden, for backwards compatibility) -->
+                                        <div id="partsContainer" class="itemsContainer" style="display:none;"></div>
+                                    </div>
+
+                                    <div class="totalsBar">
+                                        <div class="tLeft">
+                                            <div class="tLine">
+                                                <span>Labour</span>
+                                                <b id="labourSubtotal">£0.00</b>
+                                            </div>
+                                            <div class="tLine">
+                                                <span>Parts</span>
+                                                <b id="partsSubtotal">£0.00</b>
+                                            </div>
+                                        </div>
+                                        <div class="tRight">
+                                            <div class="tGrand">
+                                                <span>Subtotal</span>
+                                                <b id="combinedSubtotal">£0.00</b>
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
+                                </section>
+
+                                <!-- Notes Collapsible (Full Width) -->
+                                <section class="card appt-card appt-card--full">
+                                    <details class="collapsible">
+                                        <summary>Notes (opțional)</summary>
+                                        <div class="collapsible-content">
+                                            <textarea 
+                                                id="notes" 
+                                                name="notes" 
+                                                data-i18n-placeholder="fieldShortNotePlaceholder"
+                                                placeholder="Detalii adiționale..." 
+                                                class="appt-textarea"
+                                            ></textarea>
+                                        </div>
+                                    </details>
+                                </section>
                             </div>
 
-                            <!-- Problem Description -->
-                            <div class="tvCardSection">
-                                <h3 class="tvCardSection__title"><i class="fas fa-wrench"></i> <span data-i18n="sectionProblem">Problemă / Serviciu</span></h3>
-                                <div class="tvField">
-                                    <label for="problemDescription" class="tvLabel tvLabel--required"><span data-i18n="fieldProblem">Problemă</span></label>
-                                    <textarea 
-                                        id="problemDescription" 
-                                        name="problemDescription" 
-                                        data-i18n-placeholder="fieldProblemPlaceholder"
-                                        placeholder="Descrie problema sau serviciul solicitat..." 
-                                        rows="3"
-                                        required 
-                                        class="tvTextarea"
-                                    ></textarea>
-                                    <span class="tvField__error" id="problemDescription-error">Descrierea problemei este obligatorie</span>
-                                </div>
-
-                                <div class="tvField">
-                                    <label for="notes" class="tvLabel"><span data-i18n="fieldShortNote">Notă scurtă (opțional)</span></label>
-                                    <textarea 
-                                        id="notes" 
-                                        name="notes" 
-                                        data-i18n-placeholder="fieldShortNotePlaceholder"
-                                        placeholder="Detalii adiționale..." 
-                                        rows="2"
-                                        class="tvTextarea"
-                                    ></textarea>
-                                </div>
+                            <!-- Sticky Action Bar -->
+                            <div class="appt-form__actions">
+                                <button type="submit" class="btn-primary-apt" id="submitAppointmentBtn">
+                                    <i class="fas fa-plus"></i> <span id="submitAppointmentBtnText" data-i18n="btnSaveAppointment">Save Appointment</span>
+                                </button>
                             </div>
-
-                            <!-- Submit Button -->
-                            <button type="submit" class="tvBtn tvBtn--primary tvBtn--full tvBtn--sticky" id="submitAppointmentBtn">
-                                <i class="fas fa-plus"></i> <span data-i18n="btnSaveAppointment">Save Appointment</span>
-                            </button>
                         </form>
                     </section>
 
@@ -1102,96 +2339,48 @@
                         </div>
                     </section>
                 </div>
-            </div>
-        
-            <!-- ============================================ -->
-            <!-- TAB 3: FACTURI -->
-            <!-- ============================================ -->
-            <div id="invoicesTab" class="tab-content" style="display:none;">
-                <section class="add-section">
-                    <h2><i class="fas fa-file-invoice"></i> Factură - Detalii</h2>
 
-                    <div class="form-group">
-                        <label for="invoiceAppointmentSelect">Alege Programarea (Finalizate):</label>
-                        <select id="invoiceAppointmentSelect">
-                            <option value="">— Selectează —</option>
-                        </select>
-                    </div>
-
-                    <div class="btn-row" style="display:flex; gap: 10px; flex-wrap:wrap; margin-top: 10px;">
-                        <button type="button" class="btn-primary" id="openInvoicePreviewBtn">
-                            <i class="fas fa-external-link-alt"></i> Deschide Invoice (new tab)
+                <!-- ===== INVOICES STORAGE SECTION ===== -->
+                <section class="tvCard tvCard--compact" style="margin-top: var(--tv-gap-lg);">
+                    <div class="tvCardHeader">
+                        <div style="flex: 1;">
+                            <h2><i class="fas fa-file-invoice-dollar"></i> Invoices Storage</h2>
+                            <p style="font-size: 0.9rem; color: var(--tv-text-secondary); margin-top: 0.25rem;">View and manage all created invoices</p>
+                        </div>
+                        <button id="cleanupInvoicesBtn" class="tvBtn tvBtn--secondary tvBtn--sm" title="Cleanup duplicate invoices">
+                            <i class="fas fa-broom"></i> <span class="tvHideMobile">Cleanup Duplicates</span>
                         </button>
-                        <span id="invoiceSaveStatus" style="align-self:center; opacity:.8;"></span>
+                        <button id="refreshInvoicesButton" class="tvBtn tvBtn--secondary tvBtn--sm" onclick="handleRefreshInvoices()" title="Refresh invoices list">
+                            <i class="fas fa-sync-alt"></i> <span class="tvHideMobile">Refresh</span>
+                        </button>
                     </div>
 
-                    <hr style="margin: 16px 0; opacity:.2;" />
-
-                    <form id="invoiceDetailsForm" autocomplete="off">
-                        <div class="form-group">
-                            <label for="invClientName">Client Name</label>
-                            <input type="text" id="invClientName" placeholder="ex: John Smith">
+                    <!-- Filters -->
+                    <div class="filters-wrapper" style="margin-bottom: var(--tv-gap-lg);">
+                        <div class="filter-group">
+                            <label for="filterInvoiceStatus"><span data-i18n="filterLabel">Filter:</span></label>
+                            <select id="filterInvoiceStatus" onchange="filterInvoices()">
+                                <option value="all">All</option>
+                                <option value="draft">Draft</option>
+                                <option value="final">Final</option>
+                            </select>
                         </div>
-
-                        <div class="form-group">
-                            <label for="invClientPhone">Phone</label>
-                            <input type="text" id="invClientPhone" placeholder="ex: +44 7...">
+                        <div class="filter-group">
+                            <label for="searchInvoices"><span data-i18n="searchLabel">Search:</span></label>
+                            <input type="text" id="searchInvoices" placeholder="Invoice #, customer name, or plate..." oninput="filterInvoices()">
                         </div>
+                    </div>
 
-                        <div class="form-group">
-                            <label for="invClientAddress">Address</label>
-                            <input type="text" id="invClientAddress" placeholder="ex: Manchester, ...">
-                        </div>
+                    <!-- Invoices List -->
+                    <div id="invoicesList">
+                        <!-- Invoice cards will be rendered here with storage-grid wrapper -->
+                    </div>
 
-                        <div class="form-group">
-                            <label for="invVehicle">Vehicle Make/Model</label>
-                            <input type="text" id="invVehicle" placeholder="ex: Renault Grand Scenic 1.5 dCi">
-                        </div>
-
-                        <div class="form-group">
-                            <label for="invRegPlate">Reg Plate</label>
-                            <input type="text" id="invRegPlate" placeholder="ex: AB12 CDE">
-                        </div>
-
-                        <div class="form-group">
-                            <label for="invMileage">Mileage</label>
-                            <input type="number" id="invMileage" placeholder="ex: 120000">
-                        </div>
-
-                        <div class="form-group">
-                            <label for="invPaymentTerms">Payment Terms</label>
-                            <input type="text" id="invPaymentTerms" placeholder="ex: Due within 7 days">
-                        </div>
-
-                        <div class="form-group">
-                            <label for="invExtras">Extras (£)</label>
-                            <input type="number" step="0.01" id="invExtras" placeholder="0.00">
-                        </div>
-
-                        <div class="form-group" style="display:flex; gap: 10px; align-items:center;">
-                            <input type="checkbox" id="invVatEnabled" style="width:auto;">
-                            <label for="invVatEnabled" style="margin:0;">VAT enabled</label>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="invVatRate">VAT Rate (ex: 0.2 pentru 20%)</label>
-                            <input type="number" step="0.01" id="invVatRate" placeholder="0.2">
-                        </div>
-
-                        <div class="btn-row" style="display:flex; gap: 10px; flex-wrap:wrap;">
-                            <button type="button" class="btn-primary" id="saveInvoiceDetailsBtn">
-                                <i class="fas fa-save"></i> Salvează Detaliile
-                            </button>
-                            <button type="button" class="btn-secondary" id="clearInvoiceOverridesBtn">
-                                <i class="fas fa-eraser"></i> Reset (șterge override)
-                            </button>
-                        </div>
-                    </form>
-
-                    <p style="margin-top:10px; opacity:.8;">
-                        Notă: aceste câmpuri se salvează în Firestore la <code>appointments/{aptId}.invoiceOverrides</code>.
-                        Invoice-ul (<code>invoice.html</code>) le va folosi automat când există.
-                    </p>
+                    <div id="emptyStateInvoices" class="empty-state">
+                        <i class="fas fa-inbox"></i>
+                        <h3>No invoices yet</h3>
+                        <p>Create your first invoice from an appointment's action menu</p>
+                    </div>
                 </section>
             </div>
 
@@ -1208,7 +2397,7 @@
         <div class="modal-header">
           <div>
             <div id="appointmentsModalTitle" class="modal-title">Programări</div>
-            <div class="modal-subtitle" id="appointmentsModalSubtitle">Lista completă</div>
+            <div id="appointmentsModalSubtitle" class="modal-subtitle">Lista completă</div>
           </div>
           <button class="modal-close" id="appointmentsModalClose" aria-label="Close">✕</button>
         </div>
@@ -1233,10 +2422,6 @@
         <div id="appointmentsModalBody" class="modal-body"></div>
       </div>
     </div>
-
-    <!-- Deleted: Finalize Modal - removed per user request -->
-
-    <!-- Deleted: Confirmation Modal - removed per user request -->
 
     <!-- Modern Time Picker -->
     <div id="timePicker" class="time-picker-overlay" style="display: none;">
@@ -1278,8 +2463,14 @@
         </div>
     </div>
 
+    <!-- New modular architecture -->
+    <script type="module" src="./src/app.js"></script>
+    
+    <!-- Legacy code (appointments + other features) -->
     <script type="module" src="./init-language.js"></script>
-    <script type="module" src="./script.js"></script>
+    <script type="module" src="./script.js?v=2026-02-13-04"></script>
+    
+    <!-- PWA -->
     <script src="./pwa.js"></script>
     <script>
         // Initialize PWA after DOM is ready
@@ -1291,4 +2482,3 @@
     </script>
 </body>
 </html>
-

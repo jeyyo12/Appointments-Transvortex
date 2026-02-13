@@ -1,25 +1,49 @@
 /* =====================================================
    TRANSVORTEX DESIGN SYSTEM - UNIFIED COMPONENTS
    Consistent styling across forms, cards, and UI
+   Modern Fluid Responsive System using rem + clamp()
    ===================================================== */
 
-/* ===== DESIGN TOKENS ===== */
+/* Set base font size for rem calculations */
+html {
+  font-size: 16px;
+}
+
+/* ===== DESIGN TOKENS - DENSITY SYSTEM ===== */
 :root {
-  /* Spacing */
-  --tv-gap-xs: clamp(0.3rem, 0.8vw, 0.5rem);
-  --tv-gap-sm: clamp(0.4rem, 1.2vw, 0.75rem);
-  --tv-gap-md: clamp(0.6rem, 1.8vw, 1rem);
-  --tv-gap-lg: clamp(0.8rem, 2.5vw, 1.5rem);
-  --tv-padding-sm: clamp(0.6rem, 1.5vw, 0.8rem);
-  --tv-padding-md: clamp(0.8rem, 2vw, 1.25rem);
-  --tv-padding-lg: clamp(1rem, 2.5vw, 1.5rem);
+  /* DENSITY SYSTEM: Optimized Fluid Spacing (40% reduction) */
+  --s-1: clamp(0.35rem, 0.4vw, 0.55rem);     /* Minimal spacing */
+  --s-2: clamp(0.55rem, 0.6vw, 0.85rem);     /* Tight spacing */
+  --s-3: clamp(0.75rem, 0.9vw, 1.1rem);      /* Default spacing */
+  --s-4: clamp(1rem, 1.2vw, 1.5rem);         /* Section spacing */
+  --s-5: clamp(1.25rem, 1.6vw, 2rem);        /* Major spacing */
   
-  /* Typography */
-  --tv-font-body: clamp(0.92rem, 1.2vw, 1rem);
-  --tv-font-sm: clamp(0.85rem, 1.1vw, 0.95rem);
-  --tv-font-xs: clamp(0.75rem, 1vw, 0.85rem);
-  --tv-font-heading: clamp(1.1rem, 1.7vw, 1.3rem);
-  --tv-font-title: clamp(1rem, 1.5vw, 1.15rem);
+  /* Legacy spacing (mapped to density system) */
+  --tv-gap-xs: var(--s-1);
+  --tv-gap-sm: var(--s-2);
+  --tv-gap-md: var(--s-3);
+  --tv-gap-lg: var(--s-4);
+  --tv-gap-xl: var(--s-5);
+  --tv-padding-sm: var(--s-2);
+  --tv-padding-md: var(--s-3);
+  --tv-padding-lg: var(--s-4);
+  
+  /* TYPOGRAPHY: Balanced Fluid Font Scale */
+  --fs-body: clamp(0.92rem, 0.35vw + 0.85rem, 1rem);
+  --fs-small: clamp(0.8rem, 0.25vw + 0.75rem, 0.9rem);
+  --fs-h1: clamp(1.45rem, 1.2vw + 1.2rem, 2rem);
+  --fs-h2: clamp(1.25rem, 1vw + 1.05rem, 1.6rem);
+  --fs-h3: clamp(1.1rem, 0.7vw + 1rem, 1.35rem);
+  
+  /* Legacy typography (mapped to new system) */
+  --tv-font-h1: var(--fs-h1);
+  --tv-font-h2: var(--fs-h2);
+  --tv-font-h3: var(--fs-h3);
+  --tv-font-body: var(--fs-body);
+  --tv-font-sm: var(--fs-small);
+  --tv-font-xs: clamp(0.75rem, 0.2vw + 0.7rem, 0.85rem);
+  --tv-font-heading: var(--fs-h3);
+  --tv-font-title: clamp(1.05rem, 0.5vw + 0.95rem, 1.2rem);
   
   /* Colors */
   --tv-primary: #FF7A18;
@@ -44,10 +68,25 @@
   --tv-shadow-lg: 0 4px 16px rgba(0, 0, 0, 0.08);
   --tv-shadow-focus: 0 0 0 3px rgba(255, 122, 24, 0.15);
   
-  /* Borders */
-  --tv-radius-sm: clamp(0.375rem, 1vw, 0.5rem);
-  --tv-radius-md: clamp(0.5rem, 1.5vw, 0.75rem);
-  --tv-radius-lg: clamp(0.75rem, 2vw, 1rem);
+  /* RADII: Balanced Border Radius */
+  --r-1: 0.75rem;
+  --r-2: 1rem;
+  
+  /* Legacy radii (mapped to new system) */
+  --tv-radius-sm: var(--r-1);
+  --tv-radius-md: var(--r-2);
+  --tv-radius-lg: 1.25rem;
+  
+  /* TOUCH TARGETS: Mobile-Friendly Buttons */
+  --btn-h: clamp(2.6rem, 2.2vw, 2.75rem);      /* 41.6px - 44px */
+  --btn-px: clamp(0.75rem, 1vw, 1rem);         /* Button horizontal padding */
+  
+  /* Legacy touch targets */
+  --tv-touch-min: var(--btn-h);
+  --tv-touch-comfortable: 3rem;
+  
+  /* CONTAINER: Max width with responsive padding */
+  --container: min(100% - clamp(1rem, 3vw, 2rem), 1100px);
   
   /* Transitions */
   --tv-transition: 0.2s ease;
@@ -57,7 +96,7 @@
 /* ===== LAYOUT GRID ===== */
 .tvGrid {
   display: grid;
-  gap: var(--tv-gap-md);
+  gap: var(--s-3);
 }
 
 .tvGrid--2col {
@@ -80,7 +119,7 @@
 /* Two-column dashboard layout */
 .tvDashboard {
   display: grid;
-  gap: var(--tv-gap-lg);
+  gap: var(--s-4);
   grid-template-columns: 1fr;
   width: 100%;
   max-width: 100%;
@@ -116,11 +155,11 @@
 }
 
 .tvCard--compact {
-  padding: var(--tv-padding-md);
+  padding: var(--s-3);
 }
 
 .tvCard--spacious {
-  padding: var(--tv-padding-lg);
+  padding: var(--s-4);
 }
 
 .tvCard--accent {
@@ -129,28 +168,28 @@
 
 .tvCard--sticky {
   position: sticky;
-  top: var(--tv-gap-md);
+  top: var(--s-3);
 }
 
 /* Card Header */
 .tvCardHeader {
   display: flex;
   align-items: center;
-  gap: var(--tv-gap-sm);
-  padding-bottom: var(--tv-gap-md);
+  gap: var(--s-2);
+  padding-bottom: var(--s-2);
   border-bottom: 2px solid var(--tv-border-light);
-  margin-bottom: var(--tv-gap-md);
+  margin-bottom: var(--s-3);
 }
 
 .tvCardHeader h2,
 .tvCardHeader h3 {
-  font-size: var(--tv-font-heading);
+  font-size: var(--fs-h3);
   color: var(--tv-text-primary);
   margin: 0;
   font-weight: 700;
   display: flex;
   align-items: center;
-  gap: var(--tv-gap-sm);
+  gap: var(--s-2);
 }
 
 .tvCardHeader i {
@@ -159,14 +198,14 @@
 }
 
 .tvCardHeader p {
-  font-size: var(--tv-font-sm);
+  font-size: var(--fs-small);
   color: var(--tv-text-secondary);
-  margin: var(--tv-gap-xs) 0 0 0;
+  margin: var(--s-1) 0 0 0;
 }
 
 /* Card Section */
 .tvCardSection {
-  padding: var(--tv-padding-md);
+  padding: var(--s-3);
   border-bottom: 1px solid var(--tv-border-light);
 }
 
@@ -177,11 +216,11 @@
 .tvCardSection__title {
   font-size: var(--tv-font-title);
   color: var(--tv-text-primary);
-  margin: 0 0 var(--tv-gap-sm) 0;
+  margin: 0 0 var(--s-2) 0;
   font-weight: 600;
   display: flex;
   align-items: center;
-  gap: var(--tv-gap-xs);
+  gap: var(--s-1);
 }
 
 .tvCardSection__title i {
@@ -189,30 +228,123 @@
   font-size: var(--tv-font-sm);
 }
 
+/* ===== LINE ITEMS (Jobs/Parts Builder) ===== */
+.tvLineItems {
+  display: grid;
+  gap: var(--s-2);
+  margin-bottom: var(--s-2);
+}
+
+.tvLineItemRow {
+  display: grid;
+  grid-template-columns: minmax(200px, 2.5fr) minmax(64px, 0.6fr) minmax(90px, 0.8fr) minmax(90px, 0.8fr) auto;
+  gap: var(--s-2);
+  align-items: center;
+  padding: var(--s-2);
+  border: 1px solid var(--tv-border);
+  border-radius: var(--tv-radius-sm);
+  background: var(--tv-bg-hover);
+}
+
+.tvLineItemRow .tvInput,
+.tvLineItemRow .tvSelect {
+  width: 100%;
+}
+
+/* Hide the hidden description input */
+.tvLineItemRow .tvLineItemDesc[type="hidden"] {
+  display: none;
+}
+
+.tvLineItemTotal {
+  font-weight: 700;
+  color: var(--tv-text-primary);
+  text-align: right;
+  white-space: nowrap;
+}
+
+.tvLineItemRemove {
+  border: none;
+  background: #FEE2E2;
+  color: #991B1B;
+  padding: 0.45rem 0.6rem;
+  border-radius: 0.6rem;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.tvLineItemRemove:hover {
+  background: #FECACA;
+}
+
+.tvTotalsBox {
+  border: 1px solid var(--tv-border);
+  border-radius: var(--tv-radius-sm);
+  padding: var(--s-2);
+  background: #FFFFFF;
+  display: grid;
+  gap: var(--s-1);
+}
+
+.tvTotalsRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: var(--fs-small);
+  color: var(--tv-text-secondary);
+}
+
+.tvTotalsRow--total {
+  font-size: var(--fs-body);
+  color: var(--tv-text-primary);
+  font-weight: 700;
+  border-top: 1px dashed var(--tv-border);
+  padding-top: var(--s-1);
+}
+
+@media (max-width: 640px) {
+  .tvLineItemRow {
+    grid-template-columns: 1fr 1fr;
+    grid-template-areas:
+      "select select"
+      "qty price"
+      "total total"
+      "remove remove";
+  }
+
+  .tvLineItemRow .smart-select { grid-area: select; }
+  .tvLineItemRow .tvLineItemQty { grid-area: qty; }
+  .tvLineItemRow .tvLineItemPrice { grid-area: price; }
+  .tvLineItemRow .tvLineItemTotal { grid-area: total; text-align: left; }
+  .tvLineItemRow .tvLineItemRemove { grid-area: remove; width: 100%; }
+}
+
 /* ===== FORM COMPONENTS ===== */
 .tvLabel {
   display: block;
-  font-size: var(--tv-font-sm);
+  font-size: var(--fs-small);
   font-weight: 600;
   color: var(--tv-text-primary);
-  margin-bottom: var(--tv-gap-xs);
+  margin-bottom: var(--s-1);
 }
 
-.tvLabel--required::after {
+/* Required asterisk removed - no fields are mandatory */
+/* .tvLabel--required::after {
   content: " *";
   color: var(--tv-error);
   font-weight: 700;
-}
+} */
 
 .tvInput,
 .tvSelect,
 .tvTextarea {
   width: 100%;
-  min-height: clamp(2.5rem, 6vw, 2.75rem);
-  padding: var(--tv-padding-sm);
+  min-height: var(--btn-h);
+  padding-inline: var(--btn-px);
+  padding-block: var(--s-2);
   border: 2px solid var(--tv-border);
-  border-radius: var(--tv-radius-sm);
-  font-size: var(--tv-font-body);
+  border-radius: var(--r-1);
+  font-size: var(--fs-body);
   color: var(--tv-text-primary);
   background: var(--tv-bg-card);
   transition: all var(--tv-transition);
@@ -240,7 +372,7 @@
 }
 
 .tvTextarea {
-  min-height: clamp(4rem, 10vw, 5rem);
+  min-height: clamp(4.5rem, 10vw, 5.5rem);
   resize: vertical;
 }
 
@@ -251,7 +383,7 @@
 
 .tvInputWrap__icon {
   position: absolute;
-  left: var(--tv-padding-sm);
+  left: clamp(0.75rem, 2vw, 1rem);
   top: 50%;
   transform: translateY(-50%);
   color: var(--tv-text-secondary);
@@ -260,14 +392,15 @@
 }
 
 .tvInputWrap .tvInput {
-  padding-left: calc(var(--tv-padding-sm) * 2.5);
+  padding-left: clamp(2rem, 5vw, 2.5rem);
 }
 
 /* Form field */
 .tvField {
   display: flex;
   flex-direction: column;
-  gap: var(--tv-gap-xs);
+  gap: var(--s-1);
+  margin-bottom: var(--s-3);
 }
 
 .tvField__error {
@@ -300,17 +433,17 @@
 /* ===== TOAST NOTIFICATION ===== */
 .tvToast {
   position: fixed;
-  bottom: var(--tv-gap-lg);
-  right: var(--tv-gap-lg);
+  bottom: var(--s-4);
+  right: var(--s-4);
   background: var(--tv-text-primary);
   color: white;
-  padding: var(--tv-padding-md) var(--tv-padding-lg);
-  border-radius: var(--tv-radius-md);
+  padding: var(--s-3) var(--s-4);
+  border-radius: var(--r-2);
   box-shadow: var(--tv-shadow-lg);
   display: flex;
   align-items: center;
-  gap: var(--tv-gap-sm);
-  font-size: var(--tv-font-sm);
+  gap: var(--s-2);
+  font-size: var(--fs-small);
   font-weight: 600;
   z-index: 1000;
   animation: tvToastSlideIn 0.3s ease;
@@ -378,19 +511,19 @@
 /* ===== STATS CARDS (Dashboard) ===== */
 .tvStats {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr));
-  gap: var(--tv-gap-md);
-  margin-bottom: var(--tv-gap-lg);
+  grid-template-columns: repeat(auto-fit, minmax(clamp(10rem, 30vw, 14rem), 1fr));
+  gap: var(--s-3);
+  margin-bottom: var(--s-4);
 }
 
 .tvStatCard {
   background: var(--tv-bg-card);
-  padding: var(--tv-padding-md);
-  border-radius: var(--tv-radius-md);
+  padding: var(--s-3);
+  border-radius: var(--r-2);
   box-shadow: var(--tv-shadow-sm);
   display: flex;
   align-items: center;
-  gap: var(--tv-gap-md);
+  gap: var(--s-3);
   border: 2px solid var(--tv-border);
   transition: all var(--tv-transition);
 }
@@ -401,12 +534,12 @@
 }
 
 .tvStatCard i {
-  font-size: clamp(1.5rem, 3vw, 2rem);
+  font-size: clamp(1.5rem, 3.5vw, 2rem);
   color: var(--tv-primary);
 }
 
 .tvStatCard__content h3 {
-  font-size: clamp(1.5rem, 2.5vw, 2rem);
+  font-size: clamp(1.5rem, 3.5vw, 2rem);
   color: var(--tv-text-primary);
   margin: 0;
   font-weight: 700;

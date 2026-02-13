@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Firestore Diagnostic Tool</title>
+    <style>
+        body {
+            font-family: 'Courier New', monospace;
+            max-width: 1000px;
+            margin: 20px auto;
+            padding: 20px;
+            background: #1a1a1a;
+            color: #00ff00;
+            line-height: 1.6;
+        }
+        .container { background: #0d0d0d; padding: 20px; border-radius: 8px; border: 1px solid #333; }
+        h1 { color: #0ff; text-align: center; }
+        .log { 
+            background: #000; 
+            padding: 15px; 
+            border-radius: 4px; 
+            margin: 10px 0; 
+            max-height: 400px; 
+            overflow-y: auto;
+            border-left: 3px solid #0ff;
+        }
+        .success { color: #0f0; }
+        .error { color: #f00; }
+        .warning { color: #ff0; }
+        .info { color: #0ff; }
+        button {
+            background: #ff7a18;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            margin: 5px;
+        }
+        button:hover { background: #ff6b02; }
+        .section { margin: 20px 0; }
+        .status-box {
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+            border-left: 4px solid;
+        }
+        .status-ok { border-left-color: #0f0; background: rgba(0, 255, 0, 0.1); }
+        .status-error { border-left-color: #f00; background: rgba(255, 0, 0, 0.1); }
+        .status-pending { border-left-color: #ff0; background: rgba(255, 255, 0, 0.1); }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Firestore Diagnostic Tool</h1>
+        
+        <div class="section">
+            <h2>Firebase Configuration Status</h2>
+            <div id="configStatus" class="log"></div>
+        </div>
+
+        <div class="section">
+            <h2>Connection Tests</h2>
+            <button onclick="testFirebaseInit()">Test Firebase Init</button>
+            <button onclick="testFirestoreConnection()">Test Firestore Connection</button>
+            <button onclick="testInvoicesQuery()">Test Invoices Query</button>
+            <button onclick="testCreateSampleInvoice()">Create Sample Invoice</button>
+            <button onclick="testListAllCollections()">List All Collections</button>
+            <div id="testLog" class="log"></div>
+        </div>
+
+        <div class="section">
+            <h2>Quick Fixes</h2>
+            <button onclick="fixFirestoreRules()">Fix Firestore Rules (Dev Mode)</button>
+            <button onclick="createInvoicesCollection()">Create Invoices Collection</button>
+            <button onclick="clearLogs()">Clear Logs</button>
+        </div>
+    </div>
+
+    <script type="module">
+        import { firebaseConfig } from './src/config/firebase.config.js';
+        import { initializeApp, getApps, getApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+        import { getFirestore, collection, getDocs, addDoc, query, orderBy, onSnapshot } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+        import { getAuth } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+
+        const LOG = document.getElementById('testLog');
+        const CONFIG_LOG = document.getElementById('configStatus');
+
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const color = type === 'success' ? '#0f0' : type === 'error' ? '#f00' : type === 'warning' ? '#ff0' : '#0ff';
+            LOG.innerHTML += `<div style="color: ${color};">[${timestamp}] ${type.toUpperCase()}: ${message}</div>`;
+            LOG.scrollTop = LOG.scrollHeight;
+            console.log(`[${type.toUpperCase()}]`, message);
+        }
+
+        function logConfig(message, type = 'info') {
+            const color = type === 'success' ? '#0f0' : type === 'error' ? '#f00' : type === 'warning' ? '#ff0' : '#0ff';
+            CONFIG_LOG.innerHTML += `<div style="color: ${color};">${type.toUpperCase()}: ${message}</div>`;
+            CONFIG_LOG.scrollTop = CONFIG_LOG.scrollHeight;
+        }
+
+        // Show Firebase config on load
+        window.addEventListener('load', () => {
+            logConfig(`<strong>Project ID:</strong> ${firebaseConfig.projectId}`, 'info');
+            logConfig(`<strong>Auth Domain:</strong> ${firebaseConfig.authDomain}`, 'info');
+            logConfig(`<strong>API Key:</strong> ${firebaseConfig.apiKey.substring(0, 10)}...`, 'info');
+            logConfig(`<strong>Storage Bucket:</strong> ${firebaseConfig.storageBucket}`, 'info');
+        });
+
+        window.testFirebaseInit = async function() {
+            try {
+                log('Initializing Firebase...', 'info');
+                
+                const apps = getApps();
+                log(`Current Firebase apps: ${apps.length}`, 'info');
+                
+                let app;
+                if (apps.length === 0) {
+                    app = initializeApp(firebaseConfig);
+                    log('✅ Firebase app initialized', 'success');
+                } else {
+                    app = getApp();
+                    log('✅ Firebase app already initialized', 'success');
+                }
+                
+                const auth = getAuth(app);
+                log(`✅ Auth service ready. Current user: ${auth.currentUser ? auth.currentUser.email : 'None (anonymous)'}`, 'success');
+                
+            } catch (error) {
+                log(`❌ Firebase init error: ${error.message}`, 'error');
+            }
+        };
+
+        window.testFirestoreConnection = async function() {
+            try {
+                log('Testing Firestore connection...', 'info');
+                
+                const app = getApp();
+                const db = getFirestore(app);
+                
+                log('✅ Firestore instance created', 'success');
+                
+                // Try a simple collection reference
+                const invoicesRef = collection(db, 'invoices');
+                log(`✅ Collection reference created: ${invoicesRef.path}`, 'success');
+                
+            } catch (error) {
+                log(`❌ Firestore connection error: ${error.message || error.code}`, 'error');
+            }
+        };
+
+        window.testInvoicesQuery = async function() {
+            try {
+                log('Running invoices query...', 'info');
+                
+                const app = getApp();
+                const db = getFirestore(app);
+                
+                // Try simple query first (without orderBy)
+                log('Step 1: Simple collection fetch (no orderBy)...', 'info');
+                const simpleDocs = await getDocs(collection(db, 'invoices'));
+                log(`✅ Simple query result: ${simpleDocs.size} documents`, 'success');
+                
+                if (simpleDocs.size > 0) {
+                    simpleDocs.docs.forEach((doc, i) => {
+                        log(`  Doc ${i + 1}: ${doc.id} - ${JSON.stringify(doc.data()).substring(0, 100)}...`, 'info');
+                    });
+                } else {
+                    log('ℹ️ No documents found in invoices collection', 'warning');
+                }
+                
+                // Try query with orderBy
+                log('Step 2: Query with orderBy (may need index)...', 'info');
+                const q = query(collection(db, 'invoices'), orderBy('createdAt', 'desc'));
+                const orderedDocs = await getDocs(q);
+                log(`✅ OrderBy query result: ${orderedDocs.size} documents`, 'success');
+                
+            } catch (error) {
+                log(`❌ Query error: ${error.message || error.code}`, 'error');
+                
+                // Check if it's an index error
+                if (error.code === 'failed-precondition') {
+                    log('💡 This is likely a MISSING COMPOSITE INDEX error', 'warning');
+                    log('Firebase Firestore requires a composite index for queries with orderBy on multiple fields or without a where clause', 'warning');
+                }
+            }
+        };
+
+        window.testCreateSampleInvoice = async function() {
+            try {
+                log('Creating sample invoice...', 'info');
+                
+                const app = getApp();
+                const db = getFirestore(app);
+                
+                const sampleInvoice = {
+                    invoiceNumber: `TEST-${Date.now()}`,
+                    clientName: 'Test Client',
+                    amount: 99.99,
+                    createdAt: new Date(),
+                    updatedAt: new Date(),
+                    status: 'draft'
+                };
+                
+                const docRef = await addDoc(collection(db, 'invoices'), sampleInvoice);
+                log(`✅ Sample invoice created with ID: ${docRef.id}`, 'success');
+                log(`Invoice data: ${JSON.stringify(sampleInvoice)}`, 'info');
+                
+            } catch (error) {
+                log(`❌ Create invoice error: ${error.message || error.code}`, 'error');
+                
+                if (error.code === 'permission-denied') {
+                    log('💡 Permission denied. Check Firestore security rules.', 'warning');
+                }
+            }
+        };
+
+        window.testListAllCollections = async function() {
+            try {
+                log('Fetching Firestore stats...', 'info');
+                
+                const app = getApp();
+                const db = getFirestore(app);
+                
+                // Try to get common collections
+                const collections = ['invoices', 'appointments', 'users', 'settings'];
+                
+                for (const collName of collections) {
+                    try {
+                        const docs = await getDocs(collection(db, collName));
+                        log(`${collName}: ${docs.size} documents`, 'info');
+                    } catch {
+                        log(`${collName}: [access denied or not found]`, 'warning');
+                    }
+                }
+                
+            } catch (error) {
+                log(`❌ Collections fetch error: ${error.message}`, 'error');
+            }
+        };
+
+        window.fixFirestoreRules = async function() {
+            log('❌ Cannot modify Firestore rules from this tool', 'error');
+            log('📋 To enable development mode:', 'info');
+            log('1. Go to: https://console.firebase.google.com', 'info');
+            log('2. Select project: appointments-transvortex', 'info');
+            log('3. Go to Firestore Database → Rules tab', 'info');
+            log('4. Replace rules with this (DEVELOPMENT ONLY):', 'warning');
+            log('', 'info');
+            
+            const rules = `rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if request.auth != null;
+    }
+  }
+}`;
+            
+            log(rules, 'warning');
+            log('', 'info');
+            log('5. Click Publish', 'info');
+        };
+
+        window.createInvoicesCollection = async function() {
+            try {
+                log('Creating invoices collection...', 'info');
+                
+                const app = getApp();
+                const db = getFirestore(app);
+                
+                const sampleData = {
+                    invoiceNumber: 'SAMPLE-2026-001',
+                    clientName: 'Sample Client Ltd',
+                    clientEmail: 'client@example.com',
+                    clientPhone: '+44 7123 456789',
+                    clientAddress: '123 Test Street, London',
+                    services: [],
+                    parts: [],
+                    subtotal: 0,
+                    vat: 0,
+                    total: 0,
+                    notes: 'Sample invoice created by diagnostic tool',
+                    createdAt: new Date(),
+                    updatedAt: new Date(),
+                    status: 'draft',
+                    paid: false
+                };
+                
+                const docRef = await addDoc(collection(db, 'invoices'), sampleData);
+                log(`✅ Sample invoice collection created with ID: ${docRef.id}`, 'success');
+                
+            } catch (error) {
+                log(`❌ Error: ${error.message || error.code}`, 'error');
+            }
+        };
+
+        window.clearLogs = () => {
+            LOG.innerHTML = '';
+            log('Logs cleared', 'info');
+        };
+
+    </script>
+</body>
+</html>

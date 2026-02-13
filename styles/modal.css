@@ -4,10 +4,18 @@
    ========================================== */
 
 :root {
+    /* DENSITY SYSTEM: Import global tokens */
+    --s-1: clamp(0.35rem, 0.4vw, 0.55rem);
+    --s-2: clamp(0.55rem, 0.6vw, 0.85rem);
+    --s-3: clamp(0.75rem, 0.9vw, 1.1rem);
+    --r-1: 0.75rem;
+    --r-2: 1rem;
+    
+    /* Modal-specific tokens */
     --tv-modal-max-width: min(92vw, 520px);
     --tv-modal-max-height: 90vh;
-    --tv-modal-padding: clamp(0.8rem, 2.5vw, 1rem);
-    --tv-modal-radius: 16px;
+    --tv-modal-padding: var(--s-3);
+    --tv-modal-radius: var(--r-2);
 }
 
 /* Overlay: shared across all modal flavors */
@@ -23,10 +31,10 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: clamp(0.75rem, 2vw, 1.25rem);
+    padding: var(--s-3);
     background: rgba(0, 0, 0, 0.45);
-    backdrop-filter: blur(6px);
-    -webkit-backdrop-filter: blur(6px);
+    backdrop-filter: blur(0.375rem);
+    -webkit-backdrop-filter: blur(0.375rem);
     opacity: 0;
     pointer-events: none;
     transition: opacity 0.2s ease;
@@ -59,7 +67,7 @@
     overflow: hidden;
     display: flex;
     flex-direction: column;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+    box-shadow: 0 1.25rem 3.75rem rgba(0, 0, 0, 0.25);
     transform: scale(0.96);
     transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.2s ease;
 }
@@ -81,11 +89,11 @@
 .tvEditModalHeader,
 .tvFinalizeModal__header,
 .modern-modal-header {
-    padding: var(--tv-modal-padding);
+    padding: var(--s-3);
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 0.75rem;
+    gap: var(--s-2);
 }
 
 .modalBody,
@@ -105,9 +113,9 @@
 .tvEditModalFooter,
 .tvFinalizeModal__footer,
 .modern-modal-actions {
-    padding: var(--tv-modal-padding);
+    padding: var(--s-3);
     display: flex;
-    gap: 0.5rem;
+    gap: var(--s-2);
     flex-wrap: wrap;
 }
 
@@ -122,7 +130,7 @@
     .modal {
         width: 94vw;
         max-height: 90vh;
-        border-radius: 14px;
+        border-radius: var(--r-1);
     }
 
     .modalBody,
@@ -174,8 +182,8 @@
     z-index: 12000;
     opacity: 0;
     transition: opacity 0.2s ease;
-    padding: 16px;
-    backdrop-filter: blur(6px);
+    padding: 1rem;
+    backdrop-filter: blur(0.375rem);
 }
 
 .tvDelayModal--show { opacity: 1; }
@@ -196,7 +204,7 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 18px 20px;
+    padding: 1.125rem 1.25rem;
     border-bottom: none;
     position: sticky;
     top: 0;
@@ -206,28 +214,28 @@
 
 .tvDelayModal__title { 
     margin: 0; 
-    font-size: 18px; 
+    font-size: 1.125rem; 
     font-weight: 700;
     color: #FFFFFF;
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 0.625rem;
 }
 
 .tvDelayModal__title::before {
     content: '⏰';
-    font-size: 20px;
+    font-size: 1.25rem;
 }
 
 .tvDelayModal__close {
     background: rgba(255, 255, 255, 0.2);
     border: 1px solid rgba(255, 255, 255, 0.3);
     color: #FFFFFF;
-    font-size: 18px;
+    font-size: 1.125rem;
     cursor: pointer;
     border-radius: 8px;
-    width: 36px;
-    height: 36px;
+    width: 2.25rem;
+    height: 2.25rem;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -239,16 +247,16 @@
 }
 
 .tvDelayModal__body {
-    padding: 20px 22px 16px;
+    padding: 1.25rem 1.375rem 1rem;
     overflow: auto;
     background: #FFFFFF;
 }
 
 .tvDelayModal__footer {
-    padding: 16px 22px;
+    padding: 1rem 1.375rem;
     display: flex;
     justify-content: flex-end;
-    gap: 12px;
+    gap: 0.75rem;
     border-top: 1px solid rgba(15, 23, 42, 0.08);
     position: sticky;
     bottom: 0;
@@ -265,18 +273,18 @@
     color: #0F172A;
 }
 
-.tvDelay__row { display: flex; flex-direction: column; gap: 10px; }
+.tvDelay__row { display: flex; flex-direction: column; gap: 0.625rem; }
 
-.tvDelay__radios { display: flex; gap: 12px; flex-wrap: wrap; }
+.tvDelay__radios { display: flex; gap: 0.75rem; flex-wrap: wrap; }
 
-.tvDelay__presets { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+.tvDelay__presets { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.625rem; }
 
 .tvDelay__preset {
     border: 2px solid rgba(255, 122, 24, 0.25);
     background: rgba(255, 122, 24, 0.08);
     color: #FF7A18;
     border-radius: 10px;
-    padding: 8px 14px;
+    padding: 0.5rem 0.875rem;
     cursor: pointer;
     transition: all 0.15s ease;
     font-weight: 600;
@@ -297,11 +305,11 @@
 .tvDelay__grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-    gap: 12px;
-    margin-top: 12px;
+    gap: 0.75rem;
+    margin-top: 0.75rem;
 }
 
-.tvDelay__field { display: flex; flex-direction: column; gap: 6px; }
+.tvDelay__field { display: flex; flex-direction: column; gap: 0.375rem; }
 .tvDelay__field input,
 .tvDelay__section select,
 .tvDelay__section textarea {
@@ -309,7 +317,7 @@
     border: 1.5px solid rgba(15, 23, 42, 0.1);
     color: #0F172A;
     border-radius: 12px;
-    padding: 10px 12px;
+    padding: 0.625rem 0.75rem;
     font-family: inherit;
     transition: all 0.15s ease;
 }
@@ -322,27 +330,27 @@
     box-shadow: 0 0 0 3px rgba(255, 122, 24, 0.12);
 }
 
-.tvDelay__section textarea { resize: vertical; min-height: 70px; }
+.tvDelay__section textarea { resize: vertical; min-height: 4.375rem; }
 
-.tvDelay__toggleRow { display: flex; align-items: center; gap: 12px; }
+.tvDelay__toggleRow { display: flex; align-items: center; gap: 0.75rem; }
 .tvDelay__toggleTitle { font-weight: 600; color: #0F172A; }
-.tvDelay__toggleDesc { font-size: 13px; color: #475569; }
+.tvDelay__toggleDesc { font-size: 0.8125rem; color: #475569; }
 
 .tvDelay__btn {
     border: 0;
     border-radius: 12px;
-    padding: 10px 16px;
+    padding: 0.625rem 1rem;
     font-weight: 600;
     cursor: pointer;
     transition: all 0.15s ease;
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 8px;
+    gap: 0.5rem;
 }
 
 .tvDelay__btn i {
-    font-size: 16px;
+    font-size: 1rem;
 }
 
 .tvDelay__btn-primary { 
@@ -368,7 +376,7 @@
 
 @media (max-width: 640px) {
     .tvDelayModal__panel { width: 100%; max-height: 90vh; }
-    .tvDelayModal { padding: 12px; }
+    .tvDelayModal { padding: 0.75rem; }
     .tvDelay__grid { grid-template-columns: 1fr; }
 }
 
@@ -540,8 +548,8 @@
    ========================================== */
 
 .tvDetailsModalOverlay {
-    padding-top: calc(clamp(0.75rem, 2vw, 1.25rem) + env(safe-area-inset-top));
-    padding-bottom: calc(clamp(0.75rem, 2vw, 1.25rem) + env(safe-area-inset-bottom));
+    padding-top: calc(var(--s-3) + env(safe-area-inset-top));
+    padding-bottom: calc(var(--s-3) + env(safe-area-inset-bottom));
 }
 
 .tvDetailsModalOverlay--show {
@@ -611,7 +619,7 @@
 .tvDetailsGrid {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
-    gap: clamp(0.8rem, 1.6vw, 1.2rem);
+    gap: var(--s-3);
     width: 100%;
 }
 
@@ -624,9 +632,9 @@
 .tvDetailsItem {
     display: flex;
     align-items: flex-start;
-    gap: clamp(0.65rem, 1.3vw, 0.9rem);
-    padding: clamp(0.8rem, 1.6vw, 1.1rem);
-    border-radius: clamp(0.75rem, 1.4vw, 1rem);
+    gap: var(--s-2);
+    padding: var(--s-3);
+    border-radius: var(--r-2);
     border: 1px solid rgba(148, 163, 184, 0.35);
     background: rgba(255, 255, 255, 0.85);
     box-shadow: 0 8px 20px rgba(15, 23, 42, 0.05);
@@ -637,7 +645,7 @@
 .tvDetailsIcon {
     width: clamp(2.2rem, 3vw, 2.6rem);
     height: clamp(2.2rem, 3vw, 2.6rem);
-    border-radius: clamp(0.7rem, 1.1vw, 0.9rem);
+    border-radius: var(--r-1);
     background: linear-gradient(135deg, rgba(255, 122, 24, 0.12), rgba(34, 211, 238, 0.12));
     border: 1px solid rgba(255, 122, 24, 0.25);
     color: var(--accent-orange);
@@ -651,13 +659,13 @@
 .tvDetailsContent {
     display: flex;
     flex-direction: column;
-    gap: clamp(0.2rem, 0.4vw, 0.35rem);
+    gap: var(--s-1);
     min-width: 0;
     flex: 1;
 }
 
 .tvDetailsLabel {
-    font-size: clamp(0.78rem, 0.25vw + 0.75rem, 0.9rem);
+    font-size: var(--fs-small);
     font-weight: 700;
     color: #475569;
     letter-spacing: 0.03em;
@@ -665,7 +673,7 @@
 }
 
 .tvDetailsValue {
-    font-size: clamp(0.95rem, 0.35vw + 0.9rem, 1.05rem);
+    font-size: var(--fs-body);
     font-weight: 700;
     color: #0f172a;
     line-height: 1.5;
@@ -677,10 +685,10 @@
 }
 
 .tvDetailsEmpty {
-    padding: clamp(1rem, 2.5vw, 1.5rem);
+    padding: var(--s-4);
     background: rgba(15, 23, 42, 0.03);
     border: 1px dashed rgba(148, 163, 184, 0.5);
-    border-radius: clamp(0.75rem, 1.2vw, 0.95rem);
+    border-radius: var(--r-2);
     text-align: center;
     color: #475569;
     font-weight: 600;
@@ -752,14 +760,14 @@ body.modal-open {
 }
 
 .modern-modal-title {
-    font-size: clamp(1.25rem, 4vw, 1.5rem);
+    font-size: var(--fs-h2);
     font-weight: 700;
     color: #1f2937;
     margin: 0 0 0.75rem 0;
 }
 
 .modern-modal-message {
-    font-size: clamp(0.9375rem, 3vw, 1rem);
+    font-size: var(--fs-body);
     color: #6b7280;
     line-height: 1.6;
     margin: 0;
@@ -785,7 +793,7 @@ body.modal-open {
     border: none;
     border-radius: 0.75rem;
     font-weight: 600;
-    font-size: clamp(0.9375rem, 3vw, 1rem);
+    font-size: var(--fs-body);
     cursor: pointer;
     transition: all 0.2s ease;
     display: flex;
@@ -863,11 +871,11 @@ body.modal-open {
 }
 
 .modern-modal-size-small {
-    max-width: 420px;
+    max-width: 26.25rem;
 }
 
 .modern-modal-size-large {
-    max-width: 720px;
+    max-width: 45rem;
 }
 
 .modern-modal-header {
@@ -881,7 +889,7 @@ body.modal-open {
 }
 
 .modern-modal-header .modern-modal-title {
-    font-size: clamp(1.125rem, 4vw, 1.375rem);
+    font-size: var(--fs-h3);
     font-weight: 700;
     margin: 0;
     color: white;
@@ -975,7 +983,7 @@ body.modal-open {
     
     /* Padding and sizing */
     padding: 0.75rem 1rem;
-    font-size: clamp(0.9375rem, 3vw, 1rem);
+    font-size: var(--fs-body);
     line-height: 1.5;
     
     /* White caret/cursor */
@@ -1039,7 +1047,7 @@ body.modal-open {
 .modern-modal-body label {
     color: rgba(255, 255, 255, 0.9);
     font-weight: 600;
-    font-size: clamp(0.875rem, 2.8vw, 0.9375rem);
+    font-size: var(--fs-small);
     margin-bottom: 0.5rem;
     display: block;
 }
@@ -1155,7 +1163,7 @@ body.modal-open {
 }
 
 .tvEditModalTitle {
-    font-size: clamp(1.125rem, 3vw, 1.5rem);
+    font-size: var(--fs-h2);
     font-weight: 700;
     color: #111;
     margin: 0;
@@ -1200,8 +1208,8 @@ body.modal-open {
     position: sticky;
     bottom: 0;
     z-index: 10;
-    padding: clamp(1rem, 3vw, 1.5rem);
-    padding-bottom: calc(clamp(1rem, 3vw, 1.5rem) + env(safe-area-inset-bottom));
+    padding: var(--s-3);
+    padding-bottom: calc(var(--s-3) + env(safe-area-inset-bottom));
     border-top: 2px solid #e5e7eb;
     background: #ffffff;
     display: flex;
@@ -1212,9 +1220,9 @@ body.modal-open {
 
 .tvEditModalFooter button {
     flex: 1;
-    padding: clamp(0.75rem, 2vw, 0.95rem);
-    font-size: clamp(0.9rem, 0.5vw + 0.85rem, 1rem);
-    border-radius: clamp(0.5rem, 0.8vw, 0.75rem);
+    padding: var(--s-3);
+    font-size: var(--fs-body);
+    border-radius: var(--r-1);
     border: none;
     font-weight: 600;
     cursor: pointer;
@@ -1251,20 +1259,20 @@ body.modal-open {
 
 /* Form Fields */
 .tvEditField {
-    margin-bottom: clamp(1rem, 2.5vw, 1.5rem);
+    margin-bottom: var(--s-4);
 }
 
 .tvEditField label {
     display: block;
     font-weight: 600;
-    font-size: clamp(0.92rem, 0.35vw + 0.85rem, 1rem);
+    font-size: var(--fs-body);
     color: #111827;
-    margin-bottom: clamp(0.4rem, 0.8vw, 0.6rem);
+    margin-bottom: var(--s-2);
 }
 
 .tvEditField label i {
     color: #FF9A3D;
-    margin-right: clamp(0.4rem, 0.8vw, 0.6rem);
+    margin-right: var(--s-2);
 }
 
 .tvEditField .required {
@@ -1277,10 +1285,10 @@ body.modal-open {
 .tvEditTextarea,
 .tvEditSelect {
     width: 100%;
-    padding: clamp(0.65rem, 1.5vw, 0.85rem);
-    font-size: clamp(0.92rem, 0.35vw + 0.85rem, 1rem);
+    padding: var(--s-2);
+    font-size: var(--fs-body);
     border: 1px solid #d1d5db;
-    border-radius: clamp(0.5rem, 0.8vw, 0.7rem);
+    border-radius: var(--r-1);
     background: #ffffff;
     color: #111827;
     -webkit-text-fill-color: #111827;
@@ -1320,9 +1328,9 @@ body.modal-open {
 /* Error message */
 .tvEditErrorMsg {
     display: none;
-    font-size: clamp(0.8rem, 0.3vw + 0.75rem, 0.9rem);
+    font-size: var(--fs-small);
     color: #ef4444;
-    margin-top: clamp(0.3rem, 0.5vw, 0.4rem);
+    margin-top: var(--s-1);
     font-weight: 500;
 }
 
@@ -1334,19 +1342,19 @@ body.modal-open {
 
 /* Field Groups - Section Headers */
 .tvEditFieldGroup {
-    margin-bottom: clamp(1.25rem, 3vw, 2rem);
+    margin-bottom: var(--s-4);
 }
 
 .tvEditFieldGroupHeader {
-    font-size: clamp(0.95rem, 0.5vw + 0.9rem, 1.1rem);
+    font-size: var(--fs-h3);
     font-weight: 700;
     color: #1f2937;
-    margin-bottom: clamp(0.75rem, 1.5vw, 1rem);
-    padding-bottom: clamp(0.5rem, 1vw, 0.75rem);
+    margin-bottom: var(--s-3);
+    padding-bottom: var(--s-2);
     border-bottom: 2px solid #e5e7eb;
     display: flex;
     align-items: center;
-    gap: clamp(0.5rem, 1vw, 0.75rem);
+    gap: var(--s-2);
 }
 
 .tvEditFieldGroupHeader i {
@@ -1358,7 +1366,7 @@ body.modal-open {
 .tvEditFieldsGrid {
     display: grid;
     grid-template-columns: 1fr;
-    gap: clamp(0.9rem, 2vw, 1.3rem);
+    gap: var(--s-3);
 }
 
 @media (min-width: 768px) {
@@ -1373,9 +1381,9 @@ body.modal-open {
 
 /* Helper text */
 .tvEditHelper {
-    font-size: clamp(0.8rem, 0.3vw + 0.75rem, 0.85rem);
+    font-size: var(--fs-small);
     color: #6b7280;
-    margin-top: clamp(0.3rem, 0.5vw, 0.4rem);
+    margin-top: var(--s-1);
     display: block;
 }
 
@@ -1469,7 +1477,7 @@ body.modal-open {
     background: white;
     border-radius: clamp(0.75rem, 1.5vw, 1rem);
     padding: clamp(1.5rem, 3vw, 2rem);
-    max-width: 420px;
+    max-width: 26.25rem;
     width: 100%;
     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
     text-align: center;
@@ -1518,7 +1526,7 @@ body.modal-open {
     cursor: pointer;
     transition: all 0.2s ease;
     flex: 1;
-    max-width: 180px;
+    max-width: 11.25rem;
 }
 
 .tvDraftPromptIgnore {

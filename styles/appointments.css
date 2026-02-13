@@ -4,6 +4,16 @@
    Mobile: compact, full width
    ========================================== */
 
+/* Import density tokens */
+:root {
+    --s-1: 0.5rem;    /* 8px - compact spacing */
+    --s-2: 0.75rem;   /* 12px - standard spacing */
+    --s-3: 1rem;      /* 16px - large spacing */
+    --s-4: 1.5rem;    /* 24px - extra large spacing */
+    --fs-body: 0.875rem;   /* 14px - body text */
+    --fs-small: 0.75rem;   /* 12px - small text */
+}
+
 #appointmentsList {
     display: block;
     width: 100%;
@@ -24,8 +34,8 @@
     #appointmentsList {
         overflow-x: clip;
         margin: 0 auto;
-        padding: 0 clamp(1rem, 3vw, 2rem);
-        max-width: 1400px;
+        padding: 0 var(--s-4);
+        max-width: 87.5rem;
     }
 }
 
@@ -42,16 +52,16 @@
         overflow-y: visible;
         -webkit-overflow-scrolling: touch;
         scroll-snap-type: x mandatory;
-        scroll-padding-inline: clamp(0.75rem, 3vw, 1.25rem);
+        scroll-padding-inline: var(--s-3);
     }
 
     .tvTrack {
         display: grid;
         grid-auto-flow: column;
-        grid-auto-columns: calc(100% - (2 * clamp(0.75rem, 3vw, 1.25rem)));
-        gap: clamp(0.65rem, 2vw, 1.1rem);
-        padding-inline: clamp(0.75rem, 3vw, 1.25rem);
-        padding-bottom: clamp(0.5rem, 2vw, 0.9rem);
+        grid-auto-columns: calc(100% - (2 * var(--s-3)));
+        gap: var(--s-2);
+        padding-inline: var(--s-3);
+        padding-bottom: var(--s-2);
     }
 
     .tvCard {
@@ -75,7 +85,7 @@
         grid-auto-flow: row;
         grid-auto-columns: unset;
         grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
-        gap: clamp(0.8rem, 2vw, 1.1rem);
+        gap: var(--s-3);
         padding: 0;
     }
 
@@ -115,15 +125,15 @@
 /* Day group styling */
 .tvDayGroup {
     width: 100%;
-    margin-bottom: clamp(1.2rem, 3vw, 1.8rem);
+    margin-bottom: 1.5rem;
 }
 
 .tvDayHeader {
     font-size: var(--text-lg);
     font-weight: 600;
     color: var(--text-primary);
-    margin-bottom: clamp(0.8rem, 2vw, 1.2rem);
-    padding-bottom: clamp(0.4rem, 1.5vw, 0.6rem);
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
     border-bottom: 2px solid var(--border-subtle);
 }
 
@@ -148,7 +158,7 @@
 
     /* Custom scrollbar — WebKit browsers (Chrome, Edge, Safari) */
     .tvCarousel::-webkit-scrollbar {
-        height: 12px;
+        height: 0.75rem;
     }
 
     .tvCarousel::-webkit-scrollbar-track {
@@ -191,12 +201,12 @@
         rgba(255, 255, 255, 0.98) 0%, 
         rgba(249, 250, 251, 0.95) 100%);
     border: 2px solid rgba(226, 232, 240, 0.8);
-    border-radius: clamp(0.9rem, 1.8vw, 1.25rem);
-    padding: clamp(0.9rem, 1.8vw, 1.3rem);
+    border-radius: 0.75rem;
+    padding: 1rem;
     margin-bottom: 0;
     display: flex;
     flex-direction: column;
-    gap: clamp(0.7rem, 1.4vw, 1rem);
+    gap: 0.75rem;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     width: 100%;
     max-width: 100%;
@@ -214,7 +224,7 @@
     top: 0;
     left: 0;
     right: 0;
-    height: 3px;
+    height: 0.1875rem;
     background: linear-gradient(90deg, 
         rgba(59, 130, 246, 0.4),
         rgba(139, 92, 246, 0.3));
@@ -225,9 +235,9 @@
 .aptRow:hover {
     border-color: rgba(59, 130, 246, 0.4);
     box-shadow: 
-        0 8px 24px rgba(59, 130, 246, 0.08),
-        0 4px 12px rgba(59, 130, 246, 0.04);
-    transform: translateY(-2px);
+        0 0.5rem 1.5rem rgba(59, 130, 246, 0.08),
+        0 0.25rem 0.75rem rgba(59, 130, 246, 0.04);
+    transform: translateY(-0.125rem);
 }
 
 .aptRow:hover::before {
@@ -265,12 +275,12 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: clamp(0.7rem, 1.5vw, 1rem);
+    gap: 0.75rem;
     min-width: 0;
 }
 
 .tvCardName {
-    font-size: clamp(1.05rem, 0.6vw + 0.95rem, 1.35rem);
+    font-size: 1.125rem;
     font-weight: 700;
     color: #0f172a;
     margin: 0;
@@ -284,7 +294,7 @@
 
 .tvCardBadges {
     display: flex;
-    gap: clamp(0.35rem, 0.7vw, 0.5rem);
+    gap: 0.5rem;
     flex-shrink: 0;
     align-items: center;
 }
@@ -293,10 +303,10 @@
 .tvStatusChip {
     display: inline-flex;
     align-items: center;
-    gap: clamp(0.3rem, 0.6vw, 0.45rem);
-    padding: clamp(0.35rem, 0.7vw, 0.5rem) clamp(0.6rem, 1.2vw, 0.85rem);
+    gap: 0.375rem;
+    padding: 0.375rem 0.75rem;
     border-radius: 999px;
-    font-size: clamp(0.75rem, 0.2vw + 0.72rem, 0.85rem);
+    font-size: 0.75rem;
     font-weight: 600;
     letter-spacing: 0.02em;
     transition: all 0.2s ease;
@@ -343,12 +353,12 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: clamp(1.5rem, 3vw, 1.8rem);
-    height: clamp(1.5rem, 3vw, 1.8rem);
+    width: 1.5rem;
+    height: 1.5rem;
     border-radius: 50%;
     background: linear-gradient(135deg, #fca5a5, #f87171);
     color: white;
-    font-size: clamp(0.7rem, 0.15vw + 0.68rem, 0.8rem);
+    font-size: 0.75rem;
     animation: pulse-glow 2s ease-in-out infinite;
 }
 
@@ -543,8 +553,8 @@
         rgba(255, 255, 255, 0.98) 0%, 
         rgba(249, 250, 251, 0.95) 100%);
     border: 2px solid rgba(226, 232, 240, 0.8);
-    border-radius: clamp(0.9rem, 1.8vw, 1.25rem);
-    padding: clamp(0.9rem, 1.8vw, 1.3rem);
+    border-radius: 0.75rem;
+    padding: 1rem;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     max-width: 100%;
     width: 100%;
@@ -562,7 +572,7 @@
     top: 0;
     left: 0;
     right: 0;
-    height: 3px;
+    height: 0.1875rem;
     background: linear-gradient(90deg, 
         rgba(59, 130, 246, 0.4),
         rgba(139, 92, 246, 0.3));
@@ -573,9 +583,9 @@
 .aptRow:hover {
     border-color: rgba(59, 130, 246, 0.4);
     box-shadow: 
-        0 8px 24px rgba(59, 130, 246, 0.08),
-        0 4px 12px rgba(59, 130, 246, 0.04);
-    transform: translateY(-2px);
+        0 0.5rem 1.5rem rgba(59, 130, 246, 0.08),
+        0 0.25rem 0.75rem rgba(59, 130, 246, 0.04);
+    transform: translateY(-0.125rem);
 }
 
 .aptRow:hover::before {
@@ -600,9 +610,9 @@
 .aptRow__actions {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
-    gap: clamp(0.5rem, 1vw, 0.7rem);
-    margin-top: clamp(0.8rem, 1.6vw, 1.1rem);
-    padding-top: clamp(0.8rem, 1.6vw, 1.1rem);
+    gap: 0.5rem;
+    margin-top: 0.75rem;
+    padding-top: 0.75rem;
     border-top: 1px solid rgba(226, 232, 240, 0.6);
 }
 
@@ -616,8 +626,8 @@
 .tvx-actions {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: clamp(8px, 2vw, 12px);
-    margin-top: clamp(10px, 2.5vw, 14px);
+    gap: 0.5rem;
+    margin-top: 0.75rem;
     padding-top: clamp(10px, 2.5vw, 14px);
     border-top: 1px solid rgba(226, 232, 240, 0.6);
     align-items: stretch;
@@ -627,7 +637,7 @@
 @media (min-width: 375px) and (max-width: 480px) {
     .tvx-actions {
         grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 8px;
+        gap: 0.5rem;
     }
 }
 
@@ -635,15 +645,15 @@
 @media (min-width: 481px) and (max-width: 768px) {
     .tvx-actions {
         grid-template-columns: repeat(3, minmax(0, 1fr));
-        gap: 10px;
+        gap: 0.625rem;
     }
 }
 
 /* Desktop (769px+): flexible auto-fit */
 @media (min-width: 769px) {
     .tvx-actions {
-        grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
-        gap: 12px;
+        grid-template-columns: repeat(auto-fit, minmax(8.125rem, 1fr));
+        gap: 0.75rem;
     }
 }
 
@@ -655,13 +665,13 @@
 .tvx-actions .btn,
 .tvx-actions button {
     width: 100%;
-    min-height: 44px; /* WCAG touch target */
+    min-height: 2.75rem; /* WCAG touch target */
     height: auto;
-    padding: 10px 12px;
+    padding: 0.625rem 0.75rem;
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 8px;
+    gap: 0.5rem;
     font-size: 0.8125rem;
     line-height: 1.2;
     white-space: nowrap;
@@ -674,8 +684,8 @@
 .tvx-actions button i,
 .tvx-actions .btn svg,
 .tvx-actions button svg {
-    width: 16px;
-    height: 16px;
+    width: 1rem;
+    height: 1rem;
     flex-shrink: 0;
 }
 
@@ -734,4 +744,101 @@
 .tvCard *,
 .aptRow * {
     max-width: 100%;
+}
+.firebase-auth-bar{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap: clamp(0.5rem, 1.5vw, 1rem);
+  padding: clamp(0.5rem, 1.4vw, 0.85rem);
+  background: #f4f5f7;
+  border-bottom: 1px solid rgba(0,0,0,.08);
+}
+
+.auth-left{
+  display:flex;
+  align-items:center;
+  gap: clamp(0.45rem, 1.2vw, 0.75rem);
+  min-width: 0;
+}
+
+.auth-status{
+  font-size: clamp(0.78rem, 1.6vw, 0.95rem);
+  color:#111827;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  max-width: 42vw;
+}
+
+.badge{
+  font-size: clamp(0.72rem, 1.4vw, 0.85rem);
+  padding: clamp(0.25rem, .8vw, 0.35rem) clamp(0.5rem, 1.2vw, 0.7rem);
+  border-radius: 999px;
+  background: #facc15;
+  color:#111827;
+  font-weight: 800;
+}
+
+.auth-right{
+  display:flex;
+  align-items:center;
+  gap: clamp(0.45rem, 1.2vw, 0.75rem);
+  position: relative;
+}
+
+/* Hamburger */
+.icon-btn{
+  width: clamp(2.3rem, 8vw, 2.7rem);
+  height: clamp(2.3rem, 8vw, 2.7rem);
+  border-radius: 0.8rem;
+  border: 1px solid rgba(0,0,0,.12);
+  background:#fff;
+  font-size: clamp(1.0rem, 3vw, 1.2rem);
+  cursor:pointer;
+}
+
+/* Small auth button */
+.btn-auth-small{
+  padding: clamp(0.5rem, 1.2vw, 0.7rem) clamp(0.75rem, 2vw, 1rem);
+  font-size: clamp(0.82rem, 1.8vw, 0.95rem);
+  border-radius: 0.9rem;
+  border: none;
+  background: #ff7a18;
+  color: #fff;
+  font-weight: 800;
+  cursor:pointer;
+  box-shadow: 0 8px 18px rgba(255,122,24,.25);
+}
+
+.btn-auth-small:active{ transform: translateY(1px); }
+
+/* Dropdown */
+.menu-dropdown{
+  position:absolute;
+  top: calc(100% + clamp(0.35rem, 1vw, 0.55rem));
+  right: 0;
+  width: clamp(7rem, 35vw, 10rem);
+  background:#fff;
+  border: 1px solid rgba(0,0,0,.10);
+  border-radius: 1rem;
+  box-shadow: 0 14px 30px rgba(0,0,0,.12);
+  padding: clamp(0.35rem, 1vw, 0.55rem);
+  display:flex;
+  gap: clamp(0.35rem, 1vw, 0.55rem);
+  justify-content: space-around;
+  z-index: 999;
+}
+
+.menu-item{
+  flex:1;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size: clamp(1.25rem, 4vw, 1.6rem);
+  padding: clamp(0.45rem, 1.2vw, 0.6rem);
+  border-radius: 0.9rem;
+  border: 1px solid rgba(0,0,0,.08);
+  background:#f9fafb;
+  cursor:pointer;
 }

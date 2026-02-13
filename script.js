@@ -3,6 +3,8 @@ import { initAuthListener, onAuthStateChange } from './src/core/auth-state.js';
 import { bindActionDelegation } from './src/core/events.js';
 import { t, getLanguage, setLanguage } from './language.js';
 import { applyTranslations } from './init-language.js';
+import { dedupeInvoicesForAppointment, getOrCreateInvoiceForAppointment, openInvoice } from './src/invoices/invoice-manager.js';
+import { refreshVehicleFormatting } from './src/utils/input-formatters.js';
 
 // ==========================================
 // FIREBASE CONFIGURATION - SINGLE SOURCE
@@ -24,6 +26,14 @@ let pages = [];
 let appointments = [];
 let filteredAppointments = [];
 let appointmentsUnsubscribe = null;
+
+// Invoices Storage global variables
+let allInvoices = [];
+let filteredInvoices = [];
+let invoicesUnsubscribe = null;
+
+// Edit mode state
+let editingAppointmentId = null;
 
 // ========== DIAGNOSTICS ==========
 let renderAppointmentsCallCount = 0;
@@ -166,6 +176,500 @@ function computeBalance(total, amountPaid) {
 }
 
 // ==========================================
+// JOBS & PARTS BUILDER (Appointments)
+// ==========================================
+// Built-in default presets (no prices - prices vary per car)
+const BUILTIN_JOB_PRESETS = [
+    'Diagnostics',
+    'Oil Change',
+    'Brake Pads Replacement',
+    'Brake Discs Replacement',
+    'Battery Replacement',
+    'Starter Motor Replacement',
+    'Alternator Replacement',
+    'Timing Belt Service',
+    'Wheel Alignment',
+    'Suspension Check',
+    'MOT Prep',
+    'Air Conditioning Service'
+];
+
+const BUILTIN_PART_PRESETS = [
+    'Oil Filter',
+    'Air Filter',
+    'Cabin Filter',
+    'Fuel Filter',
+    'Brake Pads Set',
+    'Brake Discs Pair',
+    'Battery',
+    'Spark Plugs Set',
+    'Engine Oil (5L)',
+    'Coolant (5L)',
+    'Wiper Blades'
+];
+
+// Runtime preset arrays (merged built-in + Firestore custom)
+let jobPresets = [...BUILTIN_JOB_PRESETS];
+let partPresets = [...BUILTIN_PART_PRESETS];
+
+function buildLineItemRow(type, data = {}) {
+    const rowKind = type === 'labour' ? 'job' : 'part';
+    const row = document.createElement('div');
+    row.classList.add('itemRow');
+    row.dataset.kind = rowKind;
+
+    const qty = data.qty || 1;
+    const unitPrice = toNumber(data.unitPrice || data.price || 0);
+    const lineTotal = qty * unitPrice;
+
+    row.innerHTML = `
+        <div class="itemMain">
+            <input 
+                class="itemName" 
+                type="text"
+                placeholder="Search or type new..."
+                value="${data.description || ''}" 
+                autocomplete="off" 
+                data-preset-type="${type}" />
+            <button type="button" class="ghostBtn savePresetBtn" title="Save as new ${rowKind}">
+                Save
+            </button>
+        </div>
+
+        <div class="itemNums">
+            <input 
+                class="itemQty" 
+                type="number" 
+                min="1" 
+                step="1" 
+                value="${qty}" 
+                title="Quantity" />
+            <input 
+                class="itemPrice" 
+                type="number" 
+                min="0" 
+                step="0.01" 
+                placeholder="£" 
+                value="${unitPrice > 0 ? unitPrice : ''}" 
+                title="Unit price" />
+            <div class="itemRowTotal">${formatCurrencyGBP(lineTotal)}</div>
+            <button type="button" class="dangerIcon removeItemBtn" title="Remove item">
+                🗑
+            </button>
+        </div>
+
+        <input class="itemNameHidden" type="hidden" value="${data.description || ''}" />
+    `;
+
+    return row;
+}
+
+function renderLineItemsInContainer(containerId, type, items = [], ensureOne = false) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    container.innerHTML = '';
+
+    if (Array.isArray(items) && items.length > 0) {
+        items.forEach(item => {
+            const row = buildLineItemRow(type, item);
+            container.appendChild(row);
+        });
+    } else if (ensureOne) {
+        const row = buildLineItemRow(type);
+        container.appendChild(row);
+    }
+}
+
+function updateLineItemTotal(row) {
+    if (!row) return;
+    // Updated for new compact item row structure
+    const qty = Math.max(1, toNumber(row.querySelector('.itemQty')?.value || 1));
+    const unitPrice = toNumber(row.querySelector('.itemPrice')?.value || 0);
+    const lineTotal = qty * unitPrice;
+    const totalEl = row.querySelector('.itemRowTotal');
+    if (totalEl) totalEl.textContent = formatCurrencyGBP(lineTotal);
+    row.dataset.lineTotal = lineTotal.toString();
+    row.dataset.qty = qty.toString();
+    row.dataset.unitPrice = unitPrice.toString();
+}
+
+// Smart Select: Filter and render suggestions
+function renderSmartSelectList(smartSelect, query) {
+    const type = smartSelect.dataset.presetType;
+    const presets = type === 'labour' ? jobPresets : partPresets;
+    const list = smartSelect.querySelector('.smart-select__list');
+    if (!list) return;
+
+    const lowerQuery = query.toLowerCase().trim();
+    
+    // Filter: prefix match first, then substring match
+    let filtered = [];
+    if (lowerQuery) {
+        const prefixMatches = presets.filter(p => p.toLowerCase().startsWith(lowerQuery));
+        const substringMatches = presets.filter(p => 
+            !p.toLowerCase().startsWith(lowerQuery) && p.toLowerCase().includes(lowerQuery)
+        );
+        filtered = [...prefixMatches, ...substringMatches];
+    } else {
+        filtered = [...presets];
+    }
+
+    // Build list HTML
+    let html = '';
+    
+    if (filtered.length > 0) {
+        html = filtered.slice(0, 10).map(preset => 
+            `<div class="smart-select__item" data-value="${escapeHtml(preset)}">${escapeHtml(preset)}</div>`
+        ).join('');
+    }
+    
+    // Add "Add new" option if query doesn't exactly match any preset
+    if (lowerQuery.length >= 2) {
+        const exactMatch = presets.some(p => p.toLowerCase() === lowerQuery);
+        if (!exactMatch) {
+            html += `<div class="smart-select__add" data-new-value="${escapeHtml(query.trim())}">
+                        <i class="fas fa-plus-circle"></i> Add "${escapeHtml(query.trim())}"
+                     </div>`;
+        }
+    }
+
+    if (!html) {
+        html = '<div class="smart-select__empty">No matches found</div>';
+    }
+
+    list.innerHTML = html;
+    list.style.display = 'block';
+}
+
+// Smart Select: Select a preset
+function selectSmartSelectItem(smartSelect, value) {
+    const input = smartSelect.querySelector('.smart-select__input');
+    const row = smartSelect.closest('.tvLineItemRow');
+    const descInput = row?.querySelector('.tvLineItemDesc');
+    const list = smartSelect.querySelector('.smart-select__list');
+
+    if (input) input.value = value;
+    if (descInput) descInput.value = value;
+    if (list) list.style.display = 'none';
+    
+    updateLineItemTotal(row);
+    updateAppointmentTotals();
+}
+
+// Smart Select: Add new preset to Firestore
+async function addNewPreset(type, name) {
+    const trimmedName = name.trim();
+    
+    // Validate
+    if (trimmedName.length < 2) {
+        console.warn('Preset name too short:', trimmedName);
+        return false;
+    }
+    
+    // Check for duplicates (case-insensitive)
+    const presets = type === 'labour' ? jobPresets : partPresets;
+    const exists = presets.some(p => p.toLowerCase() === trimmedName.toLowerCase());
+    if (exists) {
+        console.log('Preset already exists:', trimmedName);
+        return true; // Already exists, not an error
+    }
+    
+    if (!db || !currentUser) {
+        console.warn('Cannot save preset: Firebase not initialized or user not logged in');
+        return false;
+    }
+    
+    try {
+        const { collection, addDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+        const collectionName = type === 'labour' ? 'presets_jobs' : 'presets_parts';
+        
+        await addDoc(collection(db, collectionName), {
+            name: trimmedName,
+            createdAt: serverTimestamp(),
+            createdByUid: currentUser.uid
+        });
+        
+        // Add to in-memory array
+        if (type === 'labour') {
+            jobPresets.push(trimmedName);
+            jobPresets.sort();
+        } else {
+            partPresets.push(trimmedName);
+            partPresets.sort();
+        }
+        
+        console.log(`✅ New ${type} preset added:`, trimmedName);
+        return true;
+    } catch (error) {
+        console.error('Error adding preset:', error);
+        return false;
+    }
+}
+
+// Escape HTML for safe rendering
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function addJobRow(data = {}) {
+    const container = document.getElementById('jobsContainer');
+    if (!container) return;
+    const row = buildLineItemRow('labour', data);
+    container.appendChild(row);
+    updateAppointmentTotals();
+}
+
+function addPartRow(data = {}) {
+    const container = document.getElementById('partsContainer');
+    if (!container) return;
+    const row = buildLineItemRow('part', data);
+    container.appendChild(row);
+    updateAppointmentTotals();
+}
+
+function renderJobRows(services = []) {
+    const container = document.getElementById('jobsContainer');
+    if (!container) return;
+    container.innerHTML = '';
+    if (Array.isArray(services) && services.length > 0) {
+        services.forEach(item => addJobRow(item));
+    } else {
+        addJobRow();
+    }
+}
+
+function renderPartRows(parts = []) {
+    const container = document.getElementById('partsContainer');
+    if (!container) return;
+    container.innerHTML = '';
+    if (Array.isArray(parts) && parts.length > 0) {
+        parts.forEach(item => addPartRow(item));
+    }
+}
+
+function collectJobsPartsFromContainers(jobsContainerId, partsContainerId) {
+    const jobsContainer = document.getElementById(jobsContainerId);
+    const partsContainer = document.getElementById(partsContainerId);
+
+    const collectRows = (container) => {
+        if (!container) return [];
+        const rows = Array.from(container.querySelectorAll('.itemRow'));
+        return rows.map(row => {
+            const description = row.querySelector('.itemName')?.value?.trim() || '';
+            const qty = Math.max(1, toNumber(row.querySelector('.itemQty')?.value || 1));
+            const unitPrice = toNumber(row.querySelector('.itemPrice')?.value || 0);
+            const lineTotal = qty * unitPrice;
+            if (!description && unitPrice === 0) return null;
+            return {
+                type: row.dataset.kind === 'job' ? 'labour' : 'part',
+                description,
+                qty,
+                unitPrice,
+                lineTotal
+            };
+        }).filter(Boolean);
+    };
+
+    const services = collectRows(jobsContainer);
+    const parts = collectRows(partsContainer);
+
+    return { services, parts };
+}
+
+function collectJobsPartsFromForm() {
+    return collectJobsPartsFromContainers('jobsContainer', 'partsContainer');
+}
+
+function parseCurrencyToNumber(value) {
+    if (value === null || value === undefined) return 0;
+    const cleaned = String(value).replace(/[^0-9.-]+/g, '');
+    const parsed = parseFloat(cleaned);
+    return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function collectChipsFromList(listId, kind) {
+    const list = document.getElementById(listId);
+    if (!list) return [];
+
+    const chips = Array.from(list.querySelectorAll('.chipItem'));
+    return chips.map(chip => {
+        const name = chip.querySelector('.chipName')?.textContent?.trim() || '';
+        const qtyValue = chip.querySelector('.chipQty')?.value ?? '0';
+        const priceValue = chip.querySelector('.chipPrice')?.value ?? '0';
+
+        let qty = parseInt(qtyValue, 10);
+        if (!Number.isFinite(qty) || qty < 1) qty = 1;
+
+        let unitPrice = parseCurrencyToNumber(priceValue);
+        if (unitPrice < 0) unitPrice = 0;
+
+        const lineTotal = qty * unitPrice;
+
+        if (!name) return null;
+
+        return {
+            type: kind,
+            description: name,
+            name,
+            qty,
+            unitPrice,
+            price: unitPrice,
+            lineTotal
+        };
+    }).filter(Boolean);
+}
+
+function collectJobsFromUI() {
+    return collectChipsFromList('jobsChips', 'labour');
+}
+
+function collectPartsFromUI() {
+    return collectChipsFromList('partsChips', 'part');
+}
+
+function collectNotesFromUI() {
+    const notesInput = document.getElementById('notes');
+    return notesInput ? notesInput.value.trim() : '';
+}
+
+function collectTotalsFromUI(jobs = [], parts = []) {
+    const labour = jobs.reduce((sum, item) => sum + toNumber(item.total ?? item.lineTotal ?? (item.qty * item.unitPrice)), 0);
+    const partsTotal = parts.reduce((sum, item) => sum + toNumber(item.total ?? item.lineTotal ?? (item.qty * item.unitPrice)), 0);
+    const subtotal = labour + partsTotal;
+    const total = subtotal;
+
+    return {
+        labour,
+        parts: partsTotal,
+        subtotal,
+        total
+    };
+}
+
+function updateAppointmentTotals() {
+    const jobs = collectJobsFromUI();
+    const parts = collectPartsFromUI();
+    const labourSubtotal = jobs.reduce((sum, item) => sum + toNumber(item.lineTotal), 0);
+    const partsSubtotal = parts.reduce((sum, item) => sum + toNumber(item.lineTotal), 0);
+    const combined = labourSubtotal + partsSubtotal;
+
+    const labourEl = document.getElementById('labourSubtotal');
+    const partsEl = document.getElementById('partsSubtotal');
+    const combinedEl = document.getElementById('combinedSubtotal');
+    if (labourEl) labourEl.textContent = formatCurrencyGBP(labourSubtotal);
+    if (partsEl) partsEl.textContent = formatCurrencyGBP(partsSubtotal);
+    if (combinedEl) combinedEl.textContent = formatCurrencyGBP(combined);
+}
+
+function bindLineItemEvents(container, onTotalsUpdated) {
+    if (!container || container.dataset.bound) return;
+
+    // New compact items panel - input events
+    container.addEventListener('input', (e) => {
+        // Handle qty/price changes in compact items panel
+        if (e.target.classList.contains('itemQty') || e.target.classList.contains('itemPrice')) {
+            const row = e.target.closest('.itemRow');
+            if (row) {
+                const qty = Math.max(1, toNumber(row.querySelector('.itemQty')?.value || 1));
+                const unitPrice = toNumber(row.querySelector('.itemPrice')?.value || 0);
+                const lineTotal = qty * unitPrice;
+                const totalEl = row.querySelector('.itemRowTotal');
+                if (totalEl) totalEl.textContent = formatCurrencyGBP(lineTotal);
+                if (typeof onTotalsUpdated === 'function') onTotalsUpdated();
+            }
+            return;
+        }
+    });
+
+    // Item row actions - click events
+    container.addEventListener('click', (e) => {
+        // Remove item button
+        if (e.target.closest('.removeItemBtn')) {
+            const row = e.target.closest('.itemRow');
+            if (row) {
+                row.remove();
+                if (typeof onTotalsUpdated === 'function') onTotalsUpdated();
+            }
+            return;
+        }
+
+        // Save preset button
+        if (e.target.closest('.savePresetBtn')) {
+            const row = e.target.closest('.itemRow');
+            if (row) {
+                const input = row.querySelector('.itemName');
+                const presetType = input?.dataset.presetType;
+                const presetName = input?.value?.trim();
+                
+                if (presetType && presetName && presetName.length >= 2) {
+                    addNewPreset(presetType, presetName).then(success => {
+                        if (success) {
+                            showNotification(`✅ Saved "${presetName}" as new ${presetType === 'labour' ? 'job' : 'part'}`, 'success');
+                        }
+                    });
+                }
+            }
+            return;
+        }
+    });
+
+    container.dataset.bound = 'true';
+}
+
+// Close smart-select lists when clicking outside
+document.addEventListener('click', (e) => {
+    if (!e.target.closest('.smart-select')) {
+        document.querySelectorAll('.smart-select__list').forEach(list => {
+            list.style.display = 'none';
+        });
+    }
+});
+
+function buildJobsSummary(services = [], parts = []) {
+    const jobNames = services.map(item => item.description).filter(Boolean);
+    const partNames = parts.map(item => item.description).filter(Boolean);
+
+    const jobText = jobNames.length > 0 ? `Jobs: ${jobNames.join(', ')}` : '';
+    const partText = partNames.length > 0 ? `Parts: ${partNames.join(', ')}` : '';
+
+    if (jobText && partText) return `${jobText} | ${partText}`;
+    return jobText || partText || '';
+}
+
+// ==========================================
+// FIRESTORE PRESET LOADING
+// ==========================================
+async function loadPresetsFromFirestore() {
+    if (!db) {
+        console.warn('Cannot load presets: Firestore not initialized');
+        return;
+    }
+
+    try {
+        const { collection, getDocs } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+        
+        // Load job presets
+        const jobsSnapshot = await getDocs(collection(db, 'presets_jobs'));
+        const customJobs = jobsSnapshot.docs.map(doc => doc.data().name).filter(Boolean);
+        
+        // Load part presets
+        const partsSnapshot = await getDocs(collection(db, 'presets_parts'));
+        const customParts = partsSnapshot.docs.map(doc => doc.data().name).filter(Boolean);
+        
+        // Merge with built-in defaults (avoid duplicates)
+        jobPresets = [...new Set([...BUILTIN_JOB_PRESETS, ...customJobs])].sort();
+        partPresets = [...new Set([...BUILTIN_PART_PRESETS, ...customParts])].sort();
+        
+        console.log(`✅ Loaded ${customJobs.length} custom job presets, ${customParts.length} custom part presets`);
+    } catch (error) {
+        console.error('Error loading presets from Firestore:', error);
+        // Keep built-in presets on error
+    }
+}
+
+// ==========================================
 // FIREBASE INITIALIZATION (Single Source)
 // ==========================================
 // Firebase is initialized ONCE in src/config/firebase.js
@@ -195,6 +699,9 @@ async function initializeFirebase() {
                 if (isAdmin) {
                     console.log("👑 Admin access granted");
                 }
+
+                // Load custom presets from Firestore
+                await loadPresetsFromFirestore();
 
                 const { default: HistoryService } = await import('./src/services/historyService.js').catch(() => {
                     console.warn('⚠️  History service not available');
@@ -1009,6 +1516,18 @@ document.addEventListener('DOMContentLoaded', () => {
     // Initialize language switcher
     initLanguageSwitcher();
     
+    // Scroll active tab into view on page load (mobile-friendly)
+    setTimeout(() => {
+        const activeTabBtn = document.querySelector('.tab-btn.active');
+        if (activeTabBtn) {
+            activeTabBtn.scrollIntoView({ 
+                behavior: 'smooth', 
+                inline: 'center', 
+                block: 'nearest' 
+            });
+        }
+    }, 300);
+    
     // Initialize PWA features (if pwa.js is loaded)
     if (typeof window.initPWA === 'function') {
         window.initPWA();
@@ -1266,7 +1785,19 @@ function switchTab(tabName) {
     document.querySelectorAll('.tab-btn').forEach(btn => {
         btn.classList.remove('active');
     });
-    document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
+    const activeTabBtn = document.querySelector(`[data-tab="${tabName}"]`);
+    if (activeTabBtn) {
+        activeTabBtn.classList.add('active');
+        
+        // Scroll active tab into view (mobile-friendly)
+        setTimeout(() => {
+            activeTabBtn.scrollIntoView({ 
+                behavior: 'smooth', 
+                inline: 'center', 
+                block: 'nearest' 
+            });
+        }, 50);
+    }
     
     // Update tab content
     document.querySelectorAll('.tab-content').forEach(content => {
@@ -1356,15 +1887,50 @@ async function handleAddAppointment(e) {
     const contactPref = document.getElementById('contactPref').value;
     const vehicleMakeModel = document.getElementById('makeModel').value.trim();
     const registrationPlate = document.getElementById('regNumber').value.trim();
+    const mileageValue = document.getElementById('mileage').value.trim();
     const serviceLocation = document.getElementById('serviceLocation').value;
     const dateStr = document.getElementById('appointmentDate').value;
     const time = document.getElementById('appointmentTimeValue').value;
-    const problemDescription = document.getElementById('problemDescription').value.trim();
+    const jobs = collectJobsFromUI();
+    const parts = collectPartsFromUI();
+    const notes = collectNotesFromUI();
+    const totals = collectTotalsFromUI(jobs, parts);
+    const services = jobs.map(item => ({
+        description: item.description,
+        qty: item.qty,
+        unitPrice: item.unitPrice,
+        lineTotal: item.lineTotal
+    }));
+    const legacyParts = parts.map(item => ({
+        description: item.description,
+        qty: item.qty,
+        unitPrice: item.unitPrice,
+        lineTotal: item.lineTotal
+    }));
+
+    console.log('[SAVE] jobs', jobs);
+    console.log('[SAVE] parts', parts);
+    console.log('[SAVE] notes', notes);
+    console.log('[SAVE] totals', totals);
     
-    // Validare câmpuri required (vehicle and address are now OPTIONAL)
-    if (!customerName || !customerPhone || !contactPref || !registrationPlate || !serviceLocation || !dateStr || !time || !problemDescription) {
-        showNotification('⚠️ Completează toate câmpurile obligatorii', 'error');
-        return;
+    // Soft warnings for missing important fields (NON-BLOCKING)
+    const missingFields = [];
+    if (!customerName) missingFields.push('Name');
+    if (!customerPhone) missingFields.push('Phone');
+    if (!registrationPlate) missingFields.push('Registration Plate');
+    if (!dateStr) missingFields.push('Date');
+    if (!time) missingFields.push('Time');
+    if (!serviceLocation) missingFields.push('Service Location');
+    if (!contactPref) missingFields.push('Contact Preference');
+    
+    if (missingFields.length > 0 || (jobs.length === 0 && parts.length === 0)) {
+        let warningMsg = '⚠️ Some details are missing. You can still save and edit later.';
+        if (missingFields.length > 0) {
+            warningMsg = `⚠️ Missing: ${missingFields.join(', ')}. You can still save and edit later.`;
+        } else if (jobs.length === 0 && parts.length === 0) {
+            warningMsg = '⚠️ No jobs or parts added. You can still save and edit later.';
+        }
+        showNotification(warningMsg, 'info');
     }
     
     // Validare locație și adresă (address is OPTIONAL even for client service)
@@ -1384,75 +1950,157 @@ async function handleAddAppointment(e) {
         postcode = '';
     }
     
-    // Validare format oră
-    if (!/^\d{2}:\d{2}$/.test(time)) {
+    // Validate time format only if time is provided
+    if (time && !/^\d{2}:\d{2}$/.test(time)) {
         showNotification('⚠️ Format oră invalid', 'error');
         return;
     }
     
     try {
-        const { collection, addDoc, serverTimestamp, Timestamp } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+        const { collection, addDoc, serverTimestamp, Timestamp, doc, updateDoc } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
         
-        console.log('🔐 [Firestore] User ready for addDoc:', currentUser?.uid, 'Firestore db ready:', !!db);
+        console.log('🔐 [Firestore] User ready for operation:', currentUser?.uid, 'Firestore db ready:', !!db);
         
-        // Crează obiect de dată cu oră
-        const [year, month, day] = dateStr.split('-').map(Number);
-        const [hours, minutes] = time.split(':').map(Number);
-        const startDate = new Date(year, month - 1, day, hours, minutes, 0);
+        // Crează obiect de dată cu oră (with safe defaults)
+        let scheduledTimestamp;
+        if (dateStr && time) {
+            const [year, month, day] = dateStr.split('-').map(Number);
+            const [hours, minutes] = time.split(':').map(Number);
+            const startDate = new Date(year, month - 1, day, hours, minutes, 0);
+            scheduledTimestamp = Timestamp.fromDate(startDate);
+        } else if (dateStr) {
+            // Date but no time - use midnight
+            const [year, month, day] = dateStr.split('-').map(Number);
+            const startDate = new Date(year, month - 1, day, 0, 0, 0);
+            scheduledTimestamp = Timestamp.fromDate(startDate);
+        } else {
+            // No date/time - use current timestamp
+            scheduledTimestamp = Timestamp.fromDate(new Date());
+        }
         
-        console.log('📝 Adding appointment...');
+        // Build payload with safe defaults for all fields
+        // STEP 2: Convert jobs/parts to proper schema with qty, unitPrice, total
+        const normalizedJobs = jobs.map(item => {
+            const name = (item.name || item.description || '').trim();
+            const qty = parseInt(item.qty, 10) || 1;
+            const unitPrice = parseFloat(item.unitPrice) || 0;
+            const total = qty * unitPrice;
+            return name ? { name, qty, unitPrice, total } : null;
+        }).filter(Boolean);
         
-        // Build payload with only non-empty optional fields
-        const scheduledTimestamp = Timestamp.fromDate(startDate);
-        const payload = {
-            // Client info (required)
-            customerName,
-            customerPhone,
-            contactPref,
+        const normalizedParts = parts.map(item => {
+            const name = (item.name || item.description || '').trim();
+            const qty = parseInt(item.qty, 10) || 1;
+            const unitPrice = parseFloat(item.unitPrice) || 0;
+            const total = qty * unitPrice;
+            return name ? { name, qty, unitPrice, total } : null;
+        }).filter(Boolean);
+        
+        const jobsSummary = buildJobsSummary(services, legacyParts);
+
+        const existingAppointment = editingAppointmentId
+            ? appointments.find(apt => apt.id === editingAppointmentId)
+            : null;
+        const paidAmount = toNumber(existingAppointment?.paidAmount || 0);
+        const balanceDue = Math.max(0, totals.total - paidAmount);
+        const paymentStatus = (paidAmount > 0 && paidAmount >= totals.total) ? 'PAID' : 'UNPAID';
+        const status = existingAppointment?.status || 'scheduled';
+
+        const basePayload = {
+            // Client info with safe defaults
+            customerName: customerName || '',
+            customerPhone: customerPhone || '',
+            contactPref: contactPref || '',
             
-            // Registration plate (required)
-            registrationPlate,
-            regNumber: registrationPlate, // Legacy compatibility
+            // Registration plate with safe default
+            registrationPlate: registrationPlate || '',
+            regNumber: registrationPlate || '', // Legacy compatibility
             
-            // Location (required)
-            serviceLocation,
+            // Location with safe default
+            serviceLocation: serviceLocation || '',
             
-            // Service details (required)
-            problemDescription,
+            // STEP 1: Jobs & Parts arrays with proper schema
+            jobs: normalizedJobs,
+            parts: normalizedParts,
+            notes: notes || '',
+            totals: {
+                labour: totals.labour,
+                parts: totals.parts,
+                subtotal: totals.subtotal,
+                total: totals.total
+            },
+            paidAmount,
+            balanceDue,
+            paymentStatus,
+            status,
             
-            // Status (default to 'scheduled' for new appointments)
-            status: 'scheduled',
+            // Legacy compatibility fields
+            jobsSummary,
+            problemDescription: jobsSummary,
             
-            // Timestamps (required)
-            time,
-            dateStr,
+            // Timestamps with safe defaults
+            time: time || '',
+            dateStr: dateStr || '',
             startAt: scheduledTimestamp, // legacy compatibility
             scheduledDateTime: scheduledTimestamp,
-            originalDateTime: scheduledTimestamp,
-            createdAt: serverTimestamp(),
-            updatedAt: serverTimestamp(),
-            createdBy: currentUser.uid
+            updatedAt: serverTimestamp()
         };
         
         // Add optional fields only if they have values
         if (vehicleMakeModel) {
-            payload.vehicleMakeModel = vehicleMakeModel;
-            payload.makeModel = vehicleMakeModel; // Legacy compatibility
-            payload.vehicle = vehicleMakeModel + ' • ' + registrationPlate; // Compatibility field
-            payload.car = vehicleMakeModel + ', ' + registrationPlate; // Legacy
+            basePayload.vehicleMakeModel = vehicleMakeModel;
+            basePayload.makeModel = vehicleMakeModel; // Legacy compatibility
+            basePayload.vehicle = vehicleMakeModel + ' • ' + registrationPlate; // Compatibility field
+            basePayload.car = vehicleMakeModel + ', ' + registrationPlate; // Legacy
         }
         
         if (address) {
-            payload.address = address;
+            basePayload.address = address;
         }
         
         if (postcode) {
-            payload.postcode = postcode;
+            basePayload.postcode = postcode;
         }
-        
-        const docRef = await addDoc(collection(db, 'appointments'), payload);
-        
-        console.log(`✅ [Firestore] Appointment added with ID: ${docRef.id}`);
+
+        // Add mileage if provided (safe default: null)
+        // Use raw numeric value from dataset, not the formatted display value
+        const rawMileage = Number(document.querySelector('#mileage')?.dataset.rawMileage || 0);
+        basePayload.mileage = rawMileage > 0 ? rawMileage : null;
+
+        // Determine if we're in create or edit mode
+        console.log('[SAVE] payload:', basePayload);
+
+        if (!editingAppointmentId) {
+            // CREATE MODE - add new appointment
+            console.log('📝 Creating new appointment...');
+            
+            basePayload.status = 'scheduled';
+            basePayload.originalDateTime = scheduledTimestamp;
+            basePayload.createdAt = serverTimestamp();
+            basePayload.createdBy = currentUser.uid;
+            
+            const docRef = await addDoc(collection(db, 'appointments'), basePayload);
+            
+            console.log(`✅ [Firestore] Appointment created with ID: ${docRef.id}`);
+
+            await syncInvoiceFromAppointmentPayload(docRef.id, basePayload);
+            
+            showNotification('✅ Programare adăugată cu succes!', 'success');
+            showToast('Programare adăugată cu succes!', 'success');
+        } else {
+            // EDIT MODE - update existing appointment
+            console.log(`📝 Updating appointment ${editingAppointmentId}...`);
+            
+            // Do NOT include createdAt or createdBy in updates
+            await updateDoc(doc(db, 'appointments', editingAppointmentId), basePayload);
+            
+            console.log(`✅ [Firestore] Appointment ${editingAppointmentId} updated`);
+            
+            await syncInvoiceFromAppointmentPayload(editingAppointmentId, basePayload);
+            
+            showNotification('✅ Programare actualizată cu succes!', 'success');
+            showToast('Programare actualizată cu succes!', 'success');
+        }
         
         // Reset form
         e.target.reset();
@@ -1460,44 +2108,324 @@ async function handleAddAppointment(e) {
         document.getElementById('appointmentDate').value = today;
         document.getElementById('appointmentTime').value = '';
         document.getElementById('appointmentTimeValue').value = '';
+        document.getElementById('mileage').value = '';
+
+        renderJobRows([]);
+        renderPartRows([]);
+        updateAppointmentTotals();
         
         // Reset location sections
         document.getElementById('serviceLocation').value = '';
-        document.getElementById('garageAddressSection').style.display = 'none';
-        document.getElementById('clientAddressSection').style.display = 'none';
+        const garageSection = document.getElementById('garageAddressSection');
+        const clientSection = document.getElementById('clientAddressSection');
+        if (garageSection) garageSection.style.display = 'none';
+        if (clientSection) clientSection.removeAttribute('open');
+
+        const jobsContainer = document.getElementById('jobsContainer');
+        const partsContainer = document.getElementById('partsContainer');
+        if (jobsContainer) jobsContainer.innerHTML = '';
+        if (partsContainer) partsContainer.innerHTML = '';
+        addJobRow();
+        updateAppointmentTotals();
         
-        showNotification('✅ Programare adăugată cu succes!', 'success');
-        showToast('Programare adăugată cu succes!', 'success');
+        // Reset edit mode
+        if (editingAppointmentId) {
+            exitEditMode();
+        }
         
-        // Highlight and scroll to new appointment
+        // Highlight and scroll to new/edited appointment
         setTimeout(() => {
-            highlightAndScrollToAppointment(docRef.id);
+            const targetId = editingAppointmentId || (e.target.lastInsertRowid);
+            if (targetId && targetId !== '') {
+                highlightAndScrollToAppointment(targetId);
+            }
         }, 300);
         
     } catch (error) {
-        console.error('❌ Error adding appointment:', error);
-        showNotification('❌ Eroare la adăugarea programării: ' + error.message, 'error');
-        showToast('Eroare la adăugarea programării', 'error');
+        console.error('❌ Error:', error);
+        const mode = editingAppointmentId ? 'actualizării' : 'adăugării';
+        showNotification(`❌ Eroare la ${mode} programării: ${error.message}`, 'error');
+        showToast(`Eroare la ${mode} programării`, 'error');
     }
 }
+
 // ==========================================
-// UTILITY: Split Vehicle & Registration
+// INVOICE SYNC HELPERS
 // ==========================================
+
 /**
- * Parses combined vehicle string and extracts make/model and registration
- * Supports formats like:
- *   - "OPEL VIVARA (BV66HKE)"
- *   - "OPEL VIVARA - BV66HKE"
- *   - "OPEL VIVARA" (no reg, returns just make/model)
- * 
- * @param {string} inputString - Combined vehicle string
- * @returns {object} { vehicleMakeModel, regPlate }
+ * Calculate subtotal from jobs and parts arrays
  */
-function splitVehicleAndReg(inputString) {
-    if (!inputString || typeof inputString !== 'string') {
-        return { vehicleMakeModel: '', regPlate: '' };
+function calculateSubtotal(jobs = [], parts = []) {
+    let total = 0;
+
+    if (Array.isArray(jobs)) {
+        jobs.forEach(j => {
+            if (j && j.total !== undefined) {
+                total += toNumber(j.total);
+            } else if (j && j.lineTotal) {
+                total += toNumber(j.lineTotal);
+            } else if (j && j.qty && (j.unitPrice || j.price)) {
+                total += toNumber(j.qty) * toNumber(j.unitPrice ?? j.price);
+            }
+        });
+    }
+
+    if (Array.isArray(parts)) {
+        parts.forEach(p => {
+            if (p && p.total !== undefined) {
+                total += toNumber(p.total);
+            } else if (p && p.lineTotal) {
+                total += toNumber(p.lineTotal);
+            } else if (p && p.qty && (p.unitPrice || p.price)) {
+                total += toNumber(p.qty) * toNumber(p.unitPrice ?? p.price);
+            }
+        });
+    }
+
+    return total;
+}
+
+/**
+ * Sync invoice with updated appointment data
+ * STEP 5: When appointment is edited, update linked invoice with new jobs/parts/totals
+ * Only updates jobs/parts and related fields, preserves payment info
+ */
+async function syncInvoiceWithAppointment(invoiceId, appointmentData, appointmentId = null) {
+    try {
+        const { doc, getDoc, updateDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+        
+        const invoiceRef = doc(db, 'invoices', invoiceId);
+        const snap = await getDoc(invoiceRef);
+        
+        if (!snap.exists()) {
+            console.warn('[InvoiceSync] Invoice not found:', invoiceId);
+            return;
+        }
+
+        const invoice = snap.data();
+        
+        // Use new schema: jobs[] and parts[] from appointmentData
+        const jobs = appointmentData.jobs || [];
+        const parts = appointmentData.parts || [];
+
+        const normalizeItems = (items) => items.map(item => {
+            const name = (item.name || item.description || '').trim();
+            const qty = parseInt(item.qty, 10) || 1;
+            const unitPrice = parseFloat(item.unitPrice ?? item.price ?? 0) || 0;
+            const total = parseFloat(item.total) || (qty * unitPrice);
+            return name ? { name, qty, unitPrice, total } : null;
+        }).filter(Boolean);
+
+        const normalizedJobs = normalizeItems(jobs);
+        const normalizedParts = normalizeItems(parts);
+        
+        // Recalculate totals from new schema (name, qty, price)
+        const labourTotal = normalizedJobs.reduce((sum, item) => sum + (item.total || (item.qty * item.unitPrice)), 0);
+        const partsTotal = normalizedParts.reduce((sum, item) => sum + (item.total || (item.qty * item.unitPrice)), 0);
+        const newSubtotal = labourTotal + partsTotal;
+        const newTotal = newSubtotal; // VAT logic would go here if needed
+        
+        const amountPaid = toNumber(appointmentData.paidAmount ?? invoice.paidAmount ?? invoice.totals?.paidAmount ?? 0);
+        const newBalance = Math.max(0, newTotal - amountPaid);
+        const paymentStatus = (amountPaid > 0 && amountPaid >= newTotal) ? 'PAID' : 'UNPAID';
+        
+        // Update invoice with appointment changes
+        // Preserve: amountPaid, paymentStatus, paidAt, invoiceNumber
+        await updateDoc(invoiceRef, {
+            appointmentId: appointmentId || invoice.appointmentId || null,
+            // Store jobs/parts in new schema for invoice
+            jobs: normalizedJobs,
+            parts: normalizedParts,
+            // Vehicle info
+            makeModel: appointmentData.makeModel || appointmentData.vehicleMakeModel || '',
+            vehicleMakeModel: appointmentData.makeModel || appointmentData.vehicleMakeModel || '',
+            registrationPlate: appointmentData.registrationPlate || '',
+            regPlate: appointmentData.registrationPlate || '',
+            mileage: appointmentData.mileage || null,
+            // Customer info
+            customerName: appointmentData.customerName || '',
+            phone: appointmentData.customerPhone || '',
+            address: appointmentData.address || '',
+            // Notes
+            notes: appointmentData.notes || '',
+            jobsSummary: appointmentData.jobsSummary || appointmentData.problemDescription || '',
+            // Totals
+            totals: {
+                labour: labourTotal,
+                parts: partsTotal,
+                subtotal: newSubtotal,
+                total: newTotal
+            },
+            paidAmount: amountPaid,
+            balanceDue: newBalance,
+            paymentStatus,
+            updatedAt: serverTimestamp()
+        });
+        
+        console.log('[InvoiceSync] ✅ Invoice updated:', invoiceId, '| New total:', newTotal, '| Jobs:', normalizedJobs.length, '| Parts:', normalizedParts.length);
+    } catch (error) {
+        console.error('[InvoiceSync] Error:', error);
+        throw error;
+    }
+}
+
+async function syncInvoiceFromAppointmentPayload(appointmentId, appointmentData) {
+    if (!appointmentId) return;
+
+    try {
+        const { collection, query, where, getDocs } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+
+        const invoicesQuery = query(
+            collection(db, 'invoices'),
+            where('appointmentId', '==', appointmentId)
+        );
+
+        const snap = await getDocs(invoicesQuery);
+        if (!snap.empty) {
+            const invoices = snap.docs.map(docSnap => ({
+                id: docSnap.id,
+                ...docSnap.data()
+            }));
+            const newest = invoices.sort((a, b) => {
+                const aTime = a.createdAt?.toMillis?.() || new Date(a.createdAt || 0).getTime();
+                const bTime = b.createdAt?.toMillis?.() || new Date(b.createdAt || 0).getTime();
+                return bTime - aTime;
+            })[0];
+            await syncInvoiceWithAppointment(newest.id, appointmentData, appointmentId);
+            await dedupeInvoicesForAppointment(appointmentId, newest.id);
+            console.log('Found invoice:', newest.id);
+            return;
+        }
+
+        if (appointmentData.status === 'finalized') {
+            const invoiceId = await getOrCreateInvoiceForAppointment(appointmentId, appointmentData);
+            await syncInvoiceWithAppointment(invoiceId, appointmentData, appointmentId);
+            console.log('Found invoice:', invoiceId);
+        }
+    } catch (error) {
+        console.warn('[Invoice Sync] Warning:', error.message || error);
+    }
+}
+
+// ==========================================
+// EDIT MODE HELPERS
+// ==========================================
+function enterEditMode(appointment) {
+    editingAppointmentId = appointment.id;
+    
+    // Show edit banner
+    const banner = document.getElementById('editModeBanner');
+    const bannerText = document.getElementById('editingAppointmentText');
+    if (banner) {
+        bannerText.textContent = `Editing appointment: ${appointment.customerName || ''} (${appointment.registrationPlate || appointment.regNumber || ''})`;
+        banner.style.display = 'block';
     }
     
+    // Change button label
+    const btnText = document.getElementById('submitAppointmentBtnText');
+    if (btnText) {
+        btnText.textContent = 'Update Appointment';
+    }
+}
+
+function exitEditMode() {
+    editingAppointmentId = null;
+    
+    // Hide edit banner
+    const banner = document.getElementById('editModeBanner');
+    if (banner) {
+        banner.style.display = 'none';
+    }
+    
+    // Restore button label
+    const btnText = document.getElementById('submitAppointmentBtnText');
+    if (btnText) {
+        btnText.textContent = 'Save Appointment';
+    }
+}
+
+function populateFormFromAppointment(appointment) {
+    if (!appointment) return;
+
+    // Client info
+    document.getElementById('customerName').value = appointment.customerName || '';
+    document.getElementById('customerPhone').value = appointment.customerPhone || appointment.phone || '';
+    document.getElementById('contactPref').value = appointment.contactPref || '';
+    
+    // Vehicle info - Direct field mapping (no parsing)
+    document.getElementById('makeModel').value = appointment.makeModel || appointment.vehicleMakeModel || '';
+    document.getElementById('regNumber').value = appointment.registrationPlate || appointment.regNumber || '';
+    document.getElementById('mileage').value = coalesceMileageValue(appointment) || '';
+    
+    // Refresh vehicle input formatting (formats mileage with commas, registration plate with spaces)
+    if (typeof refreshVehicleFormatting === 'function') {
+      refreshVehicleFormatting();
+    }
+    
+    // Service details
+    document.getElementById('appointmentDate').value = appointment.dateStr || '';
+    document.getElementById('appointmentTimeValue').value = appointment.time || '';
+    document.getElementById('serviceLocation').value = appointment.serviceLocation || '';
+    
+    // Location address
+    const garageSection = document.getElementById('garageAddressSection');
+    const clientSection = document.getElementById('clientAddressSection');
+    if (appointment.serviceLocation === 'garage' && garageSection) {
+        garageSection.style.display = 'block';
+        if (clientSection) clientSection.style.display = 'none';
+    } else if (appointment.serviceLocation === 'client' && clientSection) {
+        clientSection.style.display = 'block';
+        if (garageSection) garageSection.style.display = 'none';
+        document.getElementById('address').value = appointment.address || '';
+        document.getElementById('postcode').value = appointment.postcode || '';
+    } else {
+        if (garageSection) garageSection.style.display = 'none';
+        if (clientSection) clientSection.style.display = 'none';
+    }
+    
+    // Jobs and Parts - Render existing rows
+    let editJobs = Array.isArray(appointment.jobs) ? appointment.jobs : [];
+    let editParts = Array.isArray(appointment.parts) ? appointment.parts : [];
+
+    // Legacy fallback if new schema is empty
+    if (editJobs.length === 0 && Array.isArray(appointment.services)) {
+        editJobs = appointment.services;
+    }
+    if (editParts.length === 0 && Array.isArray(appointment.parts)) {
+        editParts = appointment.parts;
+    }
+
+    if (editJobs.length === 0 && editParts.length === 0 && Array.isArray(appointment.jobs)) {
+        editJobs = appointment.jobs.filter(item => item?.type === 'labour');
+        editParts = appointment.jobs.filter(item => item?.type === 'part');
+    }
+
+    const jobsForRows = editJobs.map(item => ({
+        description: item.name || item.description || '',
+        qty: parseInt(item.qty, 10) || 1,
+        unitPrice: parseFloat(item.unitPrice ?? item.price ?? 0) || 0
+    }));
+    const partsForRows = editParts.map(item => ({
+        description: item.name || item.description || '',
+        qty: parseInt(item.qty, 10) || 1,
+        unitPrice: parseFloat(item.unitPrice ?? item.price ?? 0) || 0
+    }));
+
+    renderJobRows(jobsForRows);
+    renderPartRows(partsForRows);
+    
+    // Notes
+    document.getElementById('notes').value = appointment.notes || '';
+    
+    updateAppointmentTotals();
+}
+
+// ==========================================
+// UTILITY: Parse vehicle input string
+// ==========================================
+
+function parseVehicleInput(inputString) {
     const input = inputString.trim();
     
     // Pattern 1: "OPEL VIVARA (BV66HKE)" or "OPEL VIVARA(BV66HKE)"
@@ -1744,7 +2672,14 @@ function normalizeAppointment(apt) {
     const address = (apt.address || '').trim();
     const serviceLocation = (apt.serviceLocation || '').trim();
     const contactPref = (apt.contactPref || '').trim();
+    let services = Array.isArray(apt.services) ? apt.services : [];
+    let parts = Array.isArray(apt.parts) ? apt.parts : [];
+    if (services.length === 0 && parts.length === 0 && Array.isArray(apt.jobs)) {
+        services = apt.jobs.filter(item => item?.type === 'labour');
+        parts = apt.jobs.filter(item => item?.type === 'part');
+    }
     const problemDescription = ((apt.problemDescription || apt.problem || '').trim());
+    const jobsSummary = (apt.jobsSummary || '').trim() || buildJobsSummary(services, parts) || problemDescription;
     const notes = (apt.notes || '').replace(/\s+/g, ' ').trim();
     const registrationPlateNorm = registrationPlate.toUpperCase().trim();
     const vehicleMakeModelNorm = vehicleMakeModel.replace(/\s+/g, ' ').trim();
@@ -1760,7 +2695,10 @@ function normalizeAppointment(apt) {
         address,
         serviceLocation,
         contactPref,
-        problemDescription,
+        problemDescription: jobsSummary,
+        services,
+        parts,
+        jobsSummary,
         notes,
         status
     };
@@ -1909,12 +2847,11 @@ function renderAppointments() {
                         dayLabel = dayName.charAt(0).toUpperCase() + dayName.slice(1) + ' (' + dateStr + ')';
                 }
 
-                // Per-day structure (header outside scroll container)
+                // Premium SaaS grid layout (responsive)
                 html += `
 <section class="tvDayGroup" data-day="${dateStr}">
     <div class="tvDayHeader">${dayLabel}</div>
-    <div class="tvCarousel" role="region" aria-label="Appointments carousel for ${dateStr}">
-        <div class="tvTrack">
+    <div class="appointments-grid">
 `;
 
                 grouped[dateStr].sort((a, b) => {
@@ -1924,15 +2861,10 @@ function renderAppointments() {
                 });
 
                 grouped[dateStr].forEach(apt => {
-                        html += `
-            <article class="tvCard" data-apt-id="${apt.id}">
-                ${createAppointmentCard(apt, now)}
-            </article>
-`;
+                        html += createAppointmentCard(apt, now);
                 });
 
                 html += `
-        </div>
     </div>
 </section>
 `;
@@ -1947,7 +2879,7 @@ function renderAppointments() {
     bindAppointmentsClickDelegation();
 }
 
-// Create appointment card HTML - COMPACT HORIZONTAL LAYOUT
+// Create appointment card HTML - PREMIUM SAAS COMPACT
 function createAppointmentCard(apt) {
     const aptDate = getScheduledDate(apt) || new Date();
     const timeDiff = aptDate - new Date();
@@ -1957,132 +2889,108 @@ function createAppointmentCard(apt) {
     const normalized = normalizeAppointment(apt);
     
     // Status badge
-    let statusClass = 'status-scheduled';
+    let statusBadgeClass = 'badge--scheduled';
     let statusIcon = 'fa-clock';
     let statusText = t('statusScheduled');
     
     if (normalized.status === 'done' || normalized.status === 'finalized') {
-        statusClass = 'status-done';
+        statusBadgeClass = 'badge--done';
         statusIcon = 'fa-check-circle';
         statusText = t('statusFinalized');
     } else if (normalized.status === 'canceled') {
-        statusClass = 'status-canceled';
+        statusBadgeClass = 'badge--canceled';
         statusIcon = 'fa-times-circle';
         statusText = t('statusCanceled');
-    } else if (normalized.status === 'delayed') {
-        statusClass = 'status-delayed';
-        statusIcon = 'fa-hourglass-half';
-        statusText = t('statusDelayed');
-    } else if (normalized.status === 'rescheduled') {
-        statusClass = 'status-rescheduled';
-        statusIcon = 'fa-rotate';
-        statusText = t('statusRescheduled');
     }
-
-    // Removed: We no longer show extra delta badges with dates/times
-    // Only the single status badge is shown in the header (clean and simple)
-    let deltaBadge = '';
     
     // Check if overdue
     const isOverdue = normalized.status === 'scheduled' && minutesDiff < 0;
-    const overdueClass = isOverdue ? 'aptRow--overdue' : '';
     
-    // Payment summary for finalized appointments
-    let paymentSummary = '';
-    if (activeAppointmentsTab === 'finalized' && (normalized.status === 'done' || normalized.status === 'finalized')) {
-        const amountPaid = toNumber(apt.amountPaid || 0);
-        const total = toNumber(apt.total || 0);
-        
-        if (amountPaid > 0 || total > 0) {
-            const balance = computeBalance(total, amountPaid);
-            const status = computePaymentStatus(total, amountPaid);
-            
-            let statusClass = 'payment-unpaid';
-            if (status === 'Paid') statusClass = 'payment-paid';
-            else if (status === 'Partially Paid') statusClass = 'payment-partial';
-            
-            paymentSummary = `
-                <div class="tvPaymentSummary">
-                    <span class="tvPaymentLabel">Plată:</span>
-                    <span class="tvPaymentAmount">${formatCurrencyGBP(amountPaid)}</span>
-                    ${balance > 0 ? `<span class="tvPaymentSeparator">|</span>
-                    <span class="tvPaymentLabel">Restant:</span>
-                    <span class="tvPaymentBalance">${formatCurrencyGBP(balance)}</span>` : ''}
-                    <span class="tvPaymentStatus ${statusClass}">${status}</span>
+    // Compute payment status - READ FROM FIELD FIRST, then fallback to computation
+    const amountPaid = toNumber(apt.amountPaid || apt.paidAmount || 0);
+    const total = toNumber(apt.total || 0);
+    const balance = Math.max(0, total - amountPaid);
+    
+    // ✅ FIX: Read paymentStatus field first (same as toggle function)
+    const storedStatus = (apt.paymentStatus || '').toLowerCase();
+    const computedPaid = (amountPaid > 0 && amountPaid >= total);
+    const isPaid = storedStatus === 'paid' || (!storedStatus && computedPaid);
+    
+    // Vehicle info
+    const regPlate = normalized.registrationPlate || normalized.regNumber || '';
+    const makeModel = normalized.vehicleMakeModel || normalized.makeModel || '';
+    
+    // Payment meta row
+    let paymentMeta = '';
+    if (total > 0) {
+        paymentMeta = `
+            <div class="app-card__meta">
+                <div class="app-card__vehicle">
+                    ${regPlate ? `<span class="app-card__plate">${regPlate}</span>` : ''}
+                    ${makeModel ? `<span class="app-card__model">${makeModel}</span>` : ''}
                 </div>
-            `;
-        }
+                <div class="app-card__payment">
+                    ${amountPaid > 0 ? `<span class="app-card__meta-paid">Paid: ${formatCurrencyGBP(amountPaid)}</span>` : ''}
+                    ${balance > 0 ? `${amountPaid > 0 ? '<span class="app-card__meta-sep">•</span>' : ''}<span class="app-card__meta-due">Due: ${formatCurrencyGBP(balance)}</span>` : ''}
+                </div>
+            </div>
+        `;
     }
     
-    // Butoane de acțiune (mobile-first layout) per tab
-    const actionsHTML = normalized.status !== 'canceled' ? `
-        <div class="tvx-actions">
-            ${activeAppointmentsTab === 'scheduled' ? `
-                <button class="btn btn-primary btn-sm" data-action="finalize" data-id="${apt.id}" aria-label="${t('btnFinalize')}">
-                    <i class="fas fa-check-circle"></i>
-                    <span>${t('btnFinalize')}</span>
+    // Actions row: Invoice | Paid/Unpaid | Actions dropdown
+    const canShowActions = normalized.status !== 'canceled';
+    const hasAddress = normalized.address || normalized.clientAddress;
+    
+    const actionsHTML = canShowActions ? `
+        <div class="app-card__bottom">
+            <div class="app-card__actions-row">
+                <button class="action-btn action-btn--primary" data-action="invoice" data-id="${apt.id}" aria-label="Invoice">
+                    <i class="fas fa-file-invoice"></i><span>Invoice</span>
                 </button>
-                <button class="btn btn-secondary btn-sm" data-action="delay" data-id="${apt.id}" aria-label="${t('btnDelay')}">
-                    <i class="fas fa-clock-rotate-left"></i>
-                    <span>${t('btnDelay')}</span>
+                <button class="app-card__toggle-paid ${isPaid ? 'paid' : 'unpaid'}" 
+                        data-id="${apt.id}" 
+                        data-action="toggle-paid"
+                        title="${isPaid ? 'Click to mark as Unpaid' : 'Click to mark as Paid'}"
+                        aria-label="Toggle payment status">
+                    ${isPaid ? '<i class="fas fa-check-circle"></i><span>Paid</span>' : '<i class="fas fa-circle"></i><span>Mark Paid</span>'}
                 </button>
-            ` : ''}
-            ${normalized.address ? `
-                <button class="btn btn-outline btn-sm" data-action="visit" data-id="${apt.id}" aria-label="${t('btnVisit')}">
-                    <i class="fas fa-map-marker-alt"></i>
-                    <span>${t('btnVisit')}</span>
-                </button>
-            ` : ''}
-            ${activeAppointmentsTab === 'finalized' ? `
-                <button class="btn btn-outline btn-sm" data-action="invoice" data-id="${apt.id}" aria-label="${t('btnInvoice')}">
-                    <i class="fas fa-file-invoice"></i>
-                    <span>${t('btnInvoice')}</span>
-                </button>
-            ` : ''}
-            <button class="btn btn-success btn-sm" data-action="whatsapp" data-id="${apt.id}" aria-label="${t('btnWhatsApp')}">
-                <i class="fab fa-whatsapp"></i>
-                <span>${t('btnWhatsApp')}</span>
-            </button>
-            <button class="btn btn-outline btn-sm" data-action="edit" data-id="${apt.id}" aria-label="${t('btnEdit')}">
-                <i class="fas fa-edit"></i>
-                <span>${t('btnEdit')}</span>
-            </button>
-            <button class="btn btn-outline btn-sm" data-action="history" data-id="${apt.id}" aria-label="${t('btnHistory')}">
-                <i class="fas fa-history"></i>
-                <span>${t('btnHistory')}</span>
-            </button>
-            <button class="btn btn-danger btn-sm" data-action="delete" data-id="${apt.id}" aria-label="${t('btnDelete')}">
-                <i class="fas fa-trash-alt"></i>
-                <span>${t('btnDelete')}</span>
-            </button>
+                <div class="app-card__actions-dropdown-wrapper">
+                    <button class="app-card__actions-dropdown-btn" data-id="${apt.id}" data-action="toggle-actions-menu" aria-label="More actions">
+                        <span>Actions</span>
+                        <i class="fas fa-caret-down"></i>
+                    </button>
+                    <div class="app-card__actions-dropdown-menu" data-apt-id="${apt.id}">
+                        ${hasAddress ? `<button class="app-card__dropdown-item" data-action="visit" data-id="${apt.id}">
+                            <i class="fas fa-map-marker-alt"></i><span>Visit</span>
+                        </button>` : ''}
+                        <button class="app-card__dropdown-item" data-action="edit" data-id="${apt.id}">
+                            <i class="fas fa-edit"></i><span>Edit</span>
+                        </button>
+                        <button class="app-card__dropdown-item" data-action="delete" data-id="${apt.id}">
+                            <i class="fas fa-trash-alt"></i><span>Delete</span>
+                        </button>
+                        <button class="app-card__dropdown-item" data-action="history" data-id="${apt.id}">
+                            <i class="fas fa-history"></i><span>History</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
         </div>
     ` : '';
     
     return `
-        <div class="aptRow ${overdueClass}" data-apt-id="${apt.id}">
-            <!-- Card Header: ONLY Client Name + Status Chip -->
-            <div class="tvCardHeader">
-                <h3 class="tvCardName">${normalized.customerName}</h3>
-                <div class="tvCardBadges">
-                    <span class="tvStatusChip ${statusClass}">
+        <div class="app-card" data-apt-id="${apt.id}">
+            <div class="app-card__top">
+                <h3 class="app-card__name">${normalized.customerName}</h3>
+                <div class="app-card__badges">
+                    <span class="badge ${statusBadgeClass}">
                         <i class="fas ${statusIcon}"></i>
-                        <span>${statusText}</span>
+                        ${statusText}
                     </span>
-                    ${deltaBadge}
-                    ${isOverdue ? `<span class="tvOverdueChip"><i class="fas fa-exclamation-triangle"></i></span>` : ''}
+                    ${isOverdue ? `<span class="badge badge--overdue"><i class="fas fa-exclamation-triangle"></i></span>` : ''}
                 </div>
             </div>
-            
-            <!-- Payment Summary (for finalized appointments) -->
-            ${paymentSummary}
-            
-            <!-- Details button -->
-            <button class="tvx-btn tvx-btn--secondary tvx-btn--sm" data-action="details" data-id="${apt.id}" aria-label="${t('btnDetails')}">
-                <i class="fas fa-info-circle"></i>
-                <span>${t('btnDetails')}</span>
-            </button>
-
-            <!-- Action Buttons -->
+            ${paymentMeta}
             ${actionsHTML}
         </div>
     `;
@@ -2114,25 +3022,25 @@ function bindAppointmentsClickDelegation() {
 
         try {
             switch (action) {
-                case 'details':
-                    if (appointmentHistory) {
-                        await appointmentHistory.logDetailsOpened(aptId);
-                    }
-                    await openDetailsModal(appointment);
+                case 'toggle-paid':
+                    // Handle payment status toggle (from pill button)
+                    console.log('[DIAG] Paid toggle clicked, appointment ID:', aptId);
+                    await toggleAppointmentPaidStatus(aptId);
                     break;
 
-                case 'finalize':
-                    await handleFinalizeAction(aptId, appointment, openCustomModal);
+                case 'toggle-actions-menu':
+                    // Handle Actions dropdown toggle
+                    console.log('[DIAG] Actions menu toggle clicked, appointment ID:', aptId);
+                    toggleActionsMenu(target, aptId);
                     break;
 
-                case 'delay':
-                    if (appointmentHistory) {
-                        await appointmentHistory.logDelayModalOpened(aptId);
-                    }
-                    await openDelayRescheduleModal(appointment);
+                case 'mark-paid':
+                    await finalizeAppointment(aptId);
                     break;
                     
                 case 'visit':
+                    // Close dropdown after selection
+                    closeActionsDropdown(aptId);
                     if (appointmentHistory) {
                         const address = appointment?.address || appointment?.clientAddress || '';
                         await appointmentHistory.logLocationVisited(aptId, address);
@@ -2140,32 +3048,26 @@ function bindAppointmentsClickDelegation() {
                     await handleVisitAction(aptId, appointment, confirmModal);
                     break;
 
-                case 'delete':
-                    await handleDeleteAction(aptId, appointment, confirmModal);
-                    break;
-                
-                case 'edit':
-                    await handleEditAction(aptId, appointment, openCustomModal);
-                    break;
-
-                case 'whatsapp':
+                case 'history':
+                    // Close dropdown after selection
+                    closeActionsDropdown(aptId);
+                    // View appointment history/timeline
                     if (appointmentHistory) {
-                        const phone = appointment?.phone || '';
-                        await appointmentHistory.logWhatsAppShared(aptId, phone);
+                        await appointmentHistory.logTimelineViewed(aptId);
                     }
-                    handleWhatsAppShare(aptId, appointment);
+                    // For now, just show a notification. Can extend to show full timeline modal
+                    showNotification('📋 Appointment history feature coming soon', 'info');
                     break;
 
                 case 'invoice':
-                    // Ensure invoice identifiers are generated once and persisted
-                    const identifiers = await ensureInvoiceIdentifiers(aptId, appointment);
-                    if (appointmentHistory) {
-                        await appointmentHistory.logAppointmentInvoiced(aptId, identifiers?.invoiceNumber || appointment?.invoiceNumber || 'NEW');
-                    }
-                    // Direct navigation for invoice (no need to find appointment in Finalized tab)
                     try {
+                        const { getOrCreateInvoiceForAppointment } = await import('./src/invoices/invoice-manager.js');
+                        const invoiceId = await getOrCreateInvoiceForAppointment(aptId, appointment || {});
+                        if (appointmentHistory) {
+                            await appointmentHistory.logAppointmentInvoiced(aptId, invoiceId || appointment?.invoiceNumber || 'NEW');
+                        }
                         const basePath = window.location.pathname.replace(/[^/]+$/, '');
-                        const url = basePath + 'invoice.html?aptId=' + encodeURIComponent(aptId);
+                        const url = basePath + 'invoice.html?invoiceId=' + encodeURIComponent(invoiceId) + '&mode=view';
                         const popup = window.open(url, '_blank');
                         if (!popup) {
                             window.location.href = url;
@@ -2175,17 +3077,17 @@ function bindAppointmentsClickDelegation() {
                         showNotification('Nu s-a putut deschide factura', 'error');
                     }
                     break;
+                
+                case 'edit':
+                    // Close dropdown after selection
+                    closeActionsDropdown(aptId);
+                    await handleEditAction(aptId, appointment, openCustomModal);
+                    break;
 
-                case 'history':
-                    // Open Details modal and scroll to History section
-                    await openDetailsModal(appointment);
-                    // Scroll to history section after modal opens
-                    setTimeout(() => {
-                        const historySection = document.querySelector('.tvx-history');
-                        if (historySection) {
-                            historySection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-                        }
-                    }, 300);
+                case 'delete':
+                    // Close dropdown after selection
+                    closeActionsDropdown(aptId);
+                    await handleDeleteAction(aptId, appointment, confirmModal);
                     break;
                     
                 default:
@@ -2201,98 +3103,398 @@ function bindAppointmentsClickDelegation() {
 }
 
 // ==========================================
-// DETAILS MODAL - Modern overlay with history integration
-// ==========================================
-
-let detailsModalEl = null;
-let detailsPopHandler = null;
-
-// ==========================================
 // DELAY MODAL - History integration for back button
 // ==========================================
 
 let delayModalEl = null;
 let delayPopHandler = null;
 
-function openDetailsModal(appointment) {
-    if (!appointment) return;
+// ==========================================
+// FINALIZE / MARK AS PAID FUNCTION
+// ==========================================
 
-    // Close any existing details modal
-    closeDetailsModal(false);
-
-    const normalized = normalizeAppointment(appointment);
-    const overlay = buildDetailsModalElement(normalized, appointment);
-    detailsModalEl = overlay;
-
-    document.body.appendChild(overlay);
-    document.body.classList.add('modal-open');
-
-    // Show with small delay for transition
-    requestAnimationFrame(() => {
-        overlay.classList.add('tvDetailsModalOverlay--show');
-    });
-
-    // History push for back button close
-    history.pushState({ tvModal: 'details', id: appointment.id }, '');
-
-    detailsPopHandler = (event) => {
-        if (detailsModalEl) {
-            closeDetailsModal(false);
+/**
+ * Finalize appointment and mark as paid
+ * Updates both appointment and linked invoice documents
+ */
+async function finalizeAppointment(appointmentId) {
+    try {
+        if (!appointmentId) {
+            showNotification('❌ Invalid appointment ID', 'error');
+            return;
         }
-    };
 
-    window.addEventListener('popstate', detailsPopHandler);
+        console.log('[FinalizeAppointment] Starting finalization for:', appointmentId);
 
-    // Wire close interactions
-    const closeBtn = overlay.querySelector('[data-close="details"]');
-    closeBtn?.addEventListener('click', () => closeDetailsModal());
-    overlay.addEventListener('click', (e) => {
-        if (e.target.classList.contains('tvDetailsModalOverlay')) {
-            closeDetailsModal();
+        const { doc, getDoc, updateDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+
+        // Get appointment
+        const appointmentRef = doc(db, 'appointments', appointmentId);
+        const appointmentSnap = await getDoc(appointmentRef);
+
+        if (!appointmentSnap.exists()) {
+            showNotification('❌ Appointment not found', 'error');
+            return;
         }
-    });
-}
 
-function closeDetailsModal(triggerHistoryBack = true) {
-    if (!detailsModalEl) return;
+        const appointment = appointmentSnap.data();
+        console.log('[FinalizeAppointment] Appointment data:', { id: appointmentId, invoiceId: appointment.invoiceId, total: appointment.total });
 
-    const overlay = detailsModalEl;
-    detailsModalEl = null;
+        // Update appointment
+        await updateDoc(appointmentRef, {
+            status: 'finalized',
+            paid: true,
+            finalizedAt: serverTimestamp(),
+            finalizedBy: currentUser?.uid || currentUser?.email || 'system',
+            updatedAt: serverTimestamp()
+        });
 
-    overlay.classList.remove('tvDetailsModalOverlay--show');
+        console.log('[FinalizeAppointment] ✅ Appointment updated to finalized/paid');
 
-    setTimeout(() => {
-        overlay.remove();
-    }, 200);
+        // If linked invoice exists, update it
+        if (appointment.invoiceId) {
+            try {
+                const invoiceRef = doc(db, 'invoices', appointment.invoiceId);
+                const invoiceSnap = await getDoc(invoiceRef);
 
-    // Remove body lock only if no other modals are active
-    if (!document.querySelector('.tvFinalizeModal--show') && !document.querySelector('.modern-modal-overlay.modern-modal-show') && !document.querySelector('.modal-backdrop.modalOverlay--show')) {
-        document.body.classList.remove('modal-open');
-    }
+                if (invoiceSnap.exists()) {
+                    const invoice = invoiceSnap.data();
+                    const total = toNumber(invoice.total || 0);
 
-    if (detailsPopHandler) {
-        window.removeEventListener('popstate', detailsPopHandler);
-        detailsPopHandler = null;
-    }
+                    console.log('[FinalizeAppointment] Updating invoice:', { invoiceId: appointment.invoiceId, total });
 
-    if (triggerHistoryBack) {
-        const state = history.state;
-        if (state && state.tvModal === 'details') {
-            history.back();
+                    await updateDoc(invoiceRef, {
+                        amountPaid: total,
+                        remainingBalance: 0,
+                        status: 'PAID',
+                        paymentStatus: 'PAID',
+                        paidAt: serverTimestamp(),
+                        updatedAt: serverTimestamp()
+                    });
+
+                    // Also sync payment data back to appointment for UI rendering
+                    await updateDoc(appointmentRef, {
+                        amountPaid: total,
+                        remainingBalance: 0
+                    });
+
+                    console.log('[FinalizeAppointment] ✅ Invoice and appointment payment fields synced');
+                }
+            } catch (err) {
+                console.warn('[FinalizeAppointment] Could not update invoice:', err);
+                // Don't fail appointment finalization if invoice update fails
+            }
         }
+
+        showNotification('✅ Appointment marked as paid', 'success');
+
+        // Log to history service
+        if (appointmentHistory) {
+            await appointmentHistory.logAppointmentFinalized(appointmentId, 'Mark as Paid');
+        }
+
+    } catch (error) {
+        console.error('[FinalizeAppointment] Error:', error);
+        showNotification('❌ Error finalizing appointment: ' + error.message, 'error');
     }
 }
 
 /**
- * Log a timeline event to Firestore
- * @param {string} aptId - Appointment ID
- * @param {string} eventType - Event type (DELAY_MODAL_OPENED, DELAYED, RESCHEDULED, etc.)
- * @param {Object} eventData - Additional event data (from, to, reasonCode, note, etc.)
+ * NEW: Toggle appointment payment status (PAID ↔ UNPAID)
+ * Syncs across appointment ↔ invoice ↔ storage
  */
+async function toggleAppointmentPaidStatus(appointmentId) {
+    try {
+        if (!appointmentId) {
+            showNotification('❌ Invalid appointment ID', 'error');
+            return;
+        }
+
+        console.log('[TogglePaid] Toggling payment status for:', appointmentId);
+
+        const { doc, getDoc, updateDoc, serverTimestamp, collection, query, where, getDocs } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+
+        // Get appointment
+        const appointmentRef = doc(db, 'appointments', appointmentId);
+        const appointmentSnap = await getDoc(appointmentRef);
+
+        if (!appointmentSnap.exists()) {
+            showNotification('❌ Appointment not found', 'error');
+            return;
+        }
+
+        const appointment = appointmentSnap.data();
+        const total = toNumber(appointment.total || 0);
+        const currentPaidAmount = toNumber(appointment.paidAmount || appointment.amountPaid || 0);
+        
+        // ✅ FIX: Normalize to lowercase with explicit default
+        const currentStatus = (appointment.paymentStatus || 'unpaid').toLowerCase();
+        
+        let newPaidAmount, newPaymentStatus;
+
+        // ✅ FIX: Toggle logic - current === paid ? unpaid : paid
+        if (currentStatus === 'paid') {
+            newPaidAmount = 0;
+            newPaymentStatus = 'unpaid';
+        } else {
+            newPaidAmount = total;
+            newPaymentStatus = 'paid';
+        }
+
+        const newBalance = Math.max(0, total - newPaidAmount);
+
+        console.log('[TogglePaid] Toggle:', { currentStatus, newPaymentStatus, currentPaidAmount, newPaidAmount, total, balance: newBalance });
+
+        // Update appointment
+        await updateDoc(appointmentRef, {
+            paymentStatus: newPaymentStatus,
+            paidAmount: newPaidAmount,
+            balanceDue: newBalance,
+            updatedAt: serverTimestamp()
+        });
+
+        console.log('[TogglePaid] ✅ Appointment payment status updated');
+
+        // Find and update linked invoice(s)
+        const invoicesQuery = query(
+            collection(db, 'invoices'),
+            where('appointmentId', '==', appointmentId)
+        );
+        
+        const invoiceSnaps = await getDocs(invoicesQuery);
+        
+        if (!invoiceSnaps.empty) {
+            const invoicePromises = invoiceSnaps.docs.map(docSnap => {
+                const invoiceRef = doc(db, 'invoices', docSnap.id);
+                return updateDoc(invoiceRef, {
+                    paymentStatus: newPaymentStatus,
+                    paidAmount: newPaidAmount,
+                    balanceDue: newBalance,
+                    amountPaid: newPaidAmount,
+                    updatedAt: serverTimestamp()
+                });
+            });
+
+            await Promise.all(invoicePromises);
+            console.log('[TogglePaid] ✅ Linked invoice(s) updated');
+        }
+
+        // Show notification with new status
+        const statusLabel = newPaymentStatus === 'paid' ? '✅ Marked as PAID' : '⏸️ Marked as UNPAID';
+        showNotification(statusLabel, 'success');
+
+    } catch (error) {
+        console.error('[TogglePaid] Error:', error);
+        showNotification('❌ Error toggling payment status: ' + error.message, 'error');
+    }
+}
+
+/**
+ * NEW: Toggle action dropdown menu for appointment card
+ */
+function toggleAppointmentDropdown(event, appointmentId) {
+    event.stopPropagation();
+    
+    // Find the dropdown menu for this appointment
+    const card = document.querySelector(`[data-apt-id="${appointmentId}"]`);
+    if (!card) return;
+    
+    const dropdown = card.querySelector('.app-card__dropdown-menu');
+    if (!dropdown) return;
+    
+    const isOpen = dropdown.classList.contains('open');
+    
+    // Close all other dropdowns
+    document.querySelectorAll('.app-card__dropdown-menu.open').forEach(d => {
+        if (d !== dropdown) d.classList.remove('open');
+    });
+    
+    // Toggle this dropdown
+    if (isOpen) {
+        dropdown.classList.remove('open');
+    } else {
+        dropdown.classList.add('open');
+        
+        // Close dropdown if user clicks outside
+        const closeHandler = (e) => {
+            if (!card.contains(e.target)) {
+                dropdown.classList.remove('open');
+                document.removeEventListener('click', closeHandler);
+            }
+        };
+        
+        document.addEventListener('click', closeHandler);
+    }
+}
+
+/**
+ * Portal Dropdown System - Appends to body to avoid clipping
+ */
+let activePortalMenu = null;
+
+function createPortalMenu(anchorButton, appointmentId) {
+    // Close existing portal menu
+    closePortalMenu();
+    
+    const card = anchorButton.closest('.app-card');
+    if (!card) return;
+    
+    // Find dropdown items from the card template
+    const templateMenu = card.querySelector('.app-card__actions-dropdown-menu');
+    if (!templateMenu) return;
+    
+    // Create portal menu
+    const portalMenu = document.createElement('div');
+    portalMenu.className = 'portal-dropdown-menu';
+    portalMenu.innerHTML = templateMenu.innerHTML;
+    
+    // Position portal menu
+    const rect = anchorButton.getBoundingClientRect();
+    const viewportHeight = window.innerHeight;
+    const viewportWidth = window.innerWidth;
+    
+    // Calculate if should open upward
+    const menuHeight = 200; // estimated max height
+    const spaceBelow = viewportHeight - rect.bottom;
+    const openUpward = spaceBelow < menuHeight && rect.top > menuHeight;
+    
+    if (openUpward) {
+        portalMenu.style.bottom = (viewportHeight - rect.top) + 'px';
+    } else {
+        portalMenu.style.top = (rect.bottom + 4) + 'px';
+    }
+    
+    // Position horizontally (align to button)
+    let leftPos = rect.left;
+    const menuWidth = 160; // estimated width
+    if (leftPos + menuWidth > viewportWidth) {
+        leftPos = viewportWidth - menuWidth - 8;
+    }
+    portalMenu.style.left = Math.max(8, leftPos) + 'px';
+    
+    // Append to body
+    document.body.appendChild(portalMenu);
+    activePortalMenu = portalMenu;
+    
+    // ✅ FIX: Add event delegation to portal menu items
+    portalMenu.addEventListener('click', async (e) => {
+        const actionBtn = e.target.closest('[data-action]');
+        if (!actionBtn) return;
+        
+        e.preventDefault();
+        e.stopPropagation();
+        
+        const action = actionBtn.dataset.action;
+        const id = actionBtn.dataset.id;
+        
+        console.log('[Portal] Menu action clicked:', { action, id });
+        
+        // Close portal menu before executing action
+        closePortalMenu();
+        
+        // Execute the same action handlers as main delegation
+        const appointment = appointments.find(a => a.id === id);
+        const { confirmModal, openCustomModal } = await import('./src/shared/modal.js');
+        
+        try {
+            switch (action) {
+                case 'visit':
+                    if (appointmentHistory) {
+                        const address = appointment?.address || appointment?.clientAddress || '';
+                        await appointmentHistory.logLocationVisited(id, address);
+                    }
+                    await handleVisitAction(id, appointment, confirmModal);
+                    break;
+                    
+                case 'edit':
+                    if (appointmentHistory) {
+                        await appointmentHistory.logAppointmentEdited(id, 'edited_from_card');
+                    }
+                    await handleEditAction(id, appointment, openCustomModal);
+                    break;
+                    
+                case 'delete':
+                    if (appointmentHistory) {
+                        await appointmentHistory.logAppointmentDeleted(id);
+                    }
+                    await handleDeleteAction(id, appointment, confirmModal);
+                    break;
+                    
+                case 'history':
+                    if (appointmentHistory) {
+                        await appointmentHistory.logTimelineViewed(id);
+                    }
+                    showNotification('📋 Appointment history feature coming soon', 'info');
+                    break;
+            }
+        } catch (error) {
+            console.error('[Portal] Action error:', error);
+            showNotification('❌ Error: ' + error.message, 'error');
+        }
+    });
+    
+    // Add open class for animation
+    requestAnimationFrame(() => {
+        portalMenu.classList.add('open');
+    });
+    
+    // Close on outside click
+    setTimeout(() => {
+        document.addEventListener('click', handlePortalOutsideClick);
+        document.addEventListener('scroll', closePortalMenu, true);
+        window.addEventListener('resize', closePortalMenu);
+    }, 0);
+    
+    // Mark button as active
+    anchorButton.classList.add('open');
+}
+
+function closePortalMenu() {
+    if (activePortalMenu) {
+        activePortalMenu.remove();
+        activePortalMenu = null;
+        
+        // Remove listeners
+        document.removeEventListener('click', handlePortalOutsideClick);
+        document.removeEventListener('scroll', closePortalMenu, true);
+        window.removeEventListener('resize', closePortalMenu);
+        
+        // Remove open class from all buttons
+        document.querySelectorAll('.app-card__actions-dropdown-btn.open').forEach(btn => {
+            btn.classList.remove('open');
+        });
+    }
+}
+
+function handlePortalOutsideClick(e) {
+    if (activePortalMenu && !activePortalMenu.contains(e.target) && !e.target.closest('.app-card__actions-dropdown-btn')) {
+        closePortalMenu();
+    }
+}
+
+/**
+ * Toggle Actions dropdown menu (Visit, Edit, Delete, History)
+ */
+function toggleActionsMenu(button, appointmentId) {
+    if (activePortalMenu) {
+        closePortalMenu();
+    } else {
+        createPortalMenu(button, appointmentId);
+    }
+}
+
+/**
+ * Close Actions dropdown menu
+ */
+function closeActionsDropdown(appointmentId) {
+    closePortalMenu();
+}
+
 async function logTimelineEvent(aptId, eventType, eventData = {}) {
     try {
-        const { doc, updateDoc, serverTimestamp, arrayUnion, Timestamp } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
-        
+        if (!aptId) return;
+        const { doc, updateDoc, arrayUnion, serverTimestamp, Timestamp } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+
         const timelineEntry = {
             type: eventType,
             at: Timestamp.now(),
@@ -2436,77 +3638,6 @@ function buildTimelineHTML(timeline) {
     });
 
     return html;
-}
-
-function buildDetailsModalElement(normalized, rawAppointment) {
-    const items = [];
-
-    const pushItem = (label, value, icon) => {
-        if (!value) return;
-        items.push(`
-            <div class="tvDetailsItem">
-                <div class="tvDetailsIcon"><i class="fas ${icon}"></i></div>
-                <div class="tvDetailsContent">
-                    <div class="tvDetailsLabel">${label}</div>
-                    <div class="tvDetailsValue">${value}</div>
-                </div>
-            </div>
-        `);
-    };
-
-    const dateValue = rawAppointment.dateStr || '';
-    const timeValue = rawAppointment.time || '';
-    const dateTimeValue = dateValue && timeValue ? `${dateValue} • ${timeValue}` : (dateValue || timeValue || '');
-
-    const regPlate = normalized.registrationPlate;
-    const problemText = normalized.problemDescription;
-    const notesText = normalized.notes;
-    const statusText = normalized.status === 'done' ? 'Finalizat' : normalized.status === 'canceled' ? 'Anulat' : 'Programat';
-
-    pushItem('Telefon', normalized.phone, 'fa-phone');
-    pushItem('Data', dateTimeValue, 'fa-calendar');
-    pushItem('Ora', timeValue || dateValue, 'fa-clock');
-    pushItem('Mașină', normalized.vehicleMakeModel, 'fa-car');
-    pushItem('Nr. înmatriculare', regPlate, 'fa-hashtag');
-    pushItem('Locație/Adresă', normalized.address, 'fa-map-marker-alt');
-    pushItem('Tip serviciu', normalized.serviceLocation === 'garage' ? 'La garaj' : (normalized.serviceLocation ? 'La client' : ''), 'fa-wrench');
-    pushItem('Problemă', problemText, 'fa-exclamation-circle');
-    pushItem('Notițe', notesText, 'fa-clipboard');
-    pushItem('Status', statusText, normalized.status === 'done' ? 'fa-check-circle' : normalized.status === 'canceled' ? 'fa-times-circle' : 'fa-clock');
-
-    const itemsHtml = items.join('');
-
-    // Build timeline section
-    const timeline = rawAppointment.timeline || [];
-    const timelineHtml = buildTimelineHTML(timeline);
-
-    const overlay = document.createElement('div');
-    overlay.className = 'tvDetailsModalOverlay';
-    overlay.innerHTML = `
-        <div class="tvDetailsModal" role="dialog" aria-modal="true" aria-label="Detalii programare">
-            <div class="tvDetailsModalHeader">
-                <div class="tvDetailsTitle">Detalii: ${normalized.customerName || 'Client'}</div>
-                <button class="tvDetailsClose" data-close="details" aria-label="Închide detalii">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
-            <div class="tvDetailsModalBody">
-                <div class="tvDetailsGrid">
-                    ${itemsHtml || '<div class="tvDetailsEmpty">Nu există informații de afișat.</div>'}
-                </div>
-                
-                <!-- HISTORY / TIMELINE SECTION -->
-                <section class="tvx-history">
-                    <h3>Istoric</h3>
-                    <div class="tvx-history-list">
-                        ${timelineHtml}
-                    </div>
-                </section>
-            </div>
-        </div>
-    `;
-
-    return overlay;
 }
 
 // ==========================================
@@ -3390,8 +4521,8 @@ function handleWhatsAppShare(id, appointment) {
         }
         
         // Problem line: always include if exists
-        if (apt.problemDescription) {
-            lines.push(`Lucrare: ${apt.problemDescription}`);
+        if (apt.jobsSummary) {
+            lines.push(`Lucrare: ${apt.jobsSummary}`);
         }
         
         // Notes line: include only if present
@@ -3537,8 +4668,7 @@ function validateAllFields(form) {
         { id: 'editPhone', label: 'Telefon' },
         { id: 'editDate', label: 'Data' },
         { id: 'editTime', label: 'Ora' },
-        { id: 'editRegNumber', label: 'Nr. Înmatriculare' },
-        { id: 'editProblem', label: 'Problemă / Serviciu' }
+        { id: 'editRegNumber', label: 'Nr. Înmatriculare' }
     ];
     
     let isValid = true;
@@ -3558,665 +4688,26 @@ function validateAllFields(form) {
     return { isValid, errors };
 }
 
-// Create a new Edit Modal with modern, clean design
-function createEditModalDOM(appointment) {
-    const modal = document.createElement('div');
-    modal.className = 'tvEditModal';
-    modal.setAttribute('role', 'dialog');
-    modal.setAttribute('aria-modal', 'true');
-    modal.setAttribute('aria-labelledby', 'editModalTitle');
-
-    // Parse vehicle data
-    const vehicleData = splitVehicleAndReg(
-        appointment.vehicle || appointment.makeModel || appointment.car || ''
-    );
-
-    modal.innerHTML = `
-        <!-- Header -->
-        <div class="tvEditModalHeader">
-            <h2 class="tvEditModalTitle" id="editModalTitle">
-                Editează: ${appointment.customerName || 'Programare'}
-            </h2>
-            <button type="button" class="tvEditModalClose" aria-label="Închide" data-action="close">
-                <i class="fas fa-times"></i>
-            </button>
-        </div>
-
-        <!-- Body -->
-        <div class="tvEditModalBody">
-            <form id="tvEditForm" class="tvEditForm">
-                <!-- Section 1: Client -->
-                <div class="tvEditFieldGroup">
-                    <div class="tvEditFieldGroupHeader">
-                        <i class="fas fa-user"></i> Client
-                    </div>
-                    <div class="tvEditFieldsGrid">
-                        <div class="tvEditField">
-                            <label for="editName">Nume Client <span class="required">*</span></label>
-                            <input type="text" id="editName" class="tvEditInput" 
-                                placeholder="Ex: John Doe" 
-                                value="${appointment.customerName || ''}"
-                                required autocomplete="off">
-                            <span class="tvEditErrorMsg">Nume obligatoriu</span>
-                        </div>
-                        <div class="tvEditField">
-                            <label for="editPhone">Telefon <span class="required">*</span></label>
-                            <input type="tel" id="editPhone" class="tvEditInput tv-required" 
-                                placeholder="Ex: +44 7700 900 123"
-                                value="${appointment.phone || ''}"
-                                autocomplete="off">
-                            <span class="tvEditErrorMsg">Telefon obligatoriu (ex: 07700 900 123)</span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Section 2: Date & Time -->
-                <div class="tvEditFieldGroup">
-                    <div class="tvEditFieldGroupHeader">
-                        <i class="fas fa-calendar"></i> Data & Ora
-                    </div>
-                    <div class="tvEditFieldsGrid">
-                        <div class="tvEditField">
-                            <label for="editDate">Data <span class="required">*</span></label>
-                            <input type="date" id="editDate" class="tvEditInput"
-                                value="${appointment.dateStr || ''}"
-                                required>
-                            <span class="tvEditErrorMsg">Data obligatorie</span>
-                        </div>
-                        <div class="tvEditField">
-                            <label for="editTime">Ora <span class="required">*</span></label>
-                            <input type="time" id="editTime" class="tvEditInput"
-                                value="${appointment.time || ''}"
-                                required>
-                            <span class="tvEditErrorMsg">Ora obligatorie</span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Section 3: Vehicle -->
-                <div class="tvEditFieldGroup">
-                    <div class="tvEditFieldGroupHeader">
-                        <i class="fas fa-car"></i> Vehicul
-                    </div>
-                    <div class="tvEditFieldsGrid">
-                        <div class="tvEditField">
-                            <label for="editMakeModel">Marca / Model (opțional)</label>
-                            <input type="text" id="editMakeModel" class="tvEditInput"
-                                placeholder="Ex: OPEL VIVARA"
-                                value="${vehicleData.vehicleMakeModel || ''}"
-                                autocomplete="off">
-                        </div>
-                        <div class="tvEditField">
-                            <label for="editRegNumber">Nr. Înmatriculare <span class="required">*</span></label>
-                            <input type="text" id="editRegNumber" class="tvEditInput tv-required"
-                                placeholder="Ex: BV66HKE"
-                                value="${vehicleData.regPlate || ''}"
-                                autocomplete="off" required>
-                            <span class="tvEditErrorMsg">Nr. Înmatriculare obligatoriu</span>
-                        </div>
-                    </div>
-                    <div class="tvEditFieldsGrid">
-                        <div class="tvEditField">
-                            <label for="editMileage">Kilometraj (opțional)</label>
-                            <input type="number" id="editMileage" class="tvEditInput"
-                                placeholder="Ex: 124500"
-                                value="${coalesceMileageValue(appointment) || ''}"
-                                min="0" step="1" autocomplete="off">
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Section 4: Location & Service -->
-                <div class="tvEditFieldGroup">
-                    <div class="tvEditFieldGroupHeader">
-                        <i class="fas fa-map-marker-alt"></i> Locație & Serviciu
-                    </div>
-                    <div class="tvEditFieldsGrid full-width">
-                        <div class="tvEditField">
-                            <label for="editAddress">Adresă / Locație (opțional)</label>
-                            <input type="text" id="editAddress" class="tvEditInput"
-                                placeholder="Ex: 123 Main Street, London"
-                                value="${appointment.address || ''}"
-                                autocomplete="off">
-                        </div>
-                    </div>
-                    <div class="tvEditFieldsGrid">
-                        <div class="tvEditField">
-                            <label for="editServiceLocation">Tip Serviciu</label>
-                            <select id="editServiceLocation" class="tvEditSelect">
-                                <option value="">-- Selectează --</option>
-                                <option value="garage" ${appointment.serviceLocation === 'garage' ? 'selected' : ''}>La garaj</option>
-                                <option value="client" ${appointment.serviceLocation === 'client' ? 'selected' : ''}>La client</option>
-                            </select>
-                        </div>
-                        <div class="tvEditField">
-                            <label for="editContactPref">Preferință Contact</label>
-                            <select id="editContactPref" class="tvEditSelect">
-                                <option value="">-- Selectează --</option>
-                                <option value="phone" ${appointment.contactPref === 'phone' ? 'selected' : ''}>Telefon</option>
-                                <option value="sms" ${appointment.contactPref === 'sms' ? 'selected' : ''}>SMS</option>
-                                <option value="whatsapp" ${appointment.contactPref === 'whatsapp' ? 'selected' : ''}>WhatsApp</option>
-                            </select>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Section 5: Service Details -->
-                <div class="tvEditFieldGroup">
-                    <div class="tvEditFieldGroupHeader">
-                        <i class="fas fa-tools"></i> Detalii Serviciu
-                    </div>
-                    <div class="tvEditFieldsGrid full-width">
-                        <div class="tvEditField">
-                            <label for="editProblem">Problemă / Serviciu Solicitat <span class="required">*</span></label>
-                            <textarea id="editProblem" class="tvEditTextarea tv-required"
-                                placeholder="Descrierea problemei sau serviciului solicitat...">${appointment.problemDescription || appointment.problem || ''}</textarea>
-                            <span class="tvEditErrorMsg">Descrierea problemei este obligatorie</span>
-                        </div>
-                    </div>
-                    <div class="tvEditFieldsGrid full-width">
-                        <div class="tvEditField">
-                            <label for="editNotes">Notițe Adiționale</label>
-                            <textarea id="editNotes" class="tvEditTextarea"
-                                placeholder="Notițe interne...">${appointment.notes || ''}</textarea>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Section 6: Status -->
-                <div class="tvEditFieldGroup">
-                    <div class="tvEditFieldGroupHeader">
-                        <i class="fas fa-info-circle"></i> Status
-                    </div>
-                    <div class="tvEditFieldsGrid">
-                        <div class="tvEditField">
-                            <label for="editStatus">Status</label>
-                            <select id="editStatus" class="tvEditSelect">
-                                <option value="scheduled" ${appointment.status === 'scheduled' ? 'selected' : ''}>Programat</option>
-                                <option value="done" ${appointment.status === 'done' ? 'selected' : ''}>Finalizat</option>
-                                <option value="canceled" ${appointment.status === 'canceled' ? 'selected' : ''}>Anulat</option>
-                            </select>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Section 7: Payment Information -->
-                <details class="tvEditFieldGroup">
-                    <summary class="tvEditFieldGroupHeader" style="cursor: pointer;">
-                        <i class="fas fa-credit-card"></i> Informații Plată
-                    </summary>
-                    <div class="tvEditFieldsGrid">
-                        <div class="tvEditField">
-                            <label for="editAmountPaid">Suma Plătită</label>
-                            <input type="number" id="editAmountPaid" class="tvEditInput"
-                                placeholder="0.00"
-                                value="${appointment.amountPaid || 0}"
-                                min="0" step="0.01" autocomplete="off" inputmode="decimal">
-                        </div>
-                        <div class="tvEditField">
-                            <label for="editPaymentMethod">Metodă Plată</label>
-                            <select id="editPaymentMethod" class="tvEditSelect">
-                                <option value="">-- Selectează --</option>
-                                <option value="Cash" ${appointment.paymentMethod === 'Cash' ? 'selected' : ''}>Numerar</option>
-                                <option value="Card" ${appointment.paymentMethod === 'Card' ? 'selected' : ''}>Card</option>
-                                <option value="Bank Transfer" ${appointment.paymentMethod === 'Bank Transfer' ? 'selected' : ''}>Transfer Bancar</option>
-                                <option value="Other" ${appointment.paymentMethod === 'Other' ? 'selected' : ''}>Altă metodă</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div class="tvEditFieldsGrid">
-                        <div class="tvEditField">
-                            <label for="editPaymentDate">Data Plății</label>
-                            <input type="date" id="editPaymentDate" class="tvEditInput"
-                                value="${appointment.paymentDate || ''}"
-                                autocomplete="off">
-                        </div>
-                    </div>
-                    <div class="tvEditFieldsGrid full-width">
-                        <div class="tvEditField">
-                            <label for="editPaymentNote">Notă Plată</label>
-                            <textarea id="editPaymentNote" class="tvEditTextarea"
-                                placeholder="Ex: Avans, plata parțială...">${appointment.paymentNote || ''}</textarea>
-                        </div>
-                    </div>
-                </details>
-            </form>
-        </div>
-
-        <!-- Footer -->
-        <div class="tvEditModalFooter">
-            <button type="button" class="tvEditModalCancel" data-action="cancel" id="tvEditCancel">
-                Anulează
-            </button>
-            <button type="button" class="tvEditModalSave" data-action="save" id="tvEditSave">
-                <i class="fas fa-save"></i> Salvează Modificări
-            </button>
-        </div>
-    `;
-
-    return modal;
-}
-
-// -------------------------------------------------
-// Edit Modal state & history helpers
-// -------------------------------------------------
-const editModalHistoryState = {
-    isOpen: false,
-    suppressNextPop: false,
-    popListenerBound: false,
-    overlay: null,
-    closeFn: null
-};
-
-const logEditHistory = () => {};
-
-function ensureEditPopListener() {
-    if (editModalHistoryState.popListenerBound) return;
-
-    window.addEventListener('popstate', (e) => {
-        if (editModalHistoryState.suppressNextPop) {
-            editModalHistoryState.suppressNextPop = false;
-            return;
-        }
-
-        if (editModalHistoryState.isOpen && typeof editModalHistoryState.closeFn === 'function') {
-            editModalHistoryState.closeFn({ fromPopState: true });
-        }
-    });
-
-    editModalHistoryState.popListenerBound = true;
-}
-
-function isEditModalOpen() {
-    return editModalHistoryState.isOpen;
-}
-
-// Open Edit Modal
-async function openEditModal(appointment) {
-    if (!appointment) {
-        showNotification('Programarea nu a fost găsită', 'error');
-        return;
-    }
-
-    const appointmentId = appointment.id;
-    ensureEditPopListener();
-    
-    // Create overlay and modal
-    const overlay = document.createElement('div');
-    overlay.className = 'tvEditModalOverlay';
-    overlay.setAttribute('role', 'dialog');
-    overlay.setAttribute('aria-modal', 'true');
-    document.body.appendChild(overlay);
-
-    const modal = createEditModalDOM(appointment);
-    overlay.appendChild(modal);
-
-    // Store original data for dirty check
-    const form = modal.querySelector('#tvEditForm');
-    const getFormData = () => ({
-        name: form.querySelector('#editName').value,
-        phone: form.querySelector('#editPhone').value,
-        date: form.querySelector('#editDate').value,
-        time: form.querySelector('#editTime').value,
-        makeModel: form.querySelector('#editMakeModel').value,
-        regNumber: form.querySelector('#editRegNumber').value,
-        mileage: form.querySelector('#editMileage').value,
-        address: form.querySelector('#editAddress').value,
-        serviceLocation: form.querySelector('#editServiceLocation').value,
-        contactPref: form.querySelector('#editContactPref').value,
-        problem: form.querySelector('#editProblem').value,
-        notes: form.querySelector('#editNotes').value,
-        status: form.querySelector('#editStatus').value,
-        // Payment fields
-        amountPaid: form.querySelector('#editAmountPaid').value,
-        paymentMethod: form.querySelector('#editPaymentMethod').value,
-        paymentDate: form.querySelector('#editPaymentDate').value,
-        paymentNote: form.querySelector('#editPaymentNote').value
-    });
-
-    const originalData = getFormData();
-
-    // Check for draft and show in-modal prompt
-    const draft = loadDraft(appointmentId);
-    if (draft) {
-        // Create draft prompt overlay
-        const draftPrompt = document.createElement('div');
-        draftPrompt.className = 'tvDraftPrompt';
-        draftPrompt.innerHTML = `
-            <div class="tvDraftPromptCard">
-                <div class="tvDraftPromptIcon">
-                    <i class="fas fa-file-alt"></i>
-                </div>
-                <h3>Draft nesalvat găsit</h3>
-                <p>Am găsit un draft nesalvat pentru această programare. Vrei să îl recuperezi?</p>
-                <div class="tvDraftPromptButtons">
-                    <button type="button" class="tvDraftPromptBtn tvDraftPromptIgnore">Ignoră</button>
-                    <button type="button" class="tvDraftPromptBtn tvDraftPromptRecover">Recuperează</button>
-                </div>
-            </div>
-        `;
-        modal.appendChild(draftPrompt);
-        
-        // Handle draft recovery
-        draftPrompt.querySelector('.tvDraftPromptRecover').addEventListener('click', () => {
-            Object.keys(draft).forEach(key => {
-                const inputId = 'edit' + key.charAt(0).toUpperCase() + key.slice(1);
-                const input = form.querySelector(`#${inputId}`);
-                if (input && draft[key]) {
-                    input.value = draft[key];
-                }
-            });
-            draftPrompt.remove();
-            showNotification('📝 Draft recuperat', 'info');
-        });
-        
-        // Handle draft ignore
-        draftPrompt.querySelector('.tvDraftPromptIgnore').addEventListener('click', () => {
-            clearDraft(appointmentId);
-            draftPrompt.remove();
-        });
-    }
-
-    // Auto-focus first input
-    setTimeout(() => form.querySelector('#editName').focus(), 100);
-
-    // Phone number formatting
-    const phoneInput = form.querySelector('#editPhone');
-    phoneInput.addEventListener('input', (e) => {
-        const cursorPos = e.target.selectionStart;
-        const oldValue = e.target.value;
-        const formatted = formatPhoneNumber(oldValue);
-        e.target.value = formatted;
-        
-        // Restore cursor position (approximate)
-        if (formatted.length >= cursorPos) {
-            e.target.setSelectionRange(cursorPos, cursorPos);
-        }
-    });
-
-    // Phone validation on blur
-    phoneInput.addEventListener('blur', () => {
-        const value = phoneInput.value.trim();
-        if (value && !validatePhoneNumber(value)) {
-            phoneInput.classList.add('error');
-            const errorMsg = phoneInput.nextElementSibling;
-            if (errorMsg && errorMsg.classList.contains('tvEditErrorMsg')) {
-                errorMsg.textContent = 'Format invalid (ex: 07700 900 123)';
-            }
-        } else {
-            phoneInput.classList.remove('error');
-        }
-    });
-
-    // Auto-uppercase for registration plate and make/model
-    const regNumberInput = form.querySelector('#editRegNumber');
-    const makeModelInput = form.querySelector('#editMakeModel');
-    
-    [regNumberInput, makeModelInput].forEach(input => {
-        input.addEventListener('input', (e) => {
-            const start = e.target.selectionStart;
-            const end = e.target.selectionEnd;
-            e.target.value = e.target.value.toUpperCase();
-            e.target.setSelectionRange(start, end);
-        });
-    });
-
-    // Inline validation on blur for required fields
-    const requiredInputs = form.querySelectorAll('[required], .tv-required');
-    requiredInputs.forEach(input => {
-        input.addEventListener('blur', () => validateField(input, true));
-        input.addEventListener('input', () => {
-            if (input.classList.contains('error')) {
-                validateField(input, true);
-            }
-        });
-    });
-
-    // Debounced autosave (saves 500ms after user stops typing)
-    const debouncedSave = debounce(() => {
-        const currentData = getFormData();
-        saveDraft(appointmentId, currentData);
-    }, 500);
-
-    // Trigger autosave on any form change
-    form.addEventListener('input', debouncedSave);
-    form.addEventListener('change', debouncedSave);
-
-    // Close function with history-aware flow
-    let closeModal = async ({ shouldSave = false, fromPopState = false, reason = 'unknown' } = {}) => {
-        if (!editModalHistoryState.isOpen) return;
-
-        const currentData = getFormData();
-        const isDirty = JSON.stringify(originalData) !== JSON.stringify(currentData);
-
-        if (!fromPopState && !shouldSave && isDirty) {
-            const confirmed = await confirmUnsavedChanges();
-            if (!confirmed) return;
-        }
-
-        editModalHistoryState.isOpen = false;
-        editModalHistoryState.overlay = null;
-        editModalHistoryState.closeFn = null;
-
-        overlay.classList.remove('active');
-        document.removeEventListener('keydown', handleEsc);
-
-        // Cleanup DOM after transition
-        setTimeout(() => {
-            if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
-            document.body.style.overflow = '';
-            if (!document.querySelector('.tvFinalizeModal--show') && !document.querySelector('.tvDetailsModalOverlay--show') && !document.querySelector('.modern-modal-overlay.modern-modal-show') && !document.querySelector('.modal-backdrop.modalOverlay--show')) {
-                document.body.classList.remove('modal-open');
-            }
-        }, 200);
-
-        if (fromPopState) {
-            // Clean URL without adding new history entries
-            history.replaceState(history.state, '', location.pathname + location.search);
-            return;
-        }
-
-        // User-initiated close: remove the pushed state once
-        if (location.hash === '#edit') {
-            editModalHistoryState.suppressNextPop = true;
-            history.back();
-        } else {
-            history.replaceState(history.state, '', location.pathname + location.search);
-        }
-    };
-
-    // Handle close button
-    modal.querySelector('.tvEditModalClose').addEventListener('click', () => closeModal({ shouldSave: false, fromUser: true, reason: 'close-button' }));
-
-    // Add 'Șterge draft' button if draft exists
-    const addDeleteDraftButton = () => {
-        const footer = modal.querySelector('.tvEditModalFooter');
-        const existingBtn = footer.querySelector('.tvDeleteDraftBtn');
-        if (existingBtn) return;
-        
-        const hasDraft = loadDraft(appointmentId) !== null;
-        if (hasDraft) {
-            const deleteDraftBtn = document.createElement('button');
-            deleteDraftBtn.type = 'button';
-            deleteDraftBtn.className = 'tvDeleteDraftBtn';
-            deleteDraftBtn.innerHTML = '<i class="fas fa-trash-alt"></i> Șterge draft';
-            deleteDraftBtn.addEventListener('click', () => {
-                clearDraft(appointmentId);
-                deleteDraftBtn.remove();
-                showNotification('🗑️ Draft șters', 'info');
-            });
-            footer.insertBefore(deleteDraftBtn, footer.firstChild);
-        }
-    };
-    
-    // Add delete draft button after any save attempt
-    setTimeout(addDeleteDraftButton, 100);
-
-    // Handle cancel button
-    modal.querySelector('#tvEditCancel').addEventListener('click', () => closeModal({ shouldSave: false, fromUser: true, reason: 'cancel-button' }));
-
-    // Handle save button
-    modal.querySelector('#tvEditSave').addEventListener('click', async () => {
-        const saveBtn = modal.querySelector('#tvEditSave');
-        
-        // Validate all required fields
-        const validation = validateAllFields(form);
-        if (!validation.isValid) {
-            const errorList = validation.errors.join(', ');
-            showNotification(`⚠️ Câmpuri obligatorii lipsă: ${errorList}`, 'warning');
-            // Scroll to first error
-            const firstError = form.querySelector('.error');
-            if (firstError) {
-                firstError.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                firstError.focus();
-            }
-            return;
-        }
-
-        // Show loading state
-        saveBtn.disabled = true;
-        saveBtn.classList.add('loading');
-
-        try {
-            const name = form.querySelector('#editName').value.trim();
-            const phone = form.querySelector('#editPhone').value.trim();
-            const date = form.querySelector('#editDate').value;
-            const time = form.querySelector('#editTime').value;
-            const makeModel = form.querySelector('#editMakeModel').value.trim().toUpperCase();
-            const regNumber = form.querySelector('#editRegNumber').value.trim().toUpperCase();
-            const mileage = form.querySelector('#editMileage').value;
-            const address = form.querySelector('#editAddress').value.trim();
-            const problem = form.querySelector('#editProblem').value.trim();
-            const notes = form.querySelector('#editNotes').value.trim();
-            const status = form.querySelector('#editStatus').value;
-            const serviceLocation = form.querySelector('#editServiceLocation').value;
-            const contactPref = form.querySelector('#editContactPref').value;
-            
-            // Payment fields
-            const amountPaid = toNumber(form.querySelector('#editAmountPaid').value);
-            const paymentMethod = form.querySelector('#editPaymentMethod').value;
-            const paymentDate = form.querySelector('#editPaymentDate').value;
-            const paymentNote = form.querySelector('#editPaymentNote').value.trim();
-            
-            // Validate payment amount
-            if (amountPaid < 0) {
-                showNotification('⚠️ Suma plătită nu poate fi negativă', 'warning');
-                saveBtn.disabled = false;
-                saveBtn.classList.remove('loading');
-                return;
-            }
-
-            const updateData = {
-                customerName: name,
-                dateStr: date,
-                time,
-                status,
-                // Payment fields
-                amountPaid: amountPaid,
-                paymentMethod: paymentMethod || '',
-                paymentDate: paymentDate || '',
-                paymentNote: paymentNote || ''
-            };
-
-            // Vehicle fields (optional)
-            if (makeModel) updateData.vehicleMakeModel = makeModel;
-            if (regNumber) updateData.registrationPlate = regNumber;
-            // Build combined vehicle field only if we have make/model or reg
-            if (makeModel || regNumber) {
-                updateData.vehicle = (makeModel || '') + (regNumber ? ` • ${regNumber}` : '');
-            }
-
-            // Optional fields (only save if non-empty)
-            if (phone) updateData.phone = phone;
-            if (mileage) updateData.mileage = parseInt(mileage, 10);
-            if (address) updateData.address = address;
-            if (problem) updateData.problemDescription = problem;
-            if (notes) updateData.notes = notes;
-            if (serviceLocation) updateData.serviceLocation = serviceLocation;
-            if (contactPref) updateData.contactPref = contactPref;
-
-            // Update timestamp
-            const dateTime = new Date(`${date}T${time}`);
-            const { Timestamp } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
-            const scheduledTs = Timestamp.fromDate(dateTime);
-            updateData.startAt = scheduledTs;
-            updateData.scheduledDateTime = scheduledTs;
-            if (!appointment.originalDateTime) {
-                updateData.originalDateTime = appointment.startAt || scheduledTs;
-            }
-
-            // Update Firestore
-            const { doc, updateDoc } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
-            await updateDoc(doc(db, 'appointments', appointmentId), updateData);
-
-            // Update local object
-            Object.assign(appointment, updateData);
-
-            // Update DOM
-            const row = document.querySelector(`.tvCard[data-apt-id="${appointmentId}"]`);
-            if (row) {
-                const newHTML = createAppointmentCard(appointment);
-                const temp = document.createElement('div');
-                temp.innerHTML = newHTML;
-                row.replaceWith(temp.firstElementChild);
-                bindAppointmentsClickDelegation();
-            }
-
-            // Clear draft on successful save
-            clearDraft(appointmentId);
-            
-            showNotification('✅ Programare actualizată cu succes', 'success');
-            await closeModal({ shouldSave: true, fromUser: true, reason: 'save-success' });
-        } catch (error) {
-            console.error('[Edit] Error:', error);
-            showNotification('❌ Eroare la salvare: ' + error.message, 'error');
-            saveBtn.disabled = false;
-            saveBtn.classList.remove('loading');
-        }
-    });
-
-    // ESC closes modal
-    const handleEsc = (e) => {
-        if (e.key === 'Escape') closeModal({ shouldSave: false, fromUser: true, reason: 'esc' });
-    };
-    document.addEventListener('keydown', handleEsc);
-
-    // History management
-    history.pushState({ tvModal: 'edit', appointmentId }, '', location.pathname + location.search + '#edit');
-    editModalHistoryState.isOpen = true;
-    editModalHistoryState.overlay = overlay;
-    editModalHistoryState.closeFn = closeModal;
-
-    // Disable background scroll
-    document.body.style.overflow = 'hidden';
-    document.body.classList.add('modal-open');
-
-    // Show modal
-    setTimeout(() => overlay.classList.add('active'), 10);
-
-    // Cleanup on close handled within closeModal (no extra reassignment needed)
-}
-
-// Confirm unsaved changes dialog
-async function confirmUnsavedChanges() {
-    const { confirmModal } = await import('./src/modal.js');
-    return confirmModal({
-        title: 'Modificări nesalvate',
-        message: 'Ai modificări nesalvate. Sigur vrei să le anulezi?',
-        icon: 'fa-exclamation-triangle',
-        variant: 'danger',
-        confirmText: 'Da, anulează',
-        cancelText: 'Nu, rămân'
-    });
-}
-
 async function handleEditAction(id, appointment, openCustomModal) {
     if (!appointment) {
         showNotification('Programarea nu a fost găsită', 'error');
         return;
     }
 
-    await openEditModal(appointment);
+    // Set edit mode and populate the form
+    enterEditMode(appointment);
+    populateFormFromAppointment(appointment);
+    
+    // Scroll to the appointment form
+    const appointmentForm = document.getElementById('appointmentForm');
+    if (appointmentForm) {
+        appointmentForm.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        // Focus on the first field
+        setTimeout(() => {
+            const firstInput = appointmentForm.querySelector('input[type="text"], input[type="tel"]');
+            if (firstInput) firstInput.focus();
+        }, 100);
+    }
 }
 
 // Export appointments to CSV
@@ -4282,6 +4773,34 @@ function setupEventListeners() {
 
 // Modern appointment form logic
 function setupAppointmentFormLogic() {
+    // 0. Setup cancel edit button
+    const cancelEditBtn = document.getElementById('cancelEditBtn');
+    if (cancelEditBtn) {
+        cancelEditBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            const form = document.getElementById('appointmentForm');
+            if (form) {
+                form.reset();
+                const today = new Date().toISOString().split('T')[0];
+                document.getElementById('appointmentDate').value = today;
+                document.getElementById('appointmentTime').value = '';
+                document.getElementById('appointmentTimeValue').value = '';
+                document.getElementById('mileage').value = '';
+                document.getElementById('serviceLocation').value = '';
+                const garageAddrSection = document.getElementById('garageAddressSection');
+                const clientAddrSection = document.getElementById('clientAddressSection');
+                if (garageAddrSection) garageAddrSection.style.display = 'none';
+                if (clientAddrSection) clientAddrSection.removeAttribute('open');
+                renderJobRows([]);
+                renderPartRows([]);
+                updateAppointmentTotals();
+                addJobRow();
+            }
+            exitEditMode();
+            showNotification('✅ Edit mode cancelled', 'info');
+        });
+    }
+    
     // 1. Toggle location sections based on serviceLocation dropdown
     const serviceLocationSelect = document.getElementById('serviceLocation');
     const garageSection = document.getElementById('garageAddressSection');
@@ -4291,16 +4810,16 @@ function setupAppointmentFormLogic() {
         serviceLocationSelect.addEventListener('change', (e) => {
             if (e.target.value === 'garage') {
                 if (garageSection) garageSection.style.display = 'block';
-                if (clientSection) clientSection.style.display = 'none';
+                if (clientSection) clientSection.removeAttribute('open');
                 // Clear client address fields
                 document.getElementById('address').value = '';
                 document.getElementById('postcode').value = '';
             } else if (e.target.value === 'client') {
                 if (garageSection) garageSection.style.display = 'none';
-                if (clientSection) clientSection.style.display = 'block';
+                if (clientSection) clientSection.setAttribute('open', '');
             } else {
                 if (garageSection) garageSection.style.display = 'none';
-                if (clientSection) clientSection.style.display = 'none';
+                if (clientSection) clientSection.removeAttribute('open');
             }
         });
     }
@@ -4320,12 +4839,71 @@ function setupAppointmentFormLogic() {
             e.target.value = e.target.value.toUpperCase();
         });
     }
+
+    // 3. Items Panel - Tabs & Buttons
+    const tabBtns = document.querySelectorAll('.tabBtn');
+    const itemsPanel = document.querySelector('.itemsPanel');
     
-    // 3. Real-time validation feedback (optional - can add error messages on change)
+    if (itemsPanel) {
+        // Tab switching
+        tabBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const tabName = btn.dataset.tab;
+                if (!tabName) return;
+                
+                // Update button state
+                tabBtns.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                
+                // Update tab content
+                const jobsTab = document.getElementById('tabJobs');
+                const partsTab = document.getElementById('tabParts');
+                
+                if (tabName === 'jobs') {
+                    jobsTab?.classList.add('active');
+                    partsTab?.classList.remove('active');
+                } else if (tabName === 'parts') {
+                    partsTab?.classList.add('active');
+                    jobsTab?.classList.remove('active');
+                }
+            });
+        });
+        
+        // Quick action buttons
+        const miniButtons = itemsPanel.querySelectorAll('.miniBtn');
+        miniButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const action = btn.dataset.action;
+                if (action === 'addJob') {
+                    addJobRow();
+                    // Switch to jobs tab
+                    document.querySelector('[data-tab="jobs"]')?.click();
+                } else if (action === 'addPart') {
+                    addPartRow();
+                    // Switch to parts tab
+                    document.querySelector('[data-tab="parts"]')?.click();
+                }
+            });
+        });
+    }
+
+    // 4. Jobs/Parts builder
+    const jobsContainer = document.getElementById('jobsContainer');
+    const partsContainer = document.getElementById('partsContainer');
+
+    bindLineItemEvents(jobsContainer, updateAppointmentTotals);
+    bindLineItemEvents(partsContainer, updateAppointmentTotals);
+
+    if (jobsContainer && jobsContainer.children.length === 0) {
+        addJobRow();
+    }
+
+    updateAppointmentTotals();
+    
+    // 5. Real-time validation feedback (optional - can add error messages on change)
     const requiredFields = [
         'customerName', 'customerPhone', 'contactPref', 'makeModel', 'regNumber',
-        'serviceLocation', 'appointmentDate', 'appointmentTime',
-        'problemDescription'
+        'serviceLocation', 'appointmentDate', 'appointmentTime'
     ];
     
     // Optionally add visual feedback on blur
@@ -4537,9 +5115,18 @@ function initInvoiceTabUI() {
       showNotification('Selectează o programare pentru invoice', 'warning');
       return;
     }
-    const basePath = window.location.pathname.replace(/[^/]+$/, '');
-    const url = basePath + 'invoice.html?aptId=' + encodeURIComponent(currentInvoiceEditAptId);
-    window.open(url, '_blank');
+        (async () => {
+            try {
+                const { getOrCreateInvoiceForAppointment } = await import('./src/invoices/invoice-manager.js');
+                const invoiceId = await getOrCreateInvoiceForAppointment(currentInvoiceEditAptId, {});
+                const basePath = window.location.pathname.replace(/[^/]+$/, '');
+                const url = basePath + 'invoice.html?invoiceId=' + encodeURIComponent(invoiceId) + '&mode=view';
+                window.open(url, '_blank');
+            } catch (err) {
+                console.error('[InvoiceTab] Preview open error:', err);
+                showNotification('Nu s-a putut deschide factura', 'error');
+            }
+        })();
   });
 
   // Autosave on input (debounced)
@@ -4549,7 +5136,7 @@ function initInvoiceTabUI() {
     invoiceAutosaveTimer = setTimeout(() => saveInvoiceOverrides(false), 600);
   });
 
-  saveBtn.addEventListener('click', () => saveInvoiceOverrides(true));
+  saveBtn.addEventListener('click', () => saveInvoiceToStorage());
   clearBtn.addEventListener('click', () => clearInvoiceOverrides());
 }
 
@@ -4770,160 +5357,16 @@ async function ensureInvoiceIdentifiers(appointmentId, appointmentData) {
 }
 
 /**
- * Create invoice data from appointment
- * Called when user clicks "View Invoice" or "Download Invoice" on an appointment
- * Stores data in sessionStorage and opens invoice.html
- */
-function createInvoiceFromAppointment(appointment) {
-    if (!appointment || !appointment.customerName) {
-        showNotification('⚠️ Cannot generate invoice: Missing client information', 'error');
-        return;
-    }
-
-    // Create invoice data structure
-    const invoiceData = {
-        company: {
-            name: 'Transvortex LTD',
-            address: '81 Foley Rd, Birmingham B8 2JT',
-            website: 'https://transvortexltd.co.uk/',
-            facebook: 'https://www.facebook.com/profile.php?id=61586007316302',
-            call: 'Iulian +44 7478280954',
-            emergency: 'Mihai +44 7440787527'
-        },
-        client: {
-            name: appointment.customerName || '',
-            address: appointment.address || '',
-            phone: appointment.customerPhone || '',
-            vehicle: appointment.makeModel || '',
-            regPlate: appointment.regNumber || '',
-            mileage: appointment.mileage || ''
-        },
-        // Default empty items - can be added via invoice UI
-        items: appointment.items || [
-            {
-                description: appointment.problemDescription || 'Service',
-                qty: 1,
-                unitPrice: 0
-            }
-        ],
-        invoiceNumber: appointment.invoiceNumber || null,
-        invoiceDate: appointment.appointmentDate || new Date().toISOString().split('T')[0],
-        dueDate: null, // Will be calculated (7 days after invoice date)
-        pin: appointment.pin || null,
-        paymentTerms: 'Due within 7 days',
-        vatPercent: 0,
-        
-        // Metadata for reference
-        appointmentId: appointment.id || null,
-        appointmentDate: appointment.appointmentDate,
-        appointmentTime: appointment.appointmentTime
-    };
-
-    // Store in sessionStorage
-    try {
-        sessionStorage.setItem('tvx.invoiceData', JSON.stringify(invoiceData));
-        
-        // Open invoice.html in new tab or same window
-        // Using relative path that works in both Go Live and GitHub Pages
-        const invoiceUrl = './invoice.html';
-        window.open(invoiceUrl, '_blank');
-    } catch (error) {
-        console.error('Error storing invoice data:', error);
-        showNotification('❌ Error generating invoice. Please try again.', 'error');
-    }
-}
-
-// Expose to global scope
-window.createInvoiceFromAppointment = createInvoiceFromAppointment;
-
-/**
  * Open invoice for a given appointment ID
- * - Finds appointment in local cache; if not found, attempts to fetch
- * - Normalizes items and fields
- * - Stores in sessionStorage under key "tvx.invoiceData"
- * - Opens invoice.html via relative URL
+ * - Always uses Firestore invoices collection (one-to-one)
+ * - Creates invoice if missing, then opens by invoiceId
  */
 async function openInvoiceForAppointment(appointmentId) {
     try {
-        let appointment = appointments.find(a => a.id === appointmentId);
-        if (!appointment) {
-            // Fallback: fetch directly from Firestore if available
-            try {
-                const { doc, getDoc } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
-                const snap = await getDoc(doc(db, 'appointments', appointmentId));
-                if (snap?.exists()) appointment = { id: snap.id, ...snap.data() };
-            } catch (err) {
-                console.warn('[Invoice] Could not fetch appointment, proceeding with minimal data:', err);
-            }
-        }
-
-        if (!appointment) {
-            showNotification('❌ Nu s-a găsit programarea pentru factură', 'error');
-            return;
-        }
-
-        const identifiers = await ensureInvoiceIdentifiers(appointmentId, appointment);
-
-        const normalizeItems = (apt) => {
-            const src = apt.invoiceItems || apt.items || apt.services || null;
-            if (Array.isArray(src) && src.length) {
-                return src.map(it => ({
-                    description: it.description || it.name || it.service || apt.problemDescription || 'Service',
-                    qty: Number(it.qty ?? it.quantity ?? 1),
-                    unitPrice: Number(it.unitPrice ?? it.price ?? it.cost ?? 0)
-                }));
-            }
-            const desc = apt.problemDescription || apt.notes || 'Service';
-            return [{ description: desc, qty: 1, unitPrice: 0 }];
-        };
-
-        const todayISO = () => new Date().toISOString().split('T')[0];
-        const plusDaysISO = (days) => {
-            const d = new Date();
-            d.setDate(d.getDate() + days);
-            return d.toISOString().split('T')[0];
-        };
-        const invoiceData = {
-            company: {
-                name: 'Transvortex LTD',
-                address: '81 Foley Rd, Birmingham B8 2JT',
-                website: 'https://transvortexltd.co.uk/',
-                facebook: 'https://www.facebook.com/profile.php?id=61586007316302',
-                call: 'Iulian +44 7478280954',
-                emergency: 'Mihai +44 7440787527'
-            },
-            invoiceNumber: identifiers?.invoiceNumber || appointment.invoiceNumber || null,
-            invoiceDate: todayISO(),
-            dueDate: plusDaysISO(7),
-            pin: identifiers?.pin || appointment.pin || null,
-            paymentTerms: 'Due within 7 days',
-            client: {
-                name: appointment.customerName || appointment.clientName || appointment.name || '',
-                address: appointment.address || '',
-                phone: appointment.customerPhone || appointment.phone || '',
-                vehicle: appointment.makeModel || appointment.vehicle || appointment.car || '',
-                regPlate: appointment.regNumber || appointment.regPlate || appointment.plate || '',
-                mileage: coalesceMileageValue(appointment) || ''
-            },
-            vatPercent: appointment.vatPercent ?? appointment.vat ?? 0,
-            items: normalizeItems(appointment),
-            notes: appointment.notes || ''
-        };
-
-        // Persist to sessionStorage under namespaced key
-        try {
-            sessionStorage.setItem('tvx.invoiceData', JSON.stringify(invoiceData));
-        } catch (err) {
-            console.error('[Invoice] Failed to store invoiceData:', err);
-        }
-
-        const getInvoiceUrl = () => {
-            const href = window.location.href;
-            const base = href.replace(/[^/]*$/, '');
-            return base + 'invoice.html';
-        };
-
-        window.open(getInvoiceUrl(), '_blank', 'noopener');
+        console.log('Opening invoice for appointment:', appointmentId);
+        const invoiceId = await getOrCreateInvoiceForAppointment(appointmentId);
+        console.log('Found invoice:', invoiceId);
+        await openInvoice(null, invoiceId, 'view');
     } catch (error) {
         console.error('[Invoice] Error opening invoice:', error);
         showNotification('❌ A apărut o eroare la generarea facturii', 'error');
@@ -5042,6 +5485,515 @@ function initLanguageSwitcher() {
     // Apply translations for the saved language on load
     applyTranslations(document);
 }
+(function initCompactHeaderMenu(){
+  const btn = document.getElementById('menuBtn');
+  const dd  = document.getElementById('menuDropdown');
+  const en  = document.getElementById('langEN');
+  const ro  = document.getElementById('langRO');
+
+  if(!btn || !dd) return;
+
+  const open = () => { dd.hidden = false; btn.setAttribute('aria-expanded','true'); };
+  const close = () => { dd.hidden = true; btn.setAttribute('aria-expanded','false'); };
+  const toggle = () => dd.hidden ? open() : close();
+
+  btn.addEventListener('click', (e)=>{ e.stopPropagation(); toggle(); });
+
+  // Close on outside click
+  document.addEventListener('click', ()=> close());
+
+  // Close on ESC
+  document.addEventListener('keydown', (e)=>{ if(e.key === 'Escape') close(); });
+
+  // Language handlers (hook into your existing translation system)
+  en?.addEventListener('click', (e)=>{
+    e.stopPropagation();
+    localStorage.setItem('tv_lang', 'en');
+    if(typeof window.applyTranslations === 'function') window.applyTranslations(document);
+    close();
+  });
+
+  ro?.addEventListener('click', (e)=>{
+    e.stopPropagation();
+    localStorage.setItem('tv_lang', 'ro');
+    if(typeof window.applyTranslations === 'function') window.applyTranslations(document);
+    close();
+  });
+})();
+
+/**
+ * ===== STANDALONE INVOICES COLLECTION =====
+ * Support for creating and managing invoices independent of appointments
+ */
+
+// Global state for invoice editing
+let currentInvoiceDraft = null;
+let currentInvoiceId = null;
+let isLoadingInvoice = false;
+
+/**
+ * Generate invoice number in format: INV-XXXXX-YYMMDD
+ */
+function generateInvoiceNumber() {
+    const now = new Date();
+    const dateStr = now.toISOString().slice(2, 8).replace(/-/g, '');
+    const random = Math.random().toString(36).substring(2, 7).toUpperCase();
+    return `INV-${random}-${dateStr}`;
+}
+
+// ==========================================
+// INVOICES STORAGE MANAGEMENT
+// ==========================================
+
+/**
+ * Open invoice editor for appointment (Firestore-driven)
+ */
+async function openInvoiceFromAppointment(appointmentId, appointmentData) {
+    if (!appointmentId) return;
+    try {
+        console.log('Opening invoice for appointment:', appointmentId);
+        const invoiceId = await getOrCreateInvoiceForAppointment(appointmentId, appointmentData || {});
+        console.log('Found invoice:', invoiceId);
+        openInvoice(null, invoiceId, 'edit');
+    } catch (error) {
+        console.error('❌ [Invoice] Error opening appointment invoice:', error);
+        alert('Error opening invoice: ' + error.message);
+    }
+}
+
+/**
+ * Create invoice document in Firestore immediately, then open editor
+ */
+async function createInvoiceFromAppointment(appointmentId, prefillData) {
+    if (!db || !currentUser) {
+        console.error('❌ [Invoice] Database or user not initialized');
+        alert('Please wait for authentication to complete');
+        return null;
+    }
+
+    // If appointmentId is provided, use single-source manager to prevent duplicates
+    if (appointmentId) {
+        try {
+            const invoiceId = await getOrCreateInvoiceForAppointment(appointmentId, prefillData || {});
+            openInvoice(null, invoiceId, 'edit');
+            return invoiceId;
+        } catch (error) {
+            console.error('❌ [Invoice] Error opening existing appointment invoice:', error);
+            alert('Error opening invoice: ' + error.message);
+            return null;
+        }
+    }
+
+    console.log('📝 [Invoice] Creating invoice in Firestore...');
+    console.log('📝 [Invoice] Prefill data:', prefillData);
+    
+    try {
+        const { collection, addDoc, doc, getDoc, updateDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+        
+        // Generate invoice number
+        const invoiceNumber = generateInvoiceNumber();
+        
+        // Build invoice payload
+        const invoicePayload = {
+            invoiceNumber: invoiceNumber,
+            status: 'draft',
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+            createdBy: currentUser.uid,
+            
+            // Customer info
+            customerName: prefillData?.customerName || '',
+            phone: prefillData?.customerPhone || '',
+            address: prefillData?.address || '',
+            
+            // Vehicle info
+            vehicleMakeModel: prefillData?.makeModel || '',
+            regPlate: prefillData?.registrationPlate || prefillData?.regPlate || '',
+            mileage: prefillData?.mileage || '',
+            
+            // Items (prefill from appointment)
+            items: [...(prefillData?.services || []), ...(prefillData?.parts || [])],
+            services: prefillData?.services || [],
+            parts: prefillData?.parts || [],
+            jobs: [...(prefillData?.services || []), ...(prefillData?.parts || [])],
+            
+            // Totals (0 initially)
+            subtotal: prefillData?.subtotal || 0,
+            vatRate: 0,
+            vatAmount: 0,
+            total: prefillData?.total || prefillData?.subtotal || 0,
+            
+            // Payment
+            amountPaid: 0,
+            remainingBalance: 0,
+            paymentMethod: '',
+            paymentDate: '',
+            
+            // Notes
+            notes: prefillData?.problemDescription || '',
+            jobsSummary: prefillData?.jobsSummary || '',
+            
+            // Link to appointment if provided
+            ...(appointmentId && { appointmentId })
+        };
+        
+        console.log('📝 [Invoice] Writing to Firestore collection "invoices"...');
+        console.log('📝 [Invoice] Payload:', invoicePayload);
+        
+        // Create invoice document in Firestore
+        const invoiceRef = await addDoc(collection(db, 'invoices'), invoicePayload);
+        const invoiceId = invoiceRef.id;
+        
+        console.log('✅ [Invoice] Firestore doc created in /invoices:', invoiceId);
+        console.log('✅ [Invoice] Invoice number:', invoiceNumber);
+        
+        // Verify it was created (read-back)
+        try {
+            const verifyRef = doc(db, 'invoices', invoiceId);
+            const verifySnap = await getDoc(verifyRef);
+            console.log('🔁 [Invoice] Read-back verification - exists:', verifySnap.exists());
+            if (verifySnap.exists()) {
+                console.log('🔁 [Invoice] Read-back data:', verifySnap.data());
+            } else {
+                console.error('❌ [Invoice] Read-back FAILED - doc not found!');
+            }
+        } catch (readError) {
+            console.error('❌ [Invoice] Read-back error:', readError);
+        }
+        
+        // Link invoice to appointment if appointmentId provided
+        if (appointmentId) {
+            try {
+                await updateDoc(doc(db, 'appointments', appointmentId), {
+                    invoiceId: invoiceId,
+                    updatedAt: serverTimestamp()
+                });
+                console.log('✅ [Invoice] Linked to appointment:', appointmentId);
+            } catch (linkError) {
+                console.warn('⚠️ [Invoice] Could not link to appointment:', linkError);
+            }
+        }
+        
+        // Open invoice editor to complete details
+        console.log('📝 [Invoice] Opening invoice editor...');
+        window.open(`invoice.html?invoiceId=${invoiceId}&mode=edit`, '_blank');
+        
+        return invoiceId;
+        
+    } catch (error) {
+        console.error('❌ [Invoice] Error creating invoice:', error);
+        alert('Error creating invoice: ' + error.message);
+        return null;
+    }
+}
+
+/**
+ * Start invoices storage listener
+ */
+async function startInvoicesListener() {
+    if (invoicesUnsubscribe) {
+        console.log('📦 [Invoices] Listener already active, skipping duplicate');
+        return;
+    }
+    
+    try {
+        if (!db) {
+            console.error('❌ [Invoices] Database not initialized');
+            return;
+        }
+        
+        const { collection, query, orderBy, onSnapshot } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+        
+        console.log('📦 [Invoices] Setting up query: collection(db, "invoices") with orderBy("createdAt", "desc")');
+        
+        const invoicesQuery = query(
+            collection(db, 'invoices'),
+            orderBy('createdAt', 'desc')
+        );
+        
+        invoicesUnsubscribe = onSnapshot(
+            invoicesQuery,
+            (snapshot) => {
+                console.log(`📦 [Invoices] Snapshot received - size: ${snapshot.size}`);
+                
+                // Log all invoice IDs for debugging
+                if (snapshot.size > 0) {
+                    const allIds = snapshot.docs.map(d => d.id);
+                    console.log('📦 [Invoices] All invoice IDs:', allIds);
+                    
+                    // Log first invoice details
+                    const firstDoc = snapshot.docs[0];
+                    console.log('📦 [Invoices] Invoice 1:', firstDoc.id, firstDoc.data());
+                    
+                    // Log all invoices for comprehensive debugging
+                    snapshot.docs.forEach((doc, index) => {
+                        console.log(`📦 [Invoices] Invoice ${index + 1}:`, doc.id, doc.data());
+                    });
+                } else {
+                    console.warn('⚠️ [Invoices] No invoices found in query result');
+                }
+                
+                allInvoices = snapshot.docs.map(doc => ({
+                    id: doc.id,
+                    ...doc.data()
+                }));
+                
+                console.log('📦 [Invoices] Mapped invoices array length:', allInvoices.length);
+                
+                // Apply filters and render
+                filterInvoices();
+            },
+            (error) => {
+                console.error('❌ [Invoices] Listener error:', error);
+                console.error('❌ [Invoices] Error code:', error.code);
+                console.error('❌ [Invoices] Error message:', error.message);
+            }
+        );
+        
+        console.log('✅ [Invoices] Listener started');
+    } catch (error) {
+        console.error('❌ [Invoices] Error starting listener:', error);
+    }
+}
+
+/**
+ * Stop invoices storage listener
+ */
+function stopInvoicesListener() {
+    if (invoicesUnsubscribe) {
+        console.log('🧹 [Invoices] Stopping listener');
+        invoicesUnsubscribe();
+        invoicesUnsubscribe = null;
+    }
+}
+
+/**
+ * Filter and search invoices
+ */
+function filterInvoices() {
+    console.log('🔍 [Invoices] filterInvoices() called - allInvoices.length:', allInvoices.length);
+    const searchInput = document.getElementById('searchInvoices');
+    const statusFilter = document.getElementById('filterInvoiceStatus');
+    
+    const searchTerm = searchInput ? searchInput.value.toLowerCase().trim() : '';
+    const statusValue = statusFilter ? statusFilter.value : 'all';
+    
+    let filtered = allInvoices;
+    
+    // Filter by status
+    if (statusValue !== 'all') {
+        filtered = filtered.filter(inv => inv.status === statusValue);
+    }
+    
+    // Filter by search term
+    if (searchTerm) {
+        filtered = filtered.filter(inv => {
+            const invNumber = (inv.invoiceNumber || '').toLowerCase();
+            const custName = (inv.customerName || '').toLowerCase();
+            const custPhone = (inv.phone || '').toLowerCase();
+            const plate = (inv.regPlate || '').toLowerCase();
+            
+            return invNumber.includes(searchTerm) ||
+                   custName.includes(searchTerm) ||
+                   custPhone.includes(searchTerm) ||
+                   plate.includes(searchTerm);
+        });
+    }
+    
+    filteredInvoices = filtered;
+    renderInvoicesStorage();
+}
+
+/**
+ * Render invoices storage grid
+ */
+function renderInvoicesStorage() {
+    console.log('🎨 [Invoices] renderInvoicesStorage() called - filteredInvoices.length:', filteredInvoices.length);
+    const container = document.getElementById('invoicesList');
+    const emptyState = document.getElementById('emptyStateInvoices');
+    
+    if (!container) return;
+    
+    if (filteredInvoices.length === 0) {
+        container.innerHTML = '';
+        if (emptyState) emptyState.style.display = 'flex';
+        return;
+    }
+    
+    if (emptyState) emptyState.style.display = 'none';
+    
+    // Wrap cards in premium grid layout
+    container.innerHTML = `
+        <div class="storage-grid">
+            ${filteredInvoices.map(invoice => createInvoiceCard(invoice)).join('')}
+        </div>
+    `;
+}
+
+/**
+ * Create HTML for invoice card - PREMIUM SAAS COMPACT
+ */
+function createInvoiceCard(invoice) {
+    const customerName = invoice.customerName || 'Unknown';
+    const phone = invoice.phone || '';
+    const regPlate = invoice.regPlate || '';
+    const invoiceNumber = invoice.invoiceNumber || invoice.id?.slice(0, 8) || 'DRAFT';
+    const total = invoice.total || 0;
+    const amountPaid = invoice.amountPaid || invoice.totals?.amountPaid || 0;
+    const balanceDue = Math.max(0, total - amountPaid);
+    const status = invoice.status || 'draft';
+    const createdAt = invoice.createdAt;
+    
+    // Determine payment status
+    let paymentStatus = 'UNPAID';
+    let paymentBadgeClass = 'badge';
+    if (amountPaid > 0) {
+        if (balanceDue <= 0) {
+            paymentStatus = 'PAID';
+            paymentBadgeClass = 'badge badge--done';
+        } else {
+            paymentStatus = 'PARTIAL';
+            paymentBadgeClass = 'badge badge--overdue';
+        }
+    }
+    
+    // Format date
+    let dateStr = 'N/A';
+    if (createdAt) {
+        try {
+            const date = createdAt.toDate ? createdAt.toDate() : new Date(createdAt);
+            dateStr = date.toLocaleDateString('en-GB', { 
+                day: '2-digit', 
+                month: 'short', 
+                year: 'numeric' 
+            });
+        } catch (e) {
+            dateStr = 'N/A';
+        }
+    }
+    
+    const statusBadgeClass = status === 'final' ? 'badge badge--done' : 'badge';
+    
+    return `
+        <div class="storage-card" data-invoice-id="${invoice.id}">
+            <div class="storage-card__top">
+                <div>
+                    <div class="storage-card__id">${invoiceNumber}</div>
+                    <div class="storage-card__meta-date">${dateStr}</div>
+                </div>
+                <div class="storage-card__badges">
+                    <span class="${statusBadgeClass}">${status.toUpperCase()}</span>
+                    <span class="${paymentBadgeClass}">${paymentStatus}</span>
+                </div>
+            </div>
+            
+            <div class="storage-card__line">
+                <strong>${customerName}</strong>
+                ${regPlate ? `<span class="app-card__meta-sep">•</span><span>${regPlate}</span>` : ''}
+            </div>
+            
+            <div class="storage-card__line">
+                <span>Total: <strong>£${total.toFixed(2)}</strong></span>
+                ${amountPaid > 0 ? `<span class="app-card__meta-sep">•</span><span class="app-card__meta-paid">Paid: £${amountPaid.toFixed(2)}</span>` : ''}
+                ${balanceDue > 0 ? `<span class="app-card__meta-sep">•</span><span class="app-card__meta-due">Due: £${balanceDue.toFixed(2)}</span>` : ''}
+            </div>
+            
+            <div class="storage-card__actions">
+                <button 
+                    class="action-btn action-btn--primary" 
+                    onclick="openInvoiceFile('${invoice.id}')"
+                    aria-label="Open invoice"
+                >
+                    <i class="fas fa-external-link-alt"></i>
+                    <span>Open</span>
+                </button>
+                <button 
+                    class="action-btn action-btn--danger" 
+                    onclick="deleteInvoiceConfirm('${invoice.id}')"
+                    aria-label="Delete invoice"
+                >
+                    <i class="fas fa-trash"></i>
+                    <span>Delete</span>
+                </button>
+            </div>
+        </div>
+    `;
+}
+
+/**
+ * Open invoice in editor
+ */
+function openInvoiceFile(invoiceId) {
+    window.open(`invoice.html?invoiceId=${invoiceId}&mode=view`, '_blank');
+}
+
+/**
+ * Delete invoice with confirmation
+ */
+async function deleteInvoiceConfirm(invoiceId) {
+    const invoice = allInvoices.find(inv => inv.id === invoiceId);
+    if (!invoice) return;
+    
+    const invoiceNumber = invoice.invoiceNumber || invoiceId;
+    const customerName = invoice.customerName || 'Unknown';
+    
+    if (!confirm(`Delete invoice ${invoiceNumber} for ${customerName}?\n\nThis cannot be undone.`)) {
+        return;
+    }
+    
+    try {
+        const { doc, deleteDoc } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+        await deleteDoc(doc(db, 'invoices', invoiceId));
+        console.log('✅ [Invoices] Invoice deleted:', invoiceId);
+    } catch (error) {
+        console.error('❌ [Invoices] Error deleting invoice:', error);
+        alert('Failed to delete invoice: ' + error.message);
+    }
+}
+
+/**
+ * Refresh invoices list
+ */
+function handleRefreshInvoices() {
+    console.log('🔄 [Invoices] Manual refresh requested');
+    stopInvoicesListener();
+    startInvoicesListener();
+}
+
+// ==========================================
+// NOTE: Invoice creation and storage are now handled by new modular architecture
+// See src/invoice-create/ and src/storage/ modules
+// These DOMContentLoaded handlers are commented out to avoid duplicates
+// ==========================================
+
+// LEGACY: Commented out - now handled by src/invoice-create/invoiceCreate.ui.js
+// document.addEventListener('DOMContentLoaded', () => {
+//     const createInvoiceBtn = document.getElementById('createInvoiceBtn');
+//     if (createInvoiceBtn) {
+//         createInvoiceBtn.addEventListener('click', (e) => {
+//             e.preventDefault();
+//             handleCreateInvoice();
+//         });
+//     }
+//     
+//     // Start invoices listener when appointments tab is active
+//     startInvoicesListener();
+// });
+
+// LEGACY: Expose functions globally for inline onclick handlers
+// NOTE: Now handled by src/storage/storage.events.js
+// Keeping these here as fallback for compatibility
+window.openInvoiceFile = window.openInvoiceFile || openInvoiceFile;
+window.deleteInvoiceConfirm = window.deleteInvoiceConfirm || deleteInvoiceConfirm;
+window.handleRefreshInvoices = window.handleRefreshInvoices || handleRefreshInvoices;
+window.filterInvoices = window.filterInvoices || filterInvoices;
+
+// NEW: Expose payment and dropdown toggle functions for appointment cards
+window.toggleAppointmentPaidStatus = window.toggleAppointmentPaidStatus || toggleAppointmentPaidStatus;
+window.toggleAppointmentDropdown = window.toggleAppointmentDropdown || toggleAppointmentDropdown;
+
+// ✅ Script parsing completed successfully
+console.log('[script.js] ✅ Parsed successfully to end - no syntax errors');
 
 
 

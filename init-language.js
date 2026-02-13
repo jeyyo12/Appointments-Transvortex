@@ -10,6 +10,12 @@ import { t } from './language.js';
  * @param {HTMLElement} root - The root element to search for translatable elements (defaults to document)
  */
 function applyTranslations(root = document) {
+    // Guard: ensure root is a valid DOM element
+    if (!root || typeof root.querySelectorAll !== 'function') {
+        console.warn('[Translation] Invalid root element passed to applyTranslations, using document instead', root);
+        root = document;
+    }
+    
     // Translate elements with data-i18n attribute
     root.querySelectorAll('[data-i18n]').forEach(el => {
         const key = el.getAttribute('data-i18n');

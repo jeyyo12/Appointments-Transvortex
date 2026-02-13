@@ -4,9 +4,21 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Transvortex LTD - Invoice</title>
-    <link rel="stylesheet" href="./styles/invoice.css">
+    <link rel="stylesheet" href="./styles/invoice.css?v=2026-02-12-05">
+    <!-- Service Worker Update Manager: Auto-reload on new version -->
+    <script type="module" src="./sw-update.js"></script>
 </head>
 <body>
+    <!-- Loading Overlay (shown until invoice data is ready) -->
+    <div id="invoiceLoading" class="loading-overlay">
+        <div class="loading-content">
+            <div class="loading-spinner"></div>
+            <p class="loading-text">Loading invoice...</p>
+        </div>
+    </div>
+
+    <!-- Invoice App Container (hidden until data loaded) -->
+    <div id="invoiceApp" class="app-hidden">
     <!-- UI Controls (hidden in print) -->
     <div class="controls-bar">
         <div class="controls-container">
@@ -18,6 +30,7 @@
             <button id="cancelEditBtn" class="btn-secondary" style="display:none;">Cancel</button>
             <button id="backBtn" class="btn-secondary">← Back</button>
             <div id="validationMessage" class="validation-message"></div>
+            <div class="print-hint">💡 Tip: Disable browser headers/footers in print dialog for best results</div>
         </div>
     </div>
 
@@ -119,7 +132,7 @@
                     <div class="edit-fields" id="servicesEditContainer">
                         <!-- Services rows will be inserted here -->
                     </div>
-                    <button type="button" class="btn-add-item" id="addServiceBtn">+ Add Service</button>
+                    <button type="button" class="btn-add-item" id="addServiceBtn" data-action="add-service">+ Add Service</button>
                 </details>
 
                 <!-- Parts Section -->
@@ -128,7 +141,7 @@
                     <div class="edit-fields" id="partsEditContainer">
                         <!-- Parts rows will be inserted here -->
                     </div>
-                    <button type="button" class="btn-add-item" id="addPartBtn">+ Add Part</button>
+                    <button type="button" class="btn-add-item" id="addPartBtn" data-action="add-part">+ Add Part</button>
                 </details>
 
                 <!-- Notes Section -->
@@ -165,8 +178,8 @@
                             <input type="date" data-field="payment.paymentDate" class="edit-input">
                         </div>
                         <div class="edit-field" style="display: flex; gap: 0.5rem; margin-top: 0.5rem;">
-                            <button type="button" class="btn-add-item" id="markAsPaidBtn" style="flex: 1;">✓ Mark as Paid</button>
-                            <button type="button" class="btn-add-item" id="clearPaymentBtn" style="flex: 1; border-color: #EF4444; color: #EF4444;">✕ Clear Payment</button>
+                            <button type="button" class="btn-add-item" id="markAsPaidBtn" data-action="mark-paid" style="flex: 1;">✓ Mark as Paid</button>
+                            <button type="button" class="btn-add-item" id="clearPaymentBtn" data-action="clear-payment" style="flex: 1; border-color: #EF4444; color: #EF4444;">✕ Clear Payment</button>
                         </div>
                     </div>
                 </details>
@@ -174,158 +187,150 @@
 
             <!-- Sticky Actions (Bottom on Mobile) -->
             <div class="edit-sticky-actions">
-                <button id="editSaveBtn" class="btn-primary btn-wide">💾 Save Changes</button>
-                <button id="editCancelBtn" class="btn-secondary btn-wide">Cancel</button>
+                <button id="editSaveBtn" class="btn-primary btn-wide" data-action="save-draft">💾 Save Changes</button>
+                <button id="editCancelBtn" class="btn-secondary btn-wide" data-action="cancel-edit">Cancel</button>
             </div>
         </div>
     </div>
 
-    <!-- Invoice Container -->
+    <!-- Invoice Container - Compact A4 Optimized -->
     <div class="invoice-container">
-        <div class="invoice-wrapper">
-            <!-- Header Section -->
-            <header class="invoice-header">
-                <div class="header-left">
-                    <h1 class="company-name">Transvortex LTD</h1>
-                    <p class="invoice-title">INVOICE</p>
-                    <div class="company-contact">
-                        <p><strong>Address:</strong> 81 Foley Rd, Birmingham B8 2JT</p>
-                        <p><strong>Website:</strong> <a href="https://transvortexltd.co.uk/" target="_blank">https://transvortexltd.co.uk/</a></p>
-                        <p><strong>Facebook:</strong> <a href="https://www.facebook.com/profile.php?id=61586007316302" target="_blank">Transvortex</a></p>
-                        <p><strong>Call:</strong> Iulian +44 7478280954</p>
-                        <p><strong>Emergency:</strong> Mihai +44 7440787527</p>
+        <div class="invoice-sheet">
+            
+            <!-- Header: Premium Automotive Branding -->
+            <header class="inv-header">
+                <div class="inv-left">
+                    <div class="company-name">Transvortex LTD</div>
+                    <div class="company-info">
+                        <span>81 Foley Rd, Birmingham B8 2JT</span>
+                        <span>Iulian: +44 7478280954</span>
+                        <span>Mihai: +44 7440787527</span>
+                        <span class="site"><a href="https://transvortexltd.co.uk/" target="_blank">transvortexltd.co.uk</a></span>
                     </div>
                 </div>
-                <div class="header-right">
-                    <img src="./assets/images/Logo.png" alt="Transvortex Logo" class="company-logo">
+                <div class="inv-right">
+                    <img src="./assets/images/Logo.png" alt="Transvortex Logo" class="inv-logo print-only-logo">
+                    <div class="inv-title">INVOICE</div>
                 </div>
             </header>
 
-            <!-- Invoice Meta Section -->
-            <section class="invoice-meta">
-                <div class="meta-box">
-                    <h3 class="meta-label">Invoice Number</h3>
-                    <p class="meta-value" id="invoiceNumber">INV-000000</p>
-                </div>
-                <div class="meta-box">
-                    <h3 class="meta-label">Invoice Date</h3>
-                    <p class="meta-value" id="invoiceDate">—</p>
-                </div>
-                <div class="meta-box">
-                    <h3 class="meta-label">Due Date</h3>
-                    <p class="meta-value" id="dueDate">—</p>
-                </div>
-                <div class="meta-box">
-                    <h3 class="meta-label">Reference/PIN</h3>
-                    <p class="meta-value" id="pinCode">—</p>
-                </div>
-            </section>
+            <!-- Meta: Professional Automotive Row Layout -->
+            <div class="inv-meta">
+                <div><strong>INV</strong> <span id="invoiceNumber">INV-000000</span></div>
+                <div><strong>DATE</strong> <span id="invoiceDate">—</span></div>
+                <div><strong>DUE</strong> <span id="invoiceDue">—</span></div>
+                <div><strong>REG</strong> <span id="vehicleReg">—</span></div>
+                <div><strong>REF</strong> <span id="invoiceRef">—</span></div>
+            </div>
 
-            <!-- Bill To Section -->
-            <section class="bill-to">
-                <h2 class="section-title">Bill To</h2>
-                <div class="bill-to-content">
-                    <div class="bill-to-box">
-                        <p class="label">Client Name</p>
-                        <p class="value" id="clientName">—</p>
-                        
-                        <p class="label" style="margin-top: 0.8rem;">Address</p>
-                        <p class="value" id="clientAddress">—</p>
-                        
-                        <p class="label" style="margin-top: 0.8rem;">Phone</p>
-                        <p class="value" id="clientPhone">—</p>
-                    </div>
-                    <div class="bill-to-box">
-                        <p class="label">Vehicle Make/Model</p>
-                        <p class="value" id="vehicleMakeModel">—</p>
-                        
-                        <p class="label" style="margin-top: 0.8rem;">Reg Plate</p>
-                        <p class="value" id="vehicleRegPlate">—</p>
-                        
-                        <p class="label" style="margin-top: 0.8rem;">Mileage</p>
-                        <p class="value" id="vehicleMileage">—</p>
+            <!-- Performance Garage: Aggressive Grid Layout -->
+            <div class="perf-grid">
+                <!-- BILL TO CARD -->
+                <div class="perf-card bill-card">
+                    <h4>Bill To</h4>
+                    <div class="client-name" id="billToName">—</div>
+                    <div class="client-address">
+                        <div id="billToAddress">—</div>
+                        <div id="billToPhone" style="margin-top: 4px; font-weight: 700;">—</div>
                     </div>
                 </div>
-            </section>
 
-            <!-- Services Table Section -->
-            <section class="services-section">
-                <h2 class="section-title">Services</h2>
-                <table class="services-table">
+                <!-- VEHICLE DETAILS CARD -->
+                <div class="perf-card vehicle-card">
+                    <h4>Vehicle Details</h4>
+                    <div class="vehicle-make" id="vehicleMakeModel">—</div>
+                    <div class="mileage">Mileage: <span id="vehicleMileage">—</span></div>
+                </div>
+
+                <!-- SUMMARY CARD (Aggressive Dark) -->
+                <div class="perf-card summary-card">
+                    <div style="position: relative;">
+                        <span id="paymentStatusBadge" class="status-paid">PAID</span>
+                    </div>
+                    
+                    <!-- TOTAL Box -->
+                    <div class="total-box">
+                        <span class="total-label">Total</span>
+                        <span class="total-value" id="summaryTotal">£0.00</span>
+                    </div>
+
+                    <!-- Summary Lines -->
+                    <div class="summary-line">
+                        <span>Subtotal</span>
+                        <span id="summarySubtotal">£0.00</span>
+                    </div>
+
+                    <div class="summary-line" id="vatRow" style="display: none;">
+                        <span>VAT (<span id="vatPercent">0</span>%)</span>
+                        <span id="summaryVat">£0.00</span>
+                    </div>
+
+                    <div class="summary-line paid" id="amountPaidRow" style="display: none;">
+                        <span>Paid</span>
+                        <span id="amountPaid">£0.00</span>
+                    </div>
+
+                    <div class="summary-line balance" id="balanceDueRow" style="display: none;">
+                        <span>Balance Due</span>
+                        <span id="balanceDue">£0.00</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Line Items Table -->
+            <section class="inv-lines services-section">
+                <table class="inv-table">
                     <thead>
                         <tr>
-                            <th class="col-description">Description</th>
-                            <th class="col-qty">Qty</th>
-                            <th class="col-unit-price">Unit Price</th>
-                            <th class="col-line-total">Line Total</th>
+                            <th class="inv-col-desc">Description</th>
+                            <th class="inv-col-qty">Qty</th>
+                            <th class="inv-col-unit">Unit Price</th>
+                            <th class="inv-col-total">Total</th>
                         </tr>
                     </thead>
-                    <tbody id="servicesTableBody">
+                    <tbody id="servicesTbody">
                         <!-- Populated by JS -->
                     </tbody>
                 </table>
             </section>
 
-            <!-- Totals Section -->
-            <section class="totals-section">
-                <div class="totals-box">
-                    <div class="totals-row">
-                        <span class="totals-label">Subtotal:</span>
-                        <span class="totals-value" id="subtotal">£0.00</span>
-                    </div>
-                    <div class="totals-row" id="vatRow" style="display: none;">
-                        <span class="totals-label">VAT (<span id="vatPercent">0</span>%):</span>
-                        <span class="totals-value" id="vatAmount">£0.00</span>
-                    </div>
-                    <div class="totals-row totals-total">
-                        <span class="totals-label">TOTAL:</span>
-                        <span class="totals-value" id="total">£0.00</span>
-                    </div>
-                    <div class="totals-row payment-row" id="amountPaidRow" style="display: none;">
-                        <span class="totals-label">Amount Paid:</span>
-                        <span class="totals-value" id="amountPaid">£0.00</span>
-                    </div>
-                    <div class="totals-row payment-row balance-due" id="balanceDueRow" style="display: none;">
-                        <span class="totals-label">Balance Due:</span>
-                        <span class="totals-value" id="balanceDue" data-balance-status="">£0.00</span>
-                    </div>
-                    <div class="totals-row payment-status-row" id="paymentStatusRow" style="display: none;">
-                        <span class="totals-label">Payment Status:</span>
-                        <span class="payment-status-badge" id="paymentStatus">Unpaid</span>
+            <!-- Bottom: Work Summary, Terms/VAT/Methods, Thank You -->
+            <section class="inv-bottom">
+                <!-- Work Summary: Shows when items are few (fills space during rendering) -->
+                <div class="card inv-work">
+                    <div class="sec-title">Work Summary</div>
+                    <div class="sec-text" id="notesText" style="display: none;">
+                        Service carried out as agreed. Vehicle checked and tested. All work completed to manufacturer specifications.
                     </div>
                 </div>
-            </section>
 
-            <!-- Payment Terms -->
-            <section class="payment-terms">
-                <p class="terms-text" id="paymentTermsText">Due within 7 days</p>
-            </section>
-
-            <!-- Services Info -->
-            <section class="legal-notes">
-                <p>All services provided are subject to our terms and conditions.</p>
-                <p>If VAT is applicable it will be shown on this invoice.</p>
-            </section>
-
-            <!-- Payment Methods Footer -->
-            <footer class="invoice-footer">
-                <div class="footer-section">
-                    <p class="footer-text">Card & Cash Accepted</p>
-                    <div class="payment-icons">
-                        <span class="payment-icon">💳 Visa</span>
-                        <span class="payment-icon">💳 Mastercard</span>
-                        <span class="payment-icon">🍎 Apple Pay</span>
-                        <span class="payment-icon">🔵 Google Pay</span>
+                <!-- Footer Grid: 3 columns -->
+                <div class="card inv-footer-grid">
+                    <div class="footer-col">
+                        <div class="sec-title">Payment Terms</div>
+                        <div class="sec-text" id="paymentTermsText">Due within 7 days</div>
+                    </div>
+                    <div class="footer-col">
+                        <div class="sec-title">VAT Information</div>
+                        <div class="sec-text">Not VAT registered. VAT not applicable.</div>
+                    </div>
+                    <div class="footer-col">
+                        <div class="sec-title">Payment Methods</div>
+                        <div class="sec-text">Card, Cash, Bank Transfer</div>
                     </div>
                 </div>
-                <div class="footer-section">
-                    <p class="footer-text">Thank you for your business!</p>
-                    <p class="footer-subtext">Visit us: transvortexltd.co.uk</p>
+
+                <!-- Thank You: Centre alignment -->
+                <div class="inv-thanks">
+                    Thank you for your business! All services subject to standard terms &amp; conditions.
                 </div>
-            </footer>
+            </section>
+            
         </div>
     </div>
 
-    <script type="module" src="./src/invoice.js"></script>
+    </div><!-- #invoiceApp -->
+
+    <script type="module" src="./src/invoice.js?v=2026-02-12-04"></script>
 </body>
-</html>
+</html>5

@@ -1,5 +1,97 @@
 /* ===== INVOICE STYLES (Aligned with Transvortex Theme) ===== */
+/* Modern Fluid Responsive Design System */
+
+/* Set base font size for rem calculations */
+html {
+    font-size: 16px;
+}
+
+/* ===== LOADING OVERLAY & APP VISIBILITY ===== */
+.loading-overlay {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #F7F8FB;
+    z-index: 9999;
+    opacity: 1;
+    transition: opacity 0.3s ease;
+}
+
+.loading-overlay.fade-out {
+    opacity: 0;
+    pointer-events: none;
+}
+
+.loading-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1.5rem;
+}
+
+.loading-spinner {
+    width: 3rem;
+    height: 3rem;
+    border: 4px solid rgba(255, 122, 24, 0.2);
+    border-top-color: #FF7A18;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+.loading-text {
+    font-size: var(--fs-body);
+    color: var(--text-secondary, #475569);
+    font-weight: 500;
+}
+
+.app-hidden {
+    visibility: hidden;
+    opacity: 0;
+}
+
+.app-ready {
+    visibility: visible;
+    opacity: 1;
+    transition: opacity 0.3s ease;
+}
+
 :root {
+    /* DENSITY SYSTEM: Import global tokens */
+    --s-1: clamp(0.35rem, 0.4vw, 0.55rem);
+    --s-2: clamp(0.55rem, 0.6vw, 0.85rem);
+    --s-3: clamp(0.75rem, 0.9vw, 1.1rem);
+    --s-4: clamp(1rem, 1.2vw, 1.5rem);
+    --s-5: clamp(1.25rem, 1.6vw, 2rem);
+    
+    --fs-body: clamp(0.92rem, 0.35vw + 0.85rem, 1rem);
+    --fs-small: clamp(0.8rem, 0.25vw + 0.75rem, 0.9rem);
+    --fs-h1: clamp(1.45rem, 1.2vw + 1.2rem, 2rem);
+    --fs-h2: clamp(1.25rem, 1vw + 1.05rem, 1.6rem);
+    --fs-h3: clamp(1.1rem, 0.7vw + 1rem, 1.35rem);
+    
+    --r-1: 0.75rem;
+    --r-2: 1rem;
+    --btn-h: clamp(2.6rem, 2.2vw, 2.75rem);
+    --btn-px: clamp(0.75rem, 1vw, 1rem);
+    
+    /* INVOICE-SPECIFIC: Compact spacing for print */
+    --inv-gap: clamp(0.5rem, 1vw, 0.9rem);
+    --inv-pad: clamp(0.75rem, 1.4vw, 1.1rem);
+    --inv-pad-sm: clamp(0.35rem, 0.8vw, 0.5rem);
+    
+    /* INVOICE-SPECIFIC TYPOGRAPHY: Smaller, balanced, professional */
+    --inv-body: clamp(0.84rem, 0.25vw + 0.78rem, 0.95rem);
+    --inv-small: clamp(0.72rem, 0.18vw + 0.68rem, 0.82rem);
+    --inv-h1: clamp(1.35rem, 0.9vw + 1.05rem, 1.85rem);
+    --inv-h2: clamp(1.05rem, 0.55vw + 0.95rem, 1.25rem);
+    --inv-label: clamp(0.68rem, 0.2vw + 0.64rem, 0.78rem);
+    
     /* Brand Colors - Unified with site */
     --accent-orange: #FF7A18;
     --primary: #FF7A18;
@@ -24,10 +116,10 @@
     --shadow-lg: 0 20px 40px rgba(2, 6, 23, 0.12);
     --shadow-sm: 0 4px 12px rgba(2, 6, 23, 0.05);
     
-    /* Radius */
-    --radius: 16px;
-    --radius-lg: 24px;
-    --radius-sm: 8px;
+    /* Radius - Fluid */
+    --radius: clamp(0.75rem, 2vw, 1rem);
+    --radius-lg: clamp(1rem, 2.5vw, 1.5rem);
+    --radius-sm: clamp(0.5rem, 1.5vw, 0.75rem);
     
     /* Status & Utilities */
     --success: #34D399;
@@ -45,7 +137,7 @@
     --color-success: #34D399;
     --color-error: #EF4444;
     --spacing-unit: 0.5rem;
-    --border-radius: 16px;
+    --border-radius: clamp(0.75rem, 2vw, 1rem);
     --shadow-subtle: 0 4px 12px rgba(2, 6, 23, 0.05);
     --shadow-card: 0 10px 30px rgba(2, 6, 23, 0.08);
 }
@@ -56,11 +148,10 @@
     box-sizing: border-box;
 }
 
-html,
 body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu',
         'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
-    font-size: clamp(0.875rem, 1vw, 1rem);
+    font-size: clamp(0.95rem, 2.5vw, 1rem);
     line-height: 1.6;
     color: var(--color-text);
     background-color: #F7F8FB;
@@ -71,30 +162,31 @@ body {
     position: sticky;
     top: 0;
     background: white;
-    padding: 1rem;
+    padding: var(--s-2);
     box-shadow: var(--shadow-sm);
     z-index: 1000;
     border-bottom: 1px solid var(--border);
 }
 
 .controls-container {
-    max-width: 900px;
+    max-width: var(--container, min(100% - 2rem, 1100px));
     margin: 0 auto;
     display: flex;
-    gap: 1rem;
+    gap: var(--s-2);
     align-items: center;
     flex-wrap: wrap;
 }
 
 .btn-primary,
 .btn-secondary {
-    padding: 0.6rem 1.2rem;
+    padding: var(--s-2) var(--btn-px);
     border: none;
-    border-radius: var(--border-radius);
-    font-size: 0.9rem;
+    border-radius: var(--r-1);
+    font-size: var(--fs-body);
     cursor: pointer;
     font-weight: 500;
     transition: all 0.2s ease;
+    min-height: var(--btn-h);
 }
 
 .btn-primary {
@@ -104,8 +196,8 @@ body {
 
 .btn-primary:hover:not(:disabled) {
     background-color: var(--primary-dark);
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(255, 122, 24, 0.25);
+    transform: translateY(-0.125rem);
+    box-shadow: 0 0.25rem 0.75rem rgba(255, 122, 24, 0.25);
 }
 
 .btn-primary:disabled {
@@ -116,19 +208,20 @@ body {
 .btn-success {
     background-color: var(--success);
     color: white;
-    padding: 0.6rem 1.2rem;
+    padding: var(--s-2) var(--btn-px);
     border: none;
-    border-radius: var(--border-radius);
-    font-size: 0.9rem;
+    border-radius: var(--r-1);
+    font-size: var(--fs-body);
     cursor: pointer;
     font-weight: 500;
     transition: all 0.2s ease;
+    min-height: var(--btn-h);
 }
 
 .btn-success:hover:not(:disabled) {
     background-color: #22C55E;
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(52, 211, 153, 0.25);
+    transform: translateY(-0.125rem);
+    box-shadow: 0 0.25rem 0.75rem rgba(52, 211, 153, 0.25);
 }
 
 .btn-success:disabled {
@@ -162,8 +255,7 @@ body {
     border-radius: var(--radius);
     box-shadow: var(--shadow-lg);
     z-index: 2000;
-    max-width: 500px;
-    width: 90%;
+    width: min(90%, 500px);
     max-height: 85vh;
     overflow-y: auto;
 }
@@ -182,12 +274,12 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 1.5rem;
+    padding: clamp(1.25rem, 3.5vw, 1.5rem);
     border-bottom: 1px solid var(--border);
 }
 
 .modal-header h2 {
-    font-size: 1.5rem;
+    font-size: clamp(1.25rem, 3.5vw, 1.5rem);
     color: var(--text);
     margin: 0;
 }
@@ -195,12 +287,12 @@ body {
 .modal-close {
     background: none;
     border: none;
-    font-size: 1.5rem;
+    font-size: clamp(1.25rem, 3vw, 1.5rem);
     cursor: pointer;
     color: var(--text-secondary);
     padding: 0;
-    width: 32px;
-    height: 32px;
+    width: 2rem;
+    height: 2rem;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -211,32 +303,32 @@ body {
 }
 
 .modal-body {
-    padding: 1.5rem;
+    padding: clamp(1.25rem, 3.5vw, 1.5rem);
 }
 
 .modal-subtitle {
     color: var(--text-secondary);
-    font-size: 0.95rem;
-    margin-bottom: 1.5rem;
+    font-size: clamp(0.9rem, 2.3vw, 0.95rem);
+    margin-bottom: clamp(1.25rem, 3.5vw, 1.5rem);
 }
 
 .send-options {
     display: flex;
     flex-direction: column;
-    gap: 1.5rem;
+    gap: clamp(1.25rem, 3.5vw, 1.5rem);
 }
 
 .send-option-group {
-    padding: 1rem;
+    padding: clamp(0.75rem, 2vw, 1rem);
     border: 1px solid var(--border-light);
     border-radius: var(--radius-sm);
     background: var(--surface-dark);
 }
 
 .send-option-group h3 {
-    font-size: 0.95rem;
+    font-size: clamp(0.9rem, 2.3vw, 0.95rem);
     color: var(--text);
-    margin: 0 0 0.75rem 0;
+    margin: 0 0 clamp(0.6rem, 1.8vw, 0.75rem) 0;
     font-weight: 600;
 }
 
@@ -313,28 +405,1529 @@ body {
     width: 100%;
 }
 
-/* ===== INVOICE CONTAINER ===== */
-.invoice-container {
-    padding: 2rem 1rem;
+/* ===== COMPACT A4 INVOICE SHEET ===== */
+
+/* Spacing Variables for Compact Layout */
+:root {
+    --inv-gap: clamp(0.5rem, 1vw, 0.9rem);
+    --inv-pad: clamp(0.75rem, 1.4vw, 1.1rem);
+    --inv-pad-sm: clamp(0.35rem, 0.8vw, 0.5rem);
 }
 
-.invoice-wrapper {
-    max-width: 900px;
+.invoice-container {
+    padding: 0 var(--s-2) var(--s-2) var(--s-2);
+}
+
+.invoice-sheet {
+    max-width: 210mm; /* A4 width */
     margin: 0 auto;
     background: white;
-    border-radius: var(--radius);
+    border-radius: var(--radius-sm);
     box-shadow: var(--shadow);
     overflow: hidden;
     border: 1px solid var(--border);
+    
+    /* GLOBAL TYPOGRAPHY: Professional UK invoice style */
+    font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+    color: #0f172a;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    
+    /* BASE FONT SIZE: All invoice text scales from this */
+    font-size: var(--inv-body);
+    line-height: 1.5;
 }
+
+/* ===== HEADER: Company + Logo (Compact) ===== */
+.inv-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 20px;
+    padding: 12px 16px;
+    margin: 0;
+    border-bottom: 2px solid #f97316;
+    background: linear-gradient(135deg, #FFFFFF 0%, #F7F8FB 100%);
+}
+
+.inv-left {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    flex: 1;
+}
+
+.company-name {
+    font-size: 26px;
+    font-weight: 900;
+    letter-spacing: 0.5px;
+    color: #111827;
+    line-height: 1;
+    margin: 0;
+}
+
+.company-info {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px;
+    font-size: 13px;
+    color: #374151;
+    line-height: 1.4;
+}
+
+.company-info span {
+    white-space: nowrap;
+}
+
+.company-info .site {
+    color: #f97316;
+    font-weight: 800;
+}
+
+.company-info .site a {
+    color: #f97316;
+    text-decoration: none;
+    font-weight: 800;
+}
+
+.inv-right {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-shrink: 0;
+}
+
+.inv-logo {
+    height: 60px;
+    width: auto;
+    display: block;
+    margin: 0;
+    object-fit: contain;
+    transform: scale(2.5);
+    transform-origin: right center;
+}
+
+.inv-title {
+    font-size: 22px;
+    font-weight: 950;
+    letter-spacing: 2px;
+    color: #f97316;
+    line-height: 1;
+    margin: 0;
+    white-space: nowrap;
+    text-transform: uppercase;
+    margin: 0;
+    text-transform: uppercase;
+}
+
+/* ===== META: Compact Horizontal Layout ===== */
+.inv-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 22px;
+    padding: 8px 0;
+    font-size: 14px;
+    font-weight: 600;
+    border-bottom: 1px solid #e5e7eb;
+    color: #111827;
+}
+
+.inv-meta strong {
+    font-size: 11px;
+    letter-spacing: 1px;
+    color: #6b7280;
+    margin-right: 6px;
+    text-transform: uppercase;
+    font-weight: 700;
+}
+
+.inv-meta span {
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+}
+
+/* ===== BILL TO + VEHICLE + FINANCIAL SUMMARY: 3-Column Grid ===== */
+/* ===== PERFORMANCE GARAGE: Aggressive Grid Layout ===== */
+.perf-grid {
+    display: grid;
+    grid-template-columns: 1.2fr 1fr 1fr;
+    gap: 18px;
+    margin-top: 16px;
+}
+
+.perf-card {
+    padding: 16px;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    background: #ffffff;
+    position: relative;
+}
+
+/* Left accent strip (Performance/Aggressive look) */
+.perf-card::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 4px;
+    background: #f97316;
+    border-radius: 12px 0 0 12px;
+}
+
+/* ===== BILL TO CARD ===== */
+.bill-card h4 {
+    font-size: 12px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: #6b7280;
+    margin-bottom: 8px;
+    font-weight: 700;
+    margin: 0 0 8px 0;
+}
+
+.client-name {
+    font-size: 18px;
+    font-weight: 900;
+    color: #111827;
+    margin-bottom: 6px;
+    line-height: 1.1;
+}
+
+.client-address {
+    font-size: 13px;
+    line-height: 1.3;
+    color: #374151;
+}
+
+/* ===== VEHICLE DETAILS CARD ===== */
+.vehicle-card h4 {
+    font-size: 12px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: #6b7280;
+    margin-bottom: 8px;
+    font-weight: 700;
+    margin: 0 0 8px 0;
+}
+
+.vehicle-make {
+    font-size: 18px;
+    font-weight: 900;
+    color: #111827;
+    line-height: 1.1;
+}
+
+.mileage {
+    font-size: 13px;
+    color: #6b7280;
+    margin-top: 6px;
+}
+
+/* ===== SUMMARY CARD (Aggressive Dark) ===== */
+.summary-card {
+    background: #111827;
+    color: white;
+    border: none;
+}
+
+.summary-card::before {
+    background: #f97316;
+}
+
+.total-box {
+    background: #1f2937;
+    border: 2px solid #f97316;
+    border-radius: 10px;
+    padding: 14px;
+    text-align: center;
+    margin-bottom: 12px;
+}
+
+.total-box span {
+    display: block;
+}
+
+.total-label {
+    font-size: 11px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: #9ca3af;
+    font-weight: 700;
+}
+
+.total-value {
+    font-size: 28px;
+    font-weight: 900;
+    color: #f97316;
+    margin-top: 4px;
+}
+
+.summary-line {
+    display: flex;
+    justify-content: space-between;
+    font-size: 14px;
+    margin-bottom: 6px;
+    font-weight: 500;
+}
+
+.summary-line.paid {
+    color: #10b981;
+    font-weight: 800;
+}
+
+.summary-line.balance {
+    color: #f97316;
+    font-weight: 900;
+}
+
+/* Status badge (Performance style) */
+.status-paid {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    background: #10b981;
+    color: white;
+    padding: 4px 10px;
+    font-size: 11px;
+    font-weight: 800;
+    border-radius: 999px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+}
+
+/* Status section: Badge at bottom */
+.inv-summary-status {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    gap: clamp(0.6rem, 1vw, 0.9rem);
+    margin-top: clamp(0.2rem, 0.4vw, 0.35rem);
+    padding-top: clamp(0.5rem, 0.8vw, 0.7rem);
+    border-top: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+/* Status pill: Compact badge */
+.status-pill {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: clamp(0.35rem, 0.6vw, 0.55rem) clamp(0.6rem, 1vw, 0.9rem);
+    border-radius: 999px;
+    font-size: clamp(0.7rem, 0.2vw + 0.66rem, 0.8rem);
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    max-width: 18ch;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.status-pill.status-unpaid {
+    background: linear-gradient(135deg, #FEE2E2 0%, #FECACA 100%);
+    color: #991B1B;
+    border: 1px solid #FECACA;
+}
+
+.status-pill.status-partial {
+    background: linear-gradient(135deg, #FEF3C7 0%, #FDE68A 100%);
+    color: #92400E;
+    border: 1px solid #FDE68A;
+}
+
+.status-pill.status-paid {
+    background: linear-gradient(135deg, #D1FAE5 0%, #A7F3D0 100%);
+    color: #065F46;
+    border: 1px solid #A7F3D0;
+}
+
+/* ===== LINE ITEMS TABLE (Compact) ===== */
+.inv-lines {
+    padding: var(--inv-pad-sm) var(--inv-pad);
+    border-bottom: 1px solid var(--border);
+}
+
+.inv-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: var(--inv-body);
+    table-layout: fixed; /* Ensure fixed column widths */
+}
+
+.inv-table thead {
+    background: var(--color-dark);
+    color: white;
+}
+
+.inv-table th {
+    text-align: left;
+    padding: clamp(0.35rem, 0.5vw, 0.55rem) clamp(0.5rem, 0.8vw, 0.75rem);
+    font-size: var(--inv-small);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-variant-numeric: tabular-nums;
+}
+
+.inv-table td {
+    padding: clamp(0.35rem, 0.5vw, 0.55rem) clamp(0.5rem, 0.8vw, 0.75rem);
+    border-bottom: 1px solid var(--border-light);
+    line-height: 1.25;
+    font-size: var(--inv-small);
+    font-variant-numeric: tabular-nums; /* Align numbers properly */
+}
+
+.inv-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.inv-table tbody tr:nth-child(even) {
+    background: #F7F8FB;
+}
+
+.inv-col-desc {
+    width: 55%;
+    text-align: left;
+}
+
+.inv-col-qty {
+    width: 10%;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+}
+
+.inv-col-unit {
+    width: 15%;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+
+.inv-col-total {
+    width: 20%;
+    text-align: right;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+}
+
+/* ===== INVOICE BOTTOM: Work Summary, Terms/VAT/Methods, Thank You ===== */
+.inv-bottom {
+    padding: clamp(0.9rem, 1.6vw, 1.35rem);
+    display: grid;
+    gap: clamp(0.75rem, 1.2vw, 1.1rem);
+    border-top: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+/* Reusable card styling */
+.card {
+    border: 1px solid rgba(0, 0, 0, 0.10);
+    border-radius: 0.9rem;
+    background: #fff;
+    padding: clamp(0.8rem, 1.2vw, 1.05rem);
+}
+
+/* Section title: Work Summary, Payment Terms, VAT, Methods */
+.sec-title {
+    font-size: clamp(0.68rem, 0.18vw + 0.64rem, 0.78rem);
+    font-weight: 900;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: rgba(15, 23, 42, 0.65);
+    margin-bottom: clamp(0.4rem, 0.8vw, 0.55rem);
+}
+
+/* Section content: Body text */
+.sec-text {
+    font-size: clamp(0.84rem, 0.25vw + 0.78rem, 0.95rem);
+    color: rgba(15, 23, 42, 0.80);
+    line-height: 1.45;
+}
+
+/* Work Summary card */
+.inv-work {
+    /* Empty cell - hidden by default */
+}
+
+.inv-work .sec-text {
+    display: none; /* Hidden unless shown by JS */
+}
+
+/* Footer 3-column grid */
+.inv-footer-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: clamp(0.9rem, 1.4vw, 1.3rem);
+    align-items: start;
+    padding: clamp(0.8rem, 1.2vw, 1.05rem);
+}
+
+.footer-col {
+    padding: 0;
+}
+
+/* Thank You: Centre alignment with subtle top border */
+.inv-thanks {
+    text-align: center;
+    font-size: clamp(0.75rem, 0.2vw + 0.7rem, 0.9rem);
+    color: rgba(15, 23, 42, 0.60);
+    padding-top: clamp(0.4rem, 0.8vw, 0.7rem);
+    border-top: 1px solid rgba(0, 0, 0, 0.10);
+}
+
+/* ===== OLD SUMMARY SECTION (Now hidden - moved to 3-column layout) ===== */
+.inv-summary-content {
+    display: none;
+}
+
+.inv-footer-thank-you p {
+    font-size: var(--inv-small);
+    color: var(--text-secondary);
+    margin: 0;
+    line-height: 1.4;
+}
+
+/* ===== RESPONSIVE: Mobile & Tablet ===== */
+@media (max-width: 768px) {
+    .inv-meta-grid {
+        grid-template-columns: 1fr;
+        gap: 0;
+        padding: 8mm 8mm;
+    }
+
+    /* Stack to single column on mobile */
+    .inv-party {
+        grid-template-columns: 1fr;
+        gap: var(--s-2);
+    }
+    
+    .party-summary {
+        order: 3;
+    }
+
+    /* Stack footer columns on small screens */
+    .inv-footer-grid {
+        grid-template-columns: 1fr;
+        gap: clamp(0.6rem, 1vw, 0.9rem);
+    }
+
+    .inv-table {
+        font-size: clamp(0.75rem, 1.8vw, 0.85rem);
+    }
+
+    .inv-col-desc {
+        width: 45%;
+    }
+
+    .inv-col-qty {
+        width: 12%;
+    }
+
+    .inv-col-unit {
+        width: 18%;
+    }
+
+    .inv-col-total {
+        width: 25%;
+    }
+}
+
+@media (max-width: 480px) {
+    .inv-header {
+        flex-direction: column;
+        gap: clamp(0.5rem, 1.5vw, 0.7rem);
+    }
+
+    .inv-header-right {
+        text-align: left;
+        width: 100%;
+    }
+
+    .inv-logo {
+        margin: 0;
+    }
+
+    .inv-meta {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* ===== MOBILE COMPACT MODE: Ultra-condensed layout (≤640px) ===== */
+@media (max-width: 640px) {
+    /* Override controls bar: 2-column grid instead of flex wrap */
+    .controls-bar {
+        padding: clamp(0.45rem, 1.2vw, 0.65rem);
+        background: rgba(255, 255, 255, 0.96);
+        backdrop-filter: blur(6px);
+        border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+    }
+
+    .controls-container {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: clamp(0.4rem, 0.8vw, 0.6rem);
+        flex-wrap: nowrap;
+    }
+
+    .controls-container .btn-primary,
+    .controls-container .btn-success,
+    .controls-container .btn-secondary {
+        height: auto;
+        min-height: auto;
+        padding: clamp(0.5rem, 0.9vw, 0.7rem) clamp(0.5rem, 1vw, 0.75rem);
+        font-size: clamp(0.76rem, 1.8vw, 0.88rem);
+        border-radius: clamp(0.5rem, 0.8vw, 0.65rem);
+    }
+
+    /* Back button full width */
+    #backBtn {
+        grid-column: 1 / -1;
+    }
+
+    /* Hide Send button on mobile (use whatsapp instead) */
+    #sendBtn {
+        display: none !important;
+    }
+
+    /* Validation message and print hint: single row */
+    #validationMessage {
+        grid-column: 1 / -1;
+        margin-left: 0;
+        margin-top: clamp(0.2rem, 0.5vw, 0.35rem);
+        font-size: clamp(0.64rem, 1.5vw, 0.75rem);
+    }
+
+    .print-hint {
+        grid-column: 1 / -1;
+        font-size: clamp(0.6rem, 1.2vw, 0.7rem);
+        margin-top: clamp(0.2rem, 0.5vw, 0.35rem);
+        color: rgba(0, 0, 0, 0.6);
+        line-height: 1.3;
+        padding: 0;
+    }
+
+    /* Header: tighter spacing + ENLARGED LOGO */
+    .inv-header {
+        padding: clamp(0.6rem, 1.2vw, 0.9rem);
+        gap: clamp(0.2rem, 0.4vw, 0.3rem);
+    }
+
+    .inv-header-left {
+        gap: clamp(0.2rem, 0.4vw, 0.3rem);
+    }
+
+    .inv-company-name {
+        font-size: clamp(1.2rem, 3vw, 1.5rem);
+        margin: 0 0 clamp(0.1rem, 0.3vw, 0.2rem) 0;
+    }
+
+    .inv-company-address,
+    .inv-company-contact,
+    .inv-company-web {
+        font-size: clamp(0.64rem, 1.4vw, 0.75rem);
+        margin: 0;
+        line-height: 1.2;
+    }
+
+    .inv-header-right {
+        gap: clamp(0.3rem, 0.6vw, 0.5rem);
+    }
+
+    /* LOGO 2x LARGER on mobile */
+    .inv-logo {
+        width: clamp(10rem, 26vw, 14rem);
+        height: auto;
+    }
+
+    .inv-title {
+        font-size: clamp(0.9rem, 2.2vw, 1.2rem);
+        letter-spacing: 0.15em;
+    }
+
+    /* ===== META SECTION: 2-COLUMN GRID on mobile ===== */
+    .inv-meta-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: clamp(0.6rem, 1.6vw, 0.9rem);
+        padding: clamp(0.6rem, 1.2vw, 0.85rem);
+        row-gap: clamp(0.45rem, 1vw, 0.65rem);
+        border-top: 1.5px solid rgba(255, 122, 24, 0.6);
+        border-bottom: 0.5px solid rgba(0, 0, 0, 0.1);
+    }
+
+    /* Meta items: card-like styling */
+    .meta-cell {
+        padding: clamp(0.55rem, 1.4vw, 0.75rem);
+        border: 1px solid rgba(0, 0, 0, 0.07);
+        border-radius: clamp(0.5rem, 0.8vw, 0.65rem);
+        background: #fff;
+        gap: 0.4rem;
+    }
+
+    /* Invoice No spans full width */
+    .meta-cell.meta-invoice-no {
+        grid-column: 1 / -1;
+    }
+
+    .meta-label {
+        font-size: clamp(0.58rem, 1.3vw, 0.68rem);
+        letter-spacing: 0.06em;
+        margin-bottom: clamp(0.2rem, 0.5vw, 0.3rem);
+    }
+
+    .meta-value {
+        font-size: clamp(0.8rem, 1.6vw, 0.95rem);
+        font-weight: 700;
+    }
+
+    /* ===== PERFORMANCE GRID: 2-COLUMN ON TABLET ===== */
+    .perf-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: clamp(0.7rem, 1.2vw, 0.9rem);
+        margin-top: clamp(0.8rem, 1.2vw, 1rem);
+    }
+
+    .perf-card {
+        padding: clamp(0.7rem, 1vw, 0.9rem);
+        border-radius: clamp(0.6rem, 0.8vw, 0.8rem);
+    }
+
+    .bill-card h4,
+    .vehicle-card h4 {
+        font-size: clamp(0.65rem, 0.8vw, 0.75rem);
+        letter-spacing: 1px;
+        margin-bottom: clamp(0.4rem, 0.6vw, 0.5rem);
+    }
+
+    .client-name,
+    .vehicle-make {
+        font-size: clamp(0.95rem, 1.4vw, 1.1rem);
+        margin-bottom: clamp(0.3rem, 0.5vw, 0.4rem);
+    }
+
+    .client-address,
+    .mileage {
+        font-size: clamp(0.75rem, 0.95vw, 0.85rem);
+    }
+
+    .total-box {
+        padding: clamp(0.7rem, 1vw, 0.9rem);
+        border-radius: 8px;
+        margin-bottom: clamp(0.6rem, 0.9vw, 0.8rem);
+    }
+
+    .total-label {
+        font-size: 10px;
+        letter-spacing: 1px;
+    }
+
+    .total-value {
+        font-size: clamp(1.4rem, 2.2vw, 1.8rem);
+        margin-top: clamp(0.2rem, 0.4vw, 0.3rem);
+    }
+
+    .summary-line {
+        font-size: clamp(0.75rem, 1vw, 0.85rem);
+        margin-bottom: clamp(0.3rem, 0.5vw, 0.4rem);
+    }
+
+    /* ===== PARTY SECTION: 2-COLUMN GRID on mobile ===== */
+    .inv-party {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: clamp(0.55rem, 1.2vw, 0.8rem);
+        padding: clamp(0.6rem, 1.2vw, 0.85rem);
+    }
+
+    /* Summary spans full width */
+    .party-summary-card {
+        grid-column: 1 / -1;
+    }
+
+    .party-card {
+        padding: clamp(0.55rem, 1vw, 0.75rem);
+        border-radius: clamp(0.5rem, 0.8vw, 0.65rem);
+        border: 0.5px solid rgba(0, 0, 0, 0.08);
+    }
+
+    .party-title {
+        font-size: clamp(0.58rem, 1.2vw, 0.68rem);
+        margin-bottom: clamp(0.2rem, 0.4vw, 0.3rem);
+        letter-spacing: 0.05em;
+    }
+
+    .party-name {
+        font-size: clamp(0.85rem, 1.8vw, 1rem);
+        margin-bottom: clamp(0.25rem, 0.5vw, 0.35rem);
+        font-weight: 800;
+    }
+
+    .party-lines {
+        font-size: clamp(0.72rem, 1.4vw, 0.82rem);
+        line-height: 1.3;
+    }
+
+    /* Compact summary rows */
+    .inv-summary-rows {
+        gap: 0;
+    }
+
+    .inv-summary-rows .row {
+        gap: clamp(0.4rem, 0.8vw, 0.6rem);
+        padding-block: clamp(0.2rem, 0.4vw, 0.3rem);
+    }
+
+    .inv-summary-total {
+        padding: clamp(0.45rem, 0.9vw, 0.65rem);
+        gap: clamp(0.5rem, 0.9vw, 0.7rem);
+        border: 1.5px solid rgba(255, 122, 24, 0.5);
+        border-radius: clamp(0.5rem, 0.8vw, 0.65rem);
+    }
+
+    .inv-summary-total .total-value {
+        font-size: clamp(1rem, 2vw, 1.3rem);
+    }
+
+    .inv-summary .label {
+        font-size: clamp(0.62rem, 1.2vw, 0.72rem);
+    }
+
+    .inv-summary .value {
+        font-size: clamp(0.76rem, 1.5vw, 0.88rem);
+    }
+
+    /* Items table: ultra-compact */
+    .inv-lines {
+        padding: clamp(0.4rem, 0.8vw, 0.6rem);
+    }
+
+    .inv-table {
+        font-size: clamp(0.68rem, 1.2vw, 0.78rem);
+    }
+
+    .inv-table th {
+        padding: clamp(0.35rem, 0.6vw, 0.45rem) clamp(0.35rem, 0.6vw, 0.5rem);
+        font-size: clamp(0.6rem, 1vw, 0.68rem);
+    }
+
+    .inv-table td {
+        padding: clamp(0.3rem, 0.5vw, 0.4rem) clamp(0.35rem, 0.6vw, 0.5rem);
+        font-size: clamp(0.65rem, 1.2vw, 0.75rem);
+        line-height: 1.2;
+    }
+
+    .inv-col-desc {
+        width: 50%;
+    }
+
+    .inv-col-qty {
+        width: 12%;
+    }
+
+    .inv-col-unit {
+        width: 18%;
+    }
+
+    .inv-col-total {
+        width: 20%;
+    }
+
+    /* Bottom section: single column, tight spacing */
+    .inv-bottom {
+        padding: clamp(0.55rem, 1vw, 0.75rem);
+        gap: clamp(0.45rem, 0.9vw, 0.65rem);
+    }
+
+    .card {
+        padding: clamp(0.55rem, 1vw, 0.75rem);
+        border-radius: clamp(0.5rem, 0.8vw, 0.65rem);
+        border: 0.5px solid rgba(0, 0, 0, 0.08);
+    }
+
+    .sec-title {
+        font-size: clamp(0.62rem, 1.2vw, 0.72rem);
+        margin-bottom: clamp(0.25rem, 0.5vw, 0.35rem);
+    }
+
+    .sec-text {
+        font-size: clamp(0.7rem, 1.3vw, 0.8rem);
+        line-height: 1.3;
+    }
+
+    /* Footer grid: single column */
+    .inv-footer-grid {
+        grid-template-columns: 1fr;
+        gap: clamp(0.45rem, 0.9vw, 0.65rem);
+        padding: clamp(0.55rem, 1vw, 0.75rem);
+    }
+
+    .footer-col {
+        padding: 0;
+    }
+
+    .footer-title {
+        font-size: clamp(0.6rem, 1vw, 0.68rem);
+    }
+
+    .footer-content {
+        font-size: clamp(0.68rem, 1.2vw, 0.78rem);
+    }
+
+    /* Thank you: reduce padding */
+    .inv-thanks {
+        font-size: clamp(0.65rem, 1.2vw, 0.75rem);
+        padding-top: clamp(0.25rem, 0.5vw, 0.4rem);
+    }
+
+    /* Work summary card */
+    .inv-work {
+        border-radius: clamp(0.5rem, 0.8vw, 0.65rem);
+    }
+
+    .inv-work .sec-text {
+        font-size: clamp(0.68rem, 1.3vw, 0.78rem);
+        line-height: 1.3;
+    }
+
+    /* Edit form: mobile optimized (already responsive but ensure compact) */
+    .edit-form-container {
+        max-height: calc(100vh - 2rem);
+        overflow-y: auto;
+    }
+
+    .edit-field {
+        margin-bottom: clamp(0.5rem, 1vw, 0.75rem);
+    }
+
+    .edit-input,
+    .edit-textarea {
+        font-size: clamp(0.75rem, 1.4vw, 0.85rem);
+        padding: clamp(0.4rem, 0.8vw, 0.6rem);
+    }
+
+    /* Very small screens: revert to single column */
+    @media (max-width: 420px) {
+        .inv-party {
+            grid-template-columns: 1fr;
+        }
+
+        .party-summary-card {
+            grid-column: 1;
+        }
+
+        .inv-meta-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .meta-cell.meta-invoice-no {
+            grid-column: 1;
+        }
+    }
+}
+
+/* ===== PRINT STYLES: A4 MM-PERFECT LAYOUT ===== */
+@media print {
+    /* Print-specific CSS variable for fine-tuning (fills page better) */
+    :root {
+        --print-scale: 1.04; /* Increased from 1 to fill page more evenly */
+    }
+
+    /* ===== PAGE SETUP: Exact A4 dimensions ===== */
+    @page {
+        size: A4 portrait;
+        margin: 8mm;
+    }
+
+    html, body {
+        width: 210mm;
+        height: 297mm;
+        margin: 0;
+        padding: 0;
+        background: #fff !important;
+        overflow: hidden;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+
+    /* ===== HIDE UI CONTROLS ===== */
+    .controls-bar,
+    .loading-overlay,
+    .edit-mode-overlay,
+    .modal,
+    .modal-backdrop,
+    .top-actions,
+    .no-print,
+    .print-hint {
+        display: none !important;
+    }
+
+    /* ===== INVOICE CONTAINER ===== */
+    .invoice-container {
+        padding: 0;
+        margin: 0;
+        max-width: 100%;
+        width: 100%;
+        height: 100%;
+        background: white;
+    }
+
+    /* ===== INVOICE SHEET: Grid Layout for Perfect Distribution ===== */
+    .invoice-sheet {
+        width: 210mm;
+        height: 297mm;
+        margin: 0;
+        padding: 8mm;
+        box-shadow: none !important;
+        border-radius: 0 !important;
+        border: none !important;
+        background: white !important;
+        
+        /* Grid layout: header, meta+party, items area (grows), footer */
+        display: grid;
+        grid-template-rows: auto auto auto 1fr auto;
+        
+        /* No transforms - print sizing is handled by page setup */
+        font-size: 11pt; /* Base print font size */
+        line-height: 1.3;
+        
+        /* Crisp typography for print */
+        -webkit-font-smoothing: subpixel-antialiased;
+        -moz-osx-font-smoothing: auto;
+    }
+
+    /* ===== PREVENT PAGE BREAKS (Single Page Only) ===== */
+    * {
+        break-inside: avoid !important;
+        page-break-inside: avoid !important;
+    }
+
+    .invoice-sheet {
+        overflow: hidden;
+    }
+
+    /* ===== ENSURE COLORS PRINT ===== */
+    .inv-header,
+    .inv-table thead,
+    .inv-summary-total,
+    .payment-status-badge,
+    .inv-footer {
+        print-color-adjust: exact;
+        -webkit-print-color-adjust: exact;
+    }
+
+    /* ===== REMOVE SHADOWS & EFFECTS ===== */
+    * {
+        box-shadow: none !important;
+        filter: none !important;
+    }
+
+    /* ===== ALL BACKGROUNDS WHITE ===== */
+    body,
+    .invoice-sheet,
+    .card,
+    .inv-header,
+    .inv-meta,
+    .inv-party,
+    .inv-lines,
+    .inv-summary,
+    .inv-footer {
+        background: white !important;
+    }
+
+    /* ===== HEADER SECTION (Row 1: auto) ===== */
+    .inv-header {
+        padding: 9px 10px !important;
+        border: none !important;
+        margin-bottom: 0;
+        gap: 10px !important;
+        height: 85px !important;
+        align-items: center !important;
+    }
+
+    .inv-company {
+        flex: 1;
+    }
+
+    .inv-company-name {
+        font-size: 20px !important;
+        font-weight: 900 !important;
+        margin: 0 !important;
+        line-height: 1.05 !important;
+    }
+
+    .company-name {
+        font-size: 20px !important;
+        font-weight: 900 !important;
+        margin: 0 !important;
+        line-height: 1 !important;
+    }
+
+    .company-info {
+        font-size: 11px !important;
+        margin-top: 4px !important;
+        line-height: 1.25 !important;
+    }
+
+    .company-info span {
+        white-space: nowrap !important;
+    }
+
+    .company-info .site {
+        color: #f97316 !important;
+        font-weight: 800 !important;
+    }
+
+    .company-info .site a {
+        color: #f97316 !important;
+    }
+
+    .inv-right {
+        gap: 8px;
+    }
+
+    .inv-logo {
+        height: 60px !important;
+        width: auto !important;
+        print-color-adjust: exact;
+        -webkit-print-color-adjust: exact;
+        transform: scale(2) !important;
+        transform-origin: right center !important;
+    }
+
+    .inv-title {
+        font-size: 18px !important;
+        font-weight: 900 !important;
+        letter-spacing: 1.5px !important;
+        margin: 0 !important;
+        white-space: nowrap !important;
+        text-transform: uppercase !important;
+    }
+
+    /* ===== META SECTION: Professional Automotive Row Layout ===== */
+    .inv-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 16px;
+        padding: 6px 0;
+        font-size: 11px;
+        font-weight: 600;
+        border-bottom: 0.3mm solid #e5e7eb;
+        color: #111827;
+        margin-bottom: 2mm;
+    }
+
+    .inv-meta strong {
+        font-size: 8pt;
+        letter-spacing: 0.8pt;
+        color: #6b7280;
+        margin-right: 4px;
+        text-transform: uppercase;
+        font-weight: 700;
+    }
+
+    .inv-meta span {
+        font-weight: 700;
+        font-variant-numeric: tabular-nums;
+        white-space: nowrap;
+    }
+
+    /* ===== PERFORMANCE GARAGE: Print Layouts ===== */
+    .perf-grid {
+        display: grid;
+        grid-template-columns: 1.2fr 1fr 1fr;
+        gap: 5mm;
+        margin-top: 3mm;
+        margin-bottom: 3mm;
+        padding: 0;
+    }
+
+    .perf-card {
+        padding: 4mm;
+        border: 0.3mm solid #ddd;
+        border-radius: 2mm;
+        background: white;
+        font-size: 10pt;
+    }
+
+    .perf-card::before {
+        width: 1mm;
+        border-radius: 2mm 0 0 2mm;
+    }
+
+    .bill-card h4,
+    .vehicle-card h4 {
+        font-size: 9pt;
+        font-weight: 700;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        color: #666;
+        margin: 0 0 2mm 0;
+    }
+
+    .client-name,
+    .vehicle-make {
+        font-size: 13pt;
+        font-weight: 900;
+        color: #111827;
+        margin-bottom: 1.5mm;
+        line-height: 1.1;
+    }
+
+    .client-address,
+    .mileage {
+        font-size: 9pt;
+        color: #555;
+        line-height: 1.4;
+    }
+
+    .summary-card {
+        background: #1a1a1a;
+        color: white;
+        border: none;
+    }
+
+    .summary-card::before {
+        background: #f97316;
+    }
+
+    .total-box {
+        background: #2a2a2a;
+        border: 1mm solid #f97316;
+        border-radius: 2mm;
+        padding: 3.5mm;
+        text-align: center;
+        margin-bottom: 3mm;
+    }
+
+    .total-label {
+        font-size: 8pt;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        color: #999;
+        font-weight: 700;
+        display: block;
+    }
+
+    .total-value {
+        font-size: 18pt;
+        font-weight: 900;
+        color: #f97316;
+        display: block;
+        margin-top: 1.5mm;
+    }
+
+    .summary-line {
+        display: flex;
+        justify-content: space-between;
+        font-size: 9pt;
+        margin-bottom: 2mm;
+        color: #ddd;
+    }
+
+    .summary-line.paid {
+        color: #10b981;
+        font-weight: 700;
+    }
+
+    .summary-line.balance {
+        color: #f97316;
+        font-weight: 900;
+    }
+
+    .status-paid {
+        background: #10b981;
+        font-size: 8pt;
+        padding: 1.5mm 3mm;
+        border-radius: 6mm;
+        top: 3mm;
+        right: 3mm;
+    }
+
+    /* ===== PARTY SECTION (Row 3: 2-column x 3-row grid) ===== */
+    .inv-party {
+        padding: 4mm 0;
+        border-bottom: 0.3mm solid #ccc;
+        grid-template-columns: 1.3fr 1fr 1fr;
+        gap: 6mm;
+        margin-top: 2mm;
+        margin-bottom: 0;
+    }
+
+    .party-card {
+        border: 0.25mm solid rgba(0, 0, 0, 0.18);
+        border-radius: 1.5mm;
+        padding: 3.5mm;
+        background: white;
+    }
+
+    .party-summary {
+        background: #f9f9f9 !important;
+        border: 0.25mm solid rgba(255, 122, 24, 0.2) !important;
+    }
+
+    .party-title {
+        font-size: 8.5pt;
+        font-weight: 900;
+        letter-spacing: 1.2px;
+        text-transform: uppercase;
+        margin-bottom: 2.5mm;
+        color: rgba(0, 0, 0, 0.7);
+    }
+
+    .party-name {
+        font-size: 12pt;
+        font-weight: 900;
+        line-height: 1.15;
+        margin-bottom: 2.5mm;
+        color: #0f172a;
+    }
+
+    .party-lines {
+        font-size: 10pt;
+        color: rgba(15, 23, 42, 0.8);
+        line-height: 1.45;
+    }
+
+    .party-line {
+        margin-top: 1.5mm;
+    }
+
+    .party-phone {
+        font-weight: 800;
+        color: #0f172a;
+    }
+
+    /* ===== LINE ITEMS TABLE (Row 4: 1fr - grows to fill space) ===== */
+    .inv-lines {
+        padding: 3mm 0;
+        border-bottom: 0.3mm solid #ccc;
+        margin-bottom: 0;
+        display: flex;
+        flex-direction: column;
+        min-height: 0; /* Allow flex to work */
+    }
+
+    .inv-table {
+        width: 100%;
+        border-collapse: collapse;
+        table-layout: fixed; /* Fixed layout for perfect column alignment */
+        flex: 1 1 auto;
+    }
+
+    .inv-table thead {
+        background: #1a1a1a !important;
+        color: white !important;
+    }
+
+    .inv-table th {
+        padding: 3mm; /* Increased from 2.2mm */
+        font-size: 10.5pt; /* Increased from 9pt */
+        font-weight: 700;
+        text-align: left;
+        line-height: 1.2;
+        border-bottom: 0.6mm solid #111; /* Stronger divider */
+        font-variant-numeric: tabular-nums;
+    }
+
+    .inv-table td {
+        padding: 2.5mm 3mm; /* Increased vertical padding */
+        font-size: 10pt;
+        line-height: 1.15;
+        border-bottom: 0.2mm solid rgba(0, 0, 0, 0.12); /* More visible separators */
+        font-variant-numeric: tabular-nums;
+    }
+
+    .inv-table tbody tr:nth-child(even) {
+        background: #f9f9f9 !important; /* Zebra striping */
+    }
+
+    /* ===== WORK SUMMARY / NOTES (Print only, fills space) ===== */
+    .inv-notes {
+        display: block !important; /* Show in print when needed */
+        margin-top: 4mm;
+        padding: 4mm;
+        border: 0.3mm solid rgba(0, 0, 0, 0.15);
+        border-radius: 2mm;
+        background: #fafafa !important;
+    }
+
+    .notes-title {
+        font-size: 9.5pt;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.5pt;
+        margin-bottom: 2mm;
+        color: #333;
+    }
+
+    .notes-body {
+        font-size: 9pt;
+        line-height: 1.4;
+        color: #555;
+    }
+
+    /* ===== INVOICE SUMMARY (Print) ===== */
+    .inv-summary {
+        display: flex !important; /* Override any hidden state */
+        gap: 1.5mm;
+        padding: 0;
+    }
+
+    .inv-summary .label {
+        font-size: 7.5pt;
+        white-space: nowrap;
+    }
+
+    .inv-summary .value {
+        font-size: 8.5pt;
+        font-weight: 700;
+        white-space: nowrap;
+    }
+
+    /* TOTAL section in print */
+    .inv-summary-total {
+        background: white !important;
+        border: 0.5mm solid #000 !important;
+        padding: 1.8mm 2mm;
+        margin-bottom: 1mm;
+        gap: 2mm;
+    }
+
+    .inv-summary-total .total-value {
+        color: #000 !important;
+        font-size: 11pt !important;
+        font-weight: 900 !important;
+    }
+
+    .inv-summary-total .label {
+        color: #000 !important;
+        font-size: 8.5pt !important;
+        font-weight: 700 !important;
+    }
+
+    /* Summary rows in print */
+    .inv-summary-rows {
+        gap: 0.5mm;
+    }
+
+    .inv-summary-rows .row {
+        padding-block: 0.8mm;
+        gap: 2mm;
+        border-bottom: 0.2mm solid rgba(0, 0, 0, 0.1);
+    }
+
+    .inv-summary-rows .row:last-child {
+        border-bottom: none;
+    }
+
+    /* Status pill in print */
+    .inv-summary-status {
+        gap: 2mm;
+        margin-top: 1mm;
+        padding-top: 1.5mm;
+        border-top: 0.3mm solid rgba(0, 0, 0, 0.15);
+    }
+
+    .status-pill {
+        font-size: 7pt;
+        padding: 1mm 2mm;
+        max-width: 15ch; /* Shorter in print */
+    }
+
+    /* ===== BOTTOM SECTION (Row 5: auto - pinned to bottom) ===== */
+    .inv-bottom {
+        padding: 0;
+        gap: 4mm;
+        border-top: 0.3mm solid #ccc;
+        margin-top: auto; /* Push to bottom */
+    }
+
+    .card {
+        padding: 3.5mm;
+        border: 0.25mm solid rgba(0, 0, 0, 0.18);
+        border-radius: 1.5mm;
+        background: white;
+    }
+
+    .sec-title {
+        font-size: 8.5pt;
+        letter-spacing: 1.2px;
+        font-weight: 900;
+        text-transform: uppercase;
+        margin-bottom: 2mm;
+        color: rgba(0, 0, 0, 0.7);
+    }
+
+    .sec-text {
+        font-size: 10pt;
+        line-height: 1.35;
+        color: rgba(15, 23, 42, 0.85);
+    }
+
+    /* Work Summary card in print */
+    .inv-work {
+        border: 0.25mm solid rgba(0, 0, 0, 0.18);
+    }
+
+    .inv-work .sec-text {
+        display: block !important;
+    }
+
+    /* Footer grid in print */
+    .inv-footer-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 6mm;
+        padding: 3.5mm;
+        align-items: start;
+    }
+
+    .footer-col {
+        padding: 0;
+    }
+
+    .footer-col .sec-title {
+        font-size: 8.5pt;
+        margin-bottom: 1.5mm;
+    }
+
+    .footer-col .sec-text {
+        font-size: 10pt;
+    }
+
+    /* Thank you message in print */
+    .inv-thanks {
+        text-align: center;
+        font-size: 9pt;
+        color: rgba(0, 0, 0, 0.6);
+        padding-top: 2mm;
+        border-top: 0.2mm solid rgba(0, 0, 0, 0.1);
+        line-height: 1.3;
+    }
+
+    /* ===== OLD FOOTER STYLES (deprecated - keeping for reference) ===== */
+    .inv-footer {
+        display: none;
+    }
+
+    .inv-footer-thank-you p {
+        font-size: 8pt;
+        text-align: center;
+    }
+
+    /* ===== LINKS (No underline in print) ===== */
+    a {
+        color: inherit;
+        text-decoration: none;
+    }
+}
+
 
 /* ===== HEADER ===== */
 .invoice-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    gap: 2rem;
-    padding: 3rem 2rem;
+    gap: clamp(1.5rem, 4vw, 2rem);
+    padding: clamp(2rem, 5vw, 3rem) clamp(1.25rem, 3vw, 2rem);
     border-bottom: none;
     background: linear-gradient(135deg, #FFFFFF 0%, #F7F8FB 100%);
     position: relative;
@@ -347,7 +1940,7 @@ body {
     top: 0;
     left: 0;
     right: 0;
-    height: 4px;
+    height: 0.25rem;
     background: linear-gradient(90deg, var(--color-primary), var(--primary-dark), var(--color-primary));
 }
 
@@ -356,31 +1949,31 @@ body {
 }
 
 .company-name {
-    font-size: clamp(2rem, 4vw, 2.8rem);
+    font-size: clamp(1.75rem, 4.5vw, 2.5rem);
     font-weight: 800;
     color: var(--color-dark);
-    margin-bottom: 0.3rem;
-    letter-spacing: -0.8px;
+    margin-bottom: clamp(0.25rem, 0.8vw, 0.3rem);
+    letter-spacing: -0.05rem;
     line-height: 1.1;
 }
 
 .invoice-title {
-    font-size: clamp(0.8rem, 1.3vw, 1rem);
+    font-size: clamp(0.8rem, 2vw, 1rem);
     color: var(--color-primary);
     font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 2.5px;
-    margin-bottom: 1.5rem;
+    letter-spacing: 0.15625rem;
+    margin-bottom: clamp(1.25rem, 3.5vw, 1.5rem);
 }
 
 .company-contact {
-    font-size: clamp(0.75rem, 0.9vw, 0.85rem);
+    font-size: clamp(0.8rem, 2vw, 0.9rem);
     color: var(--color-grey);
     line-height: 1.7;
 }
 
 .company-contact p {
-    margin-bottom: 0.4rem;
+    margin-bottom: clamp(0.3rem, 1vw, 0.4rem);
 }
 
 .company-contact a {
@@ -403,20 +1996,21 @@ body {
 }
 
 .company-logo {
-    max-width: 140px;
-    max-height: 140px;
+    width: clamp(6rem, 12vw, 9rem);
+    height: auto;
+    max-height: clamp(6rem, 12vw, 9rem);
     object-fit: contain;
     display: block;
     opacity: 1;
-    filter: drop-shadow(0 2px 8px rgba(255, 122, 24, 0.1));
+    filter: drop-shadow(0 0.125rem 0.5rem rgba(255, 122, 24, 0.1));
 }
 
 /* ===== INVOICE META ===== */
 .invoice-meta {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
-    gap: 1rem;
-    padding: 2rem;
+    gap: clamp(0.75rem, 2vw, 1rem);
+    padding: clamp(1.25rem, 4vw, 2rem);
     border-bottom: 2px solid var(--border);
     background-color: #FFFFFF;
 }
@@ -424,67 +2018,67 @@ body {
 @media (max-width: 768px) {
     .invoice-meta {
         grid-template-columns: repeat(2, 1fr);
-        gap: 1.5rem;
-        padding: 1.5rem;
+        gap: clamp(1.25rem, 3.5vw, 1.5rem);
+        padding: clamp(1.25rem, 3.5vw, 1.5rem);
     }
 }
 
 .meta-box {
     text-align: left;
-    padding: 1.5rem;
+    padding: clamp(1.25rem, 3.5vw, 1.5rem);
     background: #F7F8FB;
     border-radius: var(--radius-sm);
     border-left: 3px solid var(--color-primary);
 }
 
 .meta-label {
-    font-size: 0.7rem;
+    font-size: clamp(0.7rem, 1.8vw, 0.75rem);
     color: var(--color-grey);
     text-transform: uppercase;
-    letter-spacing: 1.2px;
+    letter-spacing: 0.075rem;
     font-weight: 700;
-    margin-bottom: 0.6rem;
+    margin-bottom: clamp(0.5rem, 1.5vw, 0.6rem);
     display: block;
 }
 
 .meta-value {
-    font-size: clamp(1rem, 1.8vw, 1.4rem);
+    font-size: clamp(1rem, 2.5vw, 1.25rem);
     font-weight: 800;
     color: var(--color-dark);
-    letter-spacing: -0.3px;
+    letter-spacing: -0.02rem;
 }
 
 /* ===== BILL TO SECTION ===== */
 .bill-to {
-    padding: 2.5rem 2rem;
+    padding: clamp(2rem, 5vw, 2.5rem) clamp(1.25rem, 3vw, 2rem);
     border-bottom: 2px solid var(--border);
     background-color: #FFFFFF;
 }
 
 .section-title {
-    font-size: clamp(1.05rem, 1.8vw, 1.35rem);
+    font-size: clamp(1.25rem, 3.5vw, 1.5rem);
     color: var(--color-dark);
     font-weight: 800;
-    margin-bottom: 1.8rem;
+    margin-bottom: clamp(1.5rem, 4vw, 1.8rem);
     text-transform: uppercase;
-    letter-spacing: 1.5px;
-    padding-bottom: 0.8rem;
+    letter-spacing: 0.09375rem;
+    padding-bottom: clamp(0.6rem, 1.8vw, 0.8rem);
     border-bottom: 3px solid var(--color-primary);
     position: relative;
 }
 
 .bill-to-content {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-    gap: 1.8rem;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 18.75rem), 1fr));
+    gap: clamp(1.5rem, 4vw, 1.8rem);
 }
 
 .bill-to-box {
     background: #FFFFFF;
-    padding: 2rem;
+    padding: clamp(1.5rem, 4vw, 2rem);
     border-radius: var(--radius-sm);
     border: 1px solid var(--border-light);
-    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
+    box-shadow: 0 0.125rem 0.5rem rgba(15, 23, 42, 0.06);
     position: relative;
     transition: all 0.3s ease;
 }
@@ -494,29 +2088,29 @@ body {
     position: absolute;
     top: 0;
     left: 0;
-    width: 4px;
+    width: 0.25rem;
     height: 100%;
     background: linear-gradient(180deg, var(--color-primary), var(--primary-dark));
     border-radius: var(--radius-sm) 0 0 var(--radius-sm);
 }
 
 .bill-to-box:hover {
-    box-shadow: 0 4px 16px rgba(15, 23, 42, 0.08);
-    transform: translateY(-2px);
+    box-shadow: 0 0.25rem 1rem rgba(15, 23, 42, 0.08);
+    transform: translateY(-0.125rem);
 }
 
 .bill-to-box .label {
-    font-size: 0.75rem;
+    font-size: clamp(0.75rem, 1.8vw, 0.8rem);
     color: var(--color-grey);
     font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 0.7px;
-    margin-bottom: 0.5rem;
+    letter-spacing: 0.04375rem;
+    margin-bottom: clamp(0.4rem, 1.2vw, 0.5rem);
     display: block;
 }
 
 .bill-to-box .value {
-    font-size: clamp(0.95rem, 1.1vw, 1rem);
+    font-size: clamp(0.95rem, 2.5vw, 1rem);
     color: var(--color-text);
     font-weight: 600;
     line-height: 1.5;
@@ -525,7 +2119,7 @@ body {
 
 /* ===== SERVICES TABLE ===== */
 .services-section {
-    padding: 2.5rem 2rem;
+    padding: clamp(2rem, 5vw, 2.5rem) clamp(1.25rem, 3vw, 2rem);
     border-bottom: 2px solid var(--border);
     background-color: #FFFFFF;
 }
@@ -533,7 +2127,7 @@ body {
 .services-table {
     width: 100%;
     border-collapse: collapse;
-    margin-top: 1.5rem;
+    margin-top: clamp(1.25rem, 3.5vw, 1.5rem);
 }
 
 .services-table thead {
@@ -543,12 +2137,12 @@ body {
 }
 
 .services-table th {
-    padding: 1.25rem 1rem;
+    padding: clamp(1rem, 2.8vw, 1.25rem) clamp(0.75rem, 2vw, 1rem);
     text-align: left;
     font-weight: 700;
-    font-size: 0.8rem;
+    font-size: clamp(0.75rem, 1.8vw, 0.85rem);
     text-transform: uppercase;
-    letter-spacing: 0.8px;
+    letter-spacing: 0.05rem;
     color: var(--color-dark);
 }
 
@@ -585,8 +2179,8 @@ body {
 }
 
 .services-table td {
-    padding: 1.2rem 1rem;
-    font-size: clamp(0.85rem, 0.95vw, 0.92rem);
+    padding: clamp(1rem, 2.8vw, 1.2rem) clamp(0.75rem, 2vw, 1rem);
+    font-size: clamp(0.9rem, 2.3vw, 1rem);
 }
 
 .services-table td.col-description {
@@ -614,27 +2208,27 @@ body {
 
 /* ===== TOTALS SECTION ===== */
 .totals-section {
-    padding: 3rem 2rem;
+    padding: clamp(2.5rem, 6vw, 3rem) clamp(1.25rem, 3vw, 2rem);
     border-bottom: 2px solid var(--border);
     background: linear-gradient(135deg, #FFFFFF 0%, #F7F8FB 100%);
 }
 
 .totals-box {
-    max-width: 420px;
+    width: min(100%, 26.25rem);
     margin-left: auto;
     background: white;
     border-radius: var(--radius);
-    padding: 2.5rem;
+    padding: clamp(2rem, 5vw, 2.5rem);
     border: 1px solid var(--border-light);
-    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+    box-shadow: 0 0.5rem 1.5rem rgba(15, 23, 42, 0.08);
 }
 
 .totals-row {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 0.9rem 0;
-    font-size: clamp(0.9rem, 1vw, 0.95rem);
+    padding: clamp(0.75rem, 2vw, 0.9rem) 0;
+    font-size: clamp(0.9rem, 2.3vw, 1rem);
     border-bottom: 1px solid var(--border-light);
 }
 
@@ -650,48 +2244,48 @@ body {
 /* TOTAL Row - Make Visually Bold */
 .totals-row.totals-total {
     border-bottom: none;
-    padding: 1.5rem 1.2rem;
-    font-size: clamp(1.35rem, 1.8vw, 1.6rem);
+    padding: clamp(1.25rem, 3.5vw, 1.5rem) clamp(1rem, 2.5vw, 1.2rem);
+    font-size: clamp(1.5rem, 4vw, 2.25rem);
     font-weight: 800;
     color: white;
     background: linear-gradient(135deg, var(--color-primary), var(--primary-dark));
     border-radius: var(--radius-sm);
-    margin: 1.2rem 0;
-    box-shadow: 0 4px 16px rgba(255, 122, 24, 0.2);
-    letter-spacing: -0.5px;
+    margin: clamp(1rem, 2.8vw, 1.2rem) 0;
+    box-shadow: 0 0.25rem 1rem rgba(255, 122, 24, 0.2);
+    letter-spacing: -0.03125rem;
 }
 
 .totals-label {
     color: var(--color-grey);
     font-weight: 600;
-    font-size: clamp(0.85rem, 1vw, 0.9rem);
+    font-size: clamp(0.85rem, 2vw, 0.95rem);
 }
 
 .totals-total .totals-label {
     color: white;
     font-weight: 800;
-    font-size: clamp(0.9rem, 1.1vw, 0.95rem);
+    font-size: clamp(0.9rem, 2.3vw, 1rem);
 }
 
 .totals-value {
     color: var(--color-text);
     font-weight: 700;
-    min-width: 120px;
+    min-width: 7.5rem;
     text-align: right;
-    font-size: clamp(0.9rem, 1vw, 0.95rem);
+    font-size: clamp(0.9rem, 2.3vw, 1rem);
 }
 
 .totals-total .totals-value {
     color: white;
     font-weight: 800;
-    font-size: clamp(1.35rem, 1.8vw, 1.6rem);
+    font-size: clamp(1.5rem, 4vw, 2.25rem);
 }
 
 /* Payment Rows */
 .payment-row {
     border-top: 2px dashed var(--border-light);
-    margin-top: 1rem;
-    padding-top: 1rem;
+    margin-top: clamp(0.75rem, 2vw, 1rem);
+    padding-top: clamp(0.75rem, 2vw, 1rem);
     border-bottom: 1px solid var(--border-light);
 }
 
@@ -708,7 +2302,7 @@ body {
 .payment-row.balance-due .totals-value {
     color: var(--color-dark);
     font-weight: 800;
-    font-size: clamp(1.1rem, 1.4vw, 1.2rem);
+    font-size: clamp(1.1rem, 3vw, 1.35rem);
 }
 
 .payment-row.balance-due.fully-paid .totals-value {
@@ -721,20 +2315,20 @@ body {
 
 .payment-status-row {
     border-top: 2px dashed var(--border-light);
-    margin-top: 1rem;
-    padding-top: 1rem;
+    margin-top: clamp(0.75rem, 2vw, 1rem);
+    padding-top: clamp(0.75rem, 2vw, 1rem);
     border-bottom: none;
 }
 
 .payment-status-badge {
     display: inline-flex;
     align-items: center;
-    padding: 0.6rem 1.2rem;
-    border-radius: 20px;
-    font-size: clamp(0.8rem, 0.95vw, 0.85rem);
+    padding: clamp(0.5rem, 1.5vw, 0.6rem) clamp(1rem, 2.8vw, 1.2rem);
+    border-radius: 1.25rem;
+    font-size: clamp(0.75rem, 1.8vw, 0.85rem);
     font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 0.8px;
+    letter-spacing: 0.05rem;
     margin-left: auto;
 }
 
@@ -758,41 +2352,41 @@ body {
 
 /* ===== PAYMENT TERMS ===== */
 .payment-terms {
-    padding: 1.8rem 2rem;
+    padding: clamp(1.5rem, 4vw, 1.8rem) clamp(1.25rem, 3vw, 2rem);
     border-bottom: 1px solid var(--border-light);
     background-color: #FFFFFF;
 }
 
 .terms-text {
-    font-size: clamp(0.9rem, 1vw, 0.95rem);
+    font-size: clamp(0.9rem, 2.3vw, 1rem);
     color: var(--color-dark);
     font-weight: 600;
     border-left: 3px solid var(--color-primary);
-    padding-left: 1rem;
+    padding-left: clamp(0.75rem, 2vw, 1rem);
 }
 
 /* ===== LEGAL NOTES ===== */
 .legal-notes {
-    padding: 1.5rem 2rem;
+    padding: clamp(1.25rem, 3.5vw, 1.5rem) clamp(1.25rem, 3vw, 2rem);
     border-bottom: 1px solid var(--border-light);
     background-color: #F7F8FB;
-    font-size: 0.8rem;
+    font-size: clamp(0.75rem, 1.8vw, 0.85rem);
     color: var(--text-secondary);
     line-height: 1.7;
 }
 
 .legal-notes p {
-    margin-bottom: 0.4rem;
+    margin-bottom: clamp(0.3rem, 1vw, 0.4rem);
 }
 
 /* ===== FOOTER ===== */
 .invoice-footer {
-    padding: 2.5rem 2rem;
+    padding: clamp(2rem, 5vw, 2.5rem) clamp(1.25rem, 3vw, 2rem);
     background: linear-gradient(135deg, #FFFFFF 0%, #F7F8FB 100%);
     color: var(--text);
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-    gap: 2.5rem;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 17.5rem), 1fr));
+    gap: clamp(2rem, 5vw, 2.5rem);
     text-align: center;
     border-top: 1px solid var(--border-light);
 }
@@ -805,32 +2399,32 @@ body {
 }
 
 .footer-text {
-    font-size: clamp(0.95rem, 1.1vw, 1rem);
+    font-size: clamp(0.95rem, 2.5vw, 1.05rem);
     font-weight: 700;
-    margin-bottom: 0.8rem;
+    margin-bottom: clamp(0.6rem, 1.8vw, 0.8rem);
     color: var(--text);
-    letter-spacing: 0.3px;
+    letter-spacing: 0.01875rem;
 }
 
 .footer-subtext {
-    font-size: 0.85rem;
+    font-size: clamp(0.8rem, 2vw, 0.9rem);
     color: var(--text-secondary);
     font-weight: 500;
 }
 
 .payment-icons {
     display: flex;
-    gap: 0.8rem;
+    gap: clamp(0.6rem, 1.8vw, 0.8rem);
     justify-content: center;
     flex-wrap: wrap;
-    margin-top: 0.8rem;
+    margin-top: clamp(0.6rem, 1.8vw, 0.8rem);
 }
 
 .payment-icon {
-    font-size: 0.8rem;
+    font-size: clamp(0.75rem, 1.8vw, 0.85rem);
     background: white;
-    padding: 0.5rem 1rem;
-    border-radius: 8px;
+    padding: clamp(0.4rem, 1.2vw, 0.5rem) clamp(0.75rem, 2vw, 1rem);
+    border-radius: 0.5rem;
     white-space: nowrap;
     border: 1px solid var(--border);
     font-weight: 500;
@@ -846,7 +2440,7 @@ body {
 /* ===== RESPONSIVE DESIGN ===== */
 @media (max-width: 768px) {
     .invoice-container {
-        padding: 0.75rem;
+        padding: clamp(0.5rem, 1.5vw, 0.75rem);
     }
 
     .invoice-wrapper {
@@ -855,13 +2449,13 @@ body {
 
     .invoice-header {
         flex-direction: column;
-        gap: 1.5rem;
-        padding: 2rem 1rem;
+        gap: clamp(1.25rem, 3.5vw, 1.5rem);
+        padding: clamp(1.5rem, 4vw, 2rem) clamp(0.75rem, 2vw, 1rem);
         align-items: flex-start;
     }
 
     .invoice-header::before {
-        height: 3px;
+        height: 0.1875rem;
     }
 
     .header-left {
@@ -873,30 +2467,31 @@ body {
     }
 
     .company-logo {
-        max-width: 100px;
+        width: clamp(4.5rem, 10vw, 6.5rem);
+        max-height: clamp(4.5rem, 10vw, 6.5rem);
     }
 
     .invoice-meta {
         grid-template-columns: repeat(2, 1fr);
-        gap: 1rem;
-        padding: 1.5rem 1rem;
+        gap: clamp(0.75rem, 2vw, 1rem);
+        padding: clamp(1.25rem, 3.5vw, 1.5rem) clamp(0.75rem, 2vw, 1rem);
     }
 
     .meta-box {
-        padding: 1.2rem;
+        padding: clamp(1rem, 2.8vw, 1.2rem);
     }
 
     .bill-to {
-        padding: 1.8rem 1rem;
+        padding: clamp(1.5rem, 4vw, 1.8rem) clamp(0.75rem, 2vw, 1rem);
     }
 
     .bill-to-content {
         grid-template-columns: 1fr;
-        gap: 1.2rem;
+        gap: clamp(1rem, 2.8vw, 1.2rem);
     }
 
     .bill-to-box {
-        padding: 1.5rem;
+        padding: clamp(1.25rem, 3.5vw, 1.5rem);
     }
 
     .bill-to-box::before {
@@ -908,17 +2503,17 @@ body {
     }
 
     .services-section {
-        padding: 1.8rem 1rem;
+        padding: clamp(1.5rem, 4vw, 1.8rem) clamp(0.75rem, 2vw, 1rem);
         overflow-x: auto;
     }
 
     .services-table {
-        font-size: 0.8rem;
+        font-size: clamp(0.75rem, 1.8vw, 0.85rem);
     }
 
     .services-table th,
     .services-table td {
-        padding: 0.8rem 0.5rem;
+        padding: clamp(0.6rem, 1.8vw, 0.8rem) clamp(0.4rem, 1.2vw, 0.5rem);
     }
 
     .col-description {
@@ -938,31 +2533,31 @@ body {
     }
 
     .totals-section {
-        padding: 2rem 1rem;
+        padding: clamp(1.5rem, 4vw, 2rem) clamp(0.75rem, 2vw, 1rem);
     }
 
     .totals-box {
-        max-width: 100%;
-        padding: 1.8rem;
+        width: 100%;
+        padding: clamp(1.5rem, 4vw, 1.8rem);
     }
 
     .payment-terms {
-        padding: 1.5rem 1rem;
+        padding: clamp(1.25rem, 3.5vw, 1.5rem) clamp(0.75rem, 2vw, 1rem);
     }
 
     .legal-notes {
-        padding: 1.2rem 1rem;
+        padding: clamp(1rem, 2.8vw, 1.2rem) clamp(0.75rem, 2vw, 1rem);
     }
 
     .invoice-footer {
         grid-template-columns: 1fr;
-        gap: 1.8rem;
-        padding: 2rem 1rem;
+        gap: clamp(1.5rem, 4vw, 1.8rem);
+        padding: clamp(1.5rem, 4vw, 2rem) clamp(0.75rem, 2vw, 1rem);
     }
 
     .controls-container {
         flex-direction: column;
-        gap: 0.7rem;
+        gap: clamp(0.5rem, 1.5vw, 0.7rem);
     }
 
     .btn-primary,
@@ -975,141 +2570,6 @@ body {
         text-align: center;
         order: -1;
         width: 100%;
-    }
-}
-
-/* ===== PRINT STYLES ===== */
-@media print {
-    /* Hide UI controls */
-    .controls-bar {
-        display: none !important;
-    }
-
-    body {
-        background: white;
-    }
-
-    .invoice-container {
-        padding: 0;
-    }
-
-    .invoice-wrapper {
-        box-shadow: none;
-        border-radius: 0;
-        max-width: 100%;
-        border: none;
-    }
-
-    @page {
-        size: A4;
-        margin: 12mm 15mm 12mm 15mm;
-    }
-
-    /* Avoid breaking across pages */
-    .invoice-header,
-    .invoice-meta,
-    .bill-to,
-    .services-section,
-    .totals-section,
-    .payment-terms,
-    .legal-notes,
-    .invoice-footer {
-        page-break-inside: avoid;
-    }
-
-    /* Ensure logo prints clearly */
-    .company-logo {
-        print-color-adjust: exact;
-        -webkit-print-color-adjust: exact;
-    }
-
-    /* Ensure colors print */
-    .invoice-header,
-    .invoice-footer,
-    .services-table thead,
-    .totals-row.totals-total,
-    .payment-status-badge {
-        print-color-adjust: exact;
-        -webkit-print-color-adjust: exact;
-        color-adjust: exact;
-    }
-
-    /* Remove shadows in print */
-    * {
-        box-shadow: none !important;
-        filter: none !important;
-    }
-
-    /* Optimize for print */
-    .company-logo {
-        max-width: 100%;
-        height: auto;
-    }
-
-    /* Remove interactive states */
-    button,
-    a {
-        text-decoration: none;
-        color: inherit;
-    }
-
-    /* Table optimizations */
-    .services-table {
-        page-break-inside: avoid;
-    }
-
-    .services-table tbody tr {
-        page-break-inside: avoid;
-    }
-
-    /* Ensure totals stay together */
-    .totals-box {
-        page-break-inside: avoid;
-        box-shadow: none;
-    }
-
-    /* Use pure white for backgrounds */
-    body,
-    .invoice-wrapper,
-    .invoice-header,
-    .invoice-meta,
-    .bill-to,
-    .services-section,
-    .totals-section {
-        background: white !important;
-    }
-
-    /* Ensure footer stays at appropriate position */
-    .invoice-footer {
-        margin-top: 1rem;
-    }
-
-    /* Optimize spacing for print */
-    .invoice-header {
-        padding: 1.5rem 0 1rem 0;
-        border-bottom: 1px solid #000;
-    }
-
-    .section-title {
-        margin-bottom: 1rem;
-    }
-
-    /* Remove gradients for cleaner print */
-    .invoice-header,
-    .totals-section,
-    .invoice-footer {
-        background: white !important;
-    }
-
-    .totals-row.totals-total {
-        background: white !important;
-        border: 2px solid var(--color-primary) !important;
-        color: var(--color-primary) !important;
-    }
-
-    .totals-row.totals-total .totals-label,
-    .totals-row.totals-total .totals-value {
-        color: var(--color-primary) !important;
     }
 }
 
@@ -1158,16 +2618,16 @@ body {
 .font-semibold { font-weight: 600; }
 .font-medium { font-weight: 500; }
 
-.text-sm { font-size: 0.875rem; }
-.text-base { font-size: 1rem; }
-.text-lg { font-size: 1.125rem; }
+.text-sm { font-size: clamp(0.8rem, 2vw, 0.9rem); }
+.text-base { font-size: clamp(0.95rem, 2.5vw, 1rem); }
+.text-lg { font-size: clamp(1.05rem, 2.8vw, 1.15rem); }
 
 .uppercase { text-transform: uppercase; }
 .lowercase { text-transform: lowercase; }
 
-.letter-spacing-tight { letter-spacing: -0.5px; }
+.letter-spacing-tight { letter-spacing: -0.03125rem; }
 .letter-spacing-normal { letter-spacing: 0; }
-.letter-spacing-wide { letter-spacing: 1px; }
+.letter-spacing-wide { letter-spacing: 0.0625rem; }
 
 /* Border Utilities */
 .border-top { border-top: 1px solid var(--border); }
@@ -1273,7 +2733,7 @@ body {
 }
 
 .edit-form-container {
-    max-width: 900px;
+    max-width: 56.25rem;
     margin: 0 auto;
     padding: 1rem;
 }
@@ -1363,7 +2823,7 @@ body {
 
 .edit-textarea {
     resize: vertical;
-    min-height: 100px;
+    min-height: 6.25rem;
 }
 
 /* Service/Part Items (in edit mode) */
@@ -1380,20 +2840,20 @@ body {
 
 .edit-item-row .edit-input {
     width: 100%;
-    padding: 0.6rem;
-    font-size: 14px;
+    padding: clamp(0.5rem, 1.5vw, 0.6rem);
+    font-size: clamp(0.85rem, 2vw, 0.9rem);
 }
 
 .edit-item-remove {
-    width: 44px;
-    height: 44px;
+    width: 2.75rem;
+    height: 2.75rem;
     padding: 0;
     background: #EF4444;
     color: white;
     border: none;
     border-radius: var(--radius-sm);
     cursor: pointer;
-    font-size: 1.2rem;
+    font-size: clamp(1.1rem, 2.8vw, 1.2rem);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1459,9 +2919,9 @@ body {
 
 .btn-wide {
     flex: 1;
-    padding: 0.8rem 1.5rem;
-    font-size: 1rem;
-    min-height: 48px;
+    padding: clamp(0.7rem, 2vw, 0.8rem) clamp(1.25rem, 3.5vw, 1.5rem);
+    font-size: clamp(0.95rem, 2.5vw, 1rem);
+    min-height: 3rem;
     border-radius: var(--radius-sm);
 }
 
@@ -1476,8 +2936,8 @@ body {
 
 #editSaveBtn:hover:not(:disabled) {
     background-color: var(--primary-dark);
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(255, 122, 24, 0.25);
+    transform: translateY(-0.125rem);
+    box-shadow: 0 0.25rem 0.75rem rgba(255, 122, 24, 0.25);
 }
 
 #editSaveBtn:disabled {
@@ -1501,46 +2961,63 @@ body {
 /* Mobile Optimization */
 @media (max-width: 768px) {
     .edit-mode-overlay {
-        padding-bottom: 160px;
+        padding-bottom: 10rem;
     }
 
     .edit-form-container {
-        padding: 0.75rem;
+        padding: clamp(0.6rem, 1.8vw, 0.75rem);
     }
 
     .edit-fields {
-        gap: 0.75rem;
-        padding: 0.75rem;
+        gap: clamp(0.6rem, 1.8vw, 0.75rem);
+        padding: clamp(0.6rem, 1.8vw, 0.75rem);
     }
 
     .edit-field > label {
-        font-size: 0.9rem;
+        font-size: clamp(0.85rem, 2vw, 0.9rem);
     }
 
     .edit-input {
-        min-height: 44px;
-        padding: 0.65rem;
+        min-height: 2.75rem;
+        padding: clamp(0.6rem, 1.8vw, 0.65rem);
     }
 
     .edit-sticky-actions {
-        padding: 0.75rem;
-        gap: 0.75rem;
+        padding: clamp(0.6rem, 1.8vw, 0.75rem);
+        gap: clamp(0.6rem, 1.8vw, 0.75rem);
     }
 
     .btn-wide {
-        padding: 0.75rem 1rem;
-        min-height: 44px;
-        font-size: 0.95rem;
+        padding: clamp(0.65rem, 1.8vw, 0.75rem) clamp(0.85rem, 2.3vw, 1rem);
+        min-height: 2.75rem;
+        font-size: clamp(0.9rem, 2.3vw, 0.95rem);
     }
 
     details > summary {
-        padding: 0.75rem;
+        padding: clamp(0.6rem, 1.8vw, 0.75rem);
     }
 }
 
-/* Print: Hide edit overlay */
+/* Print: Hide edit overlay and controls bar */
 @media print {
     .edit-mode-overlay {
         display: none !important;
+    }
+    
+    .controls-bar {
+        display: none !important;
+    }
+}
+
+/* ===== PRINT-ONLY LOGO CONTROL ===== */
+/* Hide logo everywhere by default (desktop and mobile) */
+.print-only-logo {
+    display: none !important;
+}
+
+/* Show logo ONLY when printing */
+@media print {
+    .print-only-logo {
+        display: block !important;
     }
 }

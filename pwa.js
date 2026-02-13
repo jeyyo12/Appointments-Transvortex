@@ -35,17 +35,26 @@ async function registerServiceWorker() {
             if (!newWorker) return;
             
             newWorker.addEventListener('statechange', () => {
-                if (newWorker.state === 'activated' && navigator.serviceWorker.controller) {
-                    console.log('[PWA] New service worker available, refresh to update');
+                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                    console.log('[PWA] New service worker installed, activating...');
+                    
+                    // Tell the new service worker to skip waiting immediately
+                    newWorker.postMessage({ type: 'SKIP_WAITING' });
                     
                     // Notify user of update (optional)
-                    // You can show a toast/notification here
                     const event = new CustomEvent('serviceWorkerUpdate', {
                         detail: { registration }
                     });
                     window.dispatchEvent(event);
                 }
             });
+        });
+        
+        // CRITICAL: Force reload when new service worker takes control
+        // This ensures old cached assets are replaced with new versions
+        navigator.serviceWorker.addEventListener('controllerchange', () => {
+            console.log('[PWA] New service worker activated, reloading page...');
+            window.location.reload();
         });
         
     } catch (error) {

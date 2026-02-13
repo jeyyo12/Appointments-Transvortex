@@ -258,3 +258,108 @@ export function formatFileSize(bytes) {
   
   return `${size.toFixed(unitIndex === 0 ? 0 : 1)} ${units[unitIndex]}`;
 }
+
+/**
+ * Format number with thousands separators (commas)
+ * @param {number|string} num - Number to format
+ * @returns {string} Formatted number with commas (e.g., "12,345")
+ */
+export function formatNumberWithCommas(num) {
+  if (!num && num !== 0) return '';
+  const n = Number(num);
+  if (!Number.isFinite(n)) return '';
+  return Math.round(n).toLocaleString('en-GB');
+}
+
+/**
+ * Convert number to English words
+ * @param {number} n - Number to convert (0-999,999)
+ * @returns {string} English representation
+ */
+export function numberToWordsEN(n) {
+  const num = Number(n);
+  if (!Number.isFinite(num) || num < 0) return '';
+  if (num === 0) return 'zero';
+  
+  const ones = ['', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine'];
+  const teens = ['ten', 'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen', 'seventeen', 'eighteen', 'nineteen'];
+  const tens = ['', '', 'twenty', 'thirty', 'forty', 'fifty', 'sixty', 'seventy', 'eighty', 'ninety'];
+  const scales = ['', 'thousand', 'million', 'billion'];
+  
+  if (num >= 1000000000) return 'very large number';
+  
+  const convertHundreds = (n) => {
+    let result = '';
+    const h = Math.floor(n / 100);
+    if (h > 0) result += ones[h] + ' hundred';
+    
+    const remainder = n % 100;
+    if (remainder >= 20) {
+      if (result) result += ' ';
+      result += tens[Math.floor(remainder / 10)];
+      const digit = remainder % 10;
+      if (digit > 0) result += ' ' + ones[digit];
+    } else if (remainder >= 10) {
+      if (result) result += ' ';
+      result += teens[remainder - 10];
+    } else if (remainder > 0) {
+      if (result) result += ' ';
+      result += ones[remainder];
+    }
+    
+    return result;
+  };
+  
+  let parts = [];
+  let scaleIndex = 0;
+  let remaining = Math.round(num);
+  
+  while (remaining > 0 && scaleIndex < scales.length) {
+    const chunk = remaining % 1000;
+    if (chunk > 0) {
+      const text = convertHundreds(chunk);
+      if (scales[scaleIndex]) parts.unshift(text + ' ' + scales[scaleIndex]);
+      else parts.unshift(text);
+    }
+    remaining = Math.floor(remaining / 1000);
+    scaleIndex++;
+  }
+  
+  return parts.join(' ');
+}
+
+/**
+ * Format UK registration plate with smart spacing
+ * @param {string} plate - Plate string (e.g., "AB12XYZ")
+ * @returns {string} Formatted plate (e.g., "AB12 XYZ") or original if invalid
+ */
+export function formatUKPlate(plate) {
+  if (!plate) return '';
+  
+  // Remove spaces and convert to uppercase
+  const clean = plate.replace(/\s+/g, '').toUpperCase();
+  
+  // Only alphanumerics allowed
+  if (!/^[A-Z0-9]+$/.test(clean)) return clean;
+  
+  // Format patterns:
+  // If exactly 2 letters + 2 numbers + 3 letters: AB12 XYZ
+  // If exactly 2 letters + 3 numbers + 3 letters: AB123 XYZ
+  // Otherwise, keep as-is
+  
+  if (clean.length === 7) {
+    // Could be AB12XYZ (2 letters + 2 digits + 3 letters)
+    const match = clean.match(/^([A-Z]{2})(\d{2})([A-Z]{3})$/);
+    if (match) return `${match[1]}${match[2]} ${match[3]}`;
+    
+    // Or AB123XYZ (2 letters + 3 digits + 3 letters) -- still 2+3+3 = 8, so won't match here
+  }
+  
+  if (clean.length === 8) {
+    // Could be AB123XYZ (2 letters + 3 digits + 3 letters)
+    const match = clean.match(/^([A-Z]{2})(\d{3})([A-Z]{3})$/);
+    if (match) return `${match[1]}${match[2]} ${match[3]}`;
+  }
+  
+  return clean;
+}

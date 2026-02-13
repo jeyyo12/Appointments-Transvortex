@@ -19,10 +19,12 @@ export const LANG_EN = {
     tabPages: "Pages",
     tabAppointments: "Appointments",
     tabInvoice: "Invoice",
+    tabStorage: "Storage",
     tabScheduled: "Scheduled",
     tabFinalized: "Finalized",
     tabCompleted: "Completed",
     tabCanceled: "Canceled",
+    storageTitle: "Invoices Storage",
     back: "Back",
     
     // Actions
@@ -315,11 +317,11 @@ export const LANG_RO = {
     tabPages: "Pagini",
     tabAppointments: "Programări",
     tabInvoice: "Factură",
+    tabStorage: "Arhivă",
     tabScheduled: "Programate",
     tabFinalized: "Finalizate",
     tabCompleted: "Finalizate",
-    tabCanceled: "Anulate",
-    back: "Înapoi",
+    tabCanceled: "Anulate",    storageTitle: "Arhivă Facturi",    back: "Înapoi",
     
     // Actions
     btnDetails: "Detalii",
