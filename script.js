@@ -5899,6 +5899,27 @@ function createInvoiceCard(invoice) {
             </div>
             
             <div class="storage-card__actions">
+                ${invoice.pdfUrl ? `
+                    <button 
+                        class="action-btn action-btn--success" 
+                        onclick="openPDF('${invoice.pdfUrl}')"
+                        aria-label="Open PDF"
+                        title="Download or view saved PDF"
+                    >
+                        <i class="fas fa-file-pdf"></i>
+                        <span>PDF</span>
+                    </button>
+                ` : `
+                    <button 
+                        class="action-btn action-btn--secondary" 
+                        onclick="generateAndSaveInvoicePDF('${invoice.id}')"
+                        aria-label="Generate and save PDF"
+                        title="Generate PDF and save to storage"
+                    >
+                        <i class="fas fa-save"></i>
+                        <span>Save PDF</span>
+                    </button>
+                `}
                 <button 
                     class="action-btn action-btn--primary" 
                     onclick="openInvoiceFile('${invoice.id}')"
@@ -5925,6 +5946,28 @@ function createInvoiceCard(invoice) {
  */
 function openInvoiceFile(invoiceId) {
     window.open(`invoice.html?invoiceId=${invoiceId}&mode=view`, '_blank');
+}
+
+/**
+ * 📥 Open PDF in new tab
+ */
+function openPDF(pdfUrl) {
+    if (!pdfUrl) {
+        alert('PDF URL not available');
+        return;
+    }
+    window.open(pdfUrl, '_blank');
+}
+
+/**
+ * 💾 Generate and save invoice PDF from storage list (opens invoice with prompt)
+ */
+function generateAndSaveInvoicePDF(invoiceId) {
+    // Open invoice editor in new tab - user clicks Save PDF button there
+    const invoiceWindow = window.open(`invoice.html?invoiceId=${invoiceId}&mode=edit`, '_blank');
+    
+    // Optional: Show message to user
+    alert('Invoice opened. Click the "Save PDF" button in the invoice to save it to storage.');
 }
 
 /**
