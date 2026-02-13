@@ -5,15 +5,12 @@
  */
 
 const CACHE_NAME = 'transvortex-v1';
-const ASSETS = [
-  '/',
-  '/index.html',
-  '/invoice.html',
-  '/styles.css',
-  '/script.js',
-  '/manifest.json',
-  '/icons/icon-192.png',
-  '/icons/icon-512.png'
+const CRITICAL_ASSETS = [
+  './index.html',
+  './invoice.html',
+  './styles.css',
+  './script.js',
+  './manifest.webmanifest'
 ];
 
 /**
@@ -25,8 +22,26 @@ self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then(cache => {
-        console.log('[Service Worker] Caching assets');
-        return cache.addAll(ASSETS);
+        console.log('[Service Worker] Caching critical assets');
+        // Cache critical assets first
+        return cache.addAll(CRITICAL_ASSETS);
+      })
+      .then(() => {
+        // Try to cache icons (non-critical)
+        return caches.open(CACHE_NAME).then(cache => {
+          cache.add('./icons/icon-192x192.png').catch(() => {
+            console.log('[Service Worker] Icon 192 not cached (OK)');
+          });
+          cache.add('./icons/icon-512x512.png').catch(() => {
+            console.log('[Service Worker] Icon 512 not cached (OK)');
+          });
+          cache.add('./icons/icon-maskable-192x192.png').catch(() => {
+            console.log('[Service Worker] Maskable icon 192 not cached (OK)');
+          });
+          cache.add('./icons/icon-maskable-512x512.png').catch(() => {
+            console.log('[Service Worker] Maskable icon 512 not cached (OK)');
+          });
+        });
       })
       .catch(err => {
         console.warn('[Service Worker] Install error:', err);
@@ -93,7 +108,7 @@ self.addEventListener('fetch', event => {
         .catch(() => {
           // Offline: return cached HTML or fallback to index.html
           return caches.match(event.request)
-            .then(response => response || caches.match('/index.html'));
+            .then(response => response || caches.match('index.html'));
         })
     );
     return;
