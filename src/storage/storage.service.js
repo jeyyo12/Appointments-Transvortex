@@ -173,7 +173,10 @@ async function reconcileInvoicesWithAppointments(invoices) {
       }
 
       if (!appointmentIds.has(appointmentId)) {
-        logger.warn('⚠️ Orphan invoice ignored (appointment not found):', invoice.id, appointmentId);
+        logger.warn('⚠️ Orphan invoice detected (appointment not found):', invoice.id, appointmentId);
+        // Include orphan invoice but mark it - user can still view/manage it
+        invoice.isOrphan = true;
+        merged.push(invoice);
         return;
       }
 
