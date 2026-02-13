@@ -7,6 +7,40 @@
 .env.production
 .env.development
 .env.test
+.env.*.swp
+
+# ==========================================
+# FIREBASE & GOOGLE CLOUD CREDENTIALS
+# ==========================================
+*-adminsdk-*.json
+*serviceAccount*.json
+firebase-key.json
+google-cloud-key.json
+credentials.json
+
+# ==========================================
+# PRIVATE KEYS & CERTIFICATES
+# ==========================================
+*.pem
+*.key
+*.crt
+*.csr
+*.p12
+*.pfx
+*.jks
+.ssh/
+private/
+secrets/
+certs/
+
+# ==========================================
+# GITHUB & DEPLOYMENT TOKENS
+# ==========================================
+.github/
+*.github-token
+github-token.txt
+github_token
+pat_*
 
 # ==========================================
 # ARCHIVED UNUSED FILES
@@ -22,6 +56,7 @@ yarn-error.log*
 package-lock.json
 yarn.lock
 pnpm-lock.yaml
+bun.lockb
 
 # ==========================================
 # IDE & EDITOR FILES
@@ -35,6 +70,8 @@ pnpm-lock.yaml
 Thumbs.db
 *.sublime-project
 *.sublime-workspace
+.vscode/settings.json
+.vscode/launch.json
 
 # ==========================================
 # BUILD & DIST OUTPUTS
@@ -56,18 +93,6 @@ yarn-debug.log*
 yarn-error.log*
 
 # ==========================================
-# SENSITIVE FILES - CRYPTO & KEYS
-# ==========================================
-*.pem
-*.key
-*.crt
-*.csr
-*.p12
-.ssh/
-private/
-secrets/
-
-# ==========================================
 # TESTING & COVERAGE
 # ==========================================
 coverage/
@@ -83,6 +108,7 @@ jest-results.json
 *.sqlite3
 *.sql
 data/
+.sqlite/
 
 # ==========================================
 # OS FILES
@@ -91,12 +117,7 @@ data/
 *.bak
 *.tmp
 *.temp
-
-# ==========================================
-# DEPLOYMENTS (GitHub Actions, CI/CD)
-# ==========================================
-.github/workflows/secrets.yml
-deploy-config.local.json
+Thumbs.db
 
 # Cache
 .cache/
