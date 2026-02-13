@@ -976,73 +976,19 @@ select.form-input {
   }
 }
 
-/* Dark Mode Support */
-@media (prefers-color-scheme: dark) {
-  .chipInput,
-  .chipQty,
-  .chipPrice {
-    background: #2a2a2a;
-    border-color: #444;
-    color: #f5f5f5;
-  }
-
-  .chipInput:focus,
-  .chipQty:focus,
-  .chipPrice:focus {
-    border-color: var(--accent-orange-light);
-    box-shadow: 0 0 0 3px rgba(255, 176, 51, 0.15);
-  }
-
-  .suggestBox {
-    background: #2a2a2a;
-    border-color: #444;
-  }
-
-  .suggestItem {
-    color: #e0e0e0;
-    border-bottom-color: #333;
-  }
-
-  .suggestItem:hover {
-    background: #333;
-  }
-
-  .suggestAdd {
-    background: linear-gradient(135deg, rgba(255, 176, 51, 0.08) 0%, rgba(255, 176, 51, 0.04) 100%);
-    color: #fbbf24;
-  }
-
-  .suggestAdd:hover {
-    background: linear-gradient(135deg, rgba(255, 176, 51, 0.12) 0%, rgba(255, 176, 51, 0.06) 100%);
-  }
-
-  .chipsWrap {
-    background: #1a1a1a;
-    border-color: #333;
-  }
-
-  .chipItem {
-    background: linear-gradient(180deg, #1f1f1f 0%, #1a1a1a 100%);
-    border-color: #333;
-  }
-
-  .chipItem:hover {
-    border-color: #555;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-  }
-
-  .chipName {
-    color: #f5f5f5;
-  }
-
-  .chipsTitle {
-    color: #cbd5e1;
-  }
-
-  .chipsCount {
-    background: #333;
-    color: #e0e0e0;
-  }
+/* Light Mode - Force light backgrounds for Jobs/Parts section on all devices */
+/* This ensures consistent rendering regardless of system dark mode preferences */
+.itemsPanel,
+.itemsTabBody,
+.chipsWrap,
+.chipInput,
+.chipQty,
+.chipPrice,
+.suggestBox,
+.chipItem {
+  background: #ffffff !important;
+  border-color: #e5e7eb !important;
+  color: #1f2937 !important;
 }
 @media (min-width: 481px) and (max-width: 768px) {
   .add-appointment-section {
@@ -1737,5 +1683,122 @@ select.form-input {
   font-size: clamp(.72rem, .66rem + .25vw, .85rem);
   color: #64748b;
   font-style: italic;
+}
+
+/* ========================================
+   MOBILE UX IMPROVEMENTS (≤480px)
+   Force light background + compact layout
+   ======================================== */
+
+@media (max-width: 480px) {
+  /* Force light background for Jobs/Parts section */
+  .itemsPanel {
+    background: #ffffff;
+    padding: var(--pad-8);
+  }
+
+  .itemsTabBody {
+    display: none;
+  }
+
+  .itemsTabBody.active {
+    display: block;
+  }
+
+  /* Make inputs responsive */
+  .chipAdder {
+    gap: var(--gap-6);
+    margin-bottom: var(--gap-8);
+  }
+
+  .chipSearch {
+    flex: 1;
+  }
+
+  .chipInput {
+    width: 100%;
+    height: 40px;
+    font-size: 16px; /* Prevent iOS zoom */
+    padding: 0 var(--pad-8);
+  }
+
+  .chipAddBtn {
+    height: 40px;
+    padding: 0 var(--pad-8);
+    flex-shrink: 0;
+    font-size: var(--fs-12);
+  }
+
+  /* Compact chips display */
+  .chipsWrap {
+    background: #ffffff;
+    padding: var(--pad-8);
+    border: 1px solid #e5e7eb;
+  }
+
+  .chipsHeader {
+    margin-bottom: var(--gap-8);
+  }
+
+  .chipsList {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--gap-4);
+  }
+
+  /* Make buttons smaller and full-width on mobile */
+  .miniBtn {
+    flex: 1;
+    height: 36px;
+    font-size: var(--fs-11);
+    padding: 0 var(--pad-8);
+  }
+
+  .itemsQuickActions {
+    width: 100%;
+    gap: var(--gap-6);
+  }
+
+  /* Totals bar: compact layout */
+  .totalsBar {
+    background: #f8fafc;
+    padding: var(--pad-10);
+    border-radius: var(--radius-12);
+    border: 1px solid #e5e7eb;
+  }
+
+  .tLeft {
+    margin-bottom: var(--gap-8);
+  }
+
+  .tLine {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: var(--fs-13);
+    margin-bottom: var(--gap-6);
+  }
+
+  .tLine b {
+    font-weight: 700;
+    color: #1f2937;
+  }
+
+  .tRight {
+    border-top: 1px solid #e5e7eb;
+    padding-top: var(--gap-8);
+  }
+
+  .tGrand {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: var(--fs-14);
+    font-weight: 700;
+  }
+
+  .tGrand b {
+    color: #ff7a18;
+  }
 }
 

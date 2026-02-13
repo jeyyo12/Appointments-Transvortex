@@ -956,11 +956,13 @@ body.modal-open {
    Fix black text/placeholder issue
    ========================================== */
 
-/* Force dark theme color scheme for inputs */
+/* Force light theme color scheme for proper rendering on mobile */
 .modern-modal-panel-custom,
 .modern-modal-body {
-    color-scheme: dark;
+    color-scheme: light;
 }
+
+/* Global text color for modal forms */
 
 /* Global text color for modal forms */
 .modern-modal-body input,

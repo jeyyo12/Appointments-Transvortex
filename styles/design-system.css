@@ -11,6 +11,8 @@ html {
 
 /* ===== DESIGN TOKENS - DENSITY SYSTEM ===== */
 :root {
+    /* Force light color scheme globally to prevent mobile dark mode override */
+    color-scheme: light;
   /* DENSITY SYSTEM: Optimized Fluid Spacing (40% reduction) */
   --s-1: clamp(0.35rem, 0.4vw, 0.55rem);     /* Minimal spacing */
   --s-2: clamp(0.55rem, 0.6vw, 0.85rem);     /* Tight spacing */
