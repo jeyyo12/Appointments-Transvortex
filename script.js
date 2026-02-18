@@ -36,6 +36,9 @@ let scannedInvoices = [];
 let scannedInvoicesUnsubscribe = null;
 let pendingScannedInvoiceFile = null;
 let pendingScannedPreviewUrl = null;
+let scannedInvoiceOcrProgress = new Map();
+let scannedInvoiceReviewState = null;
+let scannedInvoiceReviewScanId = null;
 
 // Edit mode state
 let editingAppointmentId = null;
@@ -721,6 +724,7 @@ async function initializeFirebase() {
                 console.log("🔓 User logged out");
                 appointments = [];
                 scannedInvoices = [];
+                scannedInvoiceOcrProgress.clear();
                 appointmentHistory = null;
                 
                 // Unsubscribe from appointments
@@ -898,6 +902,821 @@ function getWeekMetaFromTimestamp(timestampMs) {
     };
 }
 
+function roundMoney(value) {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) return null;
+    return Math.round((numeric + Number.EPSILON) * 100) / 100;
+}
+
+function normalizeNullableNumber(value) {
+    if (value === null || value === undefined || value === '') return null;
+    const cleaned = String(value).replace(/[^0-9.-]+/g, '');
+    if (!cleaned) return null;
+    const parsed = Number(cleaned);
+    if (!Number.isFinite(parsed)) return null;
+    return roundMoney(parsed);
+}
+
+function getScannedInvoiceById(scanId) {
+    return scannedInvoices.find((scan) => scan.id === scanId) || null;
+}
+
+function isDateWithinPlausibleRange(isoDate) {
+    if (!isoDate) return false;
+    const parsed = new Date(`${isoDate}T00:00:00`);
+    if (Number.isNaN(parsed.getTime())) return false;
+
+    const now = new Date();
+    const maxFuture = new Date(now);
+    maxFuture.setDate(maxFuture.getDate() + 2);
+
+    const minPast = new Date(now);
+    minPast.setFullYear(minPast.getFullYear() - 2);
+
+    return parsed <= maxFuture && parsed >= minPast;
+}
+
+function monthToNumber(monthName) {
+    const map = {
+        jan: 1, january: 1,
+        feb: 2, february: 2,
+        mar: 3, march: 3,
+        apr: 4, april: 4,
+        may: 5,
+        jun: 6, june: 6,
+        jul: 7, july: 7,
+        aug: 8, august: 8,
+        sep: 9, sept: 9, september: 9,
+        oct: 10, october: 10,
+        nov: 11, november: 11,
+        dec: 12, december: 12
+    };
+    return map[String(monthName || '').toLowerCase()] || null;
+}
+
+function safeIsoDate(year, month, day) {
+    if (!year || !month || !day) return null;
+    const date = new Date(year, month - 1, day);
+    if (
+        date.getFullYear() !== year ||
+        date.getMonth() !== month - 1 ||
+        date.getDate() !== day
+    ) {
+        return null;
+    }
+    return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+}
+
+function parseDetectedDate(matchText) {
+    if (!matchText) return null;
+
+    const slashMatch = matchText.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/);
+    if (slashMatch) {
+        let day = Number(slashMatch[1]);
+        let month = Number(slashMatch[2]);
+        let year = Number(slashMatch[3]);
+        if (year < 100) year += 2000;
+        return safeIsoDate(year, month, day);
+    }
+
+    const monthMatch = matchText.match(/^(\d{1,2})\s+([A-Za-z]{3,9})\s+(\d{2,4})$/);
+    if (monthMatch) {
+        let day = Number(monthMatch[1]);
+        let year = Number(monthMatch[3]);
+        if (year < 100) year += 2000;
+        const month = monthToNumber(monthMatch[2]);
+        if (!month) return null;
+        return safeIsoDate(year, month, day);
+    }
+
+    return null;
+}
+
+function detectInvoiceDate(rawText) {
+    if (!rawText) return null;
+    const regexes = [
+        /\b\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}\b/g,
+        /\b\d{1,2}\s+[A-Za-z]{3,9}\s+\d{2,4}\b/g
+    ];
+
+    const candidates = [];
+    regexes.forEach((regex) => {
+        const matches = rawText.match(regex) || [];
+        matches.forEach((m) => {
+            const parsed = parseDetectedDate(m);
+            if (!parsed) return;
+
+            const dateObj = new Date(`${parsed}T00:00:00`);
+            const now = new Date();
+            const diffMs = Math.abs(now.getTime() - dateObj.getTime());
+            const isPlausible = isDateWithinPlausibleRange(parsed);
+            const score = (isPlausible ? 1000000000000 : 0) - diffMs;
+
+            candidates.push({
+                value: parsed,
+                score,
+                isPlausible
+            });
+        });
+    });
+
+    if (candidates.length === 0) return null;
+
+    candidates.sort((a, b) => b.score - a.score);
+    const best = candidates[0];
+    return best?.isPlausible ? best.value : null;
+}
+
+function parseMoneyValuesFromLine(line) {
+    const values = [];
+    const matches = line.match(/£?\s?\d{1,3}(?:,\d{3})*(?:\.\d{1,2})|£?\s?\d+(?:\.\d{1,2})/g) || [];
+    matches.forEach((match) => {
+        const value = normalizeNullableNumber(match);
+        if (value !== null) values.push(value);
+    });
+    return values;
+}
+
+function detectTotalsFromText(rawText) {
+    const lines = String(rawText || '')
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .filter(Boolean);
+
+    const subtotalCandidates = [];
+    const vatCandidates = [];
+    const totalCandidates = [];
+    const allAmounts = [];
+
+    lines.forEach((line) => {
+        const lower = line.toLowerCase();
+        const values = parseMoneyValuesFromLine(line);
+        if (values.length === 0) return;
+
+        allAmounts.push(...values);
+        const lastValue = values[values.length - 1];
+
+        if (/(^|\W)subtotal(\W|$)/i.test(lower)) {
+            subtotalCandidates.push(lastValue);
+        }
+        if (/(^|\W)(vat|tax)(\W|$)/i.test(lower)) {
+            vatCandidates.push(lastValue);
+        }
+        if (/(grand\s*total|amount\s*due|total\s*due|balance\s*due|(^|\W)total(\W|$))/i.test(lower)) {
+            totalCandidates.push(Math.max(...values));
+        }
+    });
+
+    const subtotal = subtotalCandidates.length ? Math.max(...subtotalCandidates) : null;
+    const vat = vatCandidates.length ? Math.max(...vatCandidates) : null;
+    let total = null;
+
+    if (totalCandidates.length) {
+        total = Math.max(...totalCandidates);
+    } else if (allAmounts.length) {
+        total = Math.max(...allAmounts);
+    }
+
+    return {
+        subtotal: subtotal !== null ? roundMoney(subtotal) : null,
+        vat: vat !== null ? roundMoney(vat) : null,
+        total: total !== null ? roundMoney(total) : null
+    };
+}
+
+function isLikelyVendorLine(line) {
+    if (!line) return false;
+    const lower = line.toLowerCase();
+    if (line.length < 3 || line.length > 60) return false;
+    if (/\d{5,}/.test(line)) return false;
+    if (/(invoice|receipt|subtotal|total|vat|tax|thank|phone|tel|www|http|address|date)/i.test(lower)) return false;
+    return /[a-z]/i.test(line);
+}
+
+function detectVendorName(rawText) {
+    const lines = String(rawText || '')
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .filter(Boolean);
+
+    for (let index = 0; index < Math.min(lines.length, 12); index += 1) {
+        const line = lines[index];
+        if (isLikelyVendorLine(line)) return line;
+    }
+
+    return null;
+}
+
+function shouldIgnoreItemLine(line) {
+    return /(thank you|terms|conditions|address|phone|tel|email|www|http|invoice\s*#?|receipt|subtotal|total|vat|tax|amount due)/i.test(line);
+}
+
+function detectItemsFromText(rawText) {
+    const lines = String(rawText || '')
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .filter(Boolean);
+
+    const detectedItems = [];
+
+    for (const line of lines) {
+        if (shouldIgnoreItemLine(line)) continue;
+
+        const lineMatch = line.match(/^(.*?)\s+£?\s?(\d{1,3}(?:,\d{3})*(?:\.\d{1,2})|\d+(?:\.\d{1,2}))$/);
+        if (!lineMatch) continue;
+
+        const description = (lineMatch[1] || '').trim();
+        const lineTotal = normalizeNullableNumber(lineMatch[2]);
+        if (!description || lineTotal === null) continue;
+
+        let qty = null;
+        let unitPrice = null;
+        const qtyUnitMatch = description.match(/(\d+(?:\.\d+)?)\s*[xX]\s*£?\s?(\d+(?:\.\d{1,2})?)/);
+        if (qtyUnitMatch) {
+            qty = normalizeNullableNumber(qtyUnitMatch[1]);
+            unitPrice = normalizeNullableNumber(qtyUnitMatch[2]);
+        }
+
+        detectedItems.push({
+            description,
+            qty,
+            unitPrice,
+            lineTotal
+        });
+
+        if (detectedItems.length >= 20) break;
+    }
+
+    return detectedItems;
+}
+
+function normalizeExtractedData(extracted) {
+    const safe = extracted || {};
+    const items = Array.isArray(safe.items) ? safe.items : [];
+
+    return {
+        rawText: typeof safe.rawText === 'string' ? safe.rawText : '',
+        vendorName: safe.vendorName ? String(safe.vendorName).trim() : null,
+        invoiceDate: safe.invoiceDate ? String(safe.invoiceDate).slice(0, 10) : null,
+        currency: safe.currency || 'GBP',
+        subtotal: normalizeNullableNumber(safe.subtotal),
+        vat: normalizeNullableNumber(safe.vat),
+        total: normalizeNullableNumber(safe.total),
+        items: items.map((item) => ({
+            description: item?.description ? String(item.description).trim() : '',
+            qty: normalizeNullableNumber(item?.qty),
+            unitPrice: normalizeNullableNumber(item?.unitPrice),
+            lineTotal: normalizeNullableNumber(item?.lineTotal)
+        }))
+    };
+}
+
+function recalculateExtractedData(extracted, options = {}) {
+    const { overwriteDerived = false } = options;
+    const normalized = normalizeExtractedData(extracted);
+
+    normalized.items = normalized.items.map((item) => {
+        const nextItem = { ...item };
+        if ((nextItem.lineTotal === null || overwriteDerived) && nextItem.qty !== null && nextItem.unitPrice !== null) {
+            nextItem.lineTotal = roundMoney(nextItem.qty * nextItem.unitPrice);
+        }
+        return nextItem;
+    });
+
+    const itemsTotal = normalized.items
+        .map((item) => item.lineTotal)
+        .filter((value) => value !== null)
+        .reduce((sum, value) => sum + value, 0);
+
+    if ((normalized.subtotal === null || overwriteDerived) && itemsTotal > 0) {
+        normalized.subtotal = roundMoney(itemsTotal);
+    }
+
+    if (
+        (normalized.total === null || overwriteDerived) &&
+        normalized.subtotal !== null &&
+        normalized.vat !== null
+    ) {
+        normalized.total = roundMoney(normalized.subtotal + normalized.vat);
+    }
+
+    return normalized;
+}
+
+function extractInvoiceDataFromRawText(rawText) {
+    const safeRawText = String(rawText || '').trim();
+    const totals = detectTotalsFromText(safeRawText);
+    const extracted = {
+        rawText: safeRawText,
+        vendorName: detectVendorName(safeRawText),
+        invoiceDate: detectInvoiceDate(safeRawText),
+        currency: 'GBP',
+        subtotal: totals.subtotal,
+        vat: totals.vat,
+        total: totals.total,
+        items: detectItemsFromText(safeRawText)
+    };
+    return recalculateExtractedData(extracted, { overwriteDerived: false });
+}
+
+function getScanOcrProgress(scanId) {
+    return scannedInvoiceOcrProgress.get(scanId) || null;
+}
+
+function setScanOcrProgress(scanId, progress = {}) {
+    scannedInvoiceOcrProgress.set(scanId, {
+        running: true,
+        percent: typeof progress.percent === 'number' ? progress.percent : null,
+        text: progress.text || 'Reading invoice…'
+    });
+    updateScannedInvoiceRow(scanId);
+}
+
+function clearScanOcrProgress(scanId) {
+    if (scannedInvoiceOcrProgress.has(scanId)) {
+        scannedInvoiceOcrProgress.delete(scanId);
+        updateScannedInvoiceRow(scanId);
+    }
+}
+
+function getScannedInvoiceStatusText(scan) {
+    const progress = getScanOcrProgress(scan.id);
+    if (progress?.running) {
+        const percentLabel = Number.isFinite(progress.percent) ? ` ${progress.percent}%` : '';
+        return `Reading invoice…${percentLabel}`;
+    }
+    return `${(scan?.file?.fileType || 'image').toUpperCase()} • ${scan.status || 'uploaded'}`;
+}
+
+function getScannedInvoiceSummaryText(scan) {
+    const extracted = scan?.extracted;
+    if (!extracted) return '';
+    const bits = [];
+    if (extracted.vendorName) bits.push(extracted.vendorName);
+    if (extracted.invoiceDate) bits.push(extracted.invoiceDate);
+    if (extracted.total !== null && extracted.total !== undefined) bits.push(`£${Number(extracted.total).toFixed(2)}`);
+    return bits.join(' • ');
+}
+
+function ensureScanRow(scanId) {
+    const list = document.getElementById('scannedInvoicesList');
+    if (!list) return null;
+
+    let row = list.querySelector(`.scanRow[data-scan-id="${scanId}"]`);
+    if (!row) {
+        row = document.createElement('div');
+        row.className = 'scanRow';
+        row.dataset.scanId = scanId;
+        list.appendChild(row);
+    }
+    return row;
+}
+
+function updateScannedInvoiceRow(scanId) {
+    const scan = getScannedInvoiceById(scanId);
+    const row = document.querySelector(`.scanRow[data-scan-id="${scanId}"]`);
+    if (!scan || !row) return;
+
+    const createdDate = scan.createdAt?.toDate?.()
+        || (scan.clientCreatedAt ? new Date(scan.clientCreatedAt) : new Date());
+    const dateLabel = createdDate.toLocaleString('en-GB', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit'
+    });
+
+    const fileType = scan?.file?.fileType || 'image';
+    const fileUrl = scan?.file?.downloadURL || '#';
+    const thumbHtml = fileType === 'image'
+        ? `<img class="scanRow__thumb" src="${fileUrl}" alt="Scanned invoice preview" loading="lazy" />`
+        : `<img class="scanRow__thumb" src="data:image/svg+xml;charset=UTF-8,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="56" height="56" viewBox="0 0 56 56"><rect width="56" height="56" rx="8" fill="#F3F4F6"/><path d="M15 10h17l9 9v27H15z" fill="#fff" stroke="#CBD5E1"/><text x="28" y="35" font-size="11" text-anchor="middle" fill="#475569" font-family="Arial">PDF</text></svg>')}" alt="PDF" />`;
+
+    const progress = getScanOcrProgress(scanId);
+    const progressRunning = Boolean(progress?.running);
+    const statusText = escapeHtml(getScannedInvoiceStatusText(scan));
+    const summaryText = getScannedInvoiceSummaryText(scan);
+
+    row.innerHTML = `
+        ${thumbHtml}
+        <div class="scanRow__meta">
+            <div class="scanRow__date">${dateLabel}</div>
+            <div class="scanRow__type">${statusText}</div>
+            ${summaryText ? `<div class="scanRow__summary">${escapeHtml(summaryText)}</div>` : ''}
+        </div>
+        <div class="scanRow__actions">
+            <a class="scanRow__view" href="${fileUrl}" target="_blank" rel="noopener noreferrer">View</a>
+            <button type="button" class="scanRow__btn" data-scan-action="extract" data-scan-id="${scan.id}" ${progressRunning ? 'disabled' : ''}>Extract Details (OCR)</button>
+            <button type="button" class="scanRow__btn" data-scan-action="details" data-scan-id="${scan.id}">View Details</button>
+        </div>
+    `;
+}
+
+function reorderScannedInvoiceRows() {
+    const list = document.getElementById('scannedInvoicesList');
+    if (!list) return;
+
+    scannedInvoices.forEach((scan) => {
+        const row = list.querySelector(`.scanRow[data-scan-id="${scan.id}"]`);
+        if (row) list.appendChild(row);
+    });
+}
+
+function syncScannedInvoicesEmptyState() {
+    const list = document.getElementById('scannedInvoicesList');
+    const emptyState = document.getElementById('scannedInvoicesEmpty');
+    if (!list || !emptyState) return;
+
+    if (!scannedInvoices || scannedInvoices.length === 0) {
+        list.innerHTML = '';
+        emptyState.style.display = 'block';
+    } else {
+        emptyState.style.display = 'none';
+    }
+}
+
+function renderScannedInvoicesList() {
+    syncScannedInvoicesEmptyState();
+    if (!scannedInvoices || scannedInvoices.length === 0) return;
+
+    scannedInvoices.forEach((scan) => {
+        ensureScanRow(scan.id);
+        updateScannedInvoiceRow(scan.id);
+    });
+
+    reorderScannedInvoiceRows();
+}
+
+function applyScannedInvoiceDocChanges(snapshot) {
+    snapshot.docChanges().forEach((change) => {
+        const docData = { id: change.doc.id, ...change.doc.data() };
+
+        if (change.type === 'removed') {
+            scannedInvoices = scannedInvoices.filter((scan) => scan.id !== docData.id);
+            const row = document.querySelector(`.scanRow[data-scan-id="${docData.id}"]`);
+            if (row) row.remove();
+            scannedInvoiceOcrProgress.delete(docData.id);
+            return;
+        }
+
+        const existingIndex = scannedInvoices.findIndex((scan) => scan.id === docData.id);
+        if (existingIndex >= 0) {
+            scannedInvoices[existingIndex] = docData;
+        } else {
+            scannedInvoices.push(docData);
+        }
+
+        ensureScanRow(docData.id);
+        updateScannedInvoiceRow(docData.id);
+    });
+
+    scannedInvoices.sort((a, b) => getScannedInvoiceSortTimestamp(b) - getScannedInvoiceSortTimestamp(a));
+    reorderScannedInvoiceRows();
+    syncScannedInvoicesEmptyState();
+}
+
+function ensureTesseractLoaded() {
+    if (window.Tesseract) return Promise.resolve(window.Tesseract);
+
+    const existingScript = document.getElementById('tesseractCdnScript');
+    if (existingScript) {
+        return new Promise((resolve, reject) => {
+            existingScript.addEventListener('load', () => resolve(window.Tesseract), { once: true });
+            existingScript.addEventListener('error', () => reject(new Error('Failed to load OCR engine')), { once: true });
+        });
+    }
+
+    return new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.id = 'tesseractCdnScript';
+        script.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
+        script.async = true;
+        script.onload = () => resolve(window.Tesseract);
+        script.onerror = () => reject(new Error('Failed to load OCR engine'));
+        document.head.appendChild(script);
+    });
+}
+
+async function loadBlobFromUrl(url) {
+    const response = await fetch(url);
+    if (!response.ok) {
+        throw new Error(`Unable to fetch image (${response.status})`);
+    }
+    return response.blob();
+}
+
+function getEmptyExtractedPayload() {
+    return {
+        rawText: '',
+        vendorName: null,
+        invoiceDate: null,
+        currency: 'GBP',
+        subtotal: null,
+        vat: null,
+        total: null,
+        items: []
+    };
+}
+
+async function persistScannedInvoiceExtraction(scanId, extractedData) {
+    const { doc, updateDoc } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+    const normalized = recalculateExtractedData(extractedData, { overwriteDerived: false });
+
+    await updateDoc(doc(db, 'scannedInvoices', scanId), {
+        extracted: normalized,
+        verified: {
+            isVerified: false,
+            verifiedAt: null
+        },
+        status: 'extracted'
+    });
+}
+
+async function saveScannedInvoiceVerified(scanId, extractedData) {
+    const { doc, updateDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+    const normalized = recalculateExtractedData(extractedData, { overwriteDerived: false });
+
+    await updateDoc(doc(db, 'scannedInvoices', scanId), {
+        extracted: normalized,
+        verified: {
+            isVerified: true,
+            verifiedAt: serverTimestamp()
+        },
+        status: 'verified'
+    });
+}
+
+function openScannedInvoiceReview(scanId, extractedData = null) {
+    const modal = document.getElementById('scanReviewModal');
+    if (!modal) return;
+
+    const scan = getScannedInvoiceById(scanId);
+    const seed = extractedData || scan?.extracted || getEmptyExtractedPayload();
+
+    scannedInvoiceReviewScanId = scanId;
+    scannedInvoiceReviewState = {
+        extracted: recalculateExtractedData(seed, { overwriteDerived: false })
+    };
+
+    populateScannedInvoiceReviewForm();
+    modal.style.display = 'flex';
+}
+
+function closeScannedInvoiceReview() {
+    const modal = document.getElementById('scanReviewModal');
+    if (modal) modal.style.display = 'none';
+    scannedInvoiceReviewState = null;
+    scannedInvoiceReviewScanId = null;
+}
+
+function populateScannedInvoiceReviewForm() {
+    if (!scannedInvoiceReviewState?.extracted) return;
+    const data = scannedInvoiceReviewState.extracted;
+
+    const dateEl = document.getElementById('scanReviewInvoiceDate');
+    const vendorEl = document.getElementById('scanReviewVendor');
+    const currencyEl = document.getElementById('scanReviewCurrency');
+    const subtotalEl = document.getElementById('scanReviewSubtotal');
+    const vatEl = document.getElementById('scanReviewVat');
+    const totalEl = document.getElementById('scanReviewTotal');
+
+    if (dateEl) dateEl.value = data.invoiceDate || '';
+    if (vendorEl) vendorEl.value = data.vendorName || '';
+    if (currencyEl) currencyEl.value = data.currency || 'GBP';
+    if (subtotalEl) subtotalEl.value = data.subtotal ?? '';
+    if (vatEl) vatEl.value = data.vat ?? '';
+    if (totalEl) totalEl.value = data.total ?? '';
+
+    renderScannedInvoiceReviewItems();
+}
+
+function renderScannedInvoiceReviewItems() {
+    const container = document.getElementById('scanReviewItemsList');
+    if (!container || !scannedInvoiceReviewState?.extracted) return;
+
+    const items = scannedInvoiceReviewState.extracted.items || [];
+    if (items.length === 0) {
+        container.innerHTML = '<div class="scanReviewItemsEmpty">No items detected yet.</div>';
+        return;
+    }
+
+    container.innerHTML = items.map((item, index) => `
+        <div class="scanReviewItemRow" data-item-index="${index}">
+            <input type="text" class="scanReviewItemInput" data-item-field="description" value="${escapeHtml(item.description || '')}" placeholder="Description" />
+            <input type="number" class="scanReviewItemInput" data-item-field="qty" step="0.01" value="${item.qty ?? ''}" placeholder="Qty" />
+            <input type="number" class="scanReviewItemInput" data-item-field="unitPrice" step="0.01" value="${item.unitPrice ?? ''}" placeholder="Unit" />
+            <input type="number" class="scanReviewItemInput" data-item-field="lineTotal" step="0.01" value="${item.lineTotal ?? ''}" placeholder="Line total" />
+            <button type="button" class="scanReviewItemRemove" data-item-remove="${index}">Remove</button>
+        </div>
+    `).join('');
+}
+
+function addScannedInvoiceReviewItem() {
+    if (!scannedInvoiceReviewState?.extracted) return;
+    scannedInvoiceReviewState.extracted.items.push({
+        description: '',
+        qty: null,
+        unitPrice: null,
+        lineTotal: null
+    });
+    renderScannedInvoiceReviewItems();
+}
+
+function removeScannedInvoiceReviewItem(index) {
+    if (!scannedInvoiceReviewState?.extracted) return;
+    scannedInvoiceReviewState.extracted.items.splice(index, 1);
+    renderScannedInvoiceReviewItems();
+}
+
+async function runOcrForScannedInvoice(scanId, options = {}) {
+    const scan = getScannedInvoiceById(scanId);
+    if (!scan) {
+        showNotification('❌ Scanned invoice not found', 'error');
+        return;
+    }
+
+    const fileType = scan?.file?.fileType || 'image';
+    const fileUrl = scan?.file?.downloadURL;
+    if (!fileUrl) {
+        showNotification('❌ Missing scan file URL', 'error');
+        return;
+    }
+
+    if (fileType !== 'image') {
+        showNotification('ℹ️ OCR currently supports image scans. You can still edit details manually.', 'info');
+        openScannedInvoiceReview(scanId, scan.extracted || getEmptyExtractedPayload());
+        return;
+    }
+
+    try {
+        const tesseract = await ensureTesseractLoaded();
+        setScanOcrProgress(scanId, { percent: 0, text: 'Reading invoice…' });
+
+        const blob = await loadBlobFromUrl(fileUrl);
+        const { data } = await tesseract.recognize(blob, 'eng', {
+            logger: (message) => {
+                if (message?.status === 'recognizing text') {
+                    const percent = Math.round((message.progress || 0) * 100);
+                    setScanOcrProgress(scanId, { percent, text: 'Reading invoice…' });
+                }
+            }
+        });
+
+        const extracted = extractInvoiceDataFromRawText(data?.text || '');
+        await persistScannedInvoiceExtraction(scanId, extracted);
+
+        clearScanOcrProgress(scanId);
+        showNotification('✅ OCR completed. Review extracted data.', 'success');
+
+        if (options.openReview !== false) {
+            openScannedInvoiceReview(scanId, extracted);
+        }
+    } catch (error) {
+        console.error('❌ OCR failed:', error);
+        clearScanOcrProgress(scanId);
+        showNotification('❌ OCR failed. Scan is saved and you can retry OCR.', 'error');
+    }
+}
+
+async function handleScannedInvoiceReviewSave() {
+    if (!scannedInvoiceReviewScanId || !scannedInvoiceReviewState?.extracted) return;
+
+    const data = normalizeExtractedData(scannedInvoiceReviewState.extracted);
+    if (data.invoiceDate && !isDateWithinPlausibleRange(data.invoiceDate)) {
+        const shouldContinue = confirm('The selected invoice date is outside the usual 2-year range. Save anyway?');
+        if (!shouldContinue) return;
+    }
+
+    try {
+        await saveScannedInvoiceVerified(scannedInvoiceReviewScanId, data);
+        showNotification('✅ Extracted details saved and verified', 'success');
+        closeScannedInvoiceReview();
+    } catch (error) {
+        console.error('❌ Failed to save verified extracted data:', error);
+        showNotification('❌ Failed to save extracted details', 'error');
+    }
+}
+
+function handleScannedInvoiceListClick(event) {
+    const actionButton = event.target.closest('[data-scan-action]');
+    if (!actionButton) return;
+
+    const scanId = actionButton.dataset.scanId;
+    const action = actionButton.dataset.scanAction;
+    if (!scanId || !action) return;
+
+    if (action === 'extract') {
+        runOcrForScannedInvoice(scanId, { openReview: true });
+    } else if (action === 'details') {
+        const scan = getScannedInvoiceById(scanId);
+        openScannedInvoiceReview(scanId, scan?.extracted || getEmptyExtractedPayload());
+    }
+}
+
+function bindScannedInvoiceReviewUI() {
+    const modal = document.getElementById('scanReviewModal');
+    const closeBtn = document.getElementById('scanReviewCloseBtn');
+    const cancelBtn = document.getElementById('scanReviewCancelBtn');
+    const saveBtn = document.getElementById('scanReviewSaveBtn');
+    const retryBtn = document.getElementById('scanReviewRetryBtn');
+    const recalcBtn = document.getElementById('scanReviewRecalculateBtn');
+    const addItemBtn = document.getElementById('scanReviewAddItemBtn');
+    const fieldsWrap = document.getElementById('scanReviewModalBody');
+
+    if (!modal || modal.dataset.bound === 'true') return;
+
+    if (closeBtn) closeBtn.addEventListener('click', closeScannedInvoiceReview);
+    if (cancelBtn) cancelBtn.addEventListener('click', closeScannedInvoiceReview);
+
+    modal.addEventListener('click', (event) => {
+        if (event.target === modal) closeScannedInvoiceReview();
+    });
+
+    if (saveBtn) {
+        saveBtn.addEventListener('click', handleScannedInvoiceReviewSave);
+    }
+
+    if (retryBtn) {
+        retryBtn.addEventListener('click', () => {
+            if (!scannedInvoiceReviewScanId) return;
+            runOcrForScannedInvoice(scannedInvoiceReviewScanId, { openReview: true });
+        });
+    }
+
+    if (recalcBtn) {
+        recalcBtn.addEventListener('click', () => {
+            if (!scannedInvoiceReviewState?.extracted) return;
+            scannedInvoiceReviewState.extracted = recalculateExtractedData(scannedInvoiceReviewState.extracted, { overwriteDerived: true });
+            populateScannedInvoiceReviewForm();
+        });
+    }
+
+    if (addItemBtn) {
+        addItemBtn.addEventListener('click', addScannedInvoiceReviewItem);
+    }
+
+    if (fieldsWrap) {
+        fieldsWrap.addEventListener('input', (event) => {
+            if (!scannedInvoiceReviewState?.extracted) return;
+            const target = event.target;
+
+            if (target.id === 'scanReviewInvoiceDate') {
+                scannedInvoiceReviewState.extracted.invoiceDate = target.value || null;
+                return;
+            }
+            if (target.id === 'scanReviewVendor') {
+                scannedInvoiceReviewState.extracted.vendorName = target.value?.trim() || null;
+                return;
+            }
+            if (target.id === 'scanReviewCurrency') {
+                scannedInvoiceReviewState.extracted.currency = target.value || 'GBP';
+                return;
+            }
+            if (target.id === 'scanReviewSubtotal') {
+                scannedInvoiceReviewState.extracted.subtotal = normalizeNullableNumber(target.value);
+                return;
+            }
+            if (target.id === 'scanReviewVat') {
+                scannedInvoiceReviewState.extracted.vat = normalizeNullableNumber(target.value);
+                return;
+            }
+            if (target.id === 'scanReviewTotal') {
+                scannedInvoiceReviewState.extracted.total = normalizeNullableNumber(target.value);
+                return;
+            }
+
+            if (target.classList.contains('scanReviewItemInput')) {
+                const row = target.closest('.scanReviewItemRow');
+                if (!row) return;
+                const itemIndex = Number(row.dataset.itemIndex);
+                if (!Number.isInteger(itemIndex)) return;
+                const field = target.dataset.itemField;
+                if (!field) return;
+
+                const item = scannedInvoiceReviewState.extracted.items[itemIndex];
+                if (!item) return;
+
+                if (field === 'description') {
+                    item.description = target.value || '';
+                } else {
+                    item[field] = normalizeNullableNumber(target.value);
+                }
+            }
+        });
+
+        fieldsWrap.addEventListener('click', (event) => {
+            const removeButton = event.target.closest('[data-item-remove]');
+            if (!removeButton) return;
+            const index = Number(removeButton.dataset.itemRemove);
+            if (!Number.isInteger(index)) return;
+            removeScannedInvoiceReviewItem(index);
+        });
+    }
+
+    modal.dataset.bound = 'true';
+}
+
 function clearScannedInvoicePending() {
     const previewBox = document.getElementById('scanPreviewBox');
     const previewThumb = document.getElementById('scanPreviewThumb');
@@ -1019,48 +1838,6 @@ async function uploadPendingScannedInvoice() {
     }
 }
 
-function renderScannedInvoicesList() {
-    const list = document.getElementById('scannedInvoicesList');
-    const emptyState = document.getElementById('scannedInvoicesEmpty');
-    if (!list || !emptyState) return;
-
-    if (!scannedInvoices || scannedInvoices.length === 0) {
-        list.innerHTML = '';
-        emptyState.style.display = 'block';
-        return;
-    }
-
-    emptyState.style.display = 'none';
-    list.innerHTML = scannedInvoices.map((scan) => {
-        const createdDate = scan.createdAt?.toDate?.()
-            || (scan.clientCreatedAt ? new Date(scan.clientCreatedAt) : new Date());
-        const dateLabel = createdDate.toLocaleString('en-GB', {
-            year: 'numeric',
-            month: '2-digit',
-            day: '2-digit',
-            hour: '2-digit',
-            minute: '2-digit'
-        });
-
-        const fileType = scan?.file?.fileType || 'image';
-        const fileUrl = scan?.file?.downloadURL || '#';
-        const thumbHtml = fileType === 'image'
-            ? `<img class="scanRow__thumb" src="${fileUrl}" alt="Scanned invoice preview" loading="lazy" />`
-            : `<img class="scanRow__thumb" src="data:image/svg+xml;charset=UTF-8,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="56" height="56" viewBox="0 0 56 56"><rect width="56" height="56" rx="8" fill="#F3F4F6"/><path d="M15 10h17l9 9v27H15z" fill="#fff" stroke="#CBD5E1"/><text x="28" y="35" font-size="11" text-anchor="middle" fill="#475569" font-family="Arial">PDF</text></svg>')}" alt="PDF" />`;
-
-        return `
-            <div class="scanRow" data-scan-id="${scan.id}">
-                ${thumbHtml}
-                <div class="scanRow__meta">
-                    <div class="scanRow__date">${dateLabel}</div>
-                    <div class="scanRow__type">${escapeHtml(fileType.toUpperCase())} • ${escapeHtml(scan.status || 'uploaded')}</div>
-                </div>
-                <a class="scanRow__view" href="${fileUrl}" target="_blank" rel="noopener noreferrer">View</a>
-            </div>
-        `;
-    }).join('');
-}
-
 function getScannedInvoiceSortTimestamp(scan) {
     const createdAtMs = scan?.createdAt?.toMillis?.();
     if (typeof createdAtMs === 'number') return createdAtMs;
@@ -1079,10 +1856,7 @@ function subscribeToScannedInvoices() {
             }
 
             const handleSnapshot = (snapshot) => {
-                scannedInvoices = snapshot.docs
-                    .map((doc) => ({ id: doc.id, ...doc.data() }))
-                    .sort((a, b) => getScannedInvoiceSortTimestamp(b) - getScannedInvoiceSortTimestamp(a));
-                renderScannedInvoicesList();
+                applyScannedInvoiceDocChanges(snapshot);
             };
 
             const handleSnapshotError = (error) => {
@@ -1108,6 +1882,9 @@ function setupScannedInvoicesUI() {
     const cameraInput = document.getElementById('scanInvoiceCameraInput');
     const fileInput = document.getElementById('scanInvoiceFileInput');
     const confirmUploadBtn = document.getElementById('scanInvoiceUploadConfirmBtn');
+    const scannedInvoicesList = document.getElementById('scannedInvoicesList');
+
+    bindScannedInvoiceReviewUI();
 
     if (cameraBtn && !cameraBtn.dataset.bound) {
         cameraBtn.addEventListener('click', () => cameraInput?.click());
@@ -1138,6 +1915,11 @@ function setupScannedInvoicesUI() {
     if (confirmUploadBtn && !confirmUploadBtn.dataset.bound) {
         confirmUploadBtn.addEventListener('click', uploadPendingScannedInvoice);
         confirmUploadBtn.dataset.bound = 'true';
+    }
+
+    if (scannedInvoicesList && !scannedInvoicesList.dataset.bound) {
+        scannedInvoicesList.addEventListener('click', handleScannedInvoiceListClick);
+        scannedInvoicesList.dataset.bound = 'true';
     }
 }
 
