@@ -154,8 +154,8 @@ function showUpdateNotification() {
     if (Notification && Notification.permission === 'granted') {
         new Notification('Transvortex Update Available', {
             body: '✅ New version will be loaded on next refresh',
-            icon: './icons/icon-192x192.png',
-            badge: './icons/icon-maskable-192x192.png',
+            icon: 'Logo/icon-192.png',
+            badge: 'Logo/icon-192.png',
             tag: 'pwa-update'
         });
     }

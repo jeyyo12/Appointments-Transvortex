@@ -4,7 +4,7 @@
  * No infinite reload loops, no complex update logic
  */
 
-const CACHE_NAME = 'transvortex-v16'; // PWA icon cache-busting: Added ?v=3 to manifest and icon URLs
+const CACHE_NAME = 'transvortex-v17'; // Updated for Logo/ folder icon references
 const CRITICAL_ASSETS = [
   './index.html',
   './invoice.html',
@@ -26,37 +26,23 @@ self.addEventListener('install', event => {
         return cache.addAll(CRITICAL_ASSETS);
       })
       .then(() => {
-        // Try to cache icons (non-critical)
+        // Try to cache icons from Logo/ folder (non-critical)
         return caches.open(CACHE_NAME).then(cache => {
-          // PWA icons with cache-busting query strings
-          cache.add('./icons/icon-192x192.png?v=3').catch(() => {
-            console.log('[Service Worker] Icon 192 not cached (OK)');
+          // Logo folder icons
+          cache.add('Logo/icon-32.png').catch(() => {
+            console.log('[Service Worker] Logo icon-32 not cached (OK)');
           });
-          cache.add('./icons/icon-512x512.png?v=3').catch(() => {
-            console.log('[Service Worker] Icon 512 not cached (OK)');
+          cache.add('Logo/icon-192.png').catch(() => {
+            console.log('[Service Worker] Logo icon-192 not cached (OK)');
           });
-          cache.add('./icons/icon-maskable-192x192.png?v=3').catch(() => {
-            console.log('[Service Worker] Maskable icon 192 not cached (OK)');
+          cache.add('Logo/icon-512.png').catch(() => {
+            console.log('[Service Worker] Logo icon-512 not cached (OK)');
           });
-          cache.add('./icons/icon-maskable-512x512.png?v=3').catch(() => {
-            console.log('[Service Worker] Maskable icon 512 not cached (OK)');
+          cache.add('Logo/apple-touch-icon.png').catch(() => {
+            console.log('[Service Worker] Logo apple-touch-icon not cached (OK)');
           });
-          // Favicon files
-          cache.add('./icons/favicon.ico').catch(() => {
-            console.log('[Service Worker] Favicon ICO not cached (OK)');
-          });
-          cache.add('./icons/favicon-32x32.png').catch(() => {
-            console.log('[Service Worker] Favicon 32 not cached (OK)');
-          });
-          cache.add('./icons/favicon-16x16.png').catch(() => {
-            console.log('[Service Worker] Favicon 16 not cached (OK)');
-          });
-          cache.add('./icons/apple-touch-icon.png').catch(() => {
-            console.log('[Service Worker] Apple touch icon not cached (OK)');
-          });
-          // Shortcut icon with cache-busting
-          cache.add('./icons/icon-96x96.png?v=3').catch(() => {
-            console.log('[Service Worker] Icon 96 not cached (OK)');
+          cache.add('Logo/transvortex.png').catch(() => {
+            console.log('[Service Worker] Logo transvortex not cached (OK)');
           });
         });
       })
