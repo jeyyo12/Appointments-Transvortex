@@ -2032,6 +2032,7 @@ function summarizeScans(scans) {
         income: 0,
         expenses: 0,
         vat: 0,
+        subtotal: 0,
         count: scans.length,
         categories: new Map()
     };
@@ -2039,6 +2040,7 @@ function summarizeScans(scans) {
     scans.forEach((scan) => {
         const total = getScannedInvoiceTotal(scan);
         const vat = normalizeNullableNumber(scan?.extracted?.vat) || 0;
+        const goodsSubtotal = normalizeNullableNumber(scan?.extracted?.subtotal) || 0;
         const type = scan.type === 'income' ? 'income' : 'expense';
         const category = scan.category || 'Uncategorized';
 
@@ -2046,6 +2048,7 @@ function summarizeScans(scans) {
             summary.income = roundMoney(summary.income + total) || 0;
         } else {
             summary.expenses = roundMoney(summary.expenses + total) || 0;
+            summary.subtotal = roundMoney(summary.subtotal + goodsSubtotal) || 0;
             const currentCategoryTotal = summary.categories.get(category) || 0;
             summary.categories.set(category, roundMoney(currentCategoryTotal + total) || 0);
         }
@@ -2241,16 +2244,15 @@ function renderAccountingView() {
     const weeklySummary = summarizeScans(weeklyScans);
     const monthlySummary = summarizeScans(getScansForMonth(selectedMonth, selectedCategory));
 
-    setAccountingCardValue('accWeekIncome', formatAccountingMoney(weeklySummary.income));
-    setAccountingCardValue('accWeekExpenses', formatAccountingMoney(weeklySummary.expenses));
-    setAccountingCardValue('accWeekNet', formatAccountingMoney(weeklySummary.netProfit));
+    setAccountingCardValue('accWeekSpend', formatAccountingMoney(weeklySummary.expenses));
+    setAccountingCardValue('accWeekGoods', formatAccountingMoney(weeklySummary.subtotal));
     setAccountingCardValue('accWeekVat', formatAccountingMoney(weeklySummary.vat));
     setAccountingCardValue('accWeekCount', String(weeklySummary.count));
 
-    setAccountingCardValue('accMonthIncome', formatAccountingMoney(monthlySummary.income));
-    setAccountingCardValue('accMonthExpenses', formatAccountingMoney(monthlySummary.expenses));
-    setAccountingCardValue('accMonthNet', formatAccountingMoney(monthlySummary.netProfit));
+    setAccountingCardValue('accMonthSpend', formatAccountingMoney(monthlySummary.expenses));
+    setAccountingCardValue('accMonthGoods', formatAccountingMoney(monthlySummary.subtotal));
     setAccountingCardValue('accMonthVat', formatAccountingMoney(monthlySummary.vat));
+    setAccountingCardValue('accMonthCount', String(monthlySummary.count));
 
     renderWeeklyChart(selectedCategory);
     renderWeeklyInvoicesTable(weeklyScans);
