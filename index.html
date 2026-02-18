@@ -13,7 +13,7 @@
     
     <title>Manager Programări - Transvortex LTD</title>
     
-    <link rel="manifest" href="./manifest.webmanifest">
+    <link rel="manifest" href="./manifest.webmanifest?v=3">
     <link rel="icon" type="image/png" sizes="32x32" href="./Logo/icon-32.png">
     <link rel="icon" type="image/png" sizes="192x192" href="./Logo/icon-192.png">
     <link rel="apple-touch-icon" href="./Logo/icon-192.png">
@@ -73,6 +73,52 @@
         .firebase-auth-bar button:disabled {
             opacity: 0.6;
             cursor: not-allowed;
+        }
+
+        /* Admin Header Video Badge */
+        .auth-left {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            position: relative;
+            z-index: 10;
+        }
+
+        #adminHeaderVideo {
+            height: 34px;
+            width: auto;
+            max-width: 170px;
+            object-fit: contain;
+            display: block !important;
+            border-radius: 8px;
+            background: transparent;
+            flex-shrink: 0;
+            position: relative;
+            z-index: 11;
+            visibility: visible !important;
+            opacity: 1 !important;
+        }
+
+        #adminHeaderVideo.admin-header-video-hidden {
+            display: none !important;
+            visibility: hidden !important;
+        }
+
+        /* Responsive admin header video */
+        @media (max-width: 768px) {
+            #adminHeaderVideo {
+                height: 30px;
+                max-width: 140px;
+                display: block !important;
+            }
+        }
+
+        @media (max-width: 480px) {
+            #adminHeaderVideo {
+                height: 28px;
+                max-width: 120px;
+                display: block !important;
+            }
         }
 
         /* Modern Hero Section */
@@ -3039,9 +3085,38 @@
     </style>
 </head>
 <body>
+    <!-- ADMIN Intro Overlay Animation (shown only for admins on first visit) -->
+    <div id="adminIntroOverlay" class="admin-intro-overlay admin-intro-hidden">
+        <video 
+            id="adminIntroVideo"
+            class="admin-intro-video"
+            muted
+            playsinline
+            autoplay
+            loop
+            preload="auto"
+            src=""
+            data-fallback="./Logo/bar.png">
+        </video>
+    </div>
+
     <!-- Firebase Authentication Bar -->
 <div class="firebase-auth-bar" id="authBar">
   <div class="auth-left">
+    <!-- Admin Header Video Badge (admin only) -->
+    <video 
+      id="adminHeaderVideo"
+      class="admin-header-video admin-header-video-hidden"
+      autoplay
+      muted
+      loop
+      playsinline
+      preload="auto"
+      poster="./Logo/icon-192.png"
+      src="./Logo/dance.gif">
+    </video>
+    
+    <!-- Standard Auth Status (non-admin or fallback) -->
     <span id="authStatus" class="auth-status">🔒 Checking…</span>
     <span class="badge" id="adminBadge" style="display:none;">👑 ADMIN</span>
   </div>

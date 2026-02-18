@@ -4,13 +4,12 @@
  * No infinite reload loops, no complex update logic
  */
 
-const CACHE_NAME = 'transvortex-v15'; // Split logo assets: bar.png for icons, text.png for header display
+const CACHE_NAME = 'transvortex-v16'; // PWA icon cache-busting: Added ?v=3 to manifest and icon URLs
 const CRITICAL_ASSETS = [
   './index.html',
   './invoice.html',
   './styles.css',
-  './script.js',
-  './manifest.webmanifest'
+  './script.js'
 ];
 
 /**
@@ -29,17 +28,17 @@ self.addEventListener('install', event => {
       .then(() => {
         // Try to cache icons (non-critical)
         return caches.open(CACHE_NAME).then(cache => {
-          // PWA icons
-          cache.add('./icons/icon-192x192.png').catch(() => {
+          // PWA icons with cache-busting query strings
+          cache.add('./icons/icon-192x192.png?v=3').catch(() => {
             console.log('[Service Worker] Icon 192 not cached (OK)');
           });
-          cache.add('./icons/icon-512x512.png').catch(() => {
+          cache.add('./icons/icon-512x512.png?v=3').catch(() => {
             console.log('[Service Worker] Icon 512 not cached (OK)');
           });
-          cache.add('./icons/icon-maskable-192x192.png').catch(() => {
+          cache.add('./icons/icon-maskable-192x192.png?v=3').catch(() => {
             console.log('[Service Worker] Maskable icon 192 not cached (OK)');
           });
-          cache.add('./icons/icon-maskable-512x512.png').catch(() => {
+          cache.add('./icons/icon-maskable-512x512.png?v=3').catch(() => {
             console.log('[Service Worker] Maskable icon 512 not cached (OK)');
           });
           // Favicon files
@@ -55,8 +54,8 @@ self.addEventListener('install', event => {
           cache.add('./icons/apple-touch-icon.png').catch(() => {
             console.log('[Service Worker] Apple touch icon not cached (OK)');
           });
-          // Shortcut icon
-          cache.add('./icons/icon-96x96.png').catch(() => {
+          // Shortcut icon with cache-busting
+          cache.add('./icons/icon-96x96.png?v=3').catch(() => {
             console.log('[Service Worker] Icon 96 not cached (OK)');
           });
         });
@@ -106,6 +105,28 @@ self.addEventListener('fetch', event => {
       url.pathname.includes('googleapis') ||
       url.pathname.includes('.netlify')) {
     event.respondWith(fetch(event.request));
+    return;
+  }
+  
+  // NETWORK-FIRST for manifest (always get fresh PWA config)
+  if (url.pathname.includes('manifest.webmanifest')) {
+    event.respondWith(
+      fetch(event.request)
+        .then(response => {
+          // Cache fresh manifest
+          if (response && response.status === 200) {
+            const copy = response.clone();
+            caches.open(CACHE_NAME).then(cache => {
+              cache.put(event.request, copy);
+            });
+          }
+          return response;
+        })
+        .catch(() => {
+          // Offline: return cached manifest
+          return caches.match(event.request);
+        })
+    );
     return;
   }
   

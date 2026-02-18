@@ -835,6 +835,12 @@ function updateAuthUI() {
     const authStatus = document.getElementById('authStatus');
     const authButton = document.getElementById('authButton');
     const adminBadge = document.getElementById('adminBadge');
+    const adminHeaderVideo = document.getElementById('adminHeaderVideo');
+
+    // DEBUG: Log element existence
+    console.log('🔍 [updateAuthUI] adminHeaderVideo element:', adminHeaderVideo ? '✅ Found' : '❌ Not found');
+    console.log('🔍 [updateAuthUI] currentUser:', currentUser ? currentUser.email : 'null');
+    console.log('🔍 [updateAuthUI] isAdmin:', isAdmin);
 
     if (currentUser) {
         authStatus.innerHTML = `✅ ${currentUser.displayName || 'Conectat'}`;
@@ -842,13 +848,44 @@ function updateAuthUI() {
         authButton.disabled = false;
 
         if (isAdmin) {
-            adminBadge.style.display = 'inline-block';
+            // Show admin header video, hide text badge
+            if (adminHeaderVideo) {
+                adminHeaderVideo.classList.remove('admin-header-video-hidden');
+                console.log('✅ [Admin] Removed admin-header-video-hidden class');
+                
+                // Force reflow to apply CSS changes
+                void adminHeaderVideo.offsetHeight;
+                
+                // Verify element is visible
+                const computedStyle = window.getComputedStyle(adminHeaderVideo);
+                console.log('🎬 [Admin Video] Display:', computedStyle.display);
+                console.log('🎬 [Admin Video] Visibility:', computedStyle.visibility);
+                console.log('🎬 [Admin Video] Height:', computedStyle.height);
+                console.log('🎬 [Admin Video] Width:', computedStyle.width);
+                
+                // Attempt autoplay
+                playAdminHeaderVideo(adminHeaderVideo);
+            } else {
+                console.error('❌ [Admin] adminHeaderVideo element not found!');
+            }
+            adminBadge.style.display = 'none';
+            authStatus.style.display = 'none';
+            
             // Show admin-only sections
             document.querySelectorAll('[data-admin-only]').forEach(el => {
                 el.classList.add('admin-visible');
             });
+            // Trigger admin intro animation
+            showAdminIntroAnimation();
         } else {
+            // Show regular text and badge, hide video
+            if (adminHeaderVideo) {
+                adminHeaderVideo.classList.add('admin-header-video-hidden');
+                console.log('✅ [Non-admin] Hidden video, showing text');
+            }
             adminBadge.style.display = 'none';
+            authStatus.style.display = 'inline';
+            
             // Hide admin-only sections
             document.querySelectorAll('[data-admin-only]').forEach(el => {
                 el.classList.remove('admin-visible');
@@ -859,11 +896,276 @@ function updateAuthUI() {
         authButton.textContent = 'Conectare cu Google';
         authButton.disabled = false;
         adminBadge.style.display = 'none';
+        
+        // Hide admin header video for non-logged-in users
+        if (adminHeaderVideo) {
+            adminHeaderVideo.classList.add('admin-header-video-hidden');
+            console.log('✅ [Logged out] Hidden admin video');
+        }
+        authStatus.style.display = 'inline';
+        
         // Hide admin sections
         document.querySelectorAll('[data-admin-only]').forEach(el => {
             el.classList.remove('admin-visible');
         });
     }
+}
+
+/**
+ * Play admin header video with fallback
+ * If autoplay fails, fallback to showing text
+ */
+function playAdminHeaderVideo(videoElement) {
+    if (!videoElement) {
+        console.error('❌ [playAdminHeaderVideo] No video element provided');
+        return;
+    }
+
+    console.log('🎬 [playAdminHeaderVideo] Attempting autoplay on:', videoElement.id);
+    console.log('🎬 [playAdminHeaderVideo] Video src:', videoElement.src);
+    console.log('🎬 [playAdminHeaderVideo] Video muted:', videoElement.muted);
+    console.log('🎬 [playAdminHeaderVideo] Video autoplay attr:', videoElement.hasAttribute('autoplay'));
+
+    // Ensure video is loaded
+    videoElement.load();
+    
+    const playPromise = videoElement.play();
+    if (playPromise !== undefined) {
+        playPromise
+            .then(() => {
+                console.log('✅ Admin header video autoplay successful');
+            })
+            .catch(error => {
+                console.warn('⚠️ Admin header video autoplay blocked:', error.name, error.message);
+                console.log('📸 Fallback: Will display static image instead');
+                // Fallback: show text instead
+                fallbackToAdminText();
+            });
+    } else {
+        // Older browsers without play() Promise support
+        console.log('ℹ️ Browser does not support play() Promise - autoplay may or may not work');
+        try {
+            videoElement.play();
+        } catch (e) {
+            console.warn('⚠️ Video play() failed:', e.message);
+            fallbackToAdminText();
+        }
+    }
+}
+
+/**
+ * Fallback: show admin text instead of video if autoplay fails
+ */
+function fallbackToAdminText() {
+    const adminHeaderVideo = document.getElementById('adminHeaderVideo');
+    const authStatus = document.getElementById('authStatus');
+    const adminBadge = document.getElementById('adminBadge');
+
+    if (adminHeaderVideo) {
+        adminHeaderVideo.classList.add('admin-header-video-hidden');
+    }
+    
+    if (authStatus) {
+        authStatus.style.display = 'inline';
+    }
+    
+    if (adminBadge) {
+        adminBadge.style.display = 'inline-block';
+    }
+
+    console.log('↩️ Fallback: Showing admin text badge instead');
+}
+
+/**
+ * DEBUG: Diagnose why admin header video isn't appearing
+ * Run from console: window.debugAdminVideo()
+ */
+window.debugAdminVideo = function() {
+    const video = document.getElementById('adminHeaderVideo');
+    const authBar = document.getElementById('authBar');
+    const authLeft = document.querySelector('.auth-left');
+    
+    console.group('🔍 Admin Header Video Diagnostics');
+    
+    console.log('1️⃣ Element Existence:');
+    console.log('   adminHeaderVideo:', video ? '✅ Found' : '❌ Missing', video);
+    console.log('   authBar:', authBar ? '✅ Found' : '❌ Missing');
+    console.log('   auth-left:', authLeft ? '✅ Found' : '❌ Missing');
+    
+    if (video) {
+        const computed = window.getComputedStyle(video);
+        console.log('\n2️⃣ Video Element Style:');
+        console.log('   display:', computed.display);
+        console.log('   visibility:', computed.visibility);
+        console.log('   opacity:', computed.opacity);
+        console.log('   height:', computed.height);
+        console.log('   width:', computed.width);
+        console.log('   z-index:', computed.zIndex);
+        console.log('   position:', computed.position);
+        
+        console.log('\n3️⃣ Video Attributes:');
+        console.log('   src:', video.src);
+        console.log('   muted:', video.muted);
+        console.log('   autoplay:', video.autoplay);
+        console.log('   playsinline:', video.playsinline);
+        console.log('   poster:', video.poster);
+        console.log('   classList:', Array.from(video.classList));
+        
+        console.log('\n4️⃣ Parent Container Style:');
+        if (authLeft) {
+            const parentComputed = window.getComputedStyle(authLeft);
+            console.log('   display:', parentComputed.display);
+            console.log('   gap:', parentComputed.gap);
+            console.log('   visibility:', parentComputed.visibility);
+        }
+        
+        console.log('\n5️⃣ Auth State:');
+        console.log('   currentUser:', currentUser ? currentUser.email : 'null');
+        console.log('   isAdmin:', isAdmin);
+        
+        console.log('\n6️⃣ Key Check - is video hidden?');
+        console.log('   Has class "admin-header-video-hidden":', video.classList.contains('admin-header-video-hidden'));
+        
+        console.log('\n7️⃣ File Check:');
+        console.log('   Video src exists:', video.src ? '✅' : '❌');
+        console.log('   Poster exists:', video.poster ? '✅' : '❌');
+        
+        console.log('\n💡 NEXT STEPS:');
+        if (video.classList.contains('admin-header-video-hidden')) {
+            console.log('   → Video is currently HIDDEN (class applied)');
+            console.log('   → Log out and log back in as ADMIN to trigger display');
+        } else {
+            console.log('   → Video should be VISIBLE');
+            console.log('   → Check if it\'s loading: video.readyState =', video.readyState);
+            console.log('   → Try playing: video.play()');
+        }
+    }
+    
+    console.groupEnd();
+};
+
+/**
+ * Show admin intro animation overlay (ADMIN only)
+ * Triggers on first visit per session
+ * Animates from center to header logo position
+ */
+function showAdminIntroAnimation() {
+    // Only show for admins
+    if (!isAdmin || !currentUser) {
+        return;
+    }
+
+    // Prevent multiple playthroughs per session
+    const introShownKey = 'adminIntroShown_' + currentUser.uid;
+    if (sessionStorage.getItem(introShownKey)) {
+        return;
+    }
+
+    // Mark intro as shown for this session
+    sessionStorage.setItem(introShownKey, 'true');
+
+    const overlay = document.getElementById('adminIntroOverlay');
+    const video = document.getElementById('adminIntroVideo');
+    
+    if (!overlay || !video) {
+        console.warn('⚠️ Admin intro overlay elements not found');
+        return;
+    }
+
+    // Set video source (users should update this path to their actual video)
+    if (!video.src) {
+        // Fallback: use a simple animated brand asset
+        // For production, replace with actual Transvortex admin intro video
+        console.log('ℹ️ Admin intro video source not set. Using fallback.');
+        // You can load a video from ./Logo/admin-intro.mp4 once created
+        // video.src = './Logo/admin-intro.mp4';
+    }
+
+    // Show overlay
+    overlay.classList.remove('admin-intro-hidden');
+
+    // Attempt to play video with iOS-compatible handling
+    const playPromise = video.play();
+    if (playPromise !== undefined) {
+        playPromise
+            .then(() => {
+                console.log('✅ Admin intro video playing');
+                // Schedule animation after 2 seconds
+                setTimeout(() => {
+                    animateAdminIntroToLogo();
+                }, 2000);
+            })
+            .catch(error => {
+                console.log('⚠️ Autoplay blocked or video failed:', error.message);
+                // Fallback: still animate even if video didn't play
+                setTimeout(() => {
+                    animateAdminIntroToLogo();
+                }, 2000);
+            });
+    } else {
+        // Older browsers - schedule animation anyway
+        setTimeout(() => {
+            animateAdminIntroToLogo();
+        }, 2000);
+    }
+}
+
+/**
+ * Animate admin intro from center overlay to header logo position
+ * Uses FLIP technique for smooth GPU-accelerated animation
+ */
+function animateAdminIntroToLogo() {
+    const overlay = document.getElementById('adminIntroOverlay');
+    const video = document.getElementById('adminIntroVideo');
+    const headerLogo = document.querySelector('.inv-logo-desktop');
+
+    if (!overlay || !video) return;
+
+    // If header logo doesn't exist, just fade out overlay
+    if (!headerLogo) {
+        video.classList.add('morphing');
+        setTimeout(() => {
+            overlay.classList.add('admin-intro-hidden');
+            video.classList.remove('morphing');
+        }, 350);
+        return;
+    }
+
+    // Get target position and size (FLIP technique - First)
+    const targetRect = headerLogo.getBoundingClientRect();
+    const sourceRect = video.getBoundingClientRect();
+
+    // Calculate scale factor
+    const targetWidth = targetRect.width || 260; // fallback to max-width
+    const sourceWidth = sourceRect.width || window.innerWidth * 0.6;
+    const scaleRatio = targetWidth / sourceWidth;
+
+    // Calculate translation
+    const targetCenterX = targetRect.left + targetRect.width / 2;
+    const targetCenterY = targetRect.top + targetRect.height / 2;
+    const sourceCenterX = window.innerWidth / 2;
+    const sourceCenterY = window.innerHeight / 2;
+
+    const translateX = targetCenterX - sourceCenterX;
+    const translateY = targetCenterY - sourceCenterY;
+
+    // Apply animation
+    video.classList.add('morphing');
+    video.style.transform = `translate3d(calc(-50% + ${translateX}px), calc(-50% + ${translateY}px), 0) scale(${scaleRatio})`;
+    
+    // Fade out overlay
+    setTimeout(() => {
+        overlay.style.opacity = '0';
+    }, 350);
+
+    // Hide overlay after animation
+    setTimeout(() => {
+        overlay.classList.add('admin-intro-hidden');
+        // Reset for potential re-use (though session flag prevents replay)
+        video.classList.remove('morphing');
+        overlay.style.opacity = '1';
+        video.style.transform = '';
+    }, 350);
 }
 
 function updateAuthStatus(status) {
