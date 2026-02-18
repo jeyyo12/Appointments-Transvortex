@@ -11,7 +11,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Transvortex">
     
-    <title>Manager Pagini Facebook - Transvortex LTD</title>
+    <title>Manager Programări - Transvortex LTD</title>
     
     <link rel="manifest" href="./manifest.webmanifest">
     <link rel="icon" type="image/png" href="./icons/icon-192x192.png">
@@ -169,46 +169,6 @@
 
         [data-admin-only].admin-visible {
             display: block;
-        }
-
-        /* Refresh Button */
-        .btn-refresh {
-            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-            border: none;
-            color: white;
-            padding: 0.6rem 1.2rem;
-            border-radius: 0.5rem;
-            cursor: pointer;
-            font-weight: 600;
-            font-size: clamp(0.8rem, 2vw, 0.9rem);
-            display: inline-flex;
-            align-items: center;
-            gap: 0.5rem;
-            transition: all 0.3s ease;
-                box-shadow: 0 0.125rem 0.5rem rgba(16, 185, 129, 0.2);
-        }
-
-        .btn-refresh:hover {
-            background: linear-gradient(135deg, #059669 0%, #047857 100%);
-            box-shadow: 0 0.25rem 0.75rem rgba(16, 185, 129, 0.4);
-            transform: translateY(-0.125rem);
-        }
-
-        .btn-refresh:active {
-            transform: translateY(0);
-        }
-
-        .btn-refresh i {
-            transition: transform 0.6s ease;
-        }
-
-        .btn-refresh.refreshing i {
-            animation: spin 1s linear infinite;
-        }
-
-        @keyframes spin {
-            from { transform: rotate(0deg); }
-            to { transform: rotate(360deg); }
         }
 
         .section-header {
@@ -1801,6 +1761,160 @@
         .totals-row strong {
             color: #FF8A3D;
         }
+
+        /* ===== Scanned Invoices ===== */
+        .scanCard {
+            background: #fff;
+            border: 1px solid rgba(15, 23, 42, 0.08);
+            border-radius: 14px;
+            padding: clamp(12px, 2vw, 18px);
+            box-shadow: 0 8px 20px rgba(15, 23, 42, 0.06);
+        }
+
+        .scanToolbar {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+
+        .scanBtn {
+            min-height: 44px;
+            border-radius: 12px;
+            border: 1px solid #dbe3ef;
+            font-weight: 700;
+            padding: 10px 14px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .scanBtn--primary {
+            background: linear-gradient(135deg, #FF8A3D 0%, #F47C2C 100%);
+            color: #fff;
+            border-color: #F47C2C;
+        }
+
+        .scanBtn--secondary {
+            background: #fff;
+            color: #1f2937;
+        }
+
+        .scanPreview {
+            display: none;
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            padding: 10px;
+            margin-bottom: 12px;
+            background: #f9fafb;
+        }
+
+        .scanPreview__row {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .scanPreview__thumb {
+            width: 72px;
+            height: 72px;
+            border-radius: 10px;
+            object-fit: cover;
+            border: 1px solid #d1d5db;
+            background: #fff;
+        }
+
+        .scanPreview__meta {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .scanPreview__name {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: #111827;
+            word-break: break-word;
+        }
+
+        .scanPreview__type {
+            font-size: 0.8rem;
+            color: #6b7280;
+            margin-top: 2px;
+        }
+
+        .scanList {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .scanRow {
+            display: grid;
+            grid-template-columns: auto 1fr auto;
+            gap: 10px;
+            align-items: center;
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            padding: 8px;
+            background: #fff;
+        }
+
+        .scanRow__thumb {
+            width: 56px;
+            height: 56px;
+            border-radius: 8px;
+            object-fit: cover;
+            border: 1px solid #d1d5db;
+            background: #f3f4f6;
+        }
+
+        .scanRow__meta {
+            min-width: 0;
+        }
+
+        .scanRow__date {
+            font-size: 0.82rem;
+            color: #374151;
+            font-weight: 600;
+        }
+
+        .scanRow__type {
+            font-size: 0.78rem;
+            color: #6b7280;
+            margin-top: 2px;
+        }
+
+        .scanRow__view {
+            min-height: 38px;
+            padding: 6px 12px;
+            border-radius: 10px;
+            border: 1px solid #cbd5e1;
+            background: #fff;
+            color: #111827;
+            text-decoration: none;
+            font-size: 0.82rem;
+            font-weight: 700;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .scanEmpty {
+            border: 1px dashed #cbd5e1;
+            border-radius: 12px;
+            padding: 18px;
+            color: #6b7280;
+            text-align: center;
+            font-size: 0.9rem;
+        }
+
+        @media (min-width: 640px) {
+            .scanToolbar {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+        }
     </style>
 </head>
 <body>
@@ -1836,114 +1950,19 @@
 
         <!-- Tab Navigation -->
         <nav class="tab-navigation">
-            <button class="tab-btn active" data-tab="pages" onclick="switchTab('pages')">
-                <i class="fab fa-facebook"></i> <span data-i18n="tabPagesFacebook">Pagini Facebook</span>
-            </button>
-            <button class="tab-btn" data-tab="appointments" onclick="switchTab('appointments')">
+            <button class="tab-btn active" data-tab="appointments" onclick="switchTab('appointments')">
                 <i class="fas fa-calendar-check"></i> <span data-i18n="tabAppointments">Programări</span>
+            </button>
+            <button class="tab-btn" data-tab="scannedInvoices" onclick="switchTab('scannedInvoices')">
+                <i class="fas fa-camera"></i> <span>Scanned Invoices</span>
             </button>
         </nav>
 
         <main>
             <!-- ============================================ -->
-            <!-- TAB 1: PAGINI FACEBOOK -->
+            <!-- TAB: PROGRAMĂRI -->
             <!-- ============================================ -->
-            <div id="pagesTab" class="tab-content active">
-            <!-- Formular adăugare pagină nouă (ADMIN ONLY) -->
-            <section class="add-section" data-admin-only>
-                <h2><i class="fab fa-facebook"></i> <span data-i18n="addNewPage">Adaugă Pagină Nouă</span></h2>
-                <form id="pageForm">
-                    <div class="form-group">
-                        <label for="pageName"><span data-i18n="pageName">Nume Pagină:</span></label>
-                        <input type="text" id="pageName" name="pageName" autocomplete="off" data-i18n-placeholder="pageNamePlaceholder" placeholder="ex: Transvortex LTD Official" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="pageUrl"><span data-i18n="pageUrl">URL Pagină Facebook:</span></label>
-                        <input type="url" id="pageUrl" name="pageUrl" autocomplete="url" data-i18n-placeholder="pageUrlPlaceholder" placeholder="https://facebook.com/..." required>
-                    </div>
-                    <div class="form-group">
-                        <label for="pageAvatar"><span data-i18n="pageAvatar">URL Avatar (opțional):</span></label>
-                        <input type="url" id="pageAvatar" name="pageAvatar" autocomplete="off" data-i18n-placeholder="pageAvatarPlaceholder" placeholder="https://... (logo sau poză de profil)">
-                    </div>
-                    <button type="submit" class="btn-primary">
-                        <i class="fas fa-plus"></i> <span data-i18n="btnAddPage">Adaugă Pagină</span>
-                    </button>
-                </form>
-            </section>
-
-            <!-- Status în timp real -->
-            <section class="live-status">
-                <div class="status-item">
-                    <span class="status-indicator active"></span>
-                    <div class="status-content">
-                        <strong>Ultima postare:</strong>
-                        <span id="lastPostTime">-</span>
-                    </div>
-                </div>
-                <div class="status-item">
-                    <span class="status-indicator pending"></span>
-                    <div class="status-content">
-                        <strong>Următoarea postare:</strong>
-                        <span id="nextPostTime">-</span>
-                    </div>
-                </div>
-                <div class="human-message" id="humanMessage">
-                    <i class="fas fa-heart"></i>
-                    <span>Totul este pregătit pentru astăzi.</span>
-                </div>
-            </section>
-
-            <!-- Statistici rapide -->
-            <section class="stats-section">
-                <div class="stat-card">
-                    <i class="fas fa-list"></i>
-                    <div class="stat-content">
-                        <h3 id="totalPages">0</h3>
-                        <p>Pagini Totale</p>
-                    </div>
-                </div>
-                <div class="stat-card">
-                    <i class="fas fa-calendar-check"></i>
-                    <div class="stat-content">
-                        <h3 id="postedToday">0</h3>
-                        <p>Postat Astăzi</p>
-                    </div>
-                </div>
-                <div class="stat-card">
-                    <i class="fas fa-clock"></i>
-                    <div class="stat-content">
-                        <h3 id="pendingPages">0</h3>
-                        <p>De Postat</p>
-                    </div>
-                </div>
-            </section>
-
-            <!-- Lista de pagini -->
-            <section class="pages-section">
-                <div class="section-header">
-                    <h2><i class="fas fa-th-list"></i> Paginile Mele Facebook</h2>
-                    <div style="display: flex; gap: 0.75rem;">
-                        <button id="refreshButton" class="btn-refresh" onclick="handleRefresh()" title="Reîncarcă paginile">
-                            <i class="fas fa-sync-alt"></i> Refresh
-                        </button>
-                    </div>
-                </div>
-                
-                <div id="pagesList" class="pages-grid">
-                    <!-- Paginile vor fi adăugate dinamic aici -->
-                </div>
-
-                <div id="emptyState" class="empty-state">
-                    <i class="fas fa-folder-open"></i>
-                    <h3>Nicio pagină adăugată încă</h3>
-                    <p>Începe prin a adăuga prima ta pagină Facebook folosind formularul de mai sus</p>
-                </div>
-            </section>            </div>
-
-            <!-- ============================================ -->
-            <!-- TAB 2: PROGRAMĂRI -->
-            <!-- ============================================ -->
-            <div id="appointmentsTab" class="tab-content" style="display: none;">
+            <div id="appointmentsTab" class="tab-content active">
                 <!-- Dashboard Stats -->
                 <div class="tvStats">
                     <div class="tvStatCard">
@@ -2360,6 +2379,43 @@
                         <h3>No invoices yet</h3>
                         <p>Create your first invoice from an appointment's action menu</p>
                     </div>
+                </section>
+            </div>
+
+            <div id="scannedInvoicesTab" class="tab-content" style="display: none;">
+                <section class="scanCard">
+                    <div class="tvCardHeader" style="margin-bottom: 12px;">
+                        <div style="flex:1;">
+                            <h2><i class="fas fa-receipt"></i> Scanned Invoices</h2>
+                            <p style="font-size: 0.9rem; color: #64748b; margin-top: 4px;">Capture invoice photos and store them securely.</p>
+                        </div>
+                    </div>
+
+                    <div class="scanToolbar">
+                        <button type="button" id="scanInvoiceCameraBtn" class="scanBtn scanBtn--primary">
+                            <i class="fas fa-camera"></i> Scan Invoice (Camera)
+                        </button>
+                        <button type="button" id="scanInvoiceUploadBtn" class="scanBtn scanBtn--secondary">
+                            <i class="fas fa-upload"></i> Upload PDF/Image
+                        </button>
+                    </div>
+
+                    <input id="scanInvoiceCameraInput" type="file" accept="image/*" capture="environment" style="display:none;" />
+                    <input id="scanInvoiceFileInput" type="file" accept="image/*,application/pdf" style="display:none;" />
+
+                    <div id="scanPreviewBox" class="scanPreview">
+                        <div class="scanPreview__row">
+                            <img id="scanPreviewThumb" class="scanPreview__thumb" alt="Scan preview" />
+                            <div class="scanPreview__meta">
+                                <div id="scanPreviewName" class="scanPreview__name"></div>
+                                <div id="scanPreviewType" class="scanPreview__type"></div>
+                            </div>
+                            <button type="button" id="scanInvoiceUploadConfirmBtn" class="scanBtn scanBtn--primary" style="min-height: 40px;">Upload</button>
+                        </div>
+                    </div>
+
+                    <div id="scannedInvoicesList" class="scanList"></div>
+                    <div id="scannedInvoicesEmpty" class="scanEmpty">No scanned invoices uploaded yet.</div>
                 </section>
             </div>
 

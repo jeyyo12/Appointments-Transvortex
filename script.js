@@ -20,7 +20,6 @@ let auth = null;
 let db = null;
 let currentUser = null;
 let isAdmin = false;
-let pages = [];
 
 // Appointments global variables
 let appointments = [];
@@ -31,6 +30,12 @@ let appointmentsUnsubscribe = null;
 let allInvoices = [];
 let filteredInvoices = [];
 let invoicesUnsubscribe = null;
+
+// Scanned invoices global variables
+let scannedInvoices = [];
+let scannedInvoicesUnsubscribe = null;
+let pendingScannedInvoiceFile = null;
+let pendingScannedPreviewUrl = null;
 
 // Edit mode state
 let editingAppointmentId = null;
@@ -114,7 +119,7 @@ window.showLastWrite = () => {
 // ===================================================
 
 // Current active tab
-let currentTab = 'pages';
+let currentTab = 'appointments';
 
 // Appointment buttons delegation flag
 let appointmentsClicksBound = false;
@@ -709,22 +714,28 @@ async function initializeFirebase() {
                 }
 
                 setupEventListeners();
-                await loadPages();
                 subscribeToAppointments();
+                subscribeToScannedInvoices();
 
             } else {
                 console.log("🔓 User logged out");
-                pages = [];
                 appointments = [];
-                renderPages();
+                scannedInvoices = [];
                 appointmentHistory = null;
-                updateStats();
                 
                 // Unsubscribe from appointments
                 if (appointmentsUnsubscribe) {
                     appointmentsUnsubscribe();
                     appointmentsUnsubscribe = null;
                 }
+
+                if (scannedInvoicesUnsubscribe) {
+                    scannedInvoicesUnsubscribe();
+                    scannedInvoicesUnsubscribe = null;
+                }
+
+                clearScannedInvoicePending();
+                renderScannedInvoicesList();
             }
         });
 
@@ -859,103 +870,274 @@ function ensureFirestoreReady(operationName) {
 }
 
 // ==========================================
-// PAGE MANAGEMENT FUNCTIONS
+// SCANNED INVOICES
 // ==========================================
-async function loadPages() {
-    if (!currentUser) {
-        console.error('❌ loadPages: No user authenticated - Firestore will deny access');
-        pages = [];
-        renderPages();
+function formatLocalDate(date) {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+}
+
+function getWeekMetaFromTimestamp(timestampMs) {
+    const date = new Date(timestampMs);
+    const mondayOffset = (date.getDay() + 6) % 7;
+    const monday = new Date(date);
+    monday.setHours(0, 0, 0, 0);
+    monday.setDate(monday.getDate() - mondayOffset);
+
+    const sunday = new Date(monday);
+    sunday.setDate(sunday.getDate() + 6);
+
+    const mondayKey = formatLocalDate(monday);
+    const sundayKey = formatLocalDate(sunday);
+
+    return {
+        weekKey: mondayKey,
+        weekRange: `${mondayKey} - ${sundayKey}`
+    };
+}
+
+function clearScannedInvoicePending() {
+    const previewBox = document.getElementById('scanPreviewBox');
+    const previewThumb = document.getElementById('scanPreviewThumb');
+    const previewName = document.getElementById('scanPreviewName');
+    const previewType = document.getElementById('scanPreviewType');
+    const cameraInput = document.getElementById('scanInvoiceCameraInput');
+    const fileInput = document.getElementById('scanInvoiceFileInput');
+
+    pendingScannedInvoiceFile = null;
+
+    if (pendingScannedPreviewUrl) {
+        URL.revokeObjectURL(pendingScannedPreviewUrl);
+        pendingScannedPreviewUrl = null;
+    }
+
+    if (previewThumb) previewThumb.removeAttribute('src');
+    if (previewName) previewName.textContent = '';
+    if (previewType) previewType.textContent = '';
+    if (previewBox) previewBox.style.display = 'none';
+    if (cameraInput) cameraInput.value = '';
+    if (fileInput) fileInput.value = '';
+}
+
+function handleScannedInvoiceFileSelected(file) {
+    if (!file) return;
+
+    const previewBox = document.getElementById('scanPreviewBox');
+    const previewThumb = document.getElementById('scanPreviewThumb');
+    const previewName = document.getElementById('scanPreviewName');
+    const previewType = document.getElementById('scanPreviewType');
+
+    pendingScannedInvoiceFile = file;
+
+    if (pendingScannedPreviewUrl) {
+        URL.revokeObjectURL(pendingScannedPreviewUrl);
+        pendingScannedPreviewUrl = null;
+    }
+
+    if (previewName) previewName.textContent = file.name || 'scanned-invoice.jpg';
+    if (previewType) previewType.textContent = file.type || 'image/jpeg';
+
+    if (previewThumb) {
+        if ((file.type || '').startsWith('image/')) {
+            pendingScannedPreviewUrl = URL.createObjectURL(file);
+            previewThumb.src = pendingScannedPreviewUrl;
+        } else {
+            previewThumb.src = 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="72" height="72" viewBox="0 0 72 72"><rect width="72" height="72" rx="8" fill="#F3F4F6"/><path d="M20 14h22l10 10v34H20z" fill="#fff" stroke="#CBD5E1"/><text x="36" y="45" font-size="12" text-anchor="middle" fill="#475569" font-family="Arial">PDF</text></svg>');
+        }
+    }
+
+    if (previewBox) previewBox.style.display = 'block';
+}
+
+async function uploadPendingScannedInvoice() {
+    if (!pendingScannedInvoiceFile) {
+        showNotification('⚠️ Selectează mai întâi un fișier pentru upload', 'info');
         return;
     }
 
-    if (!db) {
-        console.error('❌ loadPages: Firestore not initialized yet');
+    if (!currentUser || !db || !app) {
+        showNotification('⚠️ Conectează-te înainte de upload', 'info');
         return;
     }
-    
-    console.log('✅ loadPages: Auth ready, user:', currentUser.email, 'UID:', currentUser.uid);
+
+    const uploadBtn = document.getElementById('scanInvoiceUploadConfirmBtn');
+    if (uploadBtn) {
+        uploadBtn.disabled = true;
+        uploadBtn.textContent = 'Uploading...';
+    }
 
     try {
-        const { collection, getDocs, query, orderBy } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
-        
-        console.log('📥 [Firestore] Executing getDocs on pages collection with user:', currentUser.uid);
-        const q = query(collection(db, 'pages'), orderBy('addedDate', 'desc'));
-        const snapshot = await getDocs(q);
-        console.log('📊 [Firestore] getDocs succeeded, loaded', snapshot.docs.length, 'pages');
-        
-        // Map Firestore documents to pages array
-        pages = snapshot.docs.map(doc => ({
-            id: doc.id,
-            ...doc.data()
-        }));
-        
-        console.log(`✅ Loaded ${pages.length} pages from Firestore`);
-        
-        // IMPORTANT: Render pages immediately after loading
-        renderPages();
-        updateStats();
-        
+        const now = Date.now();
+        const dayKey = formatLocalDate(new Date(now));
+        const isImage = (pendingScannedInvoiceFile.type || '').startsWith('image/');
+        const extension = isImage ? 'jpg' : 'pdf';
+        const storagePath = `scannedInvoices/${currentUser.uid}/${dayKey}/${now}.${extension}`;
+
+        const { getStorage, ref, uploadBytesResumable, getDownloadURL } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js');
+        const { collection, addDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+
+        const storage = getStorage(app);
+        const storageRef = ref(storage, storagePath);
+
+        const uploadTask = uploadBytesResumable(storageRef, pendingScannedInvoiceFile, {
+            contentType: pendingScannedInvoiceFile.type || (isImage ? 'image/jpeg' : 'application/pdf')
+        });
+
+        await new Promise((resolve, reject) => {
+            uploadTask.on('state_changed', null, reject, resolve);
+        });
+
+        const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+        const weekMeta = getWeekMetaFromTimestamp(now);
+
+        await addDoc(collection(db, 'scannedInvoices'), {
+            createdAt: serverTimestamp(),
+            clientCreatedAt: now,
+            createdByUid: currentUser.uid,
+            file: {
+                storagePath,
+                downloadURL,
+                fileType: isImage ? 'image' : 'pdf'
+            },
+            status: 'uploaded',
+            weekKey: weekMeta.weekKey,
+            weekRange: weekMeta.weekRange
+        });
+
+        clearScannedInvoicePending();
+        showNotification('✅ Scanned invoice uploaded', 'success');
     } catch (error) {
-        console.error('❌ Error loading pages:', error);
-        console.error('Error code:', error.code);
-        console.error('Error message:', error.message);
-        
-        // Reset to empty array on error
-        pages = [];
-        renderPages();
-        
-        // Specific error handling
-        if (error.code === 'permission-denied') {
-            console.error('🔴 PERMISSION DENIED! Firestore Rules issue:');
-            console.error('Solution: Go to Firebase Console > Firestore > Rules');
-            console.error('Make sure you have: allow read: if true;');
-            showNotification('❌ Firestore Rules: Missing read permissions. Check console.', 'error');
-        } else if (error.code === 'not-found') {
-            console.error('⚠️ Pages collection does not exist yet. Create it in Firebase Console.');
-            showNotification('⚠️ Firestore database not initialized. Please create "pages" collection.', 'error');
-        } else {
-            showNotification('❌ Eroare la încărcarea datelor: ' + error.message, 'error');
+        console.error('❌ Error uploading scanned invoice:', error);
+        showNotification('❌ Upload failed: ' + (error.message || 'Unknown error'), 'error');
+    } finally {
+        if (uploadBtn) {
+            uploadBtn.disabled = false;
+            uploadBtn.textContent = 'Upload';
         }
     }
 }
 
-// setupEventListeners is defined later in the file with both page and appointment forms
+function renderScannedInvoicesList() {
+    const list = document.getElementById('scannedInvoicesList');
+    const emptyState = document.getElementById('scannedInvoicesEmpty');
+    if (!list || !emptyState) return;
 
-// ==========================================
-// REFRESH FUNCTION
-// ==========================================
-async function handleRefresh() {
-    const refreshButton = document.getElementById('refreshButton');
-    
-    if (!currentUser) {
-        showNotification('⚠️ Conectează-te pentru a reîncărca paginile', 'info');
+    if (!scannedInvoices || scannedInvoices.length === 0) {
+        list.innerHTML = '';
+        emptyState.style.display = 'block';
         return;
     }
-    
-    try {
-        // Add spinning animation
-        if (refreshButton) {
-            refreshButton.classList.add('refreshing');
-            refreshButton.disabled = true;
-        }
-        
-        console.log('🔄 Manual refresh triggered...');
-        
-        // Reload pages from Firestore
-        await loadPages();
-        
-        showNotification(`✅ Reîncărcat! ${pages.length} ${pages.length === 1 ? 'pagină găsită' : 'pagini găsite'}`, 'success');
-        
-    } catch (error) {
-        console.error('❌ Error refreshing:', error);
-        showNotification('❌ Eroare la reîncărcare', 'error');
-    } finally {
-        // Remove spinning animation
-        if (refreshButton) {
-            refreshButton.classList.remove('refreshing');
-            refreshButton.disabled = false;
-        }
+
+    emptyState.style.display = 'none';
+    list.innerHTML = scannedInvoices.map((scan) => {
+        const createdDate = scan.createdAt?.toDate?.()
+            || (scan.clientCreatedAt ? new Date(scan.clientCreatedAt) : new Date());
+        const dateLabel = createdDate.toLocaleString('en-GB', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+
+        const fileType = scan?.file?.fileType || 'image';
+        const fileUrl = scan?.file?.downloadURL || '#';
+        const thumbHtml = fileType === 'image'
+            ? `<img class="scanRow__thumb" src="${fileUrl}" alt="Scanned invoice preview" loading="lazy" />`
+            : `<img class="scanRow__thumb" src="data:image/svg+xml;charset=UTF-8,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="56" height="56" viewBox="0 0 56 56"><rect width="56" height="56" rx="8" fill="#F3F4F6"/><path d="M15 10h17l9 9v27H15z" fill="#fff" stroke="#CBD5E1"/><text x="28" y="35" font-size="11" text-anchor="middle" fill="#475569" font-family="Arial">PDF</text></svg>')}" alt="PDF" />`;
+
+        return `
+            <div class="scanRow" data-scan-id="${scan.id}">
+                ${thumbHtml}
+                <div class="scanRow__meta">
+                    <div class="scanRow__date">${dateLabel}</div>
+                    <div class="scanRow__type">${escapeHtml(fileType.toUpperCase())} • ${escapeHtml(scan.status || 'uploaded')}</div>
+                </div>
+                <a class="scanRow__view" href="${fileUrl}" target="_blank" rel="noopener noreferrer">View</a>
+            </div>
+        `;
+    }).join('');
+}
+
+function getScannedInvoiceSortTimestamp(scan) {
+    const createdAtMs = scan?.createdAt?.toMillis?.();
+    if (typeof createdAtMs === 'number') return createdAtMs;
+    if (typeof scan?.clientCreatedAt === 'number') return scan.clientCreatedAt;
+    return 0;
+}
+
+function subscribeToScannedInvoices() {
+    if (!currentUser || !db) return;
+
+    import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js')
+        .then(({ collection, query, where, onSnapshot }) => {
+            if (scannedInvoicesUnsubscribe) {
+                scannedInvoicesUnsubscribe();
+                scannedInvoicesUnsubscribe = null;
+            }
+
+            const handleSnapshot = (snapshot) => {
+                scannedInvoices = snapshot.docs
+                    .map((doc) => ({ id: doc.id, ...doc.data() }))
+                    .sort((a, b) => getScannedInvoiceSortTimestamp(b) - getScannedInvoiceSortTimestamp(a));
+                renderScannedInvoicesList();
+            };
+
+            const handleSnapshotError = (error) => {
+                console.error('❌ Error loading scanned invoices:', error);
+                showNotification('❌ Unable to load scanned invoices', 'error');
+            };
+
+            const scansQuery = query(
+                collection(db, 'scannedInvoices'),
+                where('createdByUid', '==', currentUser.uid)
+            );
+
+            scannedInvoicesUnsubscribe = onSnapshot(scansQuery, handleSnapshot, handleSnapshotError);
+        })
+        .catch((error) => {
+            console.error('❌ Failed to subscribe scanned invoices:', error);
+        });
+}
+
+function setupScannedInvoicesUI() {
+    const cameraBtn = document.getElementById('scanInvoiceCameraBtn');
+    const uploadBtn = document.getElementById('scanInvoiceUploadBtn');
+    const cameraInput = document.getElementById('scanInvoiceCameraInput');
+    const fileInput = document.getElementById('scanInvoiceFileInput');
+    const confirmUploadBtn = document.getElementById('scanInvoiceUploadConfirmBtn');
+
+    if (cameraBtn && !cameraBtn.dataset.bound) {
+        cameraBtn.addEventListener('click', () => cameraInput?.click());
+        cameraBtn.dataset.bound = 'true';
+    }
+
+    if (uploadBtn && !uploadBtn.dataset.bound) {
+        uploadBtn.addEventListener('click', () => fileInput?.click());
+        uploadBtn.dataset.bound = 'true';
+    }
+
+    if (cameraInput && !cameraInput.dataset.bound) {
+        cameraInput.addEventListener('change', (event) => {
+            const file = event.target?.files?.[0];
+            handleScannedInvoiceFileSelected(file);
+        });
+        cameraInput.dataset.bound = 'true';
+    }
+
+    if (fileInput && !fileInput.dataset.bound) {
+        fileInput.addEventListener('change', (event) => {
+            const file = event.target?.files?.[0];
+            handleScannedInvoiceFileSelected(file);
+        });
+        fileInput.dataset.bound = 'true';
+    }
+
+    if (confirmUploadBtn && !confirmUploadBtn.dataset.bound) {
+        confirmUploadBtn.addEventListener('click', uploadPendingScannedInvoice);
+        confirmUploadBtn.dataset.bound = 'true';
     }
 }
 
@@ -987,368 +1169,6 @@ async function handleRefreshAppointments() {
             refreshButton.classList.remove('refreshing');
             refreshButton.disabled = false;
         }
-    }
-}
-
-async function handleAddPage(e) {
-    if (!isAdmin) {
-        alert('Doar administratorii pot adăuga pagini.');
-        return;
-    }
-
-    e.preventDefault();
-
-    const pageName = document.getElementById('pageName').value.trim();
-    const pageUrl = document.getElementById('pageUrl').value.trim();
-    const pageAvatar = document.getElementById('pageAvatar').value.trim();
-
-    if (!pageUrl.includes('facebook.com')) {
-        alert('Te rog introdu un URL valid de Facebook!');
-        return;
-    }
-
-    try {
-        const { collection, addDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
-        
-        console.log('📝 Adding page to Firestore collection: "pages"...');
-        
-        const docRef = await addDoc(collection(db, 'pages'), {
-            name: pageName,
-            url: pageUrl,
-            avatar: pageAvatar || '',
-            postedToday: false,
-            lastPosted: null,
-            addedDate: serverTimestamp(),
-            createdBy: currentUser.uid
-        });
-
-        console.log(`✅ Page added with ID: ${docRef.id}`);
-        
-        // Reset form
-        e.target.reset();
-        
-        // Reload pages from Firestore (this will also render and update stats)
-        await loadPages();
-        
-        showNotification('Pagină adăugată cu succes!', 'success');
-    } catch (error) {
-        console.error('❌ Error adding page:', error);
-        console.error('Error code:', error.code);
-        console.error('Error message:', error.message);
-        showNotification('❌ Eroare la adăugarea paginii: ' + error.message, 'error');
-    }
-}
-
-async function markAsPosted(docId) {
-    if (!isAdmin) return;
-
-    try {
-        const { doc, updateDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
-        
-        console.log(`📝 [Firestore] Updating page ${docId} as posted with user:`, currentUser?.uid);
-        
-        await updateDoc(doc(db, 'pages', docId), {
-            postedToday: true,
-            lastPosted: serverTimestamp()
-        });
-
-        console.log(`✅ [Firestore] Page ${docId} marked as posted`);
-        
-        // Reload pages from Firestore (this will also render and update stats)
-        await loadPages();
-        
-        showNotification('Pagină marcată ca postată!', 'success');
-    } catch (error) {
-        console.error('❌ Error marking as posted:', error);
-        console.error('Error code:', error.code);
-        showNotification('❌ Eroare la actualizare: ' + error.message, 'error');
-    }
-}
-
-async function markAsUnposted(docId) {
-    if (!isAdmin) return;
-
-    try {
-        const { doc, updateDoc } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
-        
-        console.log(`📝 Marking page ${docId} as unposted...`);
-        
-        await updateDoc(doc(db, 'pages', docId), {
-            postedToday: false
-        });
-
-        console.log(`✅ Page ${docId} marked as unposted`);
-        
-        // Reload pages from Firestore (this will also render and update stats)
-        await loadPages();
-        
-        showNotification('Pagină marcată ca nepostată', 'info');
-    } catch (error) {
-        console.error('❌ Error marking as unposted:', error);
-        console.error('Error code:', error.code);
-        showNotification('❌ Eroare la actualizare: ' + error.message, 'error');
-    }
-}
-
-async function deletePage(docId) {
-    if (!isAdmin) return;
-
-    // Simple native confirmation
-    if (!confirm(t('confirmDeletePage'))) return;
-
-    try {
-        const { doc, deleteDoc } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
-        
-        console.log(`🗑️ Deleting page ${docId}...`);
-        
-        await deleteDoc(doc(db, 'pages', docId));
-
-        console.log(`✅ Page ${docId} deleted`);
-        
-        // Reload pages from Firestore (this will also render and update stats)
-        await loadPages();
-        
-        showNotification('Pagină ștearsă cu succes', 'success');
-    } catch (error) {
-        console.error('❌ Error deleting page:', error);
-        console.error('Error code:', error.code);
-        showNotification(t('errorDeleting') + ' ' + error.message, 'error');
-    }
-}
-
-// ==========================================
-// UI RENDERING FUNCTIONS
-// ==========================================
-function renderPages() {
-    const pagesList = document.getElementById('pagesList');
-    const emptyState = document.getElementById('emptyState');
-
-    if (pages.length === 0) {
-        pagesList.innerHTML = '';
-        emptyState.classList.add('show');
-        return;
-    }
-
-    emptyState.classList.remove('show');
-    const pagesHTML = pages.map(page => createPageCard(page)).join('');
-    pagesList.innerHTML = pagesHTML;
-    attachPageEventListeners();
-}
-
-function createPageCard(page) {
-    const addedDate = page.addedDate?.toDate?.() || new Date(page.addedDate);
-    const daysSinceAdded = Math.floor((new Date() - addedDate) / (1000 * 60 * 60 * 24));
-    const lastPostedDate = page.lastPosted?.toDate?.() || (page.lastPosted ? new Date(page.lastPosted) : null);
-    const daysSincePosted = lastPostedDate ? Math.floor((new Date() - lastPostedDate) / (1000 * 60 * 60 * 24)) : 999;
-    
-    let cardClass, statusClass, statusIcon, statusText;
-    
-    if (page.postedToday) {
-        cardClass = 'posted-today';
-        statusClass = 'status-posted';
-        statusIcon = 'fa-check-circle';
-        statusText = 'Postat astăzi';
-    } else if (daysSincePosted > 30 || (daysSinceAdded > 30 && !page.lastPosted)) {
-        cardClass = 'to-delete';
-        statusClass = 'status-delete';
-        statusIcon = 'fa-exclamation-triangle';
-        statusText = t('statusInactiveSuggestDelete');
-    } else {
-        cardClass = 'pending';
-        statusClass = 'status-pending';
-        statusIcon = 'fa-clock';
-        statusText = 'De postat';
-    }
-    
-    const postButton = page.postedToday 
-        ? `<button class="btn-action btn-unpost" data-id="${page.id}">
-                <i class="fas fa-undo"></i> Marchează ca nepostat
-           </button>`
-        : `<button class="btn-action btn-post" data-id="${page.id}">
-                <i class="fas fa-check"></i> Marchează ca postat
-           </button>`;
-
-    const deleteWarning = cardClass === 'to-delete' ? `<div style="background: var(--color-delete); color: white; padding: 8px; border-radius: 6px; margin-bottom: 10px; font-size: 0.85em; text-align: center; box-shadow: 0 0 10px var(--glow-red);"><i class="fas fa-exclamation-circle"></i> Pagină inactivă ${daysSincePosted < 999 ? daysSincePosted : daysSinceAdded} zile</div>` : '';
-    
-    const avatarHTML = page.avatar 
-        ? `<img src="${page.avatar}" alt="${page.name}" class="page-avatar" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-           <div class="page-avatar-placeholder" style="display:none;">${page.name.charAt(0).toUpperCase()}</div>`
-        : `<div class="page-avatar-placeholder">${page.name.charAt(0).toUpperCase()}</div>`;
-    
-    const miniPreview = page.postedToday && page.lastPosted ? `
-        <div class="mini-preview">
-            <div class="mini-preview-header">
-                <i class="fas fa-check-circle"></i>
-                <span>Publicată cu succes</span>
-            </div>
-            <div class="mini-preview-text">
-                Ultima postare: ${lastPostedDate.toLocaleTimeString('ro-RO', { hour: '2-digit', minute: '2-digit' })}
-            </div>
-        </div>
-    ` : '';
-
-    const adminButtons = isAdmin ? `
-        <div class="page-actions">
-            ${postButton}
-            <button class="btn-action btn-visit" data-id="${page.id}">
-                <i class="fas fa-external-link-alt"></i>
-            </button>
-            <button class="btn-action btn-delete" data-id="${page.id}">
-                <i class="fas fa-trash"></i>
-            </button>
-        </div>
-    ` : '';
-    
-    return `
-        <div class="page-card ${cardClass}">
-            ${deleteWarning}
-            <div class="page-header">
-                <div class="page-header-left">
-                    ${avatarHTML}
-                    <div class="page-info">
-                        <div class="page-title">${page.name}</div>
-                    </div>
-                </div>
-            </div>
-            <div class="page-url">
-                <i class="fab fa-facebook"></i>
-                <a href="${page.url}" target="_blank">${page.url}</a>
-            </div>
-            <div class="page-status ${statusClass}">
-                <i class="fas ${statusIcon}"></i>
-                <span>${statusText}</span>
-            </div>
-            ${miniPreview}
-            ${adminButtons}
-        </div>
-    `;
-}
-
-function attachPageEventListeners() {
-    document.querySelectorAll('.btn-post').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            markAsPosted(e.currentTarget.dataset.id);
-        });
-    });
-
-    document.querySelectorAll('.btn-unpost').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            markAsUnposted(e.currentTarget.dataset.id);
-        });
-    });
-
-    document.querySelectorAll('.btn-visit').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            const page = pages.find(p => p.id === e.currentTarget.dataset.id);
-            if (page) {
-                window.open(page.url, '_blank');
-                markAsPosted(e.currentTarget.dataset.id);
-            }
-        });
-    });
-
-    document.querySelectorAll('.btn-delete').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            deletePage(e.currentTarget.dataset.id);
-        });
-    });
-}
-
-// ==========================================
-// STATISTICS & UI UPDATES
-// ==========================================
-function updateStats() {
-    const totalPages = pages.length;
-    const postedToday = pages.filter(p => p.postedToday).length;
-    const pendingPages = totalPages - postedToday;
-
-    animateNumber('totalPages', totalPages);
-    animateNumber('postedToday', postedToday);
-    animateNumber('pendingPages', pendingPages);
-    
-    updateLiveStatus();
-    updateHumanMessage(postedToday, pendingPages);
-}
-
-function animateNumber(elementId, targetValue) {
-    const element = document.getElementById(elementId);
-    const currentValue = parseInt(element.textContent) || 0;
-    
-    if (currentValue === targetValue) return;
-    
-    element.classList.add('counting');
-    
-    const duration = 500;
-    const steps = 20;
-    const increment = (targetValue - currentValue) / steps;
-    let current = currentValue;
-    let step = 0;
-    
-    const timer = setInterval(() => {
-        step++;
-        current += increment;
-        element.textContent = Math.round(current);
-        
-        if (step >= steps) {
-            element.textContent = targetValue;
-            clearInterval(timer);
-            setTimeout(() => element.classList.remove('counting'), 100);
-        }
-    }, duration / steps);
-}
-
-function updateLiveStatus() {
-    const lastPostElement = document.getElementById('lastPostTime');
-    const nextPostElement = document.getElementById('nextPostTime');
-    
-    const postedPages = pages.filter(p => p.lastPosted);
-    if (postedPages.length > 0) {
-        const lastPosted = postedPages.reduce((latest, page) => {
-            const latestDate = latest.lastPosted?.toDate?.() || new Date(latest.lastPosted);
-            const pageDate = page.lastPosted?.toDate?.() || new Date(page.lastPosted);
-            return pageDate > latestDate ? page : latest;
-        });
-        
-        const postedDate = lastPosted.lastPosted?.toDate?.() || new Date(lastPosted.lastPosted);
-        const timeDiff = Date.now() - postedDate;
-        const minutes = Math.floor(timeDiff / 60000);
-        const hours = Math.floor(minutes / 60);
-        
-        if (hours > 0) {
-            lastPostElement.textContent = `acum ${hours} ${hours === 1 ? 'oră' : 'ore'}`;
-        } else if (minutes > 0) {
-            lastPostElement.textContent = `acum ${minutes} ${minutes === 1 ? 'minut' : 'minute'}`;
-        } else {
-            lastPostElement.textContent = 'chiar acum';
-        }
-    } else {
-        lastPostElement.textContent = 'nicio postare încă';
-    }
-    
-    const pendingCount = pages.filter(p => !p.postedToday).length;
-    if (pendingCount > 0) {
-        const now = new Date();
-        const nextHour = new Date(now.getFullYear(), now.getMonth(), now.getDate(), now.getHours() + 1, 0);
-        nextPostElement.textContent = nextHour.toLocaleTimeString('ro-RO', { hour: '2-digit', minute: '2-digit' });
-    } else {
-        nextPostElement.textContent = 'toate postate';
-    }
-}
-
-function updateHumanMessage(postedCount, pendingCount) {
-    const messageElement = document.getElementById('humanMessage');
-    if (!messageElement) return;
-    
-    const span = messageElement.querySelector('span');
-    
-    if (pendingCount === 0) {
-        span.innerHTML = '<i class="fas fa-party-horn"></i> ' + t('msgCongratulations');
-    } else if (postedCount === 0) {
-        span.innerHTML = `${pendingCount} ${pendingCount === 1 ? 'pagină necesită' : 'pagini necesită'} atenția ta.`;
-    } else if (pendingCount === 1) {
-        span.innerHTML = 'Aproape gata! Doar 1 pagină mai necesită atenția ta.';
-    } else {
-        span.innerHTML = `Progres excelent! ${pendingCount} pagini mai așteaptă.`;
     }
 }
 
@@ -1466,7 +1286,6 @@ function highlightAndScrollToAppointment(appointmentId) {
 // ==========================================
 window.handleAuthToggle = handleAuthToggle;
 window.switchTab = switchTab;
-window.handleRefresh = handleRefresh;
 window.handleRefreshAppointments = handleRefreshAppointments;
 window.exportAppointmentsCSV = exportAppointmentsCSV;
 
@@ -1483,6 +1302,9 @@ document.addEventListener('DOMContentLoaded', () => {
     console.log('If you see WebChannel 404/400 errors: This is Firebase SDK handling transport fallback.');
     console.log('It will automatically use REST if WebChannel is unavailable.');
     console.log('---');
+
+    setupScannedInvoicesUI();
+    renderScannedInvoicesList();
     
     initializeFirebase();
     
@@ -4221,12 +4043,8 @@ function exportAppointmentsCSV() {
 
 // Setup form listeners (called once after auth)
 function setupEventListeners() {
-    const pageForm = document.getElementById('pageForm');
-    if (pageForm && !pageForm.dataset.bound) {
-        pageForm.addEventListener('submit', handleAddPage);
-        pageForm.dataset.bound = 'true';
-    }
-    
+    setupScannedInvoicesUI();
+
     const appointmentForm = document.getElementById('appointmentForm');
     if (appointmentForm && !appointmentForm.dataset.bound) {
         appointmentForm.addEventListener('submit', handleAddAppointment);

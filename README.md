@@ -1,12 +1,12 @@
 # Transvortex LTD - Appointments & Invoice Manager
 
-A Firebase-based web application for managing appointments, invoices, and Facebook pages for Transvortex LTD.
+A Firebase-based web application for managing appointments, invoices, and storage workflows for Transvortex LTD.
 
 ## 🚀 Quick Start
 
 1. Open `index.html` in a web browser
 2. Sign in with Google authentication
-3. Manage appointments, create invoices, and track pages
+3. Manage appointments, create invoices, and track storage records
 
 ## 📁 Project Structure
 
@@ -26,7 +26,6 @@ Appointments-Transvortex/
 
 - **Appointments:** Create, edit, finalize, and delete appointments
 - **Invoices:** Generate professional invoices with PDF export
-- **Pages:** Manage Facebook pages and post content
 - **Admin:** Two-tier admin system with full access control
 - **Responsive:** Mobile-first design with horizontal appointment cards
 

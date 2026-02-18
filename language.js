@@ -71,9 +71,7 @@ export const LANG_EN = {
     statusDelayed: "Delayed",
     statusRescheduled: "Rescheduled",
     statusDone: "Done",
-    statusPosted: "Posted",
     statusActiveNotScheduled: "Active - Not Scheduled",
-    statusInactiveSuggestDelete: "Inactive - Suggest Deletion",
     
     // Time
     today: "Today",
@@ -188,7 +186,6 @@ export const LANG_EN = {
     msgAppointmentCanceled: "✅ Appointment canceled",
     msgSavingChanges: "Saving...",
     msgSaving: "Saving...",
-    msgCongratulations: "🎉 Congratulations! You've posted to all scheduled pages.",
     
     // Errors & Validation
     errorRequiredFields: "⚠️ Missing required fields:",
@@ -210,7 +207,6 @@ export const LANG_EN = {
     // Confirmations
     confirmDeleteTitle: "Delete appointment?",
     confirmDeleteMsg: "This action cannot be undone.",
-    confirmDeletePage: "Delete page? This action cannot be undone.",
     
     // CSV Export
     csv: "CSV",
@@ -244,28 +240,11 @@ export const LANG_EN = {
     headerCompany: "Company",
     headerTransvortex: "Transvortex",
     headerSubtitle1: "Organize",
-    headerSubtitle2: "your appointments and posts",
+    headerSubtitle2: "your appointments and invoices",
     headerSubtitle3: "for your company",
     
     // Tab Navigation
-    tabPagesFacebook: "Facebook Pages",
     tabInvoices: "Invoices",
-    
-    // Pages Tab
-    addNewPage: "Add New Page",
-    pageName: "Page Name",
-    pageNamePlaceholder: "e.g., Transvortex LTD Official",
-    pageUrl: "Facebook Page URL",
-    pageUrlPlaceholder: "https://facebook.com/...",
-    pageAvatar: "Avatar URL (optional)",
-    pageAvatarPlaceholder: "https://... (logo or profile pic)",
-    btnAddPage: "Add Page",
-    statsPostedTo: "Posted to",
-    statsPostedToOf: "of",
-    statsPostedToScheduled: "scheduled",
-    noScheduledPages: "No scheduled pages",
-    markAllPosted: "Mark all as posted",
-    removeFromWeek: "Remove from this week",
     
     // Stats Cards
     statsTotalAppointments: "Total Appointments",
@@ -367,9 +346,7 @@ export const LANG_RO = {
     statusDelayed: "Întârziat",
     statusRescheduled: "Reprogramat",
     statusDone: "Finalizat",
-    statusPosted: "Postat",
     statusActiveNotScheduled: "Activ - Neprogramat",
-    statusInactiveSuggestDelete: "Inactiv - Sugestie Ștergere",
     
     // Time
     today: "Astăzi",
@@ -484,7 +461,6 @@ export const LANG_RO = {
     msgAppointmentCanceled: "✅ Programare anulată",
     msgSavingChanges: "Se salvează...",
     msgSaving: "Se salvează...",
-    msgCongratulations: "🎉 Felicitări! Ai postat în toate paginile programate.",
     
     // Errors & Validation
     errorRequiredFields: "⚠️ Câmpuri obligatorii lipsă:",
@@ -506,7 +482,6 @@ export const LANG_RO = {
     // Confirmations
     confirmDeleteTitle: "Șterge programarea?",
     confirmDeleteMsg: "Această acțiune nu poate fi anulată.",
-    confirmDeletePage: "Șterge pagina? Această acțiune nu poate fi anulată.",
     
     // CSV Export
     csv: "CSV",
@@ -540,28 +515,11 @@ export const LANG_RO = {
     headerCompany: "Companie",
     headerTransvortex: "Transvortex",
     headerSubtitle1: "Organizează-ți",
-    headerSubtitle2: "programările și postările",
+    headerSubtitle2: "programările și facturile",
     headerSubtitle3: "pentru compania ta",
     
     // Tab Navigation
-    tabPagesFacebook: "Pagini Facebook",
     tabInvoices: "Facturi",
-    
-    // Pages Tab
-    addNewPage: "Adaugă Pagină Nouă",
-    pageName: "Nume Pagină",
-    pageNamePlaceholder: "ex: Transvortex LTD Official",
-    pageUrl: "URL Pagină Facebook",
-    pageUrlPlaceholder: "https://facebook.com/...",
-    pageAvatar: "URL Avatar (opțional)",
-    pageAvatarPlaceholder: "https://... (logo sau poză de profil)",
-    btnAddPage: "Adaugă Pagină",
-    statsPostedTo: "Postat în",
-    statsPostedToOf: "din",
-    statsPostedToScheduled: "programate",
-    noScheduledPages: "Nicio pagină programată",
-    markAllPosted: "Marchează toate ca postate",
-    removeFromWeek: "Elimină din săptămâna aceasta",
     
     // Stats Cards
     statsTotalAppointments: "Total Programări",
