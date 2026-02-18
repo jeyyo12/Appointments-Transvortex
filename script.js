@@ -40,6 +40,7 @@ let scannedInvoiceOcrProgress = new Map();
 let scannedInvoiceReviewState = null;
 let scannedInvoiceReviewScanId = null;
 let scannedInvoiceReviewBusy = false;
+let scannedInvoiceBlobCache = new Map();
 
 // Edit mode state
 let editingAppointmentId = null;
@@ -726,6 +727,7 @@ async function initializeFirebase() {
                 appointments = [];
                 scannedInvoices = [];
                 scannedInvoiceOcrProgress.clear();
+                scannedInvoiceBlobCache.clear();
                 appointmentHistory = null;
                 
                 // Unsubscribe from appointments
@@ -1358,6 +1360,7 @@ function applyScannedInvoiceDocChanges(snapshot) {
             const row = document.querySelector(`.scanRow[data-scan-id="${docData.id}"]`);
             if (row) row.remove();
             scannedInvoiceOcrProgress.delete(docData.id);
+            scannedInvoiceBlobCache.delete(docData.id);
             return;
         }
 
@@ -1405,6 +1408,51 @@ async function loadBlobFromUrl(url) {
         throw new Error(`Unable to fetch image (${response.status})`);
     }
     return response.blob();
+}
+
+async function loadBlobFromStoragePath(storagePath) {
+    if (!storagePath) {
+        throw new Error('Missing storage path');
+    }
+
+    const { getStorage, ref, getBlob } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js');
+    const storage = getStorage(app);
+    const storageRef = ref(storage, storagePath);
+    return getBlob(storageRef);
+}
+
+async function loadBlobForScannedInvoice(scan) {
+    const scanId = scan?.id;
+    const storagePath = scan?.file?.storagePath;
+    const fileUrl = scan?.file?.downloadURL;
+
+    if (scanId && scannedInvoiceBlobCache.has(scanId)) {
+        const cachedBlob = scannedInvoiceBlobCache.get(scanId);
+        if (cachedBlob) return cachedBlob;
+    }
+
+    if (storagePath) {
+        try {
+            return await loadBlobFromStoragePath(storagePath);
+        } catch (error) {
+            const message = String(error?.message || '');
+            const isCorsLike = /cors|failed to fetch|networkerror|xmlhttprequest/i.test(message);
+            if (isCorsLike) {
+                throw error;
+            }
+            console.warn('⚠️ Failed loading blob via storagePath, trying downloadURL fallback:', error);
+        }
+    }
+
+    if (fileUrl) {
+        return loadBlobFromUrl(fileUrl);
+    }
+
+    throw new Error('Missing scan file source');
+}
+
+function isLocalDevOrigin() {
+    return ['127.0.0.1', 'localhost'].includes(window.location.hostname);
 }
 
 function getEmptyExtractedPayload() {
@@ -1562,6 +1610,13 @@ async function runOcrForScannedInvoice(scanId, options = {}) {
     const isReviewRetry = options.fromReview === true;
     if (isReviewRetry) setScannedInvoiceReviewBusy(true);
 
+    const hasCachedBlob = scannedInvoiceBlobCache.has(scanId);
+    if (isLocalDevOrigin() && !hasCachedBlob) {
+        if (isReviewRetry) setScannedInvoiceReviewBusy(false);
+        showNotification('❌ OCR unavailable on local host for older scans (Storage CORS). Use hosted app or apply bucket CORS.', 'error');
+        return;
+    }
+
     if (!fileUrl) {
         showNotification('❌ Missing scan file URL', 'error');
         if (isReviewRetry) setScannedInvoiceReviewBusy(false);
@@ -1579,7 +1634,7 @@ async function runOcrForScannedInvoice(scanId, options = {}) {
         const tesseract = await ensureTesseractLoaded();
         setScanOcrProgress(scanId, { percent: 0, text: 'Reading invoice…' });
 
-        const blob = await loadBlobFromUrl(fileUrl);
+        const blob = await loadBlobForScannedInvoice(scan);
         const { data } = await tesseract.recognize(blob, 'eng', {
             logger: (message) => {
                 if (message?.status === 'recognizing text') {
@@ -1601,7 +1656,17 @@ async function runOcrForScannedInvoice(scanId, options = {}) {
     } catch (error) {
         console.error('❌ OCR failed:', error);
         clearScanOcrProgress(scanId);
-        showNotification('❌ OCR failed. Scan is saved and you can retry OCR.', 'error');
+        const isCorsLike = /cors|failed to fetch|networkerror/i.test(String(error?.message || ''));
+        if (isCorsLike) {
+            const isLocal = ['127.0.0.1', 'localhost'].includes(window.location.hostname);
+            if (isLocal) {
+                showNotification('❌ OCR blocked by Storage CORS on local host. Apply bucket CORS for 127.0.0.1:5500 and retry.', 'error');
+            } else {
+                showNotification('❌ OCR blocked by Storage CORS. Configure bucket CORS for this domain and retry.', 'error');
+            }
+        } else {
+            showNotification('❌ OCR failed. Scan is saved and you can retry OCR.', 'error');
+        }
     } finally {
         if (isReviewRetry) setScannedInvoiceReviewBusy(false);
     }
@@ -1840,7 +1905,7 @@ async function uploadPendingScannedInvoice() {
         const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
         const weekMeta = getWeekMetaFromTimestamp(now);
 
-        await addDoc(collection(db, 'scannedInvoices'), {
+        const scanDocRef = await addDoc(collection(db, 'scannedInvoices'), {
             createdAt: serverTimestamp(),
             clientCreatedAt: now,
             createdByUid: currentUser.uid,
@@ -1853,6 +1918,10 @@ async function uploadPendingScannedInvoice() {
             weekKey: weekMeta.weekKey,
             weekRange: weekMeta.weekRange
         });
+
+        if (scanDocRef?.id) {
+            scannedInvoiceBlobCache.set(scanDocRef.id, pendingScannedInvoiceFile);
+        }
 
         clearScannedInvoicePending();
         showNotification('✅ Scanned invoice uploaded', 'success');
