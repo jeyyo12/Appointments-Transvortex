@@ -2016,6 +2016,7 @@
         .scanReviewModal__body {
             padding: 12px 14px;
             overflow: auto;
+            overflow-x: hidden;
             display: flex;
             flex-direction: column;
             gap: 12px;
@@ -2067,6 +2068,7 @@
             display: flex;
             flex-direction: column;
             gap: 8px;
+            overflow-x: hidden;
         }
 
         .scanReviewItemsEmpty {
@@ -2085,12 +2087,75 @@
             align-items: center;
         }
 
+        /* Mobile-friendly item card layout */
+        .scanReviewItemCard {
+            background: #fafbfc;
+            border: 1px solid #e0e7ff;
+            border-radius: 10px;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            overflow-x: hidden;
+        }
+
+        .scanReviewItemCardRow1,
+        .scanReviewItemCardRow2,
+        .scanReviewItemCardRow3 {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            align-items: center;
+            min-width: 0;
+        }
+
+        .scanReviewItemCardRow1 {
+            gap: 6px;
+        }
+
+        .scanReviewItemCardRow2 {
+            width: 100%;
+        }
+
+        .scanReviewItemCardRow3 {
+            gap: 4px;
+        }
+
+        .scanReviewItemLabel {
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: #64748b;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+
+        .scanReviewItemQty,
+        .scanReviewItemPrice,
+        .scanReviewItemTotal {
+            width: 70px;
+            min-width: 0;
+            flex-shrink: 0;
+        }
+
+        .scanReviewItemPartNo {
+            width: 90px;
+            min-width: 0;
+            flex-shrink: 0;
+        }
+
+        .scanReviewItemDescription {
+            width: 100%;
+            min-width: 0;
+        }
+
         .scanReviewItemInput {
             min-height: 38px;
             border: 1px solid #cbd5e1;
             border-radius: 8px;
             padding: 7px 8px;
             font-size: 0.82rem;
+            min-width: 0;
+            flex: 1 1 auto;
         }
 
         .scanReviewItemRemove,
@@ -2111,6 +2176,26 @@
             background: linear-gradient(135deg, #FF8A3D 0%, #F47C2C 100%);
             border-color: #F47C2C;
             color: #fff;
+        }
+
+        .scanReviewAction--danger {
+            background: #dc2626;
+            border-color: #991b1b;
+            color: #fff;
+        }
+
+        .scanReviewAction--danger:hover {
+            background: #b91c1c;
+        }
+
+        .scanRow__btn--delete {
+            background: #dc2626;
+            border-color: #991b1b;
+            color: #fff;
+        }
+
+        .scanRow__btn--delete:hover {
+            background: #b91c1c;
         }
 
         .scanReviewModal__footer {
@@ -2834,6 +2919,9 @@
                         <canvas id="accountingWeeklyChart"></canvas>
                     </div>
 
+                    <h3 class="accountingSectionTitle">Weekly Invoice List</h3>
+                    <div id="accountingWeeklyTable" class="accountingBreakdown"></div>
+
                     <h3 class="accountingSectionTitle">Monthly Summary</h3>
                     <div class="accountingControls">
                         <select id="accountingMonthSelect"></select>
@@ -2880,6 +2968,14 @@
                                 <input id="scanReviewInvoiceDate" type="date" />
                             </div>
                             <div class="scanReviewField">
+                                <label>Accounting Period (Week)</label>
+                                <input id="scanReviewWeekKey" type="text" readonly />
+                            </div>
+                            <div class="scanReviewField">
+                                <label>Accounting Period (Month)</label>
+                                <input id="scanReviewMonthKey" type="text" readonly />
+                            </div>
+                            <div class="scanReviewField">
                                 <label for="scanReviewVendor">Vendor / Supplier</label>
                                 <input id="scanReviewVendor" type="text" placeholder="Supplier name" />
                             </div>
@@ -2903,14 +2999,21 @@
                             </div>
                         </div>
 
+                        <div id="scanReviewItemsWarning" class="scanReviewItemsWarning" style="display:none; background:#fff3cd; border:1px solid #ffecb5; border-radius:4px; padding:12px; margin-bottom:12px; color:#856404;">
+                            <p style="margin:0;">⚠️ Items not automatically detected. Totals saved. You can add items manually or use Parse Items From Description to re-extract from OCR text.</p>
+                        </div>
+
                         <div class="scanReviewItemsHeader">
                             <h4 class="scanReviewItemsTitle">Items</h4>
                             <button type="button" id="scanReviewAddItemBtn" class="scanReviewAddItem">Add item</button>
+                            <button type="button" id="scanReviewGsfParseBtn" class="scanReviewAction" style="font-size:0.75rem;" title="Re-run GSF table parser on OCR text">GSF Mode Parse</button>
+                            <button type="button" id="scanReviewParseItemsBtn" class="scanReviewAction" style="margin-left:auto; font-size:0.75rem;" title="Re-parse items from OCR text using advanced description-zone logic">Parse Items From Description</button>
                         </div>
                         <div id="scanReviewItemsList" class="scanReviewItemsList"></div>
                     </div>
 
                     <div class="scanReviewModal__footer">
+                        <button type="button" id="scanReviewDeleteBtn" class="scanReviewAction scanReviewAction--danger" style="display:none;">Delete Invoice</button>
                         <button type="button" id="scanReviewSaveBtn" class="scanReviewAction scanReviewAction--primary">Save</button>
                         <button type="button" id="scanReviewRetryBtn" class="scanReviewAction">Retry OCR</button>
                         <button type="button" id="scanReviewRecalculateBtn" class="scanReviewAction">Recalculate</button>
