@@ -41,6 +41,27 @@ let scannedInvoiceReviewState = null;
 let scannedInvoiceReviewScanId = null;
 let scannedInvoiceReviewBusy = false;
 let scannedInvoiceBlobCache = new Map();
+let scannedInvoicesCategoryFilter = 'all';
+const ACCOUNTING_DEFAULT_CATEGORIES = [
+    'Parts',
+    'Fuel',
+    'Tools',
+    'Equipment',
+    'Services',
+    'Office',
+    'Marketing',
+    'Other'
+];
+let accountingWeeklyChart = null;
+let accountingCategoryChart = null;
+let accountingBackfillInFlight = new Set();
+let accountingCache = {
+    scans: [],
+    byWeek: new Map(),
+    byMonth: new Map(),
+    weeks: [],
+    months: []
+};
 
 // Edit mode state
 let editingAppointmentId = null;
@@ -924,6 +945,87 @@ function getScannedInvoiceById(scanId) {
     return scannedInvoices.find((scan) => scan.id === scanId) || null;
 }
 
+function getScanCreatedDate(scan) {
+    return scan?.createdAt?.toDate?.()
+        || (scan?.clientCreatedAt ? new Date(scan.clientCreatedAt) : new Date());
+}
+
+function toMonthKeyFromDate(date) {
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+}
+
+function toIsoWeekCodeFromWeekKey(weekKey) {
+    if (!weekKey) return '';
+    const monday = new Date(`${weekKey}T00:00:00`);
+    if (Number.isNaN(monday.getTime())) return weekKey;
+    const thursday = new Date(monday);
+    thursday.setDate(monday.getDate() + 3);
+    const year = thursday.getFullYear();
+    const jan4 = new Date(year, 0, 4);
+    const jan4Day = (jan4.getDay() + 6) % 7;
+    const week1Monday = new Date(jan4);
+    week1Monday.setDate(jan4.getDate() - jan4Day);
+    const diffDays = Math.floor((monday - week1Monday) / (24 * 60 * 60 * 1000));
+    const weekNum = Math.floor(diffDays / 7) + 1;
+    return `${year}-W${String(weekNum).padStart(2, '0')}`;
+}
+
+function formatAccountingMoney(value) {
+    const amount = Number(value) || 0;
+    return `£${amount.toFixed(2)}`;
+}
+
+function getScannedInvoiceTotal(scan) {
+    const extractedTotal = normalizeNullableNumber(scan?.extracted?.total);
+    if (extractedTotal !== null) return extractedTotal;
+    return 0;
+}
+
+function normalizeScanAccountingData(scan) {
+    const normalized = { ...scan };
+    const patch = {};
+    const createdDate = getScanCreatedDate(scan);
+
+    const monthKey = scan.monthKey || toMonthKeyFromDate(createdDate);
+    const category = (scan.category || 'Uncategorized').trim() || 'Uncategorized';
+    const type = scan.type === 'income' ? 'income' : 'expense';
+    const total = getScannedInvoiceTotal(scan);
+    const computedImpact = roundMoney((type === 'income' ? 1 : -1) * total) || 0;
+
+    if (!scan.monthKey || scan.monthKey !== monthKey) patch.monthKey = monthKey;
+    if (!scan.category || scan.category !== category) patch.category = category;
+    if (!scan.type || scan.type !== type) patch.type = type;
+    if (typeof scan.profitImpact !== 'number' || roundMoney(scan.profitImpact) !== computedImpact) {
+        patch.profitImpact = computedImpact;
+    }
+
+    normalized.monthKey = monthKey;
+    normalized.category = category;
+    normalized.type = type;
+    normalized.profitImpact = computedImpact;
+
+    return {
+        normalized,
+        patch,
+        needsBackfill: Object.keys(patch).length > 0
+    };
+}
+
+async function backfillScannedInvoiceAccounting(scanId, patch) {
+    if (!scanId || !patch || Object.keys(patch).length === 0) return;
+    if (accountingBackfillInFlight.has(scanId)) return;
+    accountingBackfillInFlight.add(scanId);
+
+    try {
+        const { doc, updateDoc } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+        await updateDoc(doc(db, 'scannedInvoices', scanId), patch);
+    } catch (error) {
+        console.warn('⚠️ Failed silent accounting backfill for scan:', scanId, error);
+    } finally {
+        accountingBackfillInFlight.delete(scanId);
+    }
+}
+
 function isDateWithinPlausibleRange(isoDate) {
     if (!isoDate) return false;
     const parsed = new Date(`${isoDate}T00:00:00`);
@@ -1261,6 +1363,14 @@ function getScannedInvoiceSummaryText(scan) {
     return bits.join(' • ');
 }
 
+function buildScanCategoryOptions(selectedCategory) {
+    const categories = ['Uncategorized', ...ACCOUNTING_DEFAULT_CATEGORIES];
+    return categories.map((category) => {
+        const isSelected = category === selectedCategory ? 'selected' : '';
+        return `<option value="${escapeHtml(category)}" ${isSelected}>${escapeHtml(category)}</option>`;
+    }).join('');
+}
+
 function ensureScanRow(scanId) {
     const list = document.getElementById('scannedInvoicesList');
     if (!list) return null;
@@ -1280,8 +1390,7 @@ function updateScannedInvoiceRow(scanId) {
     const row = document.querySelector(`.scanRow[data-scan-id="${scanId}"]`);
     if (!scan || !row) return;
 
-    const createdDate = scan.createdAt?.toDate?.()
-        || (scan.clientCreatedAt ? new Date(scan.clientCreatedAt) : new Date());
+    const createdDate = getScanCreatedDate(scan);
     const dateLabel = createdDate.toLocaleString('en-GB', {
         year: 'numeric',
         month: '2-digit',
@@ -1293,13 +1402,15 @@ function updateScannedInvoiceRow(scanId) {
     const fileType = scan?.file?.fileType || 'image';
     const fileUrl = scan?.file?.downloadURL || '#';
     const thumbHtml = fileType === 'image'
-        ? `<img class="scanRow__thumb" src="${fileUrl}" alt="Scanned invoice preview" loading="lazy" />`
+        ? `<img class="scanRow__thumb" src="${fileUrl}" alt="Scanned invoice preview" loading="lazy" referrerpolicy="no-referrer" />`
         : `<img class="scanRow__thumb" src="data:image/svg+xml;charset=UTF-8,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="56" height="56" viewBox="0 0 56 56"><rect width="56" height="56" rx="8" fill="#F3F4F6"/><path d="M15 10h17l9 9v27H15z" fill="#fff" stroke="#CBD5E1"/><text x="28" y="35" font-size="11" text-anchor="middle" fill="#475569" font-family="Arial">PDF</text></svg>')}" alt="PDF" />`;
 
     const progress = getScanOcrProgress(scanId);
     const progressRunning = Boolean(progress?.running);
     const statusText = escapeHtml(getScannedInvoiceStatusText(scan));
     const summaryText = getScannedInvoiceSummaryText(scan);
+    const scanType = scan.type === 'income' ? 'income' : 'expense';
+    const category = scan.category || 'Uncategorized';
 
     row.innerHTML = `
         ${thumbHtml}
@@ -1307,6 +1418,15 @@ function updateScannedInvoiceRow(scanId) {
             <div class="scanRow__date">${dateLabel}</div>
             <div class="scanRow__type">${statusText}</div>
             ${summaryText ? `<div class="scanRow__summary">${escapeHtml(summaryText)}</div>` : ''}
+            <div class="scanRow__accounting">
+                <select class="scanRow__select" data-scan-field="type" data-scan-id="${scan.id}">
+                    <option value="expense" ${scanType === 'expense' ? 'selected' : ''}>Expense</option>
+                    <option value="income" ${scanType === 'income' ? 'selected' : ''}>Income</option>
+                </select>
+                <select class="scanRow__select" data-scan-field="category" data-scan-id="${scan.id}">
+                    ${buildScanCategoryOptions(category)}
+                </select>
+            </div>
         </div>
         <div class="scanRow__actions">
             <a class="scanRow__view" href="${fileUrl}" target="_blank" rel="noopener noreferrer">View</a>
@@ -1326,6 +1446,30 @@ function reorderScannedInvoiceRows() {
     });
 }
 
+function getVisibleScannedInvoices() {
+    if (scannedInvoicesCategoryFilter === 'all') return scannedInvoices;
+    return scannedInvoices.filter((scan) => (scan.category || 'Uncategorized') === scannedInvoicesCategoryFilter);
+}
+
+function applyScannedInvoicesCategoryFilter() {
+    const list = document.getElementById('scannedInvoicesList');
+    const emptyState = document.getElementById('scannedInvoicesEmpty');
+    if (!list || !emptyState) return;
+
+    const visibleIds = new Set(getVisibleScannedInvoices().map((scan) => scan.id));
+    const rows = list.querySelectorAll('.scanRow[data-scan-id]');
+    let visibleCount = 0;
+
+    rows.forEach((row) => {
+        const scanId = row.dataset.scanId;
+        const isVisible = visibleIds.has(scanId);
+        row.style.display = isVisible ? '' : 'none';
+        if (isVisible) visibleCount += 1;
+    });
+
+    emptyState.style.display = visibleCount === 0 ? 'block' : 'none';
+}
+
 function syncScannedInvoicesEmptyState() {
     const list = document.getElementById('scannedInvoicesList');
     const emptyState = document.getElementById('scannedInvoicesEmpty');
@@ -1335,13 +1479,17 @@ function syncScannedInvoicesEmptyState() {
         list.innerHTML = '';
         emptyState.style.display = 'block';
     } else {
-        emptyState.style.display = 'none';
+        const visible = getVisibleScannedInvoices();
+        emptyState.style.display = visible.length === 0 ? 'block' : 'none';
     }
 }
 
 function renderScannedInvoicesList() {
     syncScannedInvoicesEmptyState();
-    if (!scannedInvoices || scannedInvoices.length === 0) return;
+    if (!scannedInvoices || scannedInvoices.length === 0) {
+        renderAccountingView();
+        return;
+    }
 
     scannedInvoices.forEach((scan) => {
         ensureScanRow(scan.id);
@@ -1349,11 +1497,15 @@ function renderScannedInvoicesList() {
     });
 
     reorderScannedInvoiceRows();
+    applyScannedInvoicesCategoryFilter();
+    rebuildAccountingCache();
+    renderAccountingView();
 }
 
 function applyScannedInvoiceDocChanges(snapshot) {
     snapshot.docChanges().forEach((change) => {
-        const docData = { id: change.doc.id, ...change.doc.data() };
+        const rawDocData = { id: change.doc.id, ...change.doc.data() };
+        const { normalized: docData, patch, needsBackfill } = normalizeScanAccountingData(rawDocData);
 
         if (change.type === 'removed') {
             scannedInvoices = scannedInvoices.filter((scan) => scan.id !== docData.id);
@@ -1362,6 +1514,10 @@ function applyScannedInvoiceDocChanges(snapshot) {
             scannedInvoiceOcrProgress.delete(docData.id);
             scannedInvoiceBlobCache.delete(docData.id);
             return;
+        }
+
+        if (needsBackfill) {
+            backfillScannedInvoiceAccounting(docData.id, patch);
         }
 
         const existingIndex = scannedInvoices.findIndex((scan) => scan.id === docData.id);
@@ -1377,7 +1533,461 @@ function applyScannedInvoiceDocChanges(snapshot) {
 
     scannedInvoices.sort((a, b) => getScannedInvoiceSortTimestamp(b) - getScannedInvoiceSortTimestamp(a));
     reorderScannedInvoiceRows();
+    applyScannedInvoicesCategoryFilter();
     syncScannedInvoicesEmptyState();
+    rebuildAccountingCache();
+    renderAccountingView();
+}
+
+function makeAggregateBucket(key, rangeLabel = '') {
+    return {
+        key,
+        label: rangeLabel || key,
+        income: 0,
+        expenses: 0,
+        vat: 0,
+        count: 0,
+        categoryTotals: new Map()
+    };
+}
+
+function pushToCategoryTotals(bucket, category, amount) {
+    if (!bucket.categoryTotals.has(category)) {
+        bucket.categoryTotals.set(category, 0);
+    }
+    const current = bucket.categoryTotals.get(category) || 0;
+    bucket.categoryTotals.set(category, roundMoney(current + amount) || 0);
+}
+
+function rebuildAccountingCache() {
+    const byWeek = new Map();
+    const byMonth = new Map();
+
+    scannedInvoices.forEach((scan) => {
+        const total = getScannedInvoiceTotal(scan);
+        const vat = normalizeNullableNumber(scan?.extracted?.vat) || 0;
+        const type = scan.type === 'income' ? 'income' : 'expense';
+        const category = scan.category || 'Uncategorized';
+        const weekKey = scan.weekKey || getWeekMetaFromTimestamp(getScanCreatedDate(scan).getTime()).weekKey;
+        const weekLabel = scan.weekRange || weekKey;
+        const monthKey = scan.monthKey || toMonthKeyFromDate(getScanCreatedDate(scan));
+
+        if (!byWeek.has(weekKey)) {
+            byWeek.set(weekKey, makeAggregateBucket(weekKey, weekLabel));
+        }
+        if (!byMonth.has(monthKey)) {
+            byMonth.set(monthKey, makeAggregateBucket(monthKey, monthKey));
+        }
+
+        const weekBucket = byWeek.get(weekKey);
+        const monthBucket = byMonth.get(monthKey);
+        const updateBucket = (bucket) => {
+            if (type === 'income') {
+                bucket.income = roundMoney(bucket.income + total) || 0;
+            } else {
+                bucket.expenses = roundMoney(bucket.expenses + total) || 0;
+                pushToCategoryTotals(bucket, category, total);
+            }
+            bucket.vat = roundMoney(bucket.vat + vat) || 0;
+            bucket.count += 1;
+        };
+
+        updateBucket(weekBucket);
+        updateBucket(monthBucket);
+    });
+
+    const sortedWeeks = Array.from(byWeek.keys()).sort((a, b) => b.localeCompare(a));
+    const sortedMonths = Array.from(byMonth.keys()).sort((a, b) => b.localeCompare(a));
+
+    accountingCache = {
+        scans: [...scannedInvoices],
+        byWeek,
+        byMonth,
+        weeks: sortedWeeks,
+        months: sortedMonths
+    };
+
+    populateAccountingSelectors();
+}
+
+function getCurrentAndLastWeekKeys() {
+    const now = Date.now();
+    const thisWeek = getWeekMetaFromTimestamp(now).weekKey;
+    const lastWeek = getWeekMetaFromTimestamp(now - 7 * 24 * 60 * 60 * 1000).weekKey;
+    return { thisWeek, lastWeek };
+}
+
+function populateAccountingSelectors() {
+    const weekSelect = document.getElementById('accountingWeekSelect');
+    const monthSelect = document.getElementById('accountingMonthSelect');
+    const categoryFilterSelect = document.getElementById('accountingCategoryFilter');
+    const scanCategoryFilterSelect = document.getElementById('scanCategoryFilter');
+
+    if (weekSelect) {
+        const { thisWeek, lastWeek } = getCurrentAndLastWeekKeys();
+        const previous = weekSelect.value || thisWeek;
+        const options = [
+            `<option value="${thisWeek}">This Week (${toIsoWeekCodeFromWeekKey(thisWeek)})</option>`,
+            `<option value="${lastWeek}">Last Week (${toIsoWeekCodeFromWeekKey(lastWeek)})</option>`
+        ];
+
+        accountingCache.weeks
+            .filter((key) => key !== thisWeek && key !== lastWeek)
+            .forEach((key) => {
+                options.push(`<option value="${key}">${toIsoWeekCodeFromWeekKey(key)} (${key})</option>`);
+            });
+
+        weekSelect.innerHTML = options.join('');
+        weekSelect.value = options.some((opt) => opt.includes(`value="${previous}"`)) ? previous : thisWeek;
+    }
+
+    if (monthSelect) {
+        const currentMonth = toMonthKeyFromDate(new Date());
+        const previous = monthSelect.value || currentMonth;
+        const options = accountingCache.months.length
+            ? accountingCache.months.map((monthKey) => `<option value="${monthKey}">${monthKey}</option>`)
+            : [`<option value="${currentMonth}">${currentMonth}</option>`];
+        monthSelect.innerHTML = options.join('');
+        monthSelect.value = options.some((opt) => opt.includes(`value="${previous}"`)) ? previous : options[0].match(/value="([^"]+)"/)?.[1] || currentMonth;
+    }
+
+    const categoryOptions = ['all', 'Uncategorized', ...ACCOUNTING_DEFAULT_CATEGORIES];
+
+    if (categoryFilterSelect) {
+        const previous = categoryFilterSelect.value || 'all';
+        categoryFilterSelect.innerHTML = categoryOptions
+            .map((cat) => `<option value="${escapeHtml(cat)}">${cat === 'all' ? 'All Categories' : escapeHtml(cat)}</option>`)
+            .join('');
+        categoryFilterSelect.value = categoryOptions.includes(previous) ? previous : 'all';
+    }
+
+    if (scanCategoryFilterSelect) {
+        const previous = scanCategoryFilterSelect.value || scannedInvoicesCategoryFilter || 'all';
+        scanCategoryFilterSelect.innerHTML = categoryOptions
+            .map((cat) => `<option value="${escapeHtml(cat)}">${cat === 'all' ? 'All Categories' : escapeHtml(cat)}</option>`)
+            .join('');
+        scanCategoryFilterSelect.value = categoryOptions.includes(previous) ? previous : 'all';
+        scannedInvoicesCategoryFilter = scanCategoryFilterSelect.value;
+    }
+}
+
+function readAccountingSelections() {
+    const weekSelect = document.getElementById('accountingWeekSelect');
+    const monthSelect = document.getElementById('accountingMonthSelect');
+    const categoryFilterSelect = document.getElementById('accountingCategoryFilter');
+
+    return {
+        selectedWeek: weekSelect?.value || getCurrentAndLastWeekKeys().thisWeek,
+        selectedMonth: monthSelect?.value || toMonthKeyFromDate(new Date()),
+        selectedCategory: categoryFilterSelect?.value || 'all'
+    };
+}
+
+function getScansForWeek(weekKey, category) {
+    return accountingCache.scans.filter((scan) => {
+        if ((scan.weekKey || '') !== weekKey) return false;
+        if (category && category !== 'all' && (scan.category || 'Uncategorized') !== category) return false;
+        return true;
+    });
+}
+
+function getScansForMonth(monthKey, category) {
+    return accountingCache.scans.filter((scan) => {
+        if ((scan.monthKey || '') !== monthKey) return false;
+        if (category && category !== 'all' && (scan.category || 'Uncategorized') !== category) return false;
+        return true;
+    });
+}
+
+function summarizeScans(scans) {
+    const summary = {
+        income: 0,
+        expenses: 0,
+        vat: 0,
+        count: scans.length,
+        categories: new Map()
+    };
+
+    scans.forEach((scan) => {
+        const total = getScannedInvoiceTotal(scan);
+        const vat = normalizeNullableNumber(scan?.extracted?.vat) || 0;
+        const type = scan.type === 'income' ? 'income' : 'expense';
+        const category = scan.category || 'Uncategorized';
+
+        if (type === 'income') {
+            summary.income = roundMoney(summary.income + total) || 0;
+        } else {
+            summary.expenses = roundMoney(summary.expenses + total) || 0;
+            const currentCategoryTotal = summary.categories.get(category) || 0;
+            summary.categories.set(category, roundMoney(currentCategoryTotal + total) || 0);
+        }
+
+        summary.vat = roundMoney(summary.vat + vat) || 0;
+    });
+
+    summary.netProfit = roundMoney(summary.income - summary.expenses) || 0;
+    return summary;
+}
+
+function setAccountingCardValue(id, value) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = value;
+}
+
+function renderWeeklyChart(selectedCategory) {
+    const canvas = document.getElementById('accountingWeeklyChart');
+    if (!canvas || typeof window.Chart === 'undefined') return;
+
+    const weekKeys = accountingCache.weeks.slice(0, 8).reverse();
+    const labels = weekKeys.map((weekKey) => toIsoWeekCodeFromWeekKey(weekKey));
+    const expenses = weekKeys.map((weekKey) => {
+        const scans = getScansForWeek(weekKey, selectedCategory);
+        return summarizeScans(scans).expenses;
+    });
+
+    if (accountingWeeklyChart) {
+        accountingWeeklyChart.destroy();
+    }
+
+    accountingWeeklyChart = new window.Chart(canvas, {
+        type: 'bar',
+        data: {
+            labels,
+            datasets: [{
+                label: 'Expenses',
+                data: expenses,
+                backgroundColor: 'rgba(255, 138, 61, 0.75)',
+                borderColor: 'rgba(244, 124, 44, 1)',
+                borderWidth: 1,
+                borderRadius: 8
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: (value) => `£${value}`
+                    }
+                }
+            }
+        }
+    });
+}
+
+function renderCategoryPieChart(summary) {
+    const canvas = document.getElementById('accountingCategoryChart');
+    if (!canvas || typeof window.Chart === 'undefined') return;
+
+    const entries = Array.from(summary.categories.entries()).filter(([, value]) => value > 0);
+    if (accountingCategoryChart) {
+        accountingCategoryChart.destroy();
+        accountingCategoryChart = null;
+    }
+
+    if (entries.length === 0) return;
+
+    accountingCategoryChart = new window.Chart(canvas, {
+        type: 'pie',
+        data: {
+            labels: entries.map(([category]) => category),
+            datasets: [{
+                data: entries.map(([, value]) => value),
+                backgroundColor: [
+                    '#FF8A3D', '#4F46E5', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#06B6D4', '#64748B'
+                ]
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                }
+            }
+        }
+    });
+}
+
+function renderMonthlyCategoryBreakdown(summary) {
+    const container = document.getElementById('accountingCategoryBreakdown');
+    if (!container) return;
+
+    const entries = Array.from(summary.categories.entries())
+        .sort((a, b) => b[1] - a[1]);
+
+    if (entries.length === 0) {
+        container.innerHTML = '<div class="accountingEmpty">No expense categories for selected month.</div>';
+        return;
+    }
+
+    container.innerHTML = entries.map(([category, amount]) => `
+        <div class="accountingBreakdownRow">
+            <span>${escapeHtml(category)}</span>
+            <strong>${formatAccountingMoney(amount)}</strong>
+        </div>
+    `).join('');
+}
+
+function renderAccountingView() {
+    const accountingTab = document.getElementById('accountingTab');
+    if (!accountingTab) return;
+
+    const { selectedWeek, selectedMonth, selectedCategory } = readAccountingSelections();
+    const weeklySummary = summarizeScans(getScansForWeek(selectedWeek, selectedCategory));
+    const monthlySummary = summarizeScans(getScansForMonth(selectedMonth, selectedCategory));
+
+    setAccountingCardValue('accWeekIncome', formatAccountingMoney(weeklySummary.income));
+    setAccountingCardValue('accWeekExpenses', formatAccountingMoney(weeklySummary.expenses));
+    setAccountingCardValue('accWeekNet', formatAccountingMoney(weeklySummary.netProfit));
+    setAccountingCardValue('accWeekVat', formatAccountingMoney(weeklySummary.vat));
+    setAccountingCardValue('accWeekCount', String(weeklySummary.count));
+
+    setAccountingCardValue('accMonthIncome', formatAccountingMoney(monthlySummary.income));
+    setAccountingCardValue('accMonthExpenses', formatAccountingMoney(monthlySummary.expenses));
+    setAccountingCardValue('accMonthNet', formatAccountingMoney(monthlySummary.netProfit));
+    setAccountingCardValue('accMonthVat', formatAccountingMoney(monthlySummary.vat));
+
+    renderWeeklyChart(selectedCategory);
+    renderMonthlyCategoryBreakdown(monthlySummary);
+    renderCategoryPieChart(monthlySummary);
+}
+
+function escapeCsvField(value) {
+    const stringValue = String(value ?? '');
+    return `"${stringValue.replace(/"/g, '""')}"`;
+}
+
+function downloadAccountingCsv(filename, rows) {
+    const headers = ['Date', 'Vendor', 'Category', 'Type', 'Subtotal', 'VAT', 'Total', 'WeekKey', 'MonthKey'];
+    const contentRows = [headers, ...rows];
+    const csv = contentRows.map((row) => row.map(escapeCsvField).join(',')).join('\n');
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+}
+
+function mapScanToCsvRow(scan) {
+    const extracted = scan.extracted || {};
+    const createdDate = getScanCreatedDate(scan);
+    const date = extracted.invoiceDate || formatLocalDate(createdDate);
+    return [
+        date,
+        extracted.vendorName || '',
+        scan.category || 'Uncategorized',
+        scan.type || 'expense',
+        extracted.subtotal ?? '',
+        extracted.vat ?? '',
+        extracted.total ?? getScannedInvoiceTotal(scan),
+        scan.weekKey || '',
+        scan.monthKey || ''
+    ];
+}
+
+function exportAccountingWeekCsv() {
+    const { selectedWeek, selectedCategory } = readAccountingSelections();
+    const scans = getScansForWeek(selectedWeek, selectedCategory);
+    const rows = scans.map(mapScanToCsvRow);
+    const fileWeek = toIsoWeekCodeFromWeekKey(selectedWeek) || selectedWeek;
+    downloadAccountingCsv(`transvortex-week-${fileWeek}.csv`, rows);
+    showNotification(`✅ Exported ${rows.length} rows for selected week`, 'success');
+}
+
+function exportAccountingMonthCsv() {
+    const { selectedMonth, selectedCategory } = readAccountingSelections();
+    const scans = getScansForMonth(selectedMonth, selectedCategory);
+    const rows = scans.map(mapScanToCsvRow);
+    downloadAccountingCsv(`transvortex-accounting-${selectedMonth}.csv`, rows);
+    showNotification(`✅ Exported ${rows.length} rows for selected month`, 'success');
+}
+
+async function updateScannedInvoiceAccountingField(scanId, field, value) {
+    const scan = getScannedInvoiceById(scanId);
+    if (!scan) return;
+
+    const nextType = field === 'type' ? (value === 'income' ? 'income' : 'expense') : (scan.type || 'expense');
+    const nextCategory = field === 'category' ? (value?.trim() || 'Uncategorized') : (scan.category || 'Uncategorized');
+    const total = getScannedInvoiceTotal(scan);
+    const profitImpact = roundMoney((nextType === 'income' ? 1 : -1) * total) || 0;
+
+    try {
+        const { doc, updateDoc } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+        const patch = {
+            type: nextType,
+            category: nextCategory,
+            profitImpact
+        };
+
+        await updateDoc(doc(db, 'scannedInvoices', scanId), patch);
+    } catch (error) {
+        console.error('❌ Failed updating scan accounting fields:', error);
+        showNotification('❌ Could not update category/type', 'error');
+    }
+}
+
+function handleScannedInvoiceListChange(event) {
+    const select = event.target.closest('[data-scan-field]');
+    if (!select) return;
+    const scanId = select.dataset.scanId;
+    const field = select.dataset.scanField;
+    if (!scanId || !field) return;
+    updateScannedInvoiceAccountingField(scanId, field, select.value);
+}
+
+function setupAccountingUI() {
+    const weekSelect = document.getElementById('accountingWeekSelect');
+    const monthSelect = document.getElementById('accountingMonthSelect');
+    const categoryFilterSelect = document.getElementById('accountingCategoryFilter');
+    const exportWeekBtn = document.getElementById('exportWeekCsvBtn');
+    const exportMonthBtn = document.getElementById('exportMonthCsvBtn');
+    const scanCategoryFilterSelect = document.getElementById('scanCategoryFilter');
+
+    if (weekSelect && !weekSelect.dataset.bound) {
+        weekSelect.addEventListener('change', renderAccountingView);
+        weekSelect.dataset.bound = 'true';
+    }
+
+    if (monthSelect && !monthSelect.dataset.bound) {
+        monthSelect.addEventListener('change', renderAccountingView);
+        monthSelect.dataset.bound = 'true';
+    }
+
+    if (categoryFilterSelect && !categoryFilterSelect.dataset.bound) {
+        categoryFilterSelect.addEventListener('change', renderAccountingView);
+        categoryFilterSelect.dataset.bound = 'true';
+    }
+
+    if (exportWeekBtn && !exportWeekBtn.dataset.bound) {
+        exportWeekBtn.addEventListener('click', exportAccountingWeekCsv);
+        exportWeekBtn.dataset.bound = 'true';
+    }
+
+    if (exportMonthBtn && !exportMonthBtn.dataset.bound) {
+        exportMonthBtn.addEventListener('click', exportAccountingMonthCsv);
+        exportMonthBtn.dataset.bound = 'true';
+    }
+
+    if (scanCategoryFilterSelect && !scanCategoryFilterSelect.dataset.bound) {
+        scanCategoryFilterSelect.addEventListener('change', () => {
+            scannedInvoicesCategoryFilter = scanCategoryFilterSelect.value || 'all';
+            applyScannedInvoicesCategoryFilter();
+        });
+        scanCategoryFilterSelect.dataset.bound = 'true';
+    }
+
+    populateAccountingSelectors();
 }
 
 function ensureTesseractLoaded() {
@@ -1403,56 +2013,29 @@ function ensureTesseractLoaded() {
 }
 
 async function loadBlobFromUrl(url) {
-    const response = await fetch(url);
+    const response = await fetch(url, { mode: 'cors' });
     if (!response.ok) {
         throw new Error(`Unable to fetch image (${response.status})`);
     }
     return response.blob();
 }
 
-async function loadBlobFromStoragePath(storagePath) {
-    if (!storagePath) {
-        throw new Error('Missing storage path');
-    }
-
-    const { getStorage, ref, getBlob } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js');
-    const storage = getStorage(app);
-    const storageRef = ref(storage, storagePath);
-    return getBlob(storageRef);
-}
-
 async function loadBlobForScannedInvoice(scan) {
-    const scanId = scan?.id;
-    const storagePath = scan?.file?.storagePath;
     const fileUrl = scan?.file?.downloadURL;
-
-    if (scanId && scannedInvoiceBlobCache.has(scanId)) {
-        const cachedBlob = scannedInvoiceBlobCache.get(scanId);
-        if (cachedBlob) return cachedBlob;
+    if (!fileUrl) {
+        throw new Error('Missing scan file source');
     }
 
-    if (storagePath) {
-        try {
-            return await loadBlobFromStoragePath(storagePath);
-        } catch (error) {
-            const message = String(error?.message || '');
-            const isCorsLike = /cors|failed to fetch|networkerror|xmlhttprequest/i.test(message);
-            if (isCorsLike) {
-                throw error;
-            }
-            console.warn('⚠️ Failed loading blob via storagePath, trying downloadURL fallback:', error);
+    try {
+        return await loadBlobFromUrl(fileUrl);
+    } catch (error) {
+        const message = String(error?.message || '');
+        const isCorsLike = /cors|failed to fetch|networkerror|xmlhttprequest/i.test(message);
+        if (isCorsLike) {
+            throw new Error('Storage CORS not configured. Please allow your domain in bucket CORS settings.');
         }
+        throw error;
     }
-
-    if (fileUrl) {
-        return loadBlobFromUrl(fileUrl);
-    }
-
-    throw new Error('Missing scan file source');
-}
-
-function isLocalDevOrigin() {
-    return ['127.0.0.1', 'localhost'].includes(window.location.hostname);
 }
 
 function getEmptyExtractedPayload() {
@@ -1610,13 +2193,6 @@ async function runOcrForScannedInvoice(scanId, options = {}) {
     const isReviewRetry = options.fromReview === true;
     if (isReviewRetry) setScannedInvoiceReviewBusy(true);
 
-    const hasCachedBlob = scannedInvoiceBlobCache.has(scanId);
-    if (isLocalDevOrigin() && !hasCachedBlob) {
-        if (isReviewRetry) setScannedInvoiceReviewBusy(false);
-        showNotification('❌ OCR unavailable on local host for older scans (Storage CORS). Use hosted app or apply bucket CORS.', 'error');
-        return;
-    }
-
     if (!fileUrl) {
         showNotification('❌ Missing scan file URL', 'error');
         if (isReviewRetry) setScannedInvoiceReviewBusy(false);
@@ -1635,35 +2211,36 @@ async function runOcrForScannedInvoice(scanId, options = {}) {
         setScanOcrProgress(scanId, { percent: 0, text: 'Reading invoice…' });
 
         const blob = await loadBlobForScannedInvoice(scan);
-        const { data } = await tesseract.recognize(blob, 'eng', {
-            logger: (message) => {
-                if (message?.status === 'recognizing text') {
-                    const percent = Math.round((message.progress || 0) * 100);
-                    setScanOcrProgress(scanId, { percent, text: 'Reading invoice…' });
+        const objectUrl = URL.createObjectURL(blob);
+
+        try {
+            const { data } = await tesseract.recognize(objectUrl, 'eng', {
+                logger: (message) => {
+                    if (message?.status === 'recognizing text') {
+                        const percent = Math.round((message.progress || 0) * 100);
+                        setScanOcrProgress(scanId, { percent, text: 'Reading invoice…' });
+                    }
                 }
+            });
+
+            const extracted = extractInvoiceDataFromRawText(data?.text || '');
+            await persistScannedInvoiceExtraction(scanId, extracted);
+
+            clearScanOcrProgress(scanId);
+            showNotification('✅ OCR completed. Review extracted data.', 'success');
+
+            if (options.openReview !== false) {
+                openScannedInvoiceReview(scanId, extracted);
             }
-        });
-
-        const extracted = extractInvoiceDataFromRawText(data?.text || '');
-        await persistScannedInvoiceExtraction(scanId, extracted);
-
-        clearScanOcrProgress(scanId);
-        showNotification('✅ OCR completed. Review extracted data.', 'success');
-
-        if (options.openReview !== false) {
-            openScannedInvoiceReview(scanId, extracted);
+        } finally {
+            URL.revokeObjectURL(objectUrl);
         }
     } catch (error) {
         console.error('❌ OCR failed:', error);
         clearScanOcrProgress(scanId);
-        const isCorsLike = /cors|failed to fetch|networkerror/i.test(String(error?.message || ''));
-        if (isCorsLike) {
-            const isLocal = ['127.0.0.1', 'localhost'].includes(window.location.hostname);
-            if (isLocal) {
-                showNotification('❌ OCR blocked by Storage CORS on local host. Apply bucket CORS for 127.0.0.1:5500 and retry.', 'error');
-            } else {
-                showNotification('❌ OCR blocked by Storage CORS. Configure bucket CORS for this domain and retry.', 'error');
-            }
+        const message = String(error?.message || '');
+        if (message.includes('Storage CORS not configured')) {
+            showNotification('Storage CORS not configured. Please allow your domain in bucket CORS settings.', 'error');
         } else {
             showNotification('❌ OCR failed. Scan is saved and you can retry OCR.', 'error');
         }
@@ -2017,6 +2594,7 @@ function setupScannedInvoicesUI() {
 
     if (scannedInvoicesList && !scannedInvoicesList.dataset.bound) {
         scannedInvoicesList.addEventListener('click', handleScannedInvoiceListClick);
+        scannedInvoicesList.addEventListener('change', handleScannedInvoiceListChange);
         scannedInvoicesList.dataset.bound = 'true';
     }
 }
@@ -2184,6 +2762,7 @@ document.addEventListener('DOMContentLoaded', () => {
     console.log('---');
 
     setupScannedInvoicesUI();
+    setupAccountingUI();
     renderScannedInvoicesList();
     
     initializeFirebase();
@@ -2507,6 +3086,10 @@ function switchTab(tabName) {
     if (activeTab) {
         activeTab.classList.add('active');
         activeTab.style.display = 'block';
+    }
+
+    if (tabName === 'accounting') {
+        renderAccountingView();
     }
     
     console.log(`📑 Switched to tab: ${tabName}`);
@@ -4924,6 +5507,7 @@ function exportAppointmentsCSV() {
 // Setup form listeners (called once after auth)
 function setupEventListeners() {
     setupScannedInvoicesUI();
+    setupAccountingUI();
 
     const appointmentForm = document.getElementById('appointmentForm');
     if (appointmentForm && !appointmentForm.dataset.bound) {

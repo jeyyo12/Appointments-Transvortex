@@ -1811,6 +1811,23 @@
             background: #f9fafb;
         }
 
+        .scanFilters {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+
+        .scanFilters select {
+            min-height: 40px;
+            border-radius: 10px;
+            border: 1px solid #cbd5e1;
+            padding: 8px 10px;
+            background: #fff;
+            color: #111827;
+            font-size: 0.85rem;
+        }
+
         .scanPreview__row {
             display: flex;
             gap: 10px;
@@ -1906,6 +1923,23 @@
             color: #334155;
             margin-top: 4px;
             word-break: break-word;
+        }
+
+        .scanRow__accounting {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 6px;
+            margin-top: 6px;
+        }
+
+        .scanRow__select {
+            min-height: 34px;
+            border-radius: 8px;
+            border: 1px solid #cbd5e1;
+            padding: 6px 8px;
+            background: #fff;
+            color: #111827;
+            font-size: 0.78rem;
         }
 
         .scanRow__actions {
@@ -2097,9 +2131,111 @@
             font-size: 0.9rem;
         }
 
+        .accountingCard {
+            background: #fff;
+            border: 1px solid rgba(15, 23, 42, 0.08);
+            border-radius: 14px;
+            padding: clamp(12px, 2vw, 18px);
+            box-shadow: 0 8px 20px rgba(15, 23, 42, 0.06);
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .accountingControls {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 8px;
+        }
+
+        .accountingControls select,
+        .accountingControls button {
+            min-height: 40px;
+            border-radius: 10px;
+            border: 1px solid #cbd5e1;
+            padding: 8px 10px;
+            font-size: 0.85rem;
+            background: #fff;
+            color: #111827;
+            font-weight: 600;
+        }
+
+        .accountingControls button {
+            cursor: pointer;
+        }
+
+        .accountingSummaryGrid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 8px;
+        }
+
+        .accountingMetric {
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            padding: 10px;
+            background: #f8fafc;
+        }
+
+        .accountingMetric__label {
+            font-size: 0.75rem;
+            color: #64748b;
+            margin-bottom: 4px;
+        }
+
+        .accountingMetric__value {
+            font-size: 1rem;
+            font-weight: 700;
+            color: #0f172a;
+        }
+
+        .accountingChartWrap {
+            height: 220px;
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            padding: 10px;
+            background: #fff;
+        }
+
+        .accountingSectionTitle {
+            margin: 0;
+            font-size: 1rem;
+            color: #0f172a;
+        }
+
+        .accountingBreakdown {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .accountingBreakdownRow {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 10px;
+            border: 1px solid #e5e7eb;
+            border-radius: 10px;
+            background: #fff;
+            font-size: 0.85rem;
+        }
+
+        .accountingEmpty {
+            border: 1px dashed #cbd5e1;
+            border-radius: 10px;
+            padding: 12px;
+            color: #64748b;
+            font-size: 0.82rem;
+            text-align: center;
+        }
+
         @media (min-width: 640px) {
             .scanToolbar {
                 grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+
+            .scanFilters {
+                grid-template-columns: minmax(0, 260px);
             }
 
             .scanRow {
@@ -2129,6 +2265,14 @@
             }
 
             .scanReviewModal__footer {
+                grid-template-columns: repeat(5, minmax(0, 1fr));
+            }
+
+            .accountingControls {
+                grid-template-columns: repeat(4, minmax(0, 1fr));
+            }
+
+            .accountingSummaryGrid {
                 grid-template-columns: repeat(5, minmax(0, 1fr));
             }
         }
@@ -2172,6 +2316,9 @@
             </button>
             <button class="tab-btn" data-tab="scannedInvoices" onclick="switchTab('scannedInvoices')">
                 <i class="fas fa-camera"></i> <span>Scanned Invoices</span>
+            </button>
+            <button class="tab-btn" data-tab="accounting" onclick="switchTab('accounting')">
+                <i class="fas fa-chart-column"></i> <span>Accounting</span>
             </button>
         </nav>
 
@@ -2631,8 +2778,91 @@
                         </div>
                     </div>
 
+                    <div class="scanFilters">
+                        <select id="scanCategoryFilter">
+                            <option value="all">All Categories</option>
+                        </select>
+                    </div>
+
                     <div id="scannedInvoicesList" class="scanList"></div>
                     <div id="scannedInvoicesEmpty" class="scanEmpty">No scanned invoices uploaded yet.</div>
+                </section>
+            </div>
+
+            <div id="accountingTab" class="tab-content" style="display: none;">
+                <section class="accountingCard">
+                    <div class="tvCardHeader" style="margin-bottom: 8px;">
+                        <div style="flex:1;">
+                            <h2><i class="fas fa-chart-line"></i> Accounting</h2>
+                            <p style="font-size: 0.9rem; color: #64748b; margin-top: 4px;">Weekly and monthly accounting overview from scanned invoices.</p>
+                        </div>
+                    </div>
+
+                    <h3 class="accountingSectionTitle">Weekly Overview</h3>
+                    <div class="accountingControls">
+                        <select id="accountingWeekSelect"></select>
+                        <select id="accountingCategoryFilter">
+                            <option value="all">All Categories</option>
+                        </select>
+                        <button type="button" id="exportWeekCsvBtn">Export CSV (Selected Week)</button>
+                    </div>
+
+                    <div class="accountingSummaryGrid">
+                        <div class="accountingMetric">
+                            <div class="accountingMetric__label">Total Income</div>
+                            <div id="accWeekIncome" class="accountingMetric__value">£0.00</div>
+                        </div>
+                        <div class="accountingMetric">
+                            <div class="accountingMetric__label">Total Expenses</div>
+                            <div id="accWeekExpenses" class="accountingMetric__value">£0.00</div>
+                        </div>
+                        <div class="accountingMetric">
+                            <div class="accountingMetric__label">Net Profit</div>
+                            <div id="accWeekNet" class="accountingMetric__value">£0.00</div>
+                        </div>
+                        <div class="accountingMetric">
+                            <div class="accountingMetric__label">VAT Total</div>
+                            <div id="accWeekVat" class="accountingMetric__value">£0.00</div>
+                        </div>
+                        <div class="accountingMetric">
+                            <div class="accountingMetric__label">Invoice Count</div>
+                            <div id="accWeekCount" class="accountingMetric__value">0</div>
+                        </div>
+                    </div>
+
+                    <div class="accountingChartWrap">
+                        <canvas id="accountingWeeklyChart"></canvas>
+                    </div>
+
+                    <h3 class="accountingSectionTitle">Monthly Summary</h3>
+                    <div class="accountingControls">
+                        <select id="accountingMonthSelect"></select>
+                        <button type="button" id="exportMonthCsvBtn">Export CSV (Selected Month)</button>
+                    </div>
+
+                    <div class="accountingSummaryGrid" style="grid-template-columns: repeat(4, minmax(0, 1fr));">
+                        <div class="accountingMetric">
+                            <div class="accountingMetric__label">Total Income</div>
+                            <div id="accMonthIncome" class="accountingMetric__value">£0.00</div>
+                        </div>
+                        <div class="accountingMetric">
+                            <div class="accountingMetric__label">Total Expenses</div>
+                            <div id="accMonthExpenses" class="accountingMetric__value">£0.00</div>
+                        </div>
+                        <div class="accountingMetric">
+                            <div class="accountingMetric__label">Net Profit</div>
+                            <div id="accMonthNet" class="accountingMetric__value">£0.00</div>
+                        </div>
+                        <div class="accountingMetric">
+                            <div class="accountingMetric__label">VAT Paid</div>
+                            <div id="accMonthVat" class="accountingMetric__value">£0.00</div>
+                        </div>
+                    </div>
+
+                    <div class="accountingBreakdown" id="accountingCategoryBreakdown"></div>
+                    <div class="accountingChartWrap">
+                        <canvas id="accountingCategoryChart"></canvas>
+                    </div>
                 </section>
             </div>
 
@@ -2769,6 +2999,7 @@
     </div>
 
     <!-- New modular architecture -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <script type="module" src="./src/app.js"></script>
     
