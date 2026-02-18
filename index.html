@@ -75,49 +75,69 @@
             cursor: not-allowed;
         }
 
-        /* Admin Header Video Badge */
         .auth-left {
             display: flex;
             align-items: center;
             gap: 0.75rem;
-            position: relative;
-            z-index: 10;
+            min-width: 0;
+            overflow: visible;
         }
 
-        #adminHeaderVideo {
-            height: 34px;
-            width: auto;
-            max-width: 170px;
-            object-fit: contain;
-            display: block !important;
-            border-radius: 8px;
+        .tv-header-slot {
+            width: 56px;
+            height: 56px;
+            border-radius: 10px;
+            overflow: visible;
             background: transparent;
+            border: 1px solid rgba(255,255,255,0.35);
+            display: flex;
+            align-items: center;
+            justify-content: center;
             flex-shrink: 0;
-            position: relative;
-            z-index: 11;
-            visibility: visible !important;
-            opacity: 1 !important;
+            will-change: transform, opacity;
         }
 
-        #adminHeaderVideo.admin-header-video-hidden {
-            display: none !important;
-            visibility: hidden !important;
+        #tvHeaderBrandSlot {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 56px;
+            overflow: visible;
         }
 
-        /* Responsive admin header video */
+        #tvHeaderGif,
+        .tv-header-fallback {
+            width: auto;
+            height: 56px;
+            max-width: 100%;
+            object-fit: contain;
+            display: block;
+        }
+
+        #tvHeaderGif {
+            opacity: 0;
+            animation: tvHeaderFadeIn 0.5s ease forwards;
+        }
+
+        @keyframes tvHeaderFadeIn {
+            to { opacity: 1; }
+        }
+
         @media (max-width: 768px) {
-            #adminHeaderVideo {
-                height: 30px;
-                max-width: 140px;
-                display: block !important;
+            .tv-header-slot {
+                width: 48px;
+                height: 48px;
             }
-        }
 
-        @media (max-width: 480px) {
-            #adminHeaderVideo {
-                height: 28px;
-                max-width: 120px;
-                display: block !important;
+            #tvHeaderBrandSlot {
+                min-height: 48px;
+            }
+
+            #tvHeaderGif,
+            .tv-header-fallback {
+                height: 48px;
+                width: auto;
+                object-fit: contain;
             }
         }
 
@@ -3085,62 +3105,30 @@
     </style>
 </head>
 <body>
-    <!-- ADMIN Intro Overlay Animation (shown only for admins on first visit) -->
-    <div id="adminIntroOverlay" class="admin-intro-overlay admin-intro-hidden">
-        <video 
-            id="adminIntroVideo"
-            class="admin-intro-video"
-            muted
-            playsinline
-            autoplay
-            loop
-            preload="auto"
-            src=""
-            data-fallback="./Logo/bar.png">
-        </video>
+    <div id="tvSplash" class="tv-splash hidden" aria-hidden="true">
+        <img
+            id="tvSplashGif"
+            class="tv-splash-gif"
+            src="/Logo/gif.gif"
+            alt="Loading">
+        <div class="tv-splash-vignette"></div>
     </div>
 
     <!-- Firebase Authentication Bar -->
 <div class="firebase-auth-bar" id="authBar">
-  <div class="auth-left">
-    <!-- Admin Header Video Badge (admin only) -->
-    <video 
-      id="adminHeaderVideo"
-      class="admin-header-video admin-header-video-hidden"
-      autoplay
-      muted
-      loop
-      playsinline
-      preload="auto"
-      poster="./Logo/icon-192.png"
-      src="./Logo/dance.gif">
-    </video>
-    
-    <!-- Standard Auth Status (non-admin or fallback) -->
-    <span id="authStatus" class="auth-status">🔒 Checking…</span>
-    <span class="badge" id="adminBadge" style="display:none;">👑 ADMIN</span>
-  </div>
+    <div class="auth-left">
+        <div id="tvHeaderBrandSlot" class="tv-header-slot" aria-label="Transvortex brand slot"></div>
+        <div class="tv-brand-meta">
+            <span class="tv-brand-name">Transvortex</span>
+            <span class="tv-admin-pill">ADMIN</span>
+        </div>
+    </div>
 
   <div class="auth-right">
-    <!-- Hamburger -->
-    <button id="menuBtn" class="icon-btn" aria-label="Open menu" aria-expanded="false">
-      ☰
-    </button>
-
     <!-- Small Connect Button -->
     <button id="authButton" class="btn-auth-small" onclick="handleAuthToggle()">
       Connect
     </button>
-
-    <!-- Dropdown -->
-    <div id="menuDropdown" class="menu-dropdown" hidden>
-      <button class="menu-item" id="langEN" aria-label="English">
-        🇬🇧
-      </button>
-      <button class="menu-item" id="langRO" aria-label="Romanian">
-        🇷🇴
-      </button>
-    </div>
   </div>
 </div>
 
@@ -3917,7 +3905,6 @@
     <script type="module" src="./src/app.js"></script>
     
     <!-- Legacy code (appointments + other features) -->
-    <script type="module" src="./init-language.js"></script>
     <script type="module" src="./script.js?v=2026-02-13-04"></script>
     
     <!-- PWA - Simple Service Worker Registration -->

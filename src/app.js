@@ -13,10 +13,6 @@ import { initInvoicesStorage } from './storage/storage.page.js';
 import { initAllChipsModes } from './core/chips-mode.js';
 import { initializeVehicleFormatting } from './utils/input-formatters.js';
 
-// Language/translations (existing modules)
-import { t, getLanguage, setLanguage } from '../language.js';
-import { applyTranslations } from '../init-language.js';
-
 const logger = createLogger('App');
 
 /**
@@ -33,30 +29,26 @@ async function initApp() {
     // 2. Setup auth state listener
     logger.info('Step 2: Setup auth listener');
     setupAuthListener(onAuthStateChanged);
-    
-    // 3. Initialize language support
-    logger.info('Step 3: Initialize language support');
-    await initLanguageSupport();
-    
-    // 4. Setup tab navigation
-    logger.info('Step 4: Setup tab navigation');
+
+    // 3. Setup tab navigation
+    logger.info('Step 3: Setup tab navigation');
     setupTabNavigation();
-    
-    // 5. Initialize Chips Mode for Jobs & Parts
-    logger.info('Step 5: Initialize Chips Mode');
+
+    // 4. Initialize Chips Mode for Jobs & Parts
+    logger.info('Step 4: Initialize Chips Mode');
     initAllChipsModes();
-    
-    // 6. Initialize Vehicle Section Formatting
-    logger.info('Step 6: Initialize Vehicle Section formatting');
+
+    // 5. Initialize Vehicle Section Formatting
+    logger.info('Step 5: Initialize Vehicle Section formatting');
     initializeVehicleFormatting();
-    
-    // 7. Initialize feature modules
-    logger.info('Step 7: Initialize feature modules');
+
+    // 6. Initialize feature modules
+    logger.info('Step 6: Initialize feature modules');
     initInvoicesStorage();
     // Note: Invoice creation from appointments is handled via appointment detail actions
-    
-    // 8. Restore last active tab
-    logger.info('Step 8: Restore active tab');
+
+    // 7. Restore last active tab
+    logger.info('Step 7: Restore active tab');
     restoreActiveTab();
     
     logger.info('✅ Application initialized successfully');
@@ -144,15 +136,6 @@ async function handleSignOut() {
     logger.error('Sign out error:', error);
     alert('Sign out failed: ' + error.message);
   }
-}
-
-/**
- * Initialize language support
- */
-async function initLanguageSupport() {
-  const lang = getLanguage();
-  await applyTranslations(lang);
-  logger.info('Language initialized:', lang);
 }
 
 /**
