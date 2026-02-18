@@ -4,7 +4,7 @@
  * No infinite reload loops, no complex update logic
  */
 
-const CACHE_NAME = 'transvortex-v6'; // Fixed KPI counters - now updates from allInvoices
+const CACHE_NAME = 'transvortex-v15'; // Split logo assets: bar.png for icons, text.png for header display
 const CRITICAL_ASSETS = [
   './index.html',
   './invoice.html',
@@ -29,6 +29,7 @@ self.addEventListener('install', event => {
       .then(() => {
         // Try to cache icons (non-critical)
         return caches.open(CACHE_NAME).then(cache => {
+          // PWA icons
           cache.add('./icons/icon-192x192.png').catch(() => {
             console.log('[Service Worker] Icon 192 not cached (OK)');
           });
@@ -40,6 +41,23 @@ self.addEventListener('install', event => {
           });
           cache.add('./icons/icon-maskable-512x512.png').catch(() => {
             console.log('[Service Worker] Maskable icon 512 not cached (OK)');
+          });
+          // Favicon files
+          cache.add('./icons/favicon.ico').catch(() => {
+            console.log('[Service Worker] Favicon ICO not cached (OK)');
+          });
+          cache.add('./icons/favicon-32x32.png').catch(() => {
+            console.log('[Service Worker] Favicon 32 not cached (OK)');
+          });
+          cache.add('./icons/favicon-16x16.png').catch(() => {
+            console.log('[Service Worker] Favicon 16 not cached (OK)');
+          });
+          cache.add('./icons/apple-touch-icon.png').catch(() => {
+            console.log('[Service Worker] Apple touch icon not cached (OK)');
+          });
+          // Shortcut icon
+          cache.add('./icons/icon-96x96.png').catch(() => {
+            console.log('[Service Worker] Icon 96 not cached (OK)');
           });
         });
       })

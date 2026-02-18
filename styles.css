@@ -125,6 +125,14 @@ html, body {
     overflow-x: hidden;
 }
 
+/* Body scroll lock for modals */
+body.modal-open {
+  position: fixed;
+  width: 100%;
+  overflow: hidden;
+  overscroll-behavior: contain;
+}
+
 body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
     font-size: clamp(0.92rem, 1.15vw, 1rem);
@@ -135,6 +143,21 @@ body {
     padding: var(--space-xl);
     margin: 0;
     letter-spacing: -0.01em;
+}
+
+/* Ensure logos and images render with correct colors (no tint) */
+img[alt*="Logo"],
+img[alt*="logo"],
+img[alt*="Transvortex"],
+.logo-large,
+.floating-logo img,
+.company-logo,
+.inv-logo {
+    mix-blend-mode: normal !important;
+    opacity: 1 !important;
+    -webkit-filter: none !important;
+    image-rendering: crisp-edges;
+    image-rendering: -webkit-optimize-contrast;
 }
 
 
@@ -194,14 +217,16 @@ header {
     object-fit: contain;
     filter: drop-shadow(0 0 0.75rem rgba(255, 122, 24, 0.28))
             drop-shadow(0 0 1.125rem rgba(34, 211, 238, 0.18));
-}\n\n@media (max-width: 768px) {
-    .floating-logo {
-        top: 0.75rem;
-        right: 0.75rem;
-        padding: 0.5rem;
-    }\n\n    .floating-logo img {
+}
+
+/* Mobile: Remove yellow tint by eliminating orange drop-shadow on logo */
+@media (max-width: 768px) {
+    .floating-logo img {
         width: clamp(4.5rem, 9vw, 4.75rem);
         height: auto;
+        filter: drop-shadow(0 0 0.75rem rgba(34, 211, 238, 0.18)) !important;
+        mix-blend-mode: normal !important;
+        opacity: 1 !important;
     }
 }
 
@@ -286,6 +311,16 @@ header {
     transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
     animation: logoFloat 6s cubic-bezier(0.4, 0, 0.6, 1) infinite;
     z-index: 1;
+}
+
+/* Mobile: Remove orange tint from logo (yellow halo issue) */
+@media (max-width: 768px) {
+    .logo-large {
+        filter: drop-shadow(0 0 10px rgba(34, 211, 238, 0.15))
+                drop-shadow(0 1px 4px rgba(0, 0, 0, 0.05)) !important;
+        mix-blend-mode: normal !important;
+        opacity: 1 !important;
+    }
 }
 
 @keyframes logoFloat {
@@ -859,7 +894,7 @@ footer p {
   background: white;
 }
 
-/* Time picker overlay */
+/* Time picker overlay - Base state (hidden) */
 .time-picker-overlay {
   position: fixed;
   inset: 0;
@@ -867,12 +902,17 @@ footer p {
   display: flex;
   align-items: center;
   justify-content: center;
-  animation: fadeIn 0.2s ease-out;
+  overflow: hidden;
+  -webkit-touch-callout: none;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease-out;
 }
 
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+/* Open state - Show overlay and allow interaction */
+.time-picker-overlay.is-open {
+  opacity: 1;
+  pointer-events: auto;
 }
 
 .time-picker-backdrop {
@@ -883,34 +923,57 @@ footer p {
   -webkit-backdrop-filter: blur(4px);
 }
 
-/* Time picker panel */
+/* Time picker panel - Different behavior for mobile vs desktop */
 .time-picker-panel {
-  position: relative;
+  position: fixed;
   width: 90%;
   max-width: 420px;
   background: white;
   border-radius: 16px;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-  animation: slideUp 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  max-height: 85vh;
+  /* Desktop: centered with fade + scale */
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%) scale(0.98);
+  opacity: 0;
+  transition: transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.25s ease-out;
+  will-change: transform, opacity;
 }
 
-@keyframes slideUp {
-  from { 
-    opacity: 0;
-    transform: translateY(30px) scale(0.95);
-  }
-  to { 
+/* Desktop: show with scale animation */
+@media (min-width: 769px) {
+  .time-picker-overlay.is-open .time-picker-panel {
+    transform: translate(-50%, -50%) scale(1);
     opacity: 1;
-    transform: translateY(0) scale(1);
   }
 }
 
-@media (max-width: 480px) {
+/* Mobile: bottom sheet behavior */
+@media (max-width: 768px) {
   .time-picker-panel {
     width: 95%;
-    max-width: none;
-    margin: 0 12px;
+    max-width: calc(100vw - 24px);
+    left: 50%;
+    right: auto;
+    top: auto;
+    bottom: 0;
+    border-radius: 20px 20px 0 0;
+    max-height: 80vh;
+    padding-bottom: env(safe-area-inset-bottom);
+    /* Initial state: off-screen bottom */
+    transform: translate(-50%, 0) translate3d(0, 110%, 0);
+    opacity: 1;
+    transition: transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
+    will-change: transform;
+  }
+  
+  /* Mobile: slide up animation */
+  .time-picker-overlay.is-open .time-picker-panel {
+    transform: translate(-50%, 0) translate3d(0, 0, 0);
   }
 }
 
@@ -922,12 +985,53 @@ footer p {
   padding: 20px 24px;
   background: linear-gradient(135deg, var(--accent-orange) 0%, #FF9A3D 100%);
   color: white;
+  flex-shrink: 0;
+  gap: 12px;
 }
 
 .time-picker-header h3 {
   margin: 0;
   font-size: 18px;
   font-weight: 700;
+  flex: 1;
+}
+
+/* Mode toggle buttons */
+.time-picker-mode-toggle {
+  display: flex;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.2);
+  padding: 4px;
+  border-radius: 8px;
+}
+
+.time-mode-btn {
+  padding: 6px 14px;
+  border: none;
+  background: transparent;
+  color: white;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.time-mode-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.time-mode-btn.active {
+  background: rgba(255, 255, 255, 0.3);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+@media (max-width: 480px) {
+  .time-mode-btn {
+    padding: 4px 10px;
+    font-size: 11px;
+  }
 }
 
 .time-picker-close {
@@ -951,28 +1055,105 @@ footer p {
   transform: rotate(90deg);
 }
 
-/* Quick input */
-.time-picker-quick-input {
-  padding: 16px 24px;
-  background: #f8f9fa;
-  border-bottom: 1px solid #e9ecef;
+/* Content wrapper for type/picker modes */
+.time-picker-content {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  min-height: 0;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
 }
 
-.time-picker-quick-input input {
+/* Type Mode - Direct Input */
+.time-mode-content--type {
+  display: none;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 24px;
+  gap: 12px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.time-mode-content--type.active {
+  display: flex;
+}
+
+.time-type-input-wrapper {
   width: 100%;
-  padding: 12px 16px;
-  border: 2px solid #dee2e6;
-  border-radius: 8px;
-  font-size: 16px;
-  text-align: center;
-  font-weight: 600;
-  transition: all 0.2s;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
-.time-picker-quick-input input:focus {
+.time-type-input {
+  width: 100%;
+  padding: 14px 16px;
+  border: 2px solid var(--accent-orange);
+  border-radius: 8px;
+  font-size: 18px;
+  font-family: 'Courier New', monospace;
+  font-weight: 600;
+  text-align: center;
+  transition: all 0.2s;
+  background: white;
+}
+
+.time-type-input::placeholder {
+  color: #adb5bd;
+}
+
+.time-type-input:focus {
   outline: none;
   border-color: var(--accent-orange);
-  box-shadow: 0 0 0 3px rgba(255, 122, 24, 0.1);
+  box-shadow: 0 0 0 3px rgba(255, 135, 0, 0.1);
+}
+
+.time-type-input.error {
+  border-color: #dc3545;
+  animation: shake 0.3s ease-in-out;
+}
+
+.time-type-error {
+  min-height: 16px;
+  color: #dc3545;
+  font-size: 13px;
+  font-weight: 500;
+  text-align: center;
+}
+
+.time-type-hint {
+  font-size: 12px;
+  color: #6c757d;
+  text-align: center;
+  font-style: italic;
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-4px); }
+  75% { transform: translateX(4px); }
+}
+
+/* Picker Mode - Wheel Scrollers */
+.time-mode-content--picker {
+  display: flex;
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+}
+
+.time-mode-content--picker.hidden {
+  display: none;
 }
 
 /* Time picker body */
@@ -1003,11 +1184,15 @@ footer p {
 .time-picker-scroll {
   flex: 1;
   overflow-y: auto;
+  overflow-x: hidden;
   background: #f8f9fa;
   border: 2px solid #e9ecef;
   border-radius: 12px;
   padding: 8px;
   scroll-behavior: smooth;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
 }
 
 /* Custom scrollbar */
@@ -1081,8 +1266,11 @@ footer p {
   justify-content: space-between;
   gap: 12px;
   padding: 16px 24px;
+  padding-bottom: calc(16px + env(safe-area-inset-bottom));
   background: #f8f9fa;
   border-top: 1px solid #e9ecef;
+  flex-shrink: 0;
+  flex-wrap: wrap;
 }
 
 .btn-time-now {
@@ -1151,10 +1339,18 @@ footer p {
 
 /* Mobile optimizations */
 @media (max-width: 480px) {
+  .time-picker-content {
+    max-height: calc(80vh - 120px);
+  }
+
   .time-picker-body {
     padding: 16px;
     min-height: 240px;
     max-height: 280px;
+  }
+
+  .time-mode-content--type {
+    padding: 16px;
   }
   
   .time-item {
@@ -1165,12 +1361,22 @@ footer p {
   .time-picker-separator {
     font-size: 28px;
   }
+
+  .time-picker-footer {
+    padding: 12px 16px;
+    padding-bottom: calc(12px + env(safe-area-inset-bottom));
+  }
   
   .btn-time-now,
   .btn-time-cancel,
   .btn-time-ok {
-    padding: 12px 16px;
+    flex: 1;
+    padding: 10px 12px;
     font-size: 13px;
+  }
+
+  .time-picker-actions {
+    gap: 8px;
   }
 }
 

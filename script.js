@@ -4095,11 +4095,15 @@ const TimePicker = {
     hiddenInput: null,
     selectedHour: null,
     selectedMinute: null,
+    currentMode: null,  // 'type' or 'picker'
+    typeInput: null,
+    scrollLockY: 0,  // Store scroll position for restoration
     
     init() {
         this.overlay = document.getElementById('timePicker');
         this.input = document.getElementById('appointmentTime');
         this.hiddenInput = document.getElementById('appointmentTimeValue');
+        this.typeInput = document.getElementById('timeTypeInput');
         
         if (!this.overlay || !this.input) return;
         
@@ -4107,8 +4111,212 @@ const TimePicker = {
         this.generateHours();
         this.generateMinutes();
         
+        // Determine initial mode (mobile: type, desktop: picker)
+        const defaultMode = this.detectDeviceType();
+        const savedMode = localStorage.getItem('timePickerMode');
+        this.currentMode = savedMode || defaultMode;
+        
         // Event listeners
         this.bindEvents();
+    },
+    
+    detectDeviceType() {
+        const isMobile = window.matchMedia('(max-width: 768px)').matches;
+        return isMobile ? 'type' : 'picker';
+    },
+    
+    setMode(mode) {
+        const isChanging = (mode !== this.currentMode);
+        
+        this.currentMode = mode;
+        if (isChanging) {
+            localStorage.setItem('timePickerMode', mode);
+        }
+        
+        // Update mode buttons
+        const typeBtn = this.overlay?.querySelector('[data-mode="type"]');
+        const pickerBtn = this.overlay?.querySelector('[data-mode="picker"]');
+        
+        if (typeBtn) {
+            typeBtn.classList.remove('active');
+            if (mode === 'type') typeBtn.classList.add('active');
+        }
+        if (pickerBtn) {
+            pickerBtn.classList.remove('active');
+            if (mode === 'picker') pickerBtn.classList.add('active');
+        }
+        
+        // Show/hide content
+        const typeContent = document.getElementById('typeMode');
+        const pickerContent = document.getElementById('pickerMode');
+        
+        if (typeContent) {
+            typeContent.classList.remove('active', 'hidden');
+            if (mode === 'type') typeContent.classList.add('active');
+        }
+        if (pickerContent) {
+            pickerContent.classList.remove('active', 'hidden');
+            if (mode === 'picker') pickerContent.classList.remove('hidden');
+        }
+        
+        // Clear previous error
+        this.clearError();
+        
+        // Focus appropriate input
+        if (mode === 'type' && this.typeInput) {
+            setTimeout(() => this.typeInput.focus(), 100);
+        }
+    },
+    
+    parseTimeInput(input) {
+        // Accept formats: "1430", "14:30", "14.30"
+        const normalized = input.trim().replace(/\./g, ':');
+        
+        // Remove leading/trailing separators
+        const cleaned = normalized.replace(/^[:]+|[:]+$/g, '');
+        
+        // Check if it's HH:MM format
+        if (cleaned.includes(':')) {
+            const parts = cleaned.split(':');
+            if (parts.length === 2) {
+                const hours = parseInt(parts[0], 10);
+                const minutes = parseInt(parts[1], 10);
+                
+                if (!isNaN(hours) && !isNaN(minutes)) {
+                    return { 
+                        hours: hours, 
+                        minutes: minutes,
+                        isValid: hours >= 0 && hours <= 23 && minutes >= 0 && minutes <= 59,
+                        formatted: `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`
+                    };
+                }
+            }
+        } else {
+            // Check if it's HHMM format (4 or 3 digits)
+            const digits = cleaned.replace(/\D/g, '');
+            if (digits.length === 4) {
+                const hours = parseInt(digits.substring(0, 2), 10);
+                const minutes = parseInt(digits.substring(2, 4), 10);
+                
+                if (!isNaN(hours) && !isNaN(minutes)) {
+                    return {
+                        hours: hours,
+                        minutes: minutes,
+                        isValid: hours >= 0 && hours <= 23 && minutes >= 0 && minutes <= 59,
+                        formatted: `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`
+                    };
+                }
+            } else if (digits.length === 3) {
+                // e.g., "930" -> 09:30
+                const hours = parseInt(digits.substring(0, 1), 10);
+                const minutes = parseInt(digits.substring(1, 3), 10);
+                
+                if (!isNaN(hours) && !isNaN(minutes)) {
+                    return {
+                        hours: hours,
+                        minutes: minutes,
+                        isValid: hours >= 0 && hours <= 9 && minutes >= 0 && minutes <= 59,
+                        formatted: `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`
+                    };
+                }
+            }
+        }
+        
+        return null;
+    },
+    
+    validateAndApply(input) {
+        const errorEl = document.getElementById('timeTypeError');
+        
+        if (!input || input.trim() === '') {
+            this.clearError();
+            return false;
+        }
+        
+        const parsed = this.parseTimeInput(input);
+        
+        if (!parsed) {
+            this.showError(errorEl, 'Format invalid');
+            return false;
+        }
+        
+        if (!parsed.isValid) {
+            let errorMsg = 'Invalid time';
+            if (parsed.hours > 23) {
+                errorMsg = 'Ore: 0-23';
+            } else if (parsed.minutes > 59) {
+                errorMsg = 'Minute: 0-59';
+            }
+            this.showError(errorEl, errorMsg);
+            return false;
+        }
+        
+        // Valid time - clear error and update pickers
+        this.clearError();
+        this.selectHour(parsed.hours);
+        this.selectMinute(parsed.minutes);
+        
+        // Update input to show formatted time
+        if (this.typeInput) {
+            this.typeInput.value = parsed.formatted;
+        }
+        
+        return true;
+    },
+    
+    showError(errorEl, message) {
+        if (errorEl) {
+            errorEl.textContent = message;
+            if (this.typeInput) {
+                this.typeInput.classList.add('error');
+                // Trigger shake animation by removing and re-adding class
+                this.typeInput.offsetHeight; // Force reflow
+            }
+        }
+    },
+    
+    clearError() {
+        const errorEl = document.getElementById('timeTypeError');
+        if (errorEl) {
+            errorEl.textContent = '';
+        }
+        if (this.typeInput) {
+            this.typeInput.classList.remove('error');
+        }
+    },
+    
+    lockScroll() {
+        // Store current scroll position
+        this.scrollLockY = window.scrollY || document.documentElement.scrollTop;
+        
+        // Add modal-open class to body
+        document.body.classList.add('modal-open');
+        
+        // Set top style to lock scroll position
+        document.body.style.top = `-${this.scrollLockY}px`;
+    },
+    
+    unlockScroll() {
+        // Remove modal-open class
+        document.body.classList.remove('modal-open');
+        
+        // Clear inline styles
+        document.body.style.top = '';
+        
+        // Restore scroll position
+        if (this.scrollLockY) {
+            window.scrollTo(0, this.scrollLockY);
+        }
+    },
+    
+    preventBackdropScroll(e) {
+        // Allow scrolling inside modal content, prevent on backdrop
+        const backdrop = this.overlay?.querySelector('.time-picker-backdrop');
+        if (e.target === backdrop || backdrop?.contains(e.target)) {
+            if (e.touches && e.touches.length > 0) {
+                e.preventDefault();
+            }
+        }
     },
     
     generateHours() {
@@ -4182,22 +4390,76 @@ const TimePicker = {
             this.selectMinute(this.roundToNearest5(now.getMinutes()));
         }
         
-        this.overlay.style.display = 'flex';
+        // Lock background scroll
+        this.lockScroll();
         
-        // Focus quick input
-        const quickInput = document.getElementById('timeQuickInput');
-        if (quickInput) {
-            quickInput.value = '';
-            setTimeout(() => quickInput.focus(), 100);
+        // Ensure overlay is in DOM and ready for animation
+        if (this.overlay.style.display === 'none') {
+            this.overlay.style.display = 'flex';
+        }
+        
+        // Trigger animation on next frame to ensure CSS is computed
+        requestAnimationFrame(() => {
+            this.overlay.classList.add('is-open');
+        });
+        
+        // Set initial mode and display
+        this.setMode(this.currentMode);
+        
+        // Initialize type input with current time
+        if (this.typeInput && this.selectedHour !== null && this.selectedMinute !== null) {
+            const timeStr = `${this.selectedHour.toString().padStart(2, '0')}:${this.selectedMinute.toString().padStart(2, '0')}`;
+            this.typeInput.value = timeStr;
         }
     },
     
     close() {
-        this.overlay.style.display = 'none';
+        // Remove animation class to trigger close animation
+        this.overlay.classList.remove('is-open');
+        
+        // Wait for animation to complete before hiding
+        const panel = this.overlay.querySelector('.time-picker-panel');
+        const onAnimationEnd = () => {
+            this.overlay.style.display = 'none';
+            if (panel) {
+                panel.removeEventListener('transitionend', onAnimationEnd);
+            }
+        };
+        
+        // Set a timeout as fallback in case transitionend doesn't fire (400ms covers both animations)
+        const timeout = setTimeout(() => {
+            if (this.overlay.style.display !== 'none') {
+                onAnimationEnd();
+            }
+        }, 400);
+        
+        // Listen for transitionend on panel (has longer animation)
+        if (panel) {
+            panel.addEventListener('transitionend', () => {
+                clearTimeout(timeout);
+                onAnimationEnd();
+            }, { once: true });
+        }
+        
+        // Unlock background scroll
+        this.unlockScroll();
     },
     
     confirm() {
-        if (this.selectedHour !== null && this.selectedMinute !== null) {
+        // Use Type mode value if active
+        if (this.currentMode === 'type' && this.typeInput) {
+            const input = this.typeInput.value;
+            if (input && this.validateAndApply(input)) {
+                // Time was validated and pickers were updated
+                if (this.selectedHour !== null && this.selectedMinute !== null) {
+                    const timeStr = `${this.selectedHour.toString().padStart(2, '0')}:${this.selectedMinute.toString().padStart(2, '0')}`;
+                    this.input.value = timeStr;
+                    this.hiddenInput.value = timeStr;
+                    this.close();
+                }
+            }
+        } else if (this.selectedHour !== null && this.selectedMinute !== null) {
+            // Use Picker mode values
             const timeStr = `${this.selectedHour.toString().padStart(2, '0')}:${this.selectedMinute.toString().padStart(2, '0')}`;
             this.input.value = timeStr;
             this.hiddenInput.value = timeStr;
@@ -4209,6 +4471,13 @@ const TimePicker = {
         const now = new Date();
         this.selectHour(now.getHours());
         this.selectMinute(this.roundToNearest5(now.getMinutes()));
+        
+        // Update Type mode input
+        if (this.typeInput) {
+            const timeStr = `${now.getHours().toString().padStart(2, '0')}:${this.roundToNearest5(now.getMinutes()).toString().padStart(2, '0')}`;
+            this.typeInput.value = timeStr;
+            this.clearError();
+        }
     },
     
     roundToNearest5(minutes) {
@@ -4256,6 +4525,14 @@ const TimePicker = {
         const backdrop = this.overlay.querySelector('.time-picker-backdrop');
         if (backdrop) {
             backdrop.addEventListener('click', () => this.close());
+            
+            // Prevent scroll/touch on backdrop (non-passive to allow preventDefault)
+            backdrop.addEventListener('touchmove', (e) => {
+                // Allow default scrolling on modal content, prevent on pure backdrop
+                if (!e.target.closest('.time-picker-panel')) {
+                    e.preventDefault();
+                }
+            }, { passive: false });
         }
         
         // Cancel button
@@ -4276,7 +4553,34 @@ const TimePicker = {
             nowBtn.addEventListener('click', () => this.setNow());
         }
         
-        // Quick input
+        // Mode toggle buttons
+        const modeButtons = this.overlay.querySelectorAll('.time-mode-btn');
+        modeButtons.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const mode = e.target.dataset.mode;
+                if (mode) {
+                    this.setMode(mode);
+                }
+            });
+        });
+        
+        // Type Mode input events
+        if (this.typeInput) {
+            this.typeInput.addEventListener('input', (e) => {
+                if (e.target.value) {
+                    this.validateAndApply(e.target.value);
+                }
+            });
+            
+            this.typeInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    this.confirm();
+                }
+            });
+        }
+        
+        // Quick input (deprecated but kept for compatibility)
         const quickInput = document.getElementById('timeQuickInput');
         if (quickInput) {
             quickInput.addEventListener('input', (e) => {
@@ -5310,6 +5614,67 @@ function normalizeAppointment(apt) {
     };
 }
 
+// ============================================================
+// WORKFLOW MODE HELPERS
+// ============================================================
+
+function isTodayAppointmentPaid(apt) {
+    const paymentStatus = (apt.paymentStatus || '').toLowerCase();
+    if (paymentStatus === 'paid') return true;
+    
+    const total = toNumber(apt.total || 0);
+    const amountPaid = toNumber(apt.amountPaid || apt.paidAmount || 0);
+    const balanceDue = Math.max(0, total - amountPaid);
+    
+    return total > 0 && amountPaid > 0 && balanceDue <= 0;
+}
+
+// Helper: Check if appointment is today
+function isTodayAppointment(apt) {
+    const aptDate = getScheduledDate(apt);
+    const today = new Date();
+    return aptDate && isSameDay(aptDate, today);
+}
+
+// Helper: Check if appointment is in the past (before today)
+function isPastAppointment(apt) {
+    const aptDate = getScheduledDate(apt);
+    if (!aptDate) return false;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const aptAtMidnight = new Date(aptDate);
+    aptAtMidnight.setHours(0, 0, 0, 0);
+    return aptAtMidnight < today;
+}
+
+// Helper: Get month key for grouping (YYYY-MM)
+function monthKey(date) {
+    if (!date) return '';
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    return `${year}-${month}`;
+}
+
+// Helper: Format month key to display (e.g. "February 2026")
+function formatMonthYear(monthStr) {
+    if (!monthStr) return '';
+    const [year, month] = monthStr.split('-');
+    const monthObj = new Date(year, parseInt(month, 10) - 1, 1);
+    return monthObj.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+}
+
+function formatDateShort(date) {
+    const day = date.getDate();
+    const month = date.toLocaleDateString('en-US', { month: 'short' }).toUpperCase();
+    return `${day} ${month}`;
+}
+
+function formatTimeShort(date) {
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    return `${hours}:${minutes}`;
+}
+
 // Filter appointments (search only + show only scheduled/upcoming)
 function filterAppointments() {
     const searchTerm = document.getElementById('searchAppointments')?.value.toLowerCase() || '';
@@ -5340,7 +5705,141 @@ function filterAppointments() {
 }
 
 // Render appointments grouped by day
+// Render appointments with premium Active Workflow Mode
+// Today Active (unpaid) → Completed Today (paid, collapsed) → History by month
 function renderAppointments() {
+    renderAppointmentsCallCount++;
+    console.log(`📊 [DIAG] renderAppointments called (${renderAppointmentsCallCount} times), Active Firestore listener: ${!!appointmentsUnsubscribe}`);
+    
+    const container = document.getElementById('appointmentsList');
+    const emptyState = document.getElementById('emptyStateAppointments');
+
+    if (!filteredAppointments || filteredAppointments.length === 0) {
+        container.innerHTML = '';
+        if (emptyState) {
+            emptyState.querySelector('h3').textContent = t('msgNoAppointmentsScheduled');
+            emptyState.style.display = 'block';
+        }
+        return;
+    }
+    
+    if (emptyState) emptyState.style.display = 'none';
+    
+    // Separate appointments into today and historical
+    const todayAll = filteredAppointments.filter(apt => isTodayAppointment(apt));
+    const historical = filteredAppointments.filter(apt => isPastAppointment(apt));
+    
+    // Split today into active vs completed
+    const todayActive = todayAll.filter(apt => !isTodayAppointmentPaid(apt));
+    const todayCompleted = todayAll.filter(apt => isTodayAppointmentPaid(apt));
+    
+    // Sort today appointments by time
+    todayActive.sort((a, b) => {
+        const aDate = getScheduledDate(a) || new Date(a.dateStr || 0);
+        const bDate = getScheduledDate(b) || new Date(b.dateStr || 0);
+        return aDate - bDate;
+    });
+    
+    todayCompleted.sort((a, b) => {
+        const aDate = getScheduledDate(a) || new Date(a.dateStr || 0);
+        const bDate = getScheduledDate(b) || new Date(b.dateStr || 0);
+        return aDate - bDate;
+    });
+    
+    // Group historical by month
+    const historicalByMonth = {};
+    historical.forEach(apt => {
+        const aptDate = getScheduledDate(apt);
+        if (!aptDate) return;
+        const key = monthKey(aptDate);
+        if (!historicalByMonth[key]) {
+            historicalByMonth[key] = [];
+        }
+        historicalByMonth[key].push(apt);
+    });
+    
+    // Sort months in descending order (newest first)
+    const sortedMonths = Object.keys(historicalByMonth).sort().reverse();
+    
+    // Build HTML
+    let html = '';
+    const now = new Date();
+    const todayStr = now.toISOString().split('T')[0];
+    
+    // ===== TODAY ACTIVE SECTION (Always shown) =====
+    html += `<section class="workflow-section workflow-section--today-active">
+        <div class="workflow-header">
+            <h3><i class="fas fa-calendar-day"></i> Today Active (${todayStr})</h3>
+            <span class="workflow-count">${todayActive.length}</span>
+        </div>
+        <div class="appointments-grid">
+            ${todayActive.map(apt => createAppointmentCard(apt, now)).join('')}
+        </div>
+    </section>`;
+    
+    // ===== COMPLETED TODAY SECTION (Collapsed if any items) =====
+    if (todayCompleted.length > 0) {
+        html += `<details class="workflow-section workflow-section--completed-today">
+            <summary class="workflow-header workflow-header--collapsible">
+                <span>
+                    <i class="fas fa-check-circle"></i> Completed Today
+                    <span class="workflow-count">${todayCompleted.length}</span>
+                </span>
+                <i class="fas fa-chevron-down"></i>
+            </summary>
+            <div class="workflow-content">
+                <div class="appointments-grid">
+                    ${todayCompleted.map(apt => createAppointmentCard(apt, now)).join('')}
+                </div>
+            </div>
+        </details>`;
+    }
+    
+    // ===== HISTORY SECTION (Grouped by month, collapsed) =====
+    if (sortedMonths.length > 0) {
+        html += `<section class="workflow-section workflow-section--history">
+            <div class="workflow-header">
+                <h3><i class="fas fa-history"></i> History</h3>
+            </div>`;
+        
+        sortedMonths.forEach(monthStr => {
+            const monthAppts = historicalByMonth[monthStr];
+            const displayMonth = formatMonthYear(monthStr);
+            
+            // Sort appointments within month by date descending (newest first)
+            monthAppts.sort((a, b) => {
+                const aDate = getScheduledDate(a) || new Date(a.dateStr || 0);
+                const bDate = getScheduledDate(b) || new Date(b.dateStr || 0);
+                return bDate - aDate;
+            });
+            
+            html += `<details class="month-accordion" open>
+                <summary class="month-summary">
+                    <span>${displayMonth}</span>
+                    <span class="workflow-count">${monthAppts.length}</span>
+                </summary>
+                <div class="month-content">
+                    <div class="appointments-grid">
+                        ${monthAppts.map(apt => createAppointmentCard(apt, now)).join('')}
+                    </div>
+                </div>
+            </details>`;
+        });
+        
+        html += `</section>`;
+    }
+    
+    container.innerHTML = html;
+    
+    // Keep Invoice tab selector in sync
+    refreshInvoiceAppointmentOptions();
+
+    // Bind delegation handler for appointment actions
+    bindAppointmentsClickDelegation();
+}
+
+// LEGACY: Render appointments grouped by day (kept for reference, replaced by renderAppointments above)
+function renderAppointmentsByDay_Legacy() {
     renderAppointmentsCallCount++;
     console.log(`📊 [DIAG] renderAppointments called (${renderAppointmentsCallCount} times), Active Firestore listener: ${!!appointmentsUnsubscribe}`);
     
@@ -5451,27 +5950,35 @@ function createAppointmentCard(apt) {
     // Format date and time
     const dateStr = aptDate.toLocaleDateString('en-GB', { weekday: 'short', month: 'short', day: 'numeric' });
     const timeStr = aptDate.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+    const dateShort = formatDateShort(aptDate);
+    const timeShort = formatTimeShort(aptDate);
     
     // Determine status badge
     let statusClass = '';
     let statusText = '';
+    let timeStatusClass = '';
     
     if (normalized.status === 'completed' || normalized.status === 'done') {
         statusClass = 'status-completed';
         statusText = 'Completed';
+        timeStatusClass = 'time-badge--completed';
     } else if (normalized.status === 'canceled') {
         statusClass = 'status-canceled';
         statusText = 'Canceled';
+        timeStatusClass = 'time-badge--canceled';
     } else if (isOverdue && !isPaid) {
         // Only show Overdue if unpaid AND overdue
         statusClass = 'status-overdue';
         statusText = 'Overdue';
+        timeStatusClass = 'time-badge--overdue';
     } else if (minutesDiff < 60 && minutesDiff >= 0) {
         statusClass = 'status-soon';
         statusText = 'In Progress';
+        timeStatusClass = 'time-badge--active';
     } else {
         statusClass = 'status-scheduled';
         statusText = 'Scheduled';
+        timeStatusClass = 'time-badge--scheduled';
     }
     
     // Payment section only if total exists
@@ -5575,16 +6082,29 @@ function createAppointmentCard(apt) {
     ` : '';
     
     return `
-        <div class="app-card" data-apt-id="${apt.id}">
-            <!-- Header: Status Badge (top-right) -->
+        <div class="app-card ${statusClass}" data-apt-id="${apt.id}">
+            <!-- Header: Date, Time, Status Badge -->
             <div class="app-card__header">
+                <div class="app-card__datetime">
+                    <div class="date-badge">${dateShort}</div>
+                    <div class="time-badge ${timeStatusClass}">
+                        <i class="fas fa-clock"></i> ${timeShort}
+                    </div>
+                </div>
                 <div class="app-card__status-badge ${statusClass}">
                     ${statusText}
                 </div>
             </div>
             
-            <!-- Client & Vehicle Info -->
-            ${clientInfo}
+            <!-- Customer Name (prominent) -->
+            <div class="app-card__customer">
+                <i class="fas fa-user-circle"></i> ${normalized.customerName}
+            </div>
+            
+            <!-- Vehicle Info -->
+            ${vehicleDisplay ? `<div class="app-card__vehicle">
+                <i class="fas fa-car"></i> ${vehicleDisplay}
+            </div>` : ''}
             
             <!-- Payment Summary (if has invoice) -->
             ${paymentSection}

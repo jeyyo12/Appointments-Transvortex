@@ -444,7 +444,7 @@ body {
     justify-content: space-between;
     align-items: center;
     gap: 20px;
-    padding: 12px 16px;
+    padding: 16px 20px;
     margin: 0;
     border-bottom: 2px solid #f97316;
     background: linear-gradient(135deg, #FFFFFF 0%, #F7F8FB 100%);
@@ -493,18 +493,28 @@ body {
 .inv-right {
     display: flex;
     align-items: center;
-    gap: 16px;
+    justify-content: center;
+    gap: 20px;
     flex-shrink: 0;
 }
 
 .inv-logo {
-    height: 60px;
-    width: auto;
+    height: auto;
+    max-width: 260px;
     display: block;
     margin: 0;
     object-fit: contain;
-    transform: scale(2.5);
-    transform-origin: right center;
+    flex-shrink: 0;
+}
+
+/* Desktop logo (visible above 768px) */
+.inv-logo-desktop {
+    display: block;
+}
+
+/* Mobile logo (hidden above 768px) */
+.inv-logo-mobile {
+    display: none;
 }
 
 .inv-title {
@@ -901,6 +911,16 @@ body {
 
 /* ===== RESPONSIVE: Mobile & Tablet ===== */
 @media (max-width: 768px) {
+    /* Swap logo visibility for mobile */
+    .inv-logo-desktop {
+        display: none;
+    }
+
+    .inv-logo-mobile {
+        display: block;
+        max-width: 180px;
+    }
+
     .inv-meta-grid {
         grid-template-columns: 1fr;
         gap: 0;
@@ -1510,6 +1530,9 @@ body {
         -webkit-print-color-adjust: exact;
         transform: scale(2) !important;
         transform-origin: right center !important;
+        filter: none !important;
+        mix-blend-mode: normal !important;
+        opacity: 1 !important;
     }
 
     .inv-title {
@@ -2023,6 +2046,17 @@ body {
     display: block;
     opacity: 1;
     filter: drop-shadow(0 0.125rem 0.5rem rgba(255, 122, 24, 0.1));
+    mix-blend-mode: normal;
+}
+
+/* Mobile: Remove orange drop-shadow tint from logo (yellow halo fix) */
+@media (max-width: 768px) {
+    .company-logo {
+        filter: none !important;
+        mix-blend-mode: normal !important;
+        opacity: 1 !important;
+        -webkit-filter: none !important;
+    }
 }
 
 /* ===== INVOICE META ===== */
@@ -3030,14 +3064,23 @@ body {
 }
 
 /* ===== PRINT-ONLY LOGO CONTROL ===== */
-/* Hide logo everywhere by default (desktop and mobile) */
+/* Hide logo on screen by default (respects responsive media queries) */
 .print-only-logo {
     display: none !important;
 }
 
-/* Show logo ONLY when printing */
+/* Show appropriate logo ONLY when printing */
 @media print {
     .print-only-logo {
         display: block !important;
+    }
+    
+    /* On print, override mobile/desktop classes to show both or appropriate logo */
+    .inv-logo-desktop {
+        display: block !important;
+    }
+    
+    .inv-logo-mobile {
+        display: none !important;
     }
 }

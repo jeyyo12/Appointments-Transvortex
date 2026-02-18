@@ -14,8 +14,9 @@
     <title>Manager Programări - Transvortex LTD</title>
     
     <link rel="manifest" href="./manifest.webmanifest">
-    <link rel="icon" type="image/png" href="./icons/icon-192x192.png">
-    <link rel="apple-touch-icon" href="./icons/icon-192x192.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="./Logo/icon-32.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="./Logo/icon-192.png">
+    <link rel="apple-touch-icon" href="./Logo/icon-192.png">
     <link rel="stylesheet" href="styles.css">
     <link rel="stylesheet" href="styles/design-system.css">
     <link rel="stylesheet" href="styles/buttons.css">
@@ -923,6 +924,197 @@
             --appt-label-font: clamp(11px, 2.8vw, 12px);
         }
 
+        /* A.5. Workflow Sections (Today Active / Completed Today / History) */
+        .workflow-section {
+            margin-bottom: clamp(20px, 4vw, 28px);
+        }
+
+        .workflow-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: clamp(14px, 2.5vw, 16px);
+            padding-bottom: 12px;
+            border-bottom: 2px solid rgba(59, 130, 246, 0.15);
+        }
+
+        .workflow-header h3 {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: clamp(15px, 3.5vw, 18px);
+            font-weight: 700;
+            color: #1f2937;
+            margin: 0;
+        }
+
+        .workflow-header h3 i {
+            font-size: clamp(14px, 3vw, 16px);
+            color: #3b82f6;
+        }
+
+        .workflow-count {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 28px;
+            height: 28px;
+            padding: 0 8px;
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(37, 99, 235, 0.05));
+            border: 1px solid rgba(59, 130, 246, 0.25);
+            border-radius: 999px;
+            font-size: clamp(11px, 2.5vw, 12px);
+            font-weight: 700;
+            color: #1d4ed8;
+        }
+
+        /* Collapsible sections (Completed Today, History) */
+        details.workflow-section {
+            border: 1px solid rgba(209, 213, 219, 0.5);
+            border-radius: 12px;
+            padding: clamp(14px, 2vw, 16px);
+            background: linear-gradient(135deg, rgba(248, 250, 252, 0.5), rgba(241, 245, 249, 0.3));
+            margin-bottom: clamp(14px, 2.5vw, 16px);
+            transition: all 0.2s ease;
+        }
+
+        details.workflow-section[open] {
+            background: linear-gradient(135deg, rgba(248, 250, 252, 0.8), rgba(241, 245, 249, 0.6));
+        }
+
+        .workflow-header--collapsible {
+            cursor: pointer;
+            user-select: none;
+            border: none;
+            padding: 0;
+            margin-bottom: 0;
+        }
+
+        .workflow-header--collapsible:hover {
+            color: #1d4ed8;
+        }
+
+        .workflow-header--collapsible i:last-child {
+            transition: transform 0.2s ease;
+            font-size: clamp(12px, 2.5vw, 14px);
+        }
+
+        details.workflow-section[open] .workflow-header--collapsible i:last-child {
+            transform: rotate(180deg);
+        }
+
+        .workflow-content {
+            margin-top: clamp(14px, 2vw, 16px);
+            padding-top: clamp(14px, 2vw, 16px);
+            border-top: 1px solid rgba(209, 213, 219, 0.3);
+        }
+
+        /* History: Month Accordions */
+        .month-accordion {
+            border: 1px solid rgba(209, 213, 219, 0.4);
+            border-radius: 10px;
+            padding: clamp(12px, 2vw, 14px);
+            margin-bottom: clamp(10px, 1.5vw, 12px);
+            background: #fafbfc;
+            transition: all 0.2s ease;
+        }
+
+        .month-accordion[open] {
+            background: #f3f5f7;
+            border-color: rgba(107, 114, 128, 0.25);
+        }
+
+        .month-summary {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            user-select: none;
+            font-weight: 600;
+            font-size: clamp(12px, 2.8vw, 13px);
+            color: #475569;
+            list-style: none;
+            padding: 4px 0;
+        }
+
+        .month-summary:hover {
+            color: #1f2937;
+        }
+
+        .month-summary::-webkit-details-marker {
+            display: none;
+        }
+
+        .month-summary::before {
+            content: '▶';
+            display: inline-block;
+            margin-right: 8px;
+            font-size: clamp(10px, 2vw, 11px);
+            transition: transform 0.2s ease;
+            color: #64748b;
+            width: 12px;
+        }
+
+        .month-accordion[open] .month-summary::before {
+            transform: rotate(90deg);
+        }
+
+        .month-content {
+            margin-top: clamp(12px, 2vw, 14px);
+            padding-top: clamp(12px, 2vw, 14px);
+            border-top: 1px solid rgba(209, 213, 219, 0.2);
+        }
+
+        /* Today Active section styling */
+        .workflow-section--today-active .workflow-header {
+            border-bottom-color: rgba(34, 197, 94, 0.2);
+        }
+
+        .workflow-section--today-active .workflow-header h3 {
+            color: #15803d;
+        }
+
+        .workflow-section--today-active .workflow-header h3 i {
+            color: #22c55e;
+        }
+
+        /* Completed Today section styling */
+        .workflow-section--completed-today {
+            border-color: rgba(156, 163, 175, 0.3);
+            background: linear-gradient(135deg, rgba(248, 250, 252, 0.4), rgba(229, 231, 235, 0.2));
+        }
+
+        .workflow-section--completed-today[open] {
+            background: linear-gradient(135deg, rgba(248, 250, 252, 0.6), rgba(229, 231, 235, 0.4));
+        }
+
+        .workflow-section--completed-today .workflow-header--collapsible {
+            color: #6b7280;
+        }
+
+        .workflow-section--completed-today .workflow-header--collapsible:hover {
+            color: #4b5563;
+        }
+
+        /* History section styling */
+        .workflow-section--history {
+            margin-top: clamp(28px, 5vw, 36px);
+            padding-top: clamp(24px, 4vw, 32px);
+            border-top: 2px solid rgba(209, 213, 219, 0.4);
+        }
+
+        .workflow-section--history .workflow-header {
+            border-bottom-color: rgba(107, 114, 128, 0.15);
+        }
+
+        .workflow-section--history .workflow-header h3 {
+            color: #475569;
+        }
+
+        .workflow-section--history .workflow-header h3 i {
+            color: #6b7280;
+        }
+
         /* B. Appointments Grid Layout */
         .appointments-grid {
             display: grid;
@@ -963,8 +1155,79 @@
         /* Card Header - Status Badge (Top Right) */
         .app-card__header {
             display: flex;
-            justify-content: flex-end;
-            margin: -4px -4px 0 0;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin: -4px -4px 12px -4px;
+            gap: 12px;
+        }
+
+        /* Date/Time Display - Premium & Prominent */
+        .app-card__datetime {
+            display: flex;
+            align-items: center;
+            gap: clamp(8px, 2vw, 12px);
+        }
+
+        .date-badge {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: clamp(8px, 2vw, 10px) clamp(12px, 2.5vw, 14px);
+            background: linear-gradient(135deg, #f3f4f6, #e5e7eb);
+            border: 1px solid rgba(156, 163, 175, 0.3);
+            border-radius: 10px;
+            font-weight: 700;
+            font-size: clamp(11px, 2.2vw, 12px);
+            color: #1f2937;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            min-width: max-content;
+        }
+
+        .time-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: clamp(8px, 2vw, 10px) clamp(12px, 2.5vw, 14px);
+            border-radius: 10px;
+            font-weight: 600;
+            font-size: clamp(12px, 2.3vw, 13px);
+            white-space: nowrap;
+            min-width: max-content;
+            transition: all 0.2s ease;
+        }
+
+        .time-badge i {
+            font-size: clamp(10px, 2vw, 11px);
+        }
+
+        /* Time badge status colors */
+        .time-badge--scheduled {
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.12), rgba(37, 99, 235, 0.08));
+            color: #1d4ed8;
+            border: 1px solid rgba(37, 99, 235, 0.25);
+        }
+
+        .time-badge--active {
+            background: linear-gradient(135deg, rgba(34, 197, 94, 0.15), rgba(22, 163, 74, 0.1));
+            color: #15803d;
+            border: 1px solid rgba(22, 163, 74, 0.3);
+            box-shadow: 0 0 10px rgba(34, 197, 94, 0.2);
+        }
+
+        .time-badge--overdue {
+            background: linear-gradient(135deg, rgba(239, 68, 68, 0.14), rgba(220, 38, 38, 0.1));
+            color: #7f1d1d;
+            border: 1px solid rgba(220, 38, 38, 0.3);
+            box-shadow: 0 0 10px rgba(239, 68, 68, 0.15);
+        }
+
+        .time-badge--completed,
+        .time-badge--canceled {
+            background: linear-gradient(135deg, rgba(156, 163, 175, 0.12), rgba(107, 114, 128, 0.08));
+            color: #4b5563;
+            border: 1px solid rgba(107, 114, 128, 0.25);
+            opacity: 0.7;
         }
         
         /* Status Badge - Clean & Minimal */
@@ -1009,6 +1272,58 @@
             background: rgba(107, 114, 128, 0.1);
             border-color: rgba(107, 114, 128, 0.3);
             color: rgba(55, 65, 81, 0.95);
+        }
+
+        /* Card visual priority (left border color) */
+        .app-card.status-overdue {
+            border-left: 4px solid #dc2626;
+        }
+
+        .app-card.status-soon {
+            border-left: 4px solid #ea580c;
+        }
+
+        .app-card.status-scheduled {
+            border-left: 4px solid #3b82f6;
+        }
+
+        .app-card.status-completed {
+            border-left: 4px solid #10b981;
+        }
+
+        .app-card.status-canceled {
+            border-left: 4px solid #9ca3af;
+        }
+
+        /* Customer Name Section */
+        .app-card__customer {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: 600;
+            font-size: clamp(13px, 3vw, 15px);
+            color: #1f2937;
+            margin-bottom: clamp(8px, 1.5vw, 10px);
+        }
+
+        .app-card__customer i {
+            font-size: clamp(14px, 3.2vw, 16px);
+            color: #3b82f6;
+        }
+
+        /* Vehicle Info */
+        .app-card__vehicle {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: clamp(11px, 2.8vw, 12px);
+            color: #475569;
+            margin-bottom: clamp(6px, 1vw, 8px);
+        }
+
+        .app-card__vehicle i {
+            font-size: clamp(10px, 2.4vw, 11px);
+            color: #64748b;
         }
         
         /* Info Section - Vehicle, Client, Date */
@@ -3149,7 +3464,7 @@
 
                         <!-- Appointments List -->
                         <div id="appointmentsList">
-                            <!-- Programările vor fi adăugate dinamic aici grupate pe zile -->
+                            <!-- Programările vor fi adăugate dinamic aici (Today Active / Completed Today / History) -->
                         </div>
 
                         <div id="emptyStateAppointments" class="empty-state">
@@ -3464,36 +3779,53 @@
       </div>
     </div>
 
-    <!-- Modern Time Picker -->
+    <!-- Modern Time Picker with Type & Picker Modes -->
     <div id="timePicker" class="time-picker-overlay" style="display: none;">
         <div class="time-picker-backdrop"></div>
         <div class="time-picker-panel">
+            <!-- Header with mode toggle -->
             <div class="time-picker-header">
                 <h3>Selectează ora</h3>
+                <div class="time-picker-mode-toggle">
+                    <button type="button" class="time-mode-btn time-mode-btn--type" data-mode="type" title="Tastează ora">Tastează</button>
+                    <button type="button" class="time-mode-btn time-mode-btn--picker" data-mode="picker" title="Selectează din roți">Roți</button>
+                </div>
                 <button type="button" class="time-picker-close" aria-label="Închide">&times;</button>
             </div>
             
-            <div class="time-picker-quick-input">
-                <input 
-                    type="text" 
-                    id="timeQuickInput" 
-                    placeholder="Tastează direct (ex: 1430)" 
-                    maxlength="4"
-                />
-            </div>
-
-            <div class="time-picker-body">
-                <div class="time-picker-column">
-                    <div class="time-picker-label">Ore</div>
-                    <div class="time-picker-scroll" id="hourScroll"></div>
-                </div>
-                <div class="time-picker-separator">:</div>
-                <div class="time-picker-column">
-                    <div class="time-picker-label">Minute</div>
-                    <div class="time-picker-scroll" id="minuteScroll"></div>
+            <!-- Type Mode: Direct Input -->
+            <div class="time-picker-content time-mode-content--type" id="typeMode">
+                <div class="time-type-input-wrapper">
+                    <input 
+                        type="text" 
+                        id="timeTypeInput" 
+                        inputmode="numeric"
+                        placeholder="HH:MM (ex: 1430)" 
+                        maxlength="5"
+                        class="time-type-input"
+                        autocomplete="off"
+                    />
+                    <div class="time-type-error" id="timeTypeError"></div>
+                    <div class="time-type-hint">Acceptă: 1430, 14:30, 14.30</div>
                 </div>
             </div>
+            
+            <!-- Picker Mode: Wheel Selectors -->
+            <div class="time-picker-content time-mode-content--picker" id="pickerMode">
+                <div class="time-picker-body">
+                    <div class="time-picker-column">
+                        <div class="time-picker-label">Ore</div>
+                        <div class="time-picker-scroll" id="hourScroll"></div>
+                    </div>
+                    <div class="time-picker-separator">:</div>
+                    <div class="time-picker-column">
+                        <div class="time-picker-label">Minute</div>
+                        <div class="time-picker-scroll" id="minuteScroll"></div>
+                    </div>
+                </div>
+            </div>
 
+            <!-- Footer with buttons -->
             <div class="time-picker-footer">
                 <button type="button" class="btn-time-now">Acum</button>
                 <div class="time-picker-actions">
