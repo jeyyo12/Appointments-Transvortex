@@ -39,6 +39,7 @@ let pendingScannedPreviewUrl = null;
 let scannedInvoiceOcrProgress = new Map();
 let scannedInvoiceReviewState = null;
 let scannedInvoiceReviewScanId = null;
+let scannedInvoiceReviewBusy = false;
 
 // Edit mode state
 let editingAppointmentId = null;
@@ -1460,6 +1461,7 @@ function openScannedInvoiceReview(scanId, extractedData = null) {
     };
 
     populateScannedInvoiceReviewForm();
+    setScannedInvoiceReviewBusy(false);
     modal.style.display = 'flex';
 }
 
@@ -1468,6 +1470,25 @@ function closeScannedInvoiceReview() {
     if (modal) modal.style.display = 'none';
     scannedInvoiceReviewState = null;
     scannedInvoiceReviewScanId = null;
+    scannedInvoiceReviewBusy = false;
+}
+
+function setScannedInvoiceReviewBusy(isBusy) {
+    scannedInvoiceReviewBusy = Boolean(isBusy);
+
+    const saveBtn = document.getElementById('scanReviewSaveBtn');
+    const retryBtn = document.getElementById('scanReviewRetryBtn');
+    const recalcBtn = document.getElementById('scanReviewRecalculateBtn');
+    const addItemBtn = document.getElementById('scanReviewAddItemBtn');
+
+    if (saveBtn) saveBtn.disabled = scannedInvoiceReviewBusy;
+    if (recalcBtn) recalcBtn.disabled = scannedInvoiceReviewBusy;
+    if (addItemBtn) addItemBtn.disabled = scannedInvoiceReviewBusy;
+
+    if (retryBtn) {
+        retryBtn.disabled = scannedInvoiceReviewBusy;
+        retryBtn.textContent = scannedInvoiceReviewBusy ? 'Retrying…' : 'Retry OCR';
+    }
 }
 
 function populateScannedInvoiceReviewForm() {
@@ -1538,14 +1559,19 @@ async function runOcrForScannedInvoice(scanId, options = {}) {
 
     const fileType = scan?.file?.fileType || 'image';
     const fileUrl = scan?.file?.downloadURL;
+    const isReviewRetry = options.fromReview === true;
+    if (isReviewRetry) setScannedInvoiceReviewBusy(true);
+
     if (!fileUrl) {
         showNotification('❌ Missing scan file URL', 'error');
+        if (isReviewRetry) setScannedInvoiceReviewBusy(false);
         return;
     }
 
     if (fileType !== 'image') {
         showNotification('ℹ️ OCR currently supports image scans. You can still edit details manually.', 'info');
         openScannedInvoiceReview(scanId, scan.extracted || getEmptyExtractedPayload());
+        if (isReviewRetry) setScannedInvoiceReviewBusy(false);
         return;
     }
 
@@ -1576,11 +1602,14 @@ async function runOcrForScannedInvoice(scanId, options = {}) {
         console.error('❌ OCR failed:', error);
         clearScanOcrProgress(scanId);
         showNotification('❌ OCR failed. Scan is saved and you can retry OCR.', 'error');
+    } finally {
+        if (isReviewRetry) setScannedInvoiceReviewBusy(false);
     }
 }
 
 async function handleScannedInvoiceReviewSave() {
     if (!scannedInvoiceReviewScanId || !scannedInvoiceReviewState?.extracted) return;
+    if (scannedInvoiceReviewBusy) return;
 
     const data = normalizeExtractedData(scannedInvoiceReviewState.extracted);
     if (data.invoiceDate && !isDateWithinPlausibleRange(data.invoiceDate)) {
@@ -1640,7 +1669,7 @@ function bindScannedInvoiceReviewUI() {
     if (retryBtn) {
         retryBtn.addEventListener('click', () => {
             if (!scannedInvoiceReviewScanId) return;
-            runOcrForScannedInvoice(scannedInvoiceReviewScanId, { openReview: true });
+            runOcrForScannedInvoice(scannedInvoiceReviewScanId, { openReview: true, fromReview: true });
         });
     }
 
