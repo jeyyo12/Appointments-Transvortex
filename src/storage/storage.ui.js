@@ -34,24 +34,69 @@ function computeInvoiceTotal(invoice) {
 }
 
 /**
- * Filter invoices based on search term and status
+ * Check if invoice is paid (normalized across different field formats)
+ * @param {Object} inv - Invoice object
+ * @returns {boolean} True if invoice is fully paid
+ */
+function isInvoicePaid(inv) {
+  // Method 1: Check explicit paymentStatus field (set by sync)
+  const paymentStatus = (inv.paymentStatus || '').toLowerCase();
+  if (paymentStatus === 'paid') return true;
+  
+  // Method 2: Compute from amounts
+  const total = toNumber(inv.total || 0);
+  const amountPaid = toNumber(inv.amountPaid || inv.paidAmount || inv.totals?.amountPaid || 0);
+  const balanceDue = Math.max(0, total - amountPaid);
+  
+  // Paid if amount paid covers total and total > 0
+  return total > 0 && amountPaid > 0 && balanceDue <= 0;
+}
+
+/**
+ * Update KPI summary (Unpaid vs Paid counts)
+ * Counts from ALL invoices, not filtered list
+ */
+function updateInvoiceKPI() {
+  const allInvoices = getState('allInvoices') || [];
+  const kpiUnpaid = byId('kpiUnpaid');
+  const kpiPaid = byId('kpiPaid');
+  
+  if (!kpiUnpaid || !kpiPaid) {
+    logger.warn('KPI elements not found');
+    return;
+  }
+  
+  let unpaidCount = 0;
+  let paidCount = 0;
+  
+  allInvoices.forEach(inv => {
+    if (isInvoicePaid(inv)) {
+      paidCount++;
+    } else {
+      unpaidCount++;
+    }
+  });
+  
+  kpiUnpaid.textContent = unpaidCount;
+  kpiPaid.textContent = paidCount;
+  
+  logger.info('📊 KPI Updated:', { unpaidCount, paidCount, total: allInvoices.length });
+}
+
+/**
+ * Filter invoices based on search term and payment status
  */
 export function filterInvoices() {
   const allInvoices = getState('allInvoices') || [];
   logger.info('filterInvoices() called - allInvoices.length:', allInvoices.length);
   
   const searchInput = byId('searchInvoices');
-  const statusFilter = byId('filterInvoiceStatus');
+  const paymentFilter = byId('filterInvoicePayment');
   
   const searchTerm = searchInput ? searchInput.value.toLowerCase().trim() : '';
-  const statusValue = statusFilter ? statusFilter.value : 'all';
+  const paymentValue = paymentFilter ? paymentFilter.value : 'unpaid';
   
   let filtered = allInvoices;
-  
-  // Filter by status
-  if (statusValue !== 'all') {
-    filtered = filtered.filter(inv => inv.status === statusValue);
-  }
   
   // Filter by search term
   if (searchTerm) {
@@ -68,7 +113,15 @@ export function filterInvoices() {
     });
   }
   
+  // Filter by payment status
+  if (paymentValue !== 'all') {
+    filtered = filtered.filter(inv => {
+      return paymentValue === 'paid' ? isInvoicePaid(inv) : !isInvoicePaid(inv);
+    });
+  }
+  
   setState('filteredInvoices', filtered);
+  updateInvoiceKPI();
   renderInvoicesStorage();
 }
 

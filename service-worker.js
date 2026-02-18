@@ -4,7 +4,7 @@
  * No infinite reload loops, no complex update logic
  */
 
-const CACHE_NAME = 'transvortex-v1';
+const CACHE_NAME = 'transvortex-v6'; // Fixed KPI counters - now updates from allInvoices
 const CRITICAL_ASSETS = [
   './index.html',
   './invoice.html',

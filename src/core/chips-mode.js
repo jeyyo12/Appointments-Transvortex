@@ -45,6 +45,110 @@ const chipsState = {
   parts: []
 };
 
+// Auto-save debounce timer
+let autoSaveTimer = null;
+const AUTO_SAVE_DELAY = 1500; // 1.5 seconds
+
+// Auto-save callback (set by external code)
+let autoSaveCallback = null;
+
+// Firestore db reference (set by external code)
+let firestoreDb = null;
+
+/**
+ * Set auto-save callback function
+ * @param {Function} callback - Function to call when auto-save triggers
+ */
+export function setAutoSaveCallback(callback) {
+  autoSaveCallback = callback;
+  logger.info('Auto-save callback registered');
+}
+
+/**
+ * Set Firestore database reference for catalog persistence
+ * @param {Object} db - Firestore database instance
+ */
+export function setFirestoreDb(db) {
+  firestoreDb = db;
+  logger.info('Firestore DB reference set for catalog');
+}
+
+/**
+ * Trigger auto-save with debounce
+ */
+function triggerAutoSave() {
+  if (!autoSaveCallback) return;
+  
+  // Clear existing timer
+  if (autoSaveTimer) {
+    clearTimeout(autoSaveTimer);
+  }
+  
+  // Set new timer
+  autoSaveTimer = setTimeout(() => {
+    logger.info('🔄 Auto-save triggered');
+    try {
+      autoSaveCallback();
+    } catch (err) {
+      logger.error('Auto-save failed:', err);
+    }
+  }, AUTO_SAVE_DELAY);
+}
+
+/**
+ * Persist item to Firestore catalog
+ * Creates new entry or increments usage count for existing items
+ * @param {string} text - Formatted item text
+ * @param {string} kind - 'job' or 'part'
+ */
+async function persistToCatalog(text, kind) {
+  if (!firestoreDb) {
+    logger.debug('Catalog persistence skipped - no DB reference');
+    return;
+  }
+  
+  try {
+    const { collection, query, where, getDocs, addDoc, updateDoc, doc, serverTimestamp, increment } = 
+      await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+    
+    const type = kind === 'job' ? 'labour' : 'part';
+    const normalized = text.toLowerCase().trim();
+    
+    // Check if item already exists
+    const catalogRef = collection(firestoreDb, 'invoiceCatalog');
+    const q = query(
+      catalogRef,
+      where('type', '==', type),
+      where('normalized', '==', normalized)
+    );
+    
+    const snapshot = await getDocs(q);
+    
+    if (!snapshot.empty) {
+      // Item exists - increment usage count
+      const existingDoc = snapshot.docs[0];
+      await updateDoc(doc(firestoreDb, 'invoiceCatalog', existingDoc.id), {
+        usageCount: increment(1),
+        updatedAt: serverTimestamp()
+      });
+      logger.debug(`📈 Catalog: Incremented "${text}" (${type})`);
+    } else {
+      // New item - create entry
+      await addDoc(catalogRef, {
+        type,
+        text,
+        normalized,
+        usageCount: 1,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      });
+      logger.debug(`✨ Catalog: Created "${text}" (${type})`);
+    }
+  } catch (err) {
+    logger.error('Catalog persistence failed:', err);
+  }
+}
+
 /**
  * Initialize Chips Mode for a given kind (job or part)
  */
@@ -73,8 +177,14 @@ export function initChipsMode(kind) {
     handleTypeahead(query, kind, suggestBox, searchInput);
   });
 
-  // Close dropdown on blur
-  searchInput.addEventListener('blur', () => {
+  // Format to Title Case on blur
+  searchInput.addEventListener('blur', (e) => {
+    const text = e.target.value.trim();
+    if (text) {
+      e.target.value = toTitleCaseSmart(text);
+    }
+    
+    // Close dropdown after short delay
     setTimeout(() => {
       suggestBox.classList.remove('open');
       suggestBox.innerHTML = '';
@@ -107,6 +217,7 @@ export function initChipsMode(kind) {
       if (chipEl) {
         recalcChipRow(chipEl, kind);
         recalcAllTotals();
+        triggerAutoSave(); // Auto-save when qty/price changes
       }
     }
   });
@@ -116,6 +227,7 @@ export function initChipsMode(kind) {
       const chip = e.target.closest('.chipItem');
       removeChip(chip, kind);
       recalcAllTotals();
+      triggerAutoSave(); // Auto-save when item removed
     }
   });
 
@@ -123,30 +235,77 @@ export function initChipsMode(kind) {
 }
 
 /**
- * Handle typeahead suggestions
+ * Handle typeahead suggestions (with catalog integration)
  */
-function handleTypeahead(query, kind, suggestBox, searchInput) {
+async function handleTypeahead(query, kind, suggestBox, searchInput) {
   if (!query) {
     suggestBox.classList.remove('open');
     return;
   }
 
+  const type = kind === 'job' ? 'labour' : 'part';
+  let catalogItems = [];
+  
+  // Query catalog if db is available
+  if (firestoreDb) {
+    try {
+      const { collection, query: firestoreQuery, where, orderBy, limit, getDocs } = 
+        await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+      
+      const catalogRef = collection(firestoreDb, 'invoiceCatalog');
+      const normalized = query.toLowerCase();
+      
+      // Query items that start with the search term
+      const q = firestoreQuery(
+        catalogRef,
+        where('type', '==', type),
+        where('normalized', '>=', normalized),
+        where('normalized', '<', normalized + '\uf8ff'),
+        orderBy('normalized'),
+        orderBy('usageCount', 'desc'),
+        limit(5)
+      );
+      
+      const snapshot = await getDocs(q);
+      catalogItems = snapshot.docs.map(doc => doc.data().text);
+    } catch (err) {
+      logger.debug('Catalog query failed:', err);
+    }
+  }
+  
+  // Get preset matches
   const presets = PRESETS[kind === 'job' ? 'jobs' : 'parts'];
-  const matches = presets.filter(item => 
+  const presetMatches = presets.filter(item => 
     item.toLowerCase().includes(query) && 
     item.toLowerCase() !== query
   );
 
   let html = '';
+  
+  // Show catalog suggestions first (most relevant)
+  if (catalogItems.length > 0) {
+    catalogItems.forEach(item => {
+      html += `<div class="suggestItem catalog-item" data-value="${escapeHtml(item)}">
+        <span class="suggest-icon">⭐</span> ${highlightMatch(item, query)}
+      </div>`;
+    });
+  }
 
-  // Show matching presets
-  matches.slice(0, 5).forEach(match => {
-    html += `<div class="suggestItem" data-value="${escapeHtml(match)}">${highlightMatch(match, query)}</div>`;
+  // Show preset matches
+  presetMatches.slice(0, 3).forEach(match => {
+    // Don't duplicate catalog items
+    if (!catalogItems.includes(match)) {
+      html += `<div class="suggestItem" data-value="${escapeHtml(match)}">${highlightMatch(match, query)}</div>`;
+    }
   });
 
-  // Add "Create new" option if query is custom
-  if (!presets.includes(query)) {
-    html += `<div class="suggestItem suggestAdd" data-value="${escapeHtml(query)}">➕ Add new: <strong>${escapeHtml(query)}</strong></div>`;
+  // Add "Create new" option if query doesn't match existing items
+  const allItems = [...catalogItems, ...presets];
+  const exactMatch = allItems.some(item => item.toLowerCase() === query.toLowerCase());
+  
+  if (!exactMatch) {
+    const formattedQuery = toTitleCaseSmart(query);
+    html += `<div class="suggestItem suggestAdd" data-value="${escapeHtml(formattedQuery)}">➕ Add new: <strong>${escapeHtml(formattedQuery)}</strong></div>`;
   }
 
   suggestBox.innerHTML = html;
@@ -170,10 +329,13 @@ function addChip(label, kind, searchInput, chipsList, countBadge) {
   const isJob = kind === 'job';
   const id = `${kind}-${Date.now()}`;
   
+  // Format label to Title Case
+  const formattedLabel = toTitleCaseSmart(label.trim());
+  
   // Create chip data
   const chip = {
     id,
-    label: label.trim(),
+    label: formattedLabel,
     qty: 1,
     price: 0,
     kind
@@ -195,8 +357,14 @@ function addChip(label, kind, searchInput, chipsList, countBadge) {
 
   // Update totals
   recalcAllTotals();
+  
+  // Trigger auto-save
+  triggerAutoSave();
 
-  logger.info(`✅ Added ${kind}: "${label}"`);
+  // Persist to catalog (async, don't wait)
+  persistToCatalog(formattedLabel, kind);
+
+  logger.info(`✅ Added ${kind}: "${formattedLabel}"`);
 }
 
 /**
@@ -404,6 +572,49 @@ export function populateChipsFromData(jobs = [], parts = []) {
   recalcAllTotals();
   
   logger.info('[EDIT] Chips populated successfully', { jobs: chipsState.jobs.length, parts: chipsState.parts.length });
+}
+
+/**
+ * Helper: Convert to Title Case with smart rules
+ * - Capitalizes first letter of significant words
+ * - Keeps connector words lowercase: of, and, for, the, a, an, to, in, on, at, from, by, with
+ * - Preserves all-caps tokens (BMW, NGK, OEM)
+ * - Preserves tokens with digits (1.5dCi, 9000)
+ * - Always capitalizes first word
+ */
+function toTitleCaseSmart(str) {
+  if (!str || typeof str !== 'string') return '';
+  
+  const smallWords = ['of', 'and', 'for', 'the', 'a', 'an', 'to', 'in', 'on', 'at', 'from', 'by', 'with'];
+  const words = str.trim().split(/\s+/);
+  
+  return words.map((word, index) => {
+    // Preserve empty or single-char words
+    if (!word || word.length === 0) return word;
+    
+    // Preserve all-caps tokens (BMW, NGK, OEM) - must be 2+ chars and all uppercase
+    if (word === word.toUpperCase() && word.length > 1 && /^[A-Z]+$/.test(word)) {
+      return word;
+    }
+    
+    // Preserve tokens with digits (1.5dCi, 9000, 205/55r16)
+    if (/\d/.test(word)) {
+      return word;
+    }
+    
+    // First word always capitalize
+    if (index === 0) {
+      return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+    }
+    
+    // Small connector words stay lowercase (unless first)
+    if (smallWords.includes(word.toLowerCase())) {
+      return word.toLowerCase();
+    }
+    
+    // Regular words: capitalize first letter
+    return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+  }).join(' ');
 }
 
 /**

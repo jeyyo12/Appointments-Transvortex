@@ -784,6 +784,105 @@
             border-color: rgba(239, 68, 68, 0.5);
         }
 
+        /* ===== INVOICE KPI SUMMARY ===== */
+        .invoice-kpi {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: clamp(10px, 2vw, 14px);
+        }
+
+        .kpi-item {
+            background: linear-gradient(135deg, #ffffff 0%, #fafbfc 100%);
+            border: 1px solid #e5e7eb;
+            border-radius: clamp(12px, 3vw, 14px);
+            padding: clamp(12px, 3vw, 16px);
+            display: flex;
+            align-items: center;
+            gap: clamp(10px, 2.5vw, 12px);
+            transition: all 0.2s ease;
+        }
+
+        .kpi-item:hover {
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+            transform: translateY(-2px);
+        }
+
+        .kpi-icon {
+            width: clamp(38px, 9vw, 44px);
+            height: clamp(38px, 9vw, 44px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: clamp(10px, 2.5vw, 12px);
+            font-size: clamp(16px, 4vw, 18px);
+        }
+
+        .kpi-item--unpaid .kpi-icon {
+            background: linear-gradient(135deg, rgba(239, 68, 68, 0.12) 0%, rgba(220, 38, 38, 0.08) 100%);
+            color: #dc2626;
+        }
+
+        .kpi-item--paid .kpi-icon {
+            background: linear-gradient(135deg, rgba(34, 197, 94, 0.12) 0%, rgba(22, 163, 74, 0.08) 100%);
+            color: #16a34a;
+        }
+
+        .kpi-content {
+            flex: 1;
+        }
+
+        .kpi-label {
+            font-size: clamp(11px, 2.8vw, 12px);
+            color: #6b7280;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 2px;
+        }
+
+        .kpi-value {
+            font-size: clamp(20px, 5vw, 24px);
+            font-weight: 800;
+            color: #1f2937;
+            line-height: 1;
+        }
+
+        /* ===== PREMIUM PAYMENT STATUS CHIPS ===== */
+        .status-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: clamp(5px, 1.2vw, 6px) clamp(10px, 2.5vw, 12px);
+            border-radius: 9999px;
+            font-size: clamp(10px, 2.5vw, 11px);
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            white-space: nowrap;
+        }
+
+        .status-chip i {
+            font-size: clamp(10px, 2.5vw, 11px);
+        }
+
+        .status-chip--due {
+            background: linear-gradient(135deg, rgba(239, 68, 68, 0.12) 0%, rgba(220, 38, 38, 0.08) 100%);
+            color: #dc2626;
+            border: 1px solid rgba(220, 38, 38, 0.25);
+        }
+
+        .status-chip--paid {
+            background: linear-gradient(135deg, rgba(34, 197, 94, 0.12) 0%, rgba(22, 163, 74, 0.08) 100%);
+            color: #16a34a;
+            border: 1px solid rgba(22, 163, 74, 0.25);
+        }
+
+        .status-chip--partial {
+            background: linear-gradient(135deg, rgba(245, 158, 11, 0.12) 0%, rgba(217, 119, 6, 0.08) 100%);
+            color: #d97706;
+            border: 1px solid rgba(217, 119, 6, 0.25);
+        }
+
         /* ===== PREMIUM GARAGE SAAS COMPACT REDESIGN ===== */
         
         /* A. Global Design Tokens */
@@ -2902,19 +3001,10 @@
                                     <div class="itemsPanelHeader">
                                         <div class="itemsTabs">
                                             <button type="button" class="tabBtn active" data-tab="jobs">
-                                                <i class="fas fa-wrench"></i> Jobs
+                                                <i class="fas fa-wrench"></i> <span class="tab-label">LABOUR</span>
                                             </button>
                                             <button type="button" class="tabBtn" data-tab="parts">
-                                                <i class="fas fa-cogs"></i> Parts
-                                            </button>
-                                        </div>
-
-                                        <div class="itemsQuickActions">
-                                            <button type="button" class="miniBtn" data-action="addJob" id="addJobBtn">
-                                                <i class="fas fa-plus"></i> Job
-                                            </button>
-                                            <button type="button" class="miniBtn" data-action="addPart" id="addPartBtn">
-                                                <i class="fas fa-plus"></i> Part
+                                                <i class="fas fa-cogs"></i> <span class="tab-label">PARTS</span>
                                             </button>
                                         </div>
                                     </div>
@@ -2987,18 +3077,40 @@
                                     </div>
                                 </section>
 
-                                <!-- Notes Collapsible (Full Width) -->
-                                <section class="card appt-card appt-card--full">
-                                    <details class="collapsible">
-                                        <summary>Notes (opțional)</summary>
-                                        <div class="collapsible-content">
+                                <!-- Notes Section - Premium Collapsible Card -->
+                                <section class="premium-notes-card">
+                                    <details class="premium-details" id="notesDetails" open>
+                                        <summary class="premium-summary">
+                                            <div class="summary-header">
+                                                <span class="summary-icon"><i class="fas fa-sticky-note"></i></span>
+                                                <span class="summary-title">Notes</span>
+                                                <span class="summary-badge" id="notesBadge">Optional</span>
+                                            </div>
+                                            <div class="summary-preview" id="notesPreview">Click to add notes...</div>
+                                        </summary>
+                                        <div class="premium-content">
+                                            <div class="notes-header">
+                                                <div class="notes-tags">
+                                                    <button type="button" class="tag-btn active" data-tag="internal">
+                                                        <i class="fas fa-lock"></i> Internal
+                                                    </button>
+                                                    <button type="button" class="tag-btn" data-tag="customer">
+                                                        <i class="fas fa-eye"></i> Customer-Visible
+                                                    </button>
+                                                </div>
+                                                <div class="char-counter">
+                                                    <span id="notesCharCount">0</span> / 1000
+                                                </div>
+                                            </div>
                                             <textarea 
                                                 id="notes" 
                                                 name="notes" 
                                                 data-i18n-placeholder="fieldShortNotePlaceholder"
-                                                placeholder="Detalii adiționale..." 
-                                                class="appt-textarea"
+                                                placeholder="Add internal notes, customer requests, or special instructions..." 
+                                                class="premium-textarea"
+                                                maxlength="1000"
                                             ></textarea>
+                                            <input type="hidden" id="notesTag" value="internal" />
                                         </div>
                                     </details>
                                 </section>
@@ -3063,14 +3175,32 @@
                         </button>
                     </div>
 
+                    <!-- KPI Summary -->
+                    <div class="invoice-kpi" id="invoiceKPI" style="margin-bottom: var(--tv-gap-md);">
+                        <div class="kpi-item kpi-item--unpaid">
+                            <div class="kpi-icon"><i class="fas fa-clock"></i></div>
+                            <div class="kpi-content">
+                                <div class="kpi-label">Unpaid</div>
+                                <div class="kpi-value" id="kpiUnpaid">0</div>
+                            </div>
+                        </div>
+                        <div class="kpi-item kpi-item--paid">
+                            <div class="kpi-icon"><i class="fas fa-check-circle"></i></div>
+                            <div class="kpi-content">
+                                <div class="kpi-label">Paid</div>
+                                <div class="kpi-value" id="kpiPaid">0</div>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Filters -->
                     <div class="filters-wrapper" style="margin-bottom: var(--tv-gap-lg);">
                         <div class="filter-group">
-                            <label for="filterInvoiceStatus"><span data-i18n="filterLabel">Filter:</span></label>
-                            <select id="filterInvoiceStatus" onchange="filterInvoices()">
+                            <label for="filterInvoicePayment"><span data-i18n="filterLabel">Filter:</span></label>
+                            <select id="filterInvoicePayment" onchange="filterInvoices()">
+                                <option value="unpaid" selected>Unpaid</option>
+                                <option value="paid">Paid</option>
                                 <option value="all">All</option>
-                                <option value="draft">Draft</option>
-                                <option value="final">Final</option>
                             </select>
                         </div>
                         <div class="filter-group">

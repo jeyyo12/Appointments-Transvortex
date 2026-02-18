@@ -3885,6 +3885,125 @@ function highlightAndScrollToAppointment(appointmentId) {
 }
 
 // ==========================================
+// PREMIUM NOTES SECTION - Interactive Features
+// ==========================================
+
+function initPremiumNotes() {
+    const notesTextarea = document.getElementById('notes');
+    const notesCharCount = document.getElementById('notesCharCount');
+    const notesPreview = document.getElementById('notesPreview');
+    const notesBadge = document.getElementById('notesBadge');
+    const tagButtons = document.querySelectorAll('.tag-btn');
+    const notesTagInput = document.getElementById('notesTag');
+    
+    if (!notesTextarea) return;
+    
+    // Character counter
+    function updateCharCount() {
+        const length = notesTextarea.value.length;
+        if (notesCharCount) {
+            notesCharCount.textContent = length;
+            
+            // Warning color if approaching limit
+            if (length > 900) {
+                notesCharCount.style.color = '#dc2626';
+            } else if (length > 750) {
+                notesCharCount.style.color = '#f59e0b';
+            } else {
+                notesCharCount.style.color = '#64748b';
+            }
+        }
+    }
+    
+    // Update preview text
+    function updatePreview() {
+        const content = notesTextarea.value.trim();
+        if (notesPreview) {
+            if (content) {
+                notesPreview.textContent = content.substring(0, 100) + (content.length > 100 ? '...' : '');
+                notesPreview.classList.add('has-content');
+                if (notesBadge) notesBadge.textContent = `${content.length} chars`;
+            } else {
+                notesPreview.textContent = 'Click to add notes...';
+                notesPreview.classList.remove('has-content');
+                if (notesBadge) notesBadge.textContent = 'Optional';
+            }
+        }
+    }
+    
+    // Tag switching
+    tagButtons.forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            const tag = btn.dataset.tag;
+            
+            // Update UI
+            tagButtons.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            
+            // Update hidden input
+            if (notesTagInput) {
+                notesTagInput.value = tag;
+            }
+        });
+    });
+    
+    // Listen for input
+    notesTextarea.addEventListener('input', () => {
+        updateCharCount();
+        updatePreview();
+    });
+    
+    // Initialize
+    updateCharCount();
+    updatePreview();
+    
+    console.log('✅ Premium Notes initialized');
+}
+
+// ==========================================
+// CHIPS MODE AUTO-SAVE INTEGRATION
+// ==========================================
+
+function initChipsModeAutoSave() {
+    // Import and setup auto-save callback
+    import('./src/core/chips-mode.js')
+        .then(({ setAutoSaveCallback, setFirestoreDb }) => {
+            // Set auto-save callback
+            setAutoSaveCallback(() => {
+                // Auto-save logic: only save if in edit mode
+                if (editingAppointmentId) {
+                    console.log('🔄 Auto-saving appointment changes...');
+                    // Trigger form submission silently
+                    const form = document.getElementById('appointmentForm');
+                    if (form) {
+                        // Create a custom event to differentiate from manual submit
+                        const autoSaveEvent = new Event('submit', { 
+                            bubbles: true, 
+                            cancelable: true 
+                        });
+                        autoSaveEvent.isAutoSave = true;
+                        form.dispatchEvent(autoSaveEvent);
+                    }
+                } else {
+                    console.log('📝 Changes tracked (new appointment, save manually)');
+                }
+            });
+            
+            // Set Firestore DB reference for catalog persistence
+            if (db) {
+                setFirestoreDb(db);
+                console.log('✅ Firestore DB reference set for catalog');
+            }
+            
+            console.log('✅ Chips Mode auto-save callback registered');
+        })
+        .catch(err => {
+            console.warn('⚠️ Could not setup auto-save:', err);
+        });
+}
+
+// ==========================================
 // INITIALIZE ON PAGE LOAD
 // ==========================================
 window.handleAuthToggle = handleAuthToggle;
@@ -3912,6 +4031,12 @@ document.addEventListener('DOMContentLoaded', () => {
     renderScannedInvoicesList();
     
     initializeFirebase();
+    
+    // Initialize Premium Notes Section
+    initPremiumNotes();
+    
+    // Initialize Auto-Save for Chips Mode
+    initChipsModeAutoSave();
     
     // Set today's date as default in appointment form
     const today = new Date().toISOString().split('T')[0];
@@ -4303,6 +4428,9 @@ function subscribeToAppointments() {
 async function handleAddAppointment(e) {
     e.preventDefault();
     
+    // Detect auto-save vs manual save
+    const isAutoSave = e.isAutoSave === true;
+    
     if (!isAdmin) {
         showNotification('⚠️ Doar administratorii pot adăuga programări', 'error');
         return;
@@ -4512,8 +4640,10 @@ async function handleAddAppointment(e) {
 
             await syncInvoiceFromAppointmentPayload(docRef.id, basePayload);
             
-            showNotification('✅ Programare adăugată cu succes!', 'success');
-            showToast('Programare adăugată cu succes!', 'success');
+            if (!isAutoSave) {
+                showNotification('✅ Programare adăugată cu succes!', 'success');
+                showToast('Programare adăugată cu succes!', 'success');
+            }
         } else {
             // EDIT MODE - update existing appointment
             console.log(`📝 Updating appointment ${editingAppointmentId}...`);
@@ -4525,48 +4655,69 @@ async function handleAddAppointment(e) {
             
             await syncInvoiceFromAppointmentPayload(editingAppointmentId, basePayload);
             
-            showNotification('✅ Programare actualizată cu succes!', 'success');
-            showToast('Programare actualizată cu succes!', 'success');
-        }
-        
-        // Reset form
-        e.target.reset();
-        const today = new Date().toISOString().split('T')[0];
-        document.getElementById('appointmentDate').value = today;
-        document.getElementById('appointmentTime').value = '';
-        document.getElementById('appointmentTimeValue').value = '';
-        document.getElementById('mileage').value = '';
-
-        renderJobRows([]);
-        renderPartRows([]);
-        updateAppointmentTotals();
-        
-        // Reset location sections
-        document.getElementById('serviceLocation').value = '';
-        const garageSection = document.getElementById('garageAddressSection');
-        const clientSection = document.getElementById('clientAddressSection');
-        if (garageSection) garageSection.style.display = 'none';
-        if (clientSection) clientSection.removeAttribute('open');
-
-        const jobsContainer = document.getElementById('jobsContainer');
-        const partsContainer = document.getElementById('partsContainer');
-        if (jobsContainer) jobsContainer.innerHTML = '';
-        if (partsContainer) partsContainer.innerHTML = '';
-        addJobRow();
-        updateAppointmentTotals();
-        
-        // Reset edit mode
-        if (editingAppointmentId) {
-            exitEditMode();
-        }
-        
-        // Highlight and scroll to new/edited appointment
-        setTimeout(() => {
-            const targetId = editingAppointmentId || (e.target.lastInsertRowid);
-            if (targetId && targetId !== '') {
-                highlightAndScrollToAppointment(targetId);
+            if (isAutoSave) {
+                // Subtle notification for auto-save
+                console.log('💾 Auto-saved successfully');
+            } else {
+                showNotification('✅ Programare actualizată cu succes!', 'success');
+                showToast('Programare actualizată cu succes!', 'success');
             }
-        }, 300);
+        }
+        
+        // Reset form only for manual saves (not auto-saves)
+        if (!isAutoSave) {
+            e.target.reset();
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('appointmentDate').value = today;
+            document.getElementById('appointmentTime').value = '';
+            document.getElementById('appointmentTimeValue').value = '';
+            document.getElementById('mileage').value = '';
+
+            renderJobRows([]);
+            renderPartRows([]);
+            updateAppointmentTotals();
+            
+            // Reset location sections
+            document.getElementById('serviceLocation').value = '';
+            const garageSection = document.getElementById('garageAddressSection');
+            const clientSection = document.getElementById('clientAddressSection');
+            if (garageSection) garageSection.style.display = 'none';
+            if (clientSection) clientSection.removeAttribute('open');
+
+            const jobsContainer = document.getElementById('jobsContainer');
+            const partsContainer = document.getElementById('partsContainer');
+            if (jobsContainer) jobsContainer.innerHTML = '';
+            if (partsContainer) partsContainer.innerHTML = '';
+            
+            // Reset editing state
+            editingAppointmentId = null;
+            
+            // Clear chips
+            const jobsChips = document.getElementById('jobsChips');
+            const partsChips = document.getElementById('partsChips');
+            if (jobsChips) jobsChips.innerHTML = '';
+            if (partsChips) partsChips.innerHTML = '';
+            
+            // Update UI
+            const submitBtn = document.getElementById('submitAppointmentBtn');
+            const submitBtnText = document.getElementById('submitAppointmentBtnText');
+            if (submitBtn) submitBtn.innerHTML = '<i class="fas fa-plus"></i> <span id="submitAppointmentBtnText">Save Appointment</span>';
+            if (submitBtnText) submitBtnText.textContent = 'Save Appointment';
+            
+            addJobRow();
+            updateAppointmentTotals();
+            
+            // Reset edit mode
+            exitEditMode();
+            
+            // Highlight and scroll to new/edited appointment
+            setTimeout(() => {
+                const targetId = editingAppointmentId || (e.target.lastInsertRowid);
+                if (targetId && targetId !== '') {
+                    highlightAndScrollToAppointment(targetId);
+                }
+            }, 300);
+        }
         
     } catch (error) {
         console.error('❌ Error:', error);
@@ -7660,24 +7811,40 @@ function stopInvoicesListener() {
 }
 
 /**
+ * Helper: Check if invoice is paid (normalized across different field formats)
+ * @param {Object} inv - Invoice object
+ * @returns {boolean} True if invoice is fully paid
+ */
+function isInvoicePaid(inv) {
+    // Method 1: Check explicit paymentStatus field (set by sync)
+    const paymentStatus = (inv.paymentStatus || '').toLowerCase();
+    if (paymentStatus === 'paid') return true;
+    
+    // Method 2: Compute from amounts
+    const total = inv.total || 0;
+    const amountPaid = inv.amountPaid || inv.paidAmount || inv.totals?.amountPaid || 0;
+    const balanceDue = Math.max(0, total - amountPaid);
+    
+    // Paid if amount paid covers total and total > 0
+    return total > 0 && amountPaid > 0 && balanceDue <= 0;
+}
+
+/**
  * Filter and search invoices
  */
 function filterInvoices() {
     console.log('🔍 [Invoices] filterInvoices() called - allInvoices.length:', allInvoices.length);
     const searchInput = document.getElementById('searchInvoices');
-    const statusFilter = document.getElementById('filterInvoiceStatus');
+    const paymentFilter = document.getElementById('filterInvoicePayment');
     
     const searchTerm = searchInput ? searchInput.value.toLowerCase().trim() : '';
-    const statusValue = statusFilter ? statusFilter.value : 'all';
+    const paymentValue = paymentFilter ? paymentFilter.value : 'unpaid';
+    
+    console.log('🔍 [Filter] Payment filter:', paymentValue, 'Search:', searchTerm);
     
     let filtered = allInvoices;
     
-    // Filter by status
-    if (statusValue !== 'all') {
-        filtered = filtered.filter(inv => inv.status === statusValue);
-    }
-    
-    // Filter by search term
+    // Step 1: Filter by search term FIRST
     if (searchTerm) {
         filtered = filtered.filter(inv => {
             const invNumber = (inv.invoiceNumber || '').toLowerCase();
@@ -7690,10 +7857,53 @@ function filterInvoices() {
                    custPhone.includes(searchTerm) ||
                    plate.includes(searchTerm);
         });
+        console.log('🔍 [Filter] After search:', filtered.length);
+    }
+    
+    // Step 2: Filter by payment status within search results
+    if (paymentValue !== 'all') {
+        filtered = filtered.filter(inv => {
+            const isPaid = isInvoicePaid(inv);
+            
+            if (paymentValue === 'paid') {
+                return isPaid;
+            } else if (paymentValue === 'unpaid') {
+                return !isPaid;
+            }
+            return true;
+        });
+        console.log('🔍 [Filter] After payment filter (', paymentValue, '):', filtered.length);
     }
     
     filteredInvoices = filtered;
+    updateInvoiceKPI();
     renderInvoicesStorage();
+}
+
+/**
+ * Update KPI summary (Unpaid vs Paid counts)
+ */
+function updateInvoiceKPI() {
+    const kpiUnpaid = document.getElementById('kpiUnpaid');
+    const kpiPaid = document.getElementById('kpiPaid');
+    
+    if (!kpiUnpaid || !kpiPaid) return;
+    
+    let unpaidCount = 0;
+    let paidCount = 0;
+    
+    allInvoices.forEach(inv => {
+        if (isInvoicePaid(inv)) {
+            paidCount++;
+        } else {
+            unpaidCount++;
+        }
+    });
+    
+    kpiUnpaid.textContent = unpaidCount;
+    kpiPaid.textContent = paidCount;
+    
+    console.log('📊 [KPI] Updated:', { unpaidCount, paidCount });
 }
 
 /**
@@ -7736,17 +7946,18 @@ function createInvoiceCard(invoice) {
     const status = invoice.status || 'draft';
     const createdAt = invoice.createdAt;
     
-    // Determine payment status
-    let paymentStatus = 'UNPAID';
-    let paymentBadgeClass = 'badge';
-    if (amountPaid > 0) {
-        if (balanceDue <= 0) {
-            paymentStatus = 'PAID';
-            paymentBadgeClass = 'badge badge--done';
-        } else {
-            paymentStatus = 'PARTIAL';
-            paymentBadgeClass = 'badge badge--overdue';
-        }
+    // Determine payment status with normalized logic
+    const isPaid = isInvoicePaid(invoice);
+    const isPartial = amountPaid > 0 && balanceDue > 0 && !isPaid;
+    
+    // Premium status chips
+    let paymentChip = '';
+    if (isPaid) {
+        paymentChip = '<span class="status-chip status-chip--paid"><i class="fas fa-check-circle"></i> PAID</span>';
+    } else if (isPartial) {
+        paymentChip = '<span class="status-chip status-chip--partial"><i class="fas fa-exclamation-circle"></i> PARTIAL</span>';
+    } else {
+        paymentChip = '<span class="status-chip status-chip--due"><i class="fas fa-clock"></i> DUE</span>';
     }
     
     // Format date
@@ -7774,8 +7985,7 @@ function createInvoiceCard(invoice) {
                     <div class="storage-card__meta-date">${dateStr}</div>
                 </div>
                 <div class="storage-card__badges">
-                    <span class="${statusBadgeClass}">${status.toUpperCase()}</span>
-                    <span class="${paymentBadgeClass}">${paymentStatus}</span>
+                    ${paymentChip}
                 </div>
             </div>
             
@@ -7786,8 +7996,8 @@ function createInvoiceCard(invoice) {
             
             <div class="storage-card__line">
                 <span>Total: <strong>£${total.toFixed(2)}</strong></span>
-                ${amountPaid > 0 ? `<span class="app-card__meta-sep">•</span><span class="app-card__meta-paid">Paid: £${amountPaid.toFixed(2)}</span>` : ''}
-                ${balanceDue > 0 ? `<span class="app-card__meta-sep">•</span><span class="app-card__meta-due">Due: £${balanceDue.toFixed(2)}</span>` : ''}
+                ${amountPaid > 0 ? `<span class="app-card__meta-sep">•</span><span style="color: #16a34a; font-weight: 600;">Paid: £${amountPaid.toFixed(2)}</span>` : ''}
+                ${balanceDue > 0 ? `<span class="app-card__meta-sep">•</span><span style="color: #dc2626; font-weight: 600;">Due: £${balanceDue.toFixed(2)}</span>` : ''}
             </div>
             
             <div class="storage-card__actions">

@@ -238,7 +238,7 @@ export async function rebuildInvoiceFromAppointment(appointmentId, invoiceId = n
  */
 export function setupSearchAndFilterListeners() {
   const searchInput = document.getElementById('searchInvoices');
-  const statusFilter = document.getElementById('filterInvoiceStatus');
+  const paymentFilter = document.getElementById('filterInvoicePayment');
   
   if (searchInput) {
     searchInput.addEventListener('input', () => {
@@ -247,9 +247,9 @@ export function setupSearchAndFilterListeners() {
     });
   }
   
-  if (statusFilter) {
-    statusFilter.addEventListener('change', () => {
-      logger.debug('Status filter changed');
+  if (paymentFilter) {
+    paymentFilter.addEventListener('change', () => {
+      logger.debug('Payment filter changed');
       filterInvoices();
     });
   }
