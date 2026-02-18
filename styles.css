@@ -1240,105 +1240,6 @@ footer p {
     color: white;
 }
 
-/* ==========================================
-   TIMELINE / HISTORY VIEWER
-   ========================================== */
-
-.tvx-history {
-    margin-top: 20px;
-    padding-top: 16px;
-    border-top: 1px solid rgba(15, 23, 42, 0.1);
-}
-
-.tvx-history h3 {
-    font-size: 14px;
-    font-weight: 700;
-    margin: 0 0 12px 0;
-    color: #0F172A;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-}
-
-.tvx-history-list {
-    display: grid;
-    gap: 10px;
-    max-height: 280px;
-    overflow-y: auto;
-    padding-right: 6px;
-}
-
-.tvx-history-empty {
-    color: rgba(15, 23, 42, 0.5);
-    font-size: 13px;
-    text-align: center;
-    padding: 20px 10px;
-}
-
-.tvx-history-item {
-    border: 1px solid rgba(15, 23, 42, 0.1);
-    border-radius: 12px;
-    background: #FFFFFF;
-    padding: 12px;
-    box-shadow: 0 2px 8px rgba(2, 6, 23, 0.05);
-}
-
-.tvx-history-item__top {
-    display: flex;
-    justify-content: space-between;
-    gap: 10px;
-    align-items: flex-start;
-}
-
-.tvx-history-item__title {
-    font-weight: 700;
-    font-size: 13px;
-    color: #0F172A;
-}
-
-.tvx-history-item__time {
-    color: rgba(15, 23, 42, 0.6);
-    font-size: 12px;
-    white-space: nowrap;
-}
-
-.tvx-history-item__meta {
-    margin-top: 8px;
-    font-size: 12px;
-    color: rgba(15, 23, 42, 0.85);
-    line-height: 1.4;
-}
-
-.tvx-history-item__meta small {
-    color: rgba(15, 23, 42, 0.6);
-    font-weight: 600;
-}
-
-/* Scrollbar styling for timeline */
-.tvx-history-list::-webkit-scrollbar {
-    width: 6px;
-}
-
-.tvx-history-list::-webkit-scrollbar-track {
-    background: rgba(15, 23, 42, 0.05);
-    border-radius: 3px;
-}
-
-.tvx-history-list::-webkit-scrollbar-thumb {
-    background: rgba(255, 122, 24, 0.4);
-    border-radius: 3px;
-}
-
-.tvx-history-list::-webkit-scrollbar-thumb:hover {
-    background: rgba(255, 122, 24, 0.6);
-}
-
-/* Mobile responsive */
-@media (max-width: 768px) {
-    .tvx-history-list {
-        max-height: 220px;
-    }
-}
-
 /* ============================================
    QUICK FINALIZE MODAL STYLES
    ============================================ */
@@ -1724,18 +1625,21 @@ footer p {
     background: rgba(239, 68, 68, 0.15);
     color: #991B1B;
     border: 1px solid rgba(239, 68, 68, 0.3);
+    display: none !important;
 }
 
 .tvPaymentStatus.payment-partial {
     background: rgba(245, 158, 11, 0.15);
     color: #92400E;
     border: 1px solid rgba(245, 158, 11, 0.3);
+    display: none !important;
 }
 
 .tvPaymentStatus.payment-paid {
     background: rgba(52, 211, 153, 0.15);
     color: #065F46;
     border: 1px solid rgba(52, 211, 153, 0.3);
+    display: none !important;
 }
 
 /* Mobile-friendly payment summary */

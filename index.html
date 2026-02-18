@@ -804,6 +804,24 @@
             --tv-shadow-saas: 0 10px 25px rgba(15, 23, 42, 0.06);
             --tv-border-saas: 1px solid rgba(15, 23, 42, 0.08);
             --tv-min-tap: 44px;
+
+            /* ===== PREMIUM MOBILE-FIRST CLAMP() TOKENS ===== */
+            --appt-card-pad: clamp(14px, 3vw, 18px);
+            --appt-gap: clamp(8px, 2vw, 12px);
+            --appt-radius: clamp(14px, 3.5vw, 18px);
+            
+            /* Button sizing - never collapse */
+            --appt-btn-h: clamp(44px, 9vw, 52px);
+            --appt-btn-pad-x: clamp(10px, 2.5vw, 14px);
+            --appt-btn-pad-y: clamp(10px, 2vw, 13px);
+            --appt-btn-font: clamp(13px, 3.1vw, 15px);
+            --appt-btn-icon: clamp(16px, 3.8vw, 18px);
+            --appt-btn-gap: clamp(6px, 1.5vw, 9px);
+            
+            /* Typography */
+            --appt-title-font: clamp(16px, 4.2vw, 18px);
+            --appt-meta-font: clamp(12px, 3.2vw, 13px);
+            --appt-label-font: clamp(11px, 2.8vw, 12px);
         }
 
         /* B. Appointments Grid Layout */
@@ -823,121 +841,184 @@
             }
         }
 
-        /* C. Compact Appointment Card */
+        /* C. Premium Modern SaaS Appointment Card */
         .app-card {
-            border: var(--tv-border-saas);
-            border-radius: var(--tv-rad-saas);
-            box-shadow: var(--tv-shadow-saas);
+            border: none;
+            border-radius: 16px;
             background: #fff;
-            padding: var(--tv-pad-sm);
-            transition: all 0.2s ease;
-            overflow: visible;
+            box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
+            padding: clamp(16px, 3vw, 20px);
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            overflow: hidden;
             position: relative;
-        }
-        .app-card:hover {
-            box-shadow: 0 12px 30px rgba(15, 23, 42, 0.1);
-            transform: translateY(-2px);
-        }
-
-        /* Card Top (Name + Badges) */
-        .app-card__top {
-            display: flex;
-            align-items: flex-start;
-            justify-content: space-between;
-            gap: var(--tv-gap-sm);
-            margin-bottom: var(--tv-gap-xs);
-        }
-        .app-card__name {
-            font-size: var(--tv-fs-3);
-            font-weight: 750;
-            line-height: 1.2;
-            color: rgba(15, 23, 42, 0.95);
-            word-break: break-word;
-        }
-        .app-card__badges {
-            display: flex;
-            gap: 6px;
-            flex-wrap: wrap;
-            justify-content: flex-end;
-            flex-shrink: 0;
-        }
-
-        /* Compact Badges */
-        .badge {
-            font-size: var(--tv-fs-1);
-            padding: 6px 10px;
-            border-radius: 999px;
-            border: 1px solid rgba(15, 23, 42, 0.10);
-            background: rgba(2, 6, 23, 0.02);
-            white-space: nowrap;
-            line-height: 1;
-        }
-        .badge--scheduled { 
-            background: rgba(59, 130, 246, 0.10); 
-            border-color: rgba(59, 130, 246, 0.25); 
-            color: rgba(29, 78, 216, 0.95);
-        }
-        .badge--done, .badge--finalized { 
-            background: rgba(16, 185, 129, 0.12); 
-            border-color: rgba(16, 185, 129, 0.25); 
-            color: rgba(5, 150, 105, 0.95);
-        }
-        .badge--canceled { 
-            background: rgba(239, 68, 68, 0.10); 
-            border-color: rgba(239, 68, 68, 0.22); 
-            color: rgba(185, 28, 28, 0.95);
-        }
-        .badge--overdue {
-            background: rgba(245, 158, 11, 0.12);
-            border-color: rgba(245, 158, 11, 0.30);
-            color: rgba(180, 83, 9, 0.95);
-        }
-
-        /* Compact Meta Row - Vehicle + Payment Info */
-        .app-card__meta {
-            margin-top: var(--tv-gap-xs);
-            margin-bottom: var(--tv-gap-sm);
-            font-size: var(--tv-fs-2);
-            color: rgba(15, 23, 42, 0.75);
             display: flex;
             flex-direction: column;
-            gap: clamp(6px, 1vw, 10px);
+            gap: clamp(12px, 2vw, 16px);
+        }
+        
+        .app-card:hover {
+            box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
+            transform: translateY(-1px);
+        }
+        
+        /* Card Header - Status Badge (Top Right) */
+        .app-card__header {
+            display: flex;
+            justify-content: flex-end;
+            margin: -4px -4px 0 0;
+        }
+        
+        /* Status Badge - Clean & Minimal */
+        .app-card__status-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: clamp(6px, 1vw, 8px) clamp(10px, 1.5vw, 12px);
+            border-radius: 999px;
+            font-size: clamp(0.7rem, 0.9vw, 0.8rem);
+            font-weight: 700;
+            white-space: nowrap;
+            letter-spacing: 0.02em;
+            text-transform: uppercase;
+            border: 1.5px solid transparent;
+        }
+        
+        .status-completed {
+            background: rgba(16, 185, 129, 0.12);
+            border-color: rgba(16, 185, 129, 0.35);
+            color: rgba(5, 115, 40, 0.95);
+        }
+        
+        .status-canceled {
+            background: rgba(239, 68, 68, 0.12);
+            border-color: rgba(239, 68, 68, 0.35);
+            color: rgba(127, 29, 29, 0.95);
+        }
+        
+        .status-overdue {
+            background: rgba(245, 158, 11, 0.14);
+            border-color: rgba(245, 158, 11, 0.4);
+            color: rgba(120, 53, 15, 0.95);
+        }
+        
+        .status-soon {
+            background: rgba(249, 115, 22, 0.12);
+            border-color: rgba(249, 115, 22, 0.35);
+            color: rgba(124, 45, 18, 0.95);
+        }
+        
+        .status-scheduled {
+            background: rgba(107, 114, 128, 0.1);
+            border-color: rgba(107, 114, 128, 0.3);
+            color: rgba(55, 65, 81, 0.95);
+        }
+        
+        /* Info Section - Vehicle, Client, Date */
+        .app-card__info {
+            display: flex;
+            flex-direction: column;
+            gap: clamp(8px, 1.5vw, 10px);
+            font-size: clamp(0.85rem, 1vw, 0.95rem);
+        }
+        
+        .info-row {
+            display: grid;
+            grid-template-columns: 80px 1fr;
+            gap: 12px;
+            align-items: center;
+        }
+        
+        .info-label {
+            font-weight: 600;
+            color: rgba(107, 114, 128, 0.9);
+            font-size: clamp(0.8rem, 0.9vw, 0.85rem);
+        }
+        
+        .info-value {
+            color: rgba(15, 23, 42, 0.95);
+            font-weight: 500;
+            word-break: break-word;
+        }
+        
+        /* Payment Summary */
+        .app-card__payment-summary {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            padding: clamp(10px, 1.5vw, 12px);
+            background: rgba(59, 130, 246, 0.04);
+            border-radius: 12px;
+            border-left: 3px solid rgba(59, 130, 246, 0.3);
+        }
+        
+        .payment-item {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+        
+        .payment-item.paid {
+            background: rgba(16, 185, 129, 0.06);
+            padding: 6px 8px;
+            border-radius: 6px;
+        }
+        
+        .payment-item.unpaid {
+            background: rgba(239, 68, 68, 0.06);
+            padding: 6px 8px;
+            border-radius: 6px;
+        }
+        
+        .payment-label {
+            font-size: clamp(0.75rem, 0.85vw, 0.8rem);
+            font-weight: 600;
+            color: rgba(107, 114, 128, 0.9);
+        }
+        
+        .payment-value {
+            font-size: clamp(0.9rem, 1.1vw, 1rem);
+            font-weight: 700;
+            color: rgba(15, 23, 42, 0.95);
+        }
+        
+        .payment-item.paid .payment-value {
+            color: rgba(5, 115, 40, 0.95);
+        }
+        
+        .payment-item.unpaid .payment-value {
+            color: rgba(127, 29, 29, 0.95);
+        }
+        
+        /* Actions Container - Flex Column Layout */
+        .app-card__actions {
+            display: flex;
+            flex-direction: column;
+            gap: clamp(12px, 2vw, 16px);
+            padding-top: clamp(12px, 2vw, 16px);
+            border-top: 1px solid rgba(15, 23, 42, 0.08);
+        }
+        
+        /* OLD META STYLES - Hidden (replaced by app-card__info) */
+        .app-card__meta {
+            display: none;
         }
         
         /* Vehicle info row: plate + make/model */
         .app-card__vehicle {
-            display: flex;
-            gap: clamp(8px, 2vw, 12px);
-            flex-wrap: wrap;
-            align-items: center;
+            display: none;
         }
         .app-card__plate {
-            display: inline-flex;
-            align-items: center;
-            padding: clamp(4px, 0.5vw, 6px) clamp(8px, 1vw, 10px);
-            background: rgba(59, 130, 246, 0.10);
-            border: 1px solid rgba(59, 130, 246, 0.25);
-            border-radius: 6px;
-            font-weight: 700;
-            color: rgba(29, 78, 216, 0.95);
-            font-size: clamp(0.75rem, 1vw, 0.875rem);
+            display: none;
         }
         .app-card__model {
-            font-size: clamp(0.75rem, 1vw, 0.875rem);
-            color: rgba(15, 23, 42, 0.85);
-            font-weight: 500;
+            display: none;
         }
         
         /* Payment info row */
         .app-card__payment {
-            display: flex;
-            gap: 10px;
-            flex-wrap: wrap;
-            align-items: center;
-            font-size: clamp(0.875rem, 1vw, 0.95rem);
+            display: none;
         }
         .app-card__meta strong { 
-            color: rgba(15, 23, 42, 0.95); 
+            display: none;
         }
         .app-card__meta-sep {
             color: rgba(15, 23, 42, 0.3);
@@ -953,51 +1034,17 @@
 
         /* Bottom section: actions + controls */
         .app-card__bottom {
-            margin-top: var(--tv-gap-md);
-            display: flex;
-            flex-direction: column;
-            gap: clamp(8px, 1vw, 10px);
-            overflow: visible;
-            position: relative;
-            z-index: 1;
+            display: none; /* Hidden - replaced by app-card__actions */
         }
         
-        /* Primary action buttons row */
+        /* Primary action buttons row (OLD - hidden) */
         .app-card__actions-row {
-            display: flex;
-            gap: clamp(6px, 1.2vw, 10px);
-            flex-wrap: wrap;
-            align-items: center;
-            position: relative;
-            overflow: visible;
+            display: none; /* Hidden - replaced by action-group */
         }
         
-        /* Payment status toggle button */
+        /* Payment status toggle button (OLD - hidden) */
         .app-card__toggle-paid {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: 6px;
-            padding: clamp(8px, 1vw, 10px) clamp(12px, 1.5vw, 14px);
-            border-radius: 6px;
-            border: 1px solid;
-            font-size: clamp(0.75rem, 0.9vw, 0.875rem);
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            min-height: clamp(40px, 4vh, 44px);
-            user-select: none;
-        }
-        
-        .app-card__toggle-paid.unpaid {
-            background: rgba(239, 68, 68, 0.10);
-            border-color: rgba(239, 68, 68, 0.35);
-            color: rgba(185, 28, 28, 0.95);
-        }
-        .app-card__toggle-paid.unpaid:hover {
-            background: rgba(239, 68, 68, 0.15);
-            transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.2);
+            display: none; /* Hidden - replaced by action-btn--payment */
         }
         
         .app-card__toggle-paid.paid {
@@ -1015,103 +1062,14 @@
             transform: scale(0.97);
         }
         
-        /* Actions dropdown wrapper */
+        /* Actions dropdown wrapper (OLD - hidden) */
         .app-card__actions-dropdown-wrapper {
-            position: relative;
-            margin-left: auto;
+            display: none; /* Hidden - replaced by action-btn--primary layout */
         }
         
-        /* Actions dropdown button */
+        /* Actions dropdown button (OLD - hidden) */
         .app-card__actions-dropdown-btn {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: 6px;
-            padding: clamp(8px, 1vw, 10px) clamp(12px, 1.5vw, 14px);
-            border-radius: 6px;
-            border: 1px solid rgba(107, 114, 128, 0.25);
-            background: rgba(107, 114, 128, 0.05);
-            color: rgba(55, 65, 81, 0.95);
-            font-size: clamp(0.75rem, 0.9vw, 0.875rem);
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            min-height: clamp(40px, 4vh, 44px);
-            user-select: none;
-        }
-        .app-card__actions-dropdown-btn:hover {
-            background: rgba(107, 114, 128, 0.12);
-            transform: translateY(-1px);
-        }
-        .app-card__actions-dropdown-btn:active {
-            transform: scale(0.97);
-        }
-        .app-card__actions-dropdown-btn i {
-            font-size: clamp(0.65rem, 0.8vw, 0.75rem);
-            transition: transform 0.2s ease;
-        }
-        .app-card__actions-dropdown-btn.open i {
-            transform: scaleY(-1);
-        }
-        
-        /* Actions dropdown menu */
-        .app-card__actions-dropdown-menu {
-            position: absolute;
-            top: calc(100% + 4px);
-            right: 0;
-            background: #fff;
-            border: 1px solid rgba(15, 23, 42, 0.10);
-            border-radius: 8px;
-            box-shadow: 0 8px 20px rgba(15, 23, 42, 0.12);
-            min-width: 160px;
-            z-index: 9999;
-            opacity: 0;
-            visibility: hidden;
-            transform: translateY(-8px);
-            transition: all 0.2s ease;
-            overflow: visible;
-            max-height: 300px;
-            overflow-y: auto;
-        }
-        
-        .app-card__actions-dropdown-menu.open {
-            opacity: 1;
-            visibility: visible;
-            transform: translateY(0);
-        }
-        
-        /* Dropdown items in Actions menu */
-        .app-card__dropdown-item {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            width: 100%;
-            padding: clamp(10px, 1vw, 12px) clamp(12px, 1.5vw, 14px);
-            background: transparent;
-            border: none;
-            border-bottom: 1px solid rgba(15, 23, 42, 0.05);
-            color: rgba(55, 65, 81, 0.95);
-            cursor: pointer;
-            font-size: clamp(0.75rem, 0.9vw, 0.875rem);
-            transition: all 0.15s ease;
-            text-align: left;
-        }
-        
-        .app-card__dropdown-item:last-child {
-            border-bottom: none;
-        }
-        
-        .app-card__dropdown-item:hover {
-            background: rgba(59, 130, 246, 0.08);
-            color: rgba(29, 78, 216, 0.95);
-        }
-        .app-card__dropdown-item:active {
-            background: rgba(59, 130, 246, 0.12);
-        }
-        
-        .app-card__dropdown-item i {
-            width: 16px;
-            text-align: center;
+            display: none; /* Hidden - replaced by action layout */
         }
         
         /* Portal Dropdown Menu - Appended to body to avoid clipping */
@@ -1171,6 +1129,353 @@
         .portal-dropdown-menu .app-card__dropdown-item i {
             width: 16px;
             text-align: center;
+        }
+        
+        /* ========== MOBILE-FIRST ACTION LAYOUT ========== */
+        
+        /* Status Badge - Top Right of Card */
+        .app-card__status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: clamp(6px, 1vw, 8px) clamp(10px, 1.5vw, 12px);
+            border-radius: 999px;
+            font-size: clamp(0.65rem, 0.85vw, 0.75rem);
+            font-weight: 700;
+            white-space: nowrap;
+            line-height: 1;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+        }
+        
+        .status-completed {
+            background: rgba(16, 185, 129, 0.15);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            color: rgba(5, 150, 105, 0.95);
+        }
+        
+        .status-canceled {
+            background: rgba(239, 68, 68, 0.15);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            color: rgba(185, 28, 28, 0.95);
+        }
+        
+        .status-overdue {
+            background: rgba(245, 158, 11, 0.15);
+            border: 1px solid rgba(245, 158, 11, 0.35);
+            color: rgba(180, 83, 9, 0.95);
+        }
+        
+        .status-soon {
+            background: rgba(59, 130, 246, 0.15);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            color: rgba(29, 78, 216, 0.95);
+        }
+        
+        .status-scheduled {
+            background: rgba(107, 114, 128, 0.12);
+            border: 1px solid rgba(107, 114, 128, 0.25);
+            color: rgba(55, 65, 81, 0.95);
+        }
+        
+        .payment-paid {
+            color: rgba(34, 197, 94, 0.95);
+            font-weight: 700;
+        }
+        
+        .payment-unpaid {
+            color: rgba(239, 68, 68, 0.95);
+            font-weight: 700;
+        }
+        
+        /* ========== ACTION BUTTONS - PREMIUM RESPONSIVE DESIGN ========== */
+        
+        /* Action Groups Container */
+        .action-group {
+            display: grid;
+            gap: clamp(8px, 1.2vw, 10px);
+            width: 100%;
+        }
+        
+        /* Primary group: 2-column (Invoice | Mark Paid) */
+        .action-group--primary {
+            grid-template-columns: 1fr 1fr;
+        }
+        
+        /* Main group: Edit + More button (2-column on mobile) */
+        .action-group--main {
+            grid-template-columns: 1fr auto;
+            gap: clamp(8px, 1.2vw, 10px);
+        }
+        
+        /* Secondary group: Collapsible on mobile, 3-column on desktop */
+        .action-group--secondary {
+            grid-template-columns: repeat(3, 1fr);
+            max-height: 500px;
+            overflow: hidden;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            opacity: 1;
+            visibility: visible;
+        }
+        
+        .action-group--secondary.collapsed {
+            max-height: 0;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .action-group--secondary.expanded {
+            max-height: 500px;
+            opacity: 1;
+            visibility: visible;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        /* Action Buttons - Premium Base Styles */
+        .action-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: var(--appt-btn-gap);
+            padding: var(--appt-btn-pad-y) var(--appt-btn-pad-x);
+            border-radius: 12px;
+            border: 1.5px solid;
+            font-size: var(--appt-btn-font);
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            min-height: var(--appt-btn-h);
+            user-select: none;
+            flex: 1;
+            width: 100%;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+        .action-btn:active {
+            transform: scale(0.96);
+        }
+        
+        .action-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .action-btn i {
+            font-size: var(--appt-btn-icon);
+            flex-shrink: 0;
+        }
+        
+        .action-btn span {
+            display: inline;
+            flex: 1;
+            text-align: left;
+            padding-left: 4px;
+        }
+        
+        /* Invoice Button - Primary Blue */
+        .action-btn--invoice {
+            background: rgba(59, 130, 246, 0.12);
+            border-color: rgba(59, 130, 246, 0.3);
+            color: rgba(29, 78, 216, 0.95);
+        }
+        
+        .action-btn--invoice:hover {
+            background: rgba(59, 130, 246, 0.2);
+            border-color: rgba(59, 130, 246, 0.5);
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
+            transform: translateY(-1px);
+        }
+        
+        /* Payment Button - Red (Unpaid) or Green (Paid) */
+        .action-btn--payment {
+            background: rgba(59, 130, 246, 0.2);
+            border-color: rgba(59, 130, 246, 0.5);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.2);
+        }
+        
+        .action-btn--invoice:active {
+            transform: scale(0.98);
+        }
+        
+        .action-btn--payment {
+            transition: all 0.3s ease;
+        }
+        
+        .action-btn--payment.unpaid {
+            background: rgba(239, 68, 68, 0.12);
+            border-color: rgba(239, 68, 68, 0.3);
+            color: rgba(185, 28, 28, 0.95);
+        }
+        
+        .action-btn--payment.unpaid:hover {
+            background: rgba(239, 68, 68, 0.2);
+            border-color: rgba(239, 68, 68, 0.5);
+            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.15);
+            transform: translateY(-1px);
+        }
+        
+        .action-btn--payment.paid {
+            background: rgba(34, 197, 94, 0.12);
+            border-color: rgba(34, 197, 94, 0.3);
+            color: rgba(5, 115, 40, 0.95);
+        }
+        
+        .action-btn--payment.paid:hover {
+            background: rgba(34, 197, 94, 0.2);
+            border-color: rgba(34, 197, 94, 0.5);
+            box-shadow: 0 4px 12px rgba(34, 197, 94, 0.15);
+            transform: translateY(-1px);
+        }
+        
+        /* Edit Button - Neutral Primary */
+        .action-btn--edit {
+            background: rgba(107, 114, 128, 0.1);
+            border-color: rgba(107, 114, 128, 0.3);
+            color: rgba(55, 65, 81, 0.95);
+            flex: 1;
+        }
+        
+        .action-btn--edit:hover {
+            background: rgba(107, 114, 128, 0.18);
+            border-color: rgba(107, 114, 128, 0.5);
+            box-shadow: 0 4px 12px rgba(107, 114, 128, 0.1);
+            transform: translateY(-1px);
+        }
+        
+        /* Expand/More Button - Small & Compact */
+        .action-btn--expand-triggers {
+            flex: 0 0 auto;
+            width: auto !important;
+            padding: var(--appt-btn-pad-y) var(--appt-btn-pad-x) !important;
+            border-color: rgba(107, 114, 128, 0.3) !important;
+        }
+        
+        /* Visit Button - Teal */
+        .action-btn--visit {
+            background: rgba(20, 184, 166, 0.12);
+            border-color: rgba(20, 184, 166, 0.3);
+            color: rgba(15, 118, 110, 0.95);
+        }
+        
+        .action-btn--visit:hover {
+            background: rgba(20, 184, 166, 0.2);
+            border-color: rgba(20, 184, 166, 0.5);
+            box-shadow: 0 4px 12px rgba(20, 184, 166, 0.15);
+            transform: translateY(-1px);
+        }
+        
+        /* Call Button - Phone Green */
+        .action-btn--call {
+            background: rgba(34, 197, 94, 0.12);
+            border-color: rgba(34, 197, 94, 0.3);
+            color: rgba(5, 115, 40, 0.95);
+        }
+        
+        .action-btn--call:hover {
+            background: rgba(34, 197, 94, 0.2);
+            border-color: rgba(34, 197, 94, 0.5);
+            box-shadow: 0 4px 12px rgba(34, 197, 94, 0.15);
+            transform: translateY(-1px);
+        }
+        
+        /* Delete Button - Danger Red */
+        .action-btn--delete {
+            background: rgba(239, 68, 68, 0.1);
+            border-color: rgba(239, 68, 68, 0.3);
+            color: rgba(185, 28, 28, 0.95);
+        }
+        
+        .action-btn--delete:hover {
+            background: rgba(239, 68, 68, 0.18);
+            border-color: rgba(239, 68, 68, 0.5);
+            box-shadow: 0 6px 16px rgba(239, 68, 68, 0.15);
+            transform: translateY(-1px);
+        }
+        
+        /* ========== MOBILE RESPONSIVE - COMPACT MODE ========== */
+        @media (max-width: 479px) {
+            /* Keep secondary menu hidden by default, show only on expand */
+            .action-group--secondary {
+                grid-template-columns: repeat(3, 1fr);
+                border-top: 1px solid rgba(15, 23, 42, 0.08);
+                padding-top: clamp(8px, 1.2vw, 10px);
+                margin-top: clamp(8px, 1.2vw, 10px);
+            }
+            
+            .action-group--secondary.collapsed {
+                display: none;
+            }
+            
+            .action-group--secondary.expanded {
+                display: grid;
+            }
+            
+            .info-row {
+                grid-template-columns: 70px 1fr;
+                gap: 8px;
+            }
+        }
+        
+        /* ========== TABLET - MEDIUM SCREENS ========== */
+        @media (min-width: 480px) and (max-width: 768px) {
+            /* Always show secondary on tablet/desktop size */
+            .action-group--secondary {
+                grid-template-columns: repeat(3, 1fr);
+                max-height: none !important;
+                opacity: 1 !important;
+                visibility: visible !important;
+            }
+            
+            .action-group--secondary.collapsed {
+                max-height: none !important;
+                opacity: 1 !important;
+                visibility: visible !important;
+            }
+            
+            /* Hide the More button on tablet+ */
+            .action-btn--expand-triggers {
+                display: none !important;
+            }
+            
+            /* Adjust main group to not have auto column */
+            .action-group--main {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        /* ========== DESKTOP - LARGE SCREENS ========== */
+        @media (min-width: 769px) {
+            /* Always show secondary on desktop */
+            .action-group--secondary {
+                grid-template-columns: repeat(3, 1fr);
+                max-height: none !important;
+                opacity: 1 !important;
+                visibility: visible !important;
+            }
+            
+            .action-group--secondary.collapsed {
+                max-height: none !important;
+                opacity: 1 !important;
+                visibility: visible !important;
+            }
+            
+            /* Hide the More button on desktop */
+            .action-btn--expand-triggers {
+                display: none !important;
+            }
+            
+            /* Adjust main group */
+            .action-group--main {
+                grid-template-columns: 1fr;
+            }
+            
+            .info-row {
+                grid-template-columns: 80px 1fr;
+            }
         }
         
         /* OLD LEGACY STYLES (kept for backward compatibility) */
@@ -1324,50 +1629,6 @@
         .action-btn[disabled] {
             opacity: 0.5;
             cursor: not-allowed;
-        }
-
-        /* Mobile: compact button layout on small screens */
-        @media (max-width: 420px) {
-            .action-btn span { 
-                display: none; 
-            }
-            .action-btn { 
-                padding: 10px; 
-                width: var(--tv-min-tap); 
-            }
-            
-            /* Compact paid toggle on mobile */
-            .app-card__toggle-paid span {
-                display: none;
-            }
-            .app-card__toggle-paid {
-                padding: 10px 8px;
-                min-width: 44px;
-                min-height: 44px;
-            }
-            
-            /* Compact actions button on mobile */
-            .app-card__actions-dropdown-btn span {
-                display: none;
-            }
-            .app-card__actions-dropdown-btn {
-                padding: 10px 8px;
-                min-width: 44px;
-                min-height: 44px;
-                gap: 0;
-            }
-            
-            /* Position dropdown on left for mobile */
-            .app-card__actions-dropdown-menu {
-                right: auto;
-                left: 0;
-            }
-            
-            /* Adjust dropdown on mobile */
-            .app-card__dropdown-menu {
-                right: auto;
-                left: 0;
-            }
         }
 
         /* D. Invoice Storage Grid */
@@ -2950,7 +3211,7 @@
                 </section>
             </div>
 
-            <div id="scanReviewModal" class="scanReviewModal" aria-hidden="true">
+            <div id="scanReviewModal" class="scanReviewModal" aria-hidden="true" inert>
                 <div class="scanReviewModal__panel">
                     <div class="scanReviewModal__header">
                         <h3 class="scanReviewModal__title">Review Extracted Data</h3>
@@ -2962,6 +3223,18 @@
                             <div class="scanReviewField">
                                 <label for="scanReviewInvoiceDate">Invoice Date</label>
                                 <input id="scanReviewInvoiceDate" type="date" />
+                            </div>
+                            <div class="scanReviewField">
+                                <label for="scanReviewInvoiceNo">Invoice Number</label>
+                                <input id="scanReviewInvoiceNo" type="text" placeholder="Auto-detected from OCR (optional)" />
+                            </div>
+                            <div class="scanReviewField">
+                                <label for="scanReviewTaxPointDate">Tax Point Date</label>
+                                <input id="scanReviewTaxPointDate" type="date" />
+                            </div>
+                            <div class="scanReviewField">
+                                <label for="scanReviewCustomerReference">Customer Reference</label>
+                                <input id="scanReviewCustomerReference" type="text" placeholder="Auto-detected from OCR (optional)" />
                             </div>
                             <div class="scanReviewField">
                                 <label>Accounting Period (Week)</label>
@@ -2982,7 +3255,7 @@
                                 </select>
                             </div>
                             <div class="scanReviewField">
-                                <label for="scanReviewSubtotal">Subtotal</label>
+                                <label for="scanReviewSubtotal">Subtotal (Goods Total)</label>
                                 <input id="scanReviewSubtotal" type="number" step="0.01" />
                             </div>
                             <div class="scanReviewField">
@@ -2993,6 +3266,10 @@
                                 <label for="scanReviewTotal">Total</label>
                                 <input id="scanReviewTotal" type="number" step="0.01" />
                             </div>
+                        </div>
+
+                        <div id="scanReviewValidationWarning" class="scanReviewValidationWarning" style="display:none; background:#fce7f3; border:1px solid #fbcfe8; border-radius:4px; padding:12px; margin-bottom:12px; color:#831843;">
+                            <p id="scanReviewValidationMsg" style="margin:0;"></p>
                         </div>
 
                         <div id="scanReviewItemsWarning" class="scanReviewItemsWarning" style="display:none; background:#fff3cd; border:1px solid #ffecb5; border-radius:4px; padding:12px; margin-bottom:12px; color:#856404;">

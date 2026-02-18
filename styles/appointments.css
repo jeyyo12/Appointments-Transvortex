@@ -721,11 +721,6 @@
     order: -1; /* appear second */
 }
 
-/* History button - less prominent */
-.tvx-actions [data-action="history"] {
-    order: 10; /* appear near end */
-}
-
 /* Delete button - always last */
 .tvx-actions [data-action="delete"] {
     order: 99; /* always last */

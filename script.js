@@ -154,8 +154,8 @@ let currentTab = 'appointments';
 // Appointment buttons delegation flag
 let appointmentsClicksBound = false;
 
-// History Service - for appointment timeline logging
-let appointmentHistory = null;
+// Track which appointments have used the Call button once (to trigger action layout swap)
+let callUsedOnce = {};
 
 // ==========================================
 // PAYMENT HELPER FUNCTIONS
@@ -736,15 +736,6 @@ async function initializeFirebase() {
                 // Load custom presets from Firestore
                 await loadPresetsFromFirestore();
 
-                const { default: HistoryService } = await import('./src/services/historyService.js').catch(() => {
-                    console.warn('⚠️  History service not available');
-                    return { default: null };
-                });
-                if (HistoryService) {
-                    appointmentHistory = new HistoryService(db, user);
-                    console.log("✅ Appointment history service initialized");
-                }
-
                 setupEventListeners();
                 subscribeToAppointments();
                 subscribeToScannedInvoices();
@@ -756,7 +747,6 @@ async function initializeFirebase() {
                 isAccountant = false;
                 scannedInvoiceOcrProgress.clear();
                 scannedInvoiceBlobCache.clear();
-                appointmentHistory = null;
                 
                 // Unsubscribe from appointments
                 if (appointmentsUnsubscribe) {
@@ -1141,6 +1131,186 @@ function safeIsoDate(year, month, day) {
     return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 }
 
+function extractInvoiceDates(rawText) {
+    if (!rawText) return { invoiceDateISO: null, taxPointDateISO: null, confidence: 0 };
+
+    const safe = String(rawText).trim();
+    
+    // Normalize: uppercase for keyword search, collapse multiple spaces, preserve line structure
+    const normalized = safe
+        .split(/\r?\n/)
+        .map(line => line.replace(/\s+/g, ' ').trim())
+        .filter(Boolean)
+        .join('\n');
+    
+    // Flattened version for regex scanning
+    const flattened = normalized.replace(/\n/g, ' ');
+    
+    let taxPointDateISO = null;
+    let invoiceDateISO = null;
+    let confidence = 0;
+
+    // ===== A) Extract Tax Point Date (highest priority) =====
+    // Handle OCR glitches: TAXPOlNT, TAX P0INT, TAXPO1NT, etc.
+    const taxPointRegexes = [
+        /tax\s*point\s*date?\s*[:\-]?\s*(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4})/i,
+        /tax\s*po[l1][n1]t\s*date?\s*[:\-]?\s*(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4})/i,
+        /tax\s*p0[i1]nt\s*date?\s*[:\-]?\s*(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4})/i,
+        /tax\s*point\s*[:\-]?\s*(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4})/i,
+        /tax\s*po[l1][n1]t\s*[:\-]?\s*(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4})/i,
+        /tax\s*p0[i1]nt\s*[:\-]?\s*(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4})/i
+    ];
+
+    for (const regex of taxPointRegexes) {
+        const match = flattened.match(regex);
+        if (match?.[1]) {
+            const parsed = parseUkDate(match[1]);
+            if (parsed && isDateWithinPlausibleRange(parsed)) {
+                taxPointDateISO = parsed;
+                confidence = 95;
+                if (typeof DEBUG !== 'undefined' && DEBUG) {
+                    console.log('🔍 Detected taxPointDate from regex:', taxPointDateISO, '(match:', match[1], ')');
+                }
+                break;
+            }
+        }
+    }
+
+    // ===== B) Extract Invoice Date (second priority) =====
+    const invoiceDateRegexes = [
+        /invoice\s*date\s*[:\-]?\s*(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4})/i,
+        /date\s*[:\-]?\s*(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4})(?:\s+|$)/i,
+        /invoice\s*[:\-]?\s*(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4})/i
+    ];
+
+    for (const regex of invoiceDateRegexes) {
+        const match = flattened.match(regex);
+        if (match?.[1]) {
+            const parsed = parseUkDate(match[1]);
+            if (parsed && isDateWithinPlausibleRange(parsed)) {
+                invoiceDateISO = parsed;
+                if (confidence < 90) confidence = 85;
+                if (typeof DEBUG !== 'undefined' && DEBUG) {
+                    console.log('🔍 Detected invoiceDate from regex:', invoiceDateISO, '(match:', match[1], ')');
+                }
+                break;
+            }
+        }
+    }
+
+    // ===== C) Fallback: Extract all plausible dates and score by proximity to keywords =====
+    if (!taxPointDateISO || !invoiceDateISO) {
+        const allDates = extractAllDatesFromText(flattened);
+        
+        if (allDates.length > 0 && typeof DEBUG !== 'undefined' && DEBUG) {
+            console.log('🔍 Date candidates found:', allDates.map(d => d.value));
+        }
+
+        // Score dates by proximity to keywords
+        const scoredDates = allDates.map(dateInfo => {
+            let scoreBonus = 0;
+            
+            // Find position of the date in flattened text
+            const dateIndex = flattened.indexOf(dateInfo.originalMatch);
+            
+            // Search for keyword proximity (within ±150 chars)
+            const window = flattened.substring(Math.max(0, dateIndex - 150), dateIndex + 150);
+            
+            if (/tax\s*p/i.test(window)) scoreBonus += 50;
+            if (/point/i.test(window)) scoreBonus += 30;
+            if (/invoice/i.test(window)) scoreBonus += 20;
+            if (/date/i.test(window)) scoreBonus += 10;
+            
+            return {
+                value: dateInfo.value,
+                originalMatch: dateInfo.originalMatch,
+                score: scoreBonus,
+                isPlausible: dateInfo.isPlausible
+            };
+        });
+
+        // Prefer plausible dates, then by score
+        scoredDates.sort((a, b) => {
+            if (a.isPlausible !== b.isPlausible) return b.isPlausible ? 1 : -1;
+            return b.score - a.score;
+        });
+
+        // Assign fallback dates if not yet found
+        if (!taxPointDateISO && scoredDates.length > 0) {
+            taxPointDateISO = scoredDates[0].value;
+            confidence = Math.max(confidence, scoredDates[0].isPlausible ? 70 : 40);
+            if (typeof DEBUG !== 'undefined' && DEBUG) {
+                console.log('🔍 Fallback taxPointDate:', taxPointDateISO, '(from:', scoredDates[0].originalMatch, ')');
+            }
+        }
+
+        if (!invoiceDateISO && scoredDates.length > 0) {
+            invoiceDateISO = scoredDates[0].value;
+            confidence = Math.max(confidence, scoredDates[0].isPlausible ? 70 : 40);
+            if (typeof DEBUG !== 'undefined' && DEBUG) {
+                console.log('🔍 Fallback invoiceDate:', invoiceDateISO, '(from:', scoredDates[0].originalMatch, ')');
+            }
+        }
+    }
+
+    // ===== D) If only taxPointDate found, use it for invoiceDate too =====
+    if (taxPointDateISO && !invoiceDateISO) {
+        invoiceDateISO = taxPointDateISO;
+    }
+
+    return { invoiceDateISO, taxPointDateISO, confidence };
+}
+
+function parseUkDate(dateStr) {
+    if (!dateStr) return null;
+    
+    // Match DD/MM/YY(YY) or DD-MM-YY(YY)
+    const match = String(dateStr).match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/);
+    if (!match) return null;
+    
+    let day = Number(match[1]);
+    let month = Number(match[2]);
+    let year = Number(match[3]);
+    
+    // Validate day and month
+    if (day < 1 || day > 31 || month < 1 || month > 12) return null;
+    
+    // Convert 2-digit year to 4-digit (assume 2000-2099)
+    if (year < 100) year += 2000;
+    
+    // Use safeIsoDate to validate and format
+    return safeIsoDate(year, month, day);
+}
+
+function extractAllDatesFromText(text) {
+    const datePatterns = [
+        { pattern: /(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4})/g, type: 'numeric' }
+    ];
+    
+    const candidates = [];
+    
+    for (const { pattern, type } of datePatterns) {
+        let match;
+        while ((match = pattern.exec(text)) !== null) {
+            const dateStr = match[1];
+            const parsed = parseUkDate(dateStr);
+            
+            if (parsed && isDateWithinPlausibleRange(parsed)) {
+                // Avoid duplicates
+                if (!candidates.some(c => c.value === parsed)) {
+                    candidates.push({
+                        value: parsed,
+                        originalMatch: dateStr,
+                        isPlausible: true
+                    });
+                }
+            }
+        }
+    }
+    
+    return candidates;
+}
+
 function parseDetectedDate(matchText) {
     if (!matchText) return null;
 
@@ -1278,6 +1448,40 @@ function detectInvoiceNumber(rawText) {
         /\binv\s*[:\-]?\s*([A-Za-z0-9\-\/]{3,})/i
     ];
 
+    for (const pattern of patterns) {
+        const match = safe.match(pattern);
+        if (match?.[1]) return match[1].trim();
+    }
+    return null;
+}
+
+function detectTaxPointDate(rawText) {
+    const safe = String(rawText || '');
+    const patterns = [
+        /tax\s*point\s*(?:date)?\s*[:\-]?\s*(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4})/i,
+        /tax\s*point\s*[:\-]?\s*(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4})/i
+    ];
+    
+    for (const pattern of patterns) {
+        const match = safe.match(pattern);
+        if (match?.[1]) {
+            // Try to parse and format as YYYY-MM-DD
+            const dateStr = match[1].trim();
+            const parsed = parseDetectedDate(dateStr);
+            return parsed ? parsed : null;
+        }
+    }
+    return null;
+}
+
+function detectCustomerReference(rawText) {
+    const safe = String(rawText || '');
+    const patterns = [
+        /customer\s*(?:reference|ref|ref\.?|no\.?|#)\s*[:\-]?\s*([A-Za-z0-9\-\/]{2,})/i,
+        /cust\s*(?:ref|reference)\s*[:\-]?\s*([A-Za-z0-9\-\/]{2,})/i,
+        /(?:customer|cust)\s*[:\-]?\s*([A-Z]{1,3}\d{3,})/i
+    ];
+    
     for (const pattern of patterns) {
         const match = safe.match(pattern);
         if (match?.[1]) return match[1].trim();
@@ -1631,11 +1835,17 @@ function extractInvoiceDataFromRawText(rawText) {
     const vendorName = detectVendorName(safeRawText);
     const normalizedVendor = normalizeSupplierName(vendorName);
     const gsfDetected = isGsfSupplierName(normalizedVendor) || /\b(gsf|group\s*auto)\b/i.test(safeRawText);
+    
+    // Use comprehensive date extraction for both invoice date and tax point date
+    const { invoiceDateISO, taxPointDateISO } = extractInvoiceDates(safeRawText);
+    
     const extracted = {
         rawText: safeRawText,
         vendorName: normalizedVendor || null,
         invoiceNo: detectInvoiceNumber(safeRawText),
-        invoiceDate: detectInvoiceDate(safeRawText),
+        invoiceDate: invoiceDateISO,
+        taxPointDate: taxPointDateISO,
+        customerReference: detectCustomerReference(safeRawText),
         currency: 'GBP',
         subtotal: totals.subtotal,
         vat: totals.vat,
@@ -2548,11 +2758,17 @@ function openScannedInvoiceReview(scanId, extractedData = null) {
     populateScannedInvoiceReviewForm();
     setScannedInvoiceReviewBusy(false);
     modal.style.display = 'flex';
+    modal.setAttribute('aria-hidden', 'false');
+    modal.removeAttribute('inert');
 }
 
 function closeScannedInvoiceReview() {
     const modal = document.getElementById('scanReviewModal');
-    if (modal) modal.style.display = 'none';
+    if (modal) {
+        modal.style.display = 'none';
+        modal.setAttribute('aria-hidden', 'true');
+        modal.setAttribute('inert', '');
+    }
     scannedInvoiceReviewState = null;
     scannedInvoiceReviewScanId = null;
     scannedInvoiceReviewBusy = false;
@@ -2791,6 +3007,9 @@ function populateScannedInvoiceReviewForm() {
     const data = scannedInvoiceReviewState.extracted;
 
     const dateEl = document.getElementById('scanReviewInvoiceDate');
+    const invoiceNoEl = document.getElementById('scanReviewInvoiceNo');
+    const taxPointDateEl = document.getElementById('scanReviewTaxPointDate');
+    const customerRefEl = document.getElementById('scanReviewCustomerReference');
     const weekKeyEl = document.getElementById('scanReviewWeekKey');
     const monthKeyEl = document.getElementById('scanReviewMonthKey');
     const vendorEl = document.getElementById('scanReviewVendor');
@@ -2798,8 +3017,13 @@ function populateScannedInvoiceReviewForm() {
     const subtotalEl = document.getElementById('scanReviewSubtotal');
     const vatEl = document.getElementById('scanReviewVat');
     const totalEl = document.getElementById('scanReviewTotal');
+    const validationWarnEl = document.getElementById('scanReviewValidationWarning');
+    const validationMsgEl = document.getElementById('scanReviewValidationMsg');
 
     if (dateEl) dateEl.value = data.invoiceDate || '';
+    if (invoiceNoEl) invoiceNoEl.value = data.invoiceNo || '';
+    if (taxPointDateEl) taxPointDateEl.value = data.taxPointDate || '';
+    if (customerRefEl) customerRefEl.value = data.customerReference || '';
     
     // Sanitize vendor name: filter out noise, detect GSF, use rawText for context
     const cleanVendor = sanitizeVendorNameForModal(data.vendorName, data.rawText);
@@ -2838,7 +3062,21 @@ function populateScannedInvoiceReviewForm() {
     }
     if (monthKeyEl) monthKeyEl.value = monthKey || '';
 
-    [dateEl, vendorEl, currencyEl, subtotalEl, vatEl, totalEl].forEach((field) => {
+    // Show validation warnings
+    let warnings = [];
+    if (!data.invoiceDate) {
+        warnings.push('⚠️ Invoice date missing (required for weekly/monthly grouping).');
+    }
+    if (warnings.length > 0) {
+        if (validationWarnEl && validationMsgEl) {
+            validationMsgEl.textContent = warnings.join(' ');
+            validationWarnEl.style.display = 'block';
+        }
+    } else if (validationWarnEl) {
+        validationWarnEl.style.display = 'none';
+    }
+
+    [dateEl, invoiceNoEl, taxPointDateEl, customerRefEl, vendorEl, currencyEl, subtotalEl, vatEl, totalEl].forEach((field) => {
         if (field) field.disabled = isAccountant;
     });
 
@@ -3221,6 +3459,18 @@ function bindScannedInvoiceReviewUI() {
                 const monthKey = toMonthKeyFromDate(accountingDate);
                 document.getElementById('scanReviewWeekKey').value = weekMeta.weekKey || '';
                 document.getElementById('scanReviewMonthKey').value = monthKey || '';
+                return;
+            }
+            if (target.id === 'scanReviewInvoiceNo') {
+                scannedInvoiceReviewState.extracted.invoiceNo = target.value?.trim() || null;
+                return;
+            }
+            if (target.id === 'scanReviewTaxPointDate') {
+                scannedInvoiceReviewState.extracted.taxPointDate = target.value || null;
+                return;
+            }
+            if (target.id === 'scanReviewCustomerReference') {
+                scannedInvoiceReviewState.extracted.customerReference = target.value?.trim() || null;
                 return;
             }
             if (target.id === 'scanReviewVendor') {
@@ -4524,6 +4774,18 @@ function exitEditMode() {
 
 function populateFormFromAppointment(appointment) {
     if (!appointment) return;
+    
+    console.log('[EDIT] Populating form with appointment data:', appointment.id);
+    console.log('[EDIT] Appointment fields:', {
+        customerName: appointment.customerName,
+        phone: appointment.customerPhone || appointment.phone,
+        makeModel: appointment.makeModel || appointment.vehicleMakeModel,
+        regNumber: appointment.registrationPlate || appointment.regNumber,
+        date: appointment.dateStr,
+        time: appointment.time,
+        jobs: appointment.jobs?.length || 0,
+        parts: appointment.parts?.length || 0
+    });
 
     // Client info
     document.getElementById('customerName').value = appointment.customerName || '';
@@ -4542,7 +4804,11 @@ function populateFormFromAppointment(appointment) {
     
     // Service details
     document.getElementById('appointmentDate').value = appointment.dateStr || '';
-    document.getElementById('appointmentTimeValue').value = appointment.time || '';
+    // CRITICAL FIX: Set both hidden value AND display field for time
+    const timeValue = appointment.time || '';
+    document.getElementById('appointmentTimeValue').value = timeValue;
+    document.getElementById('appointmentTime').value = timeValue; // Display field
+    
     document.getElementById('serviceLocation').value = appointment.serviceLocation || '';
     
     // Location address
@@ -4561,41 +4827,53 @@ function populateFormFromAppointment(appointment) {
         if (clientSection) clientSection.style.display = 'none';
     }
     
-    // Jobs and Parts - Render existing rows
+    // Jobs and Parts - Populate chips for edit mode
     let editJobs = Array.isArray(appointment.jobs) ? appointment.jobs : [];
     let editParts = Array.isArray(appointment.parts) ? appointment.parts : [];
 
+    console.log('[EDIT] Initial jobs/parts:', { jobs: editJobs.length, parts: editParts.length });
+
     // Legacy fallback if new schema is empty
     if (editJobs.length === 0 && Array.isArray(appointment.services)) {
+        console.log('[EDIT] Using legacy services field for jobs');
         editJobs = appointment.services;
-    }
-    if (editParts.length === 0 && Array.isArray(appointment.parts)) {
-        editParts = appointment.parts;
     }
 
     if (editJobs.length === 0 && editParts.length === 0 && Array.isArray(appointment.jobs)) {
+        console.log('[EDIT] Filtering jobs by type');
         editJobs = appointment.jobs.filter(item => item?.type === 'labour');
         editParts = appointment.jobs.filter(item => item?.type === 'part');
     }
 
-    const jobsForRows = editJobs.map(item => ({
-        description: item.name || item.description || '',
-        qty: parseInt(item.qty, 10) || 1,
-        unitPrice: parseFloat(item.unitPrice ?? item.price ?? 0) || 0
-    }));
-    const partsForRows = editParts.map(item => ({
-        description: item.name || item.description || '',
-        qty: parseInt(item.qty, 10) || 1,
-        unitPrice: parseFloat(item.unitPrice ?? item.price ?? 0) || 0
-    }));
+    console.log('[EDIT] Final jobs/parts to populate:', { jobs: editJobs.length, parts: editParts.length });
 
-    renderJobRows(jobsForRows);
-    renderPartRows(partsForRows);
+    // Use chips mode populate function (async import)
+    import('./src/core/chips-mode.js').then(({ populateChipsFromData }) => {
+        populateChipsFromData(editJobs, editParts);
+        console.log('[EDIT] Chips populated via chips-mode.js');
+    }).catch(err => {
+        console.error('[EDIT] Failed to import chips-mode:', err);
+        // Fallback to legacy row rendering
+        const jobsForRows = editJobs.map(item => ({
+            description: item.name || item.description || '',
+            qty: parseInt(item.qty, 10) || 1,
+            unitPrice: parseFloat(item.unitPrice ?? item.price ?? 0) || 0
+        }));
+        const partsForRows = editParts.map(item => ({
+            description: item.name || item.description || '',
+            qty: parseInt(item.qty, 10) || 1,
+            unitPrice: parseFloat(item.unitPrice ?? item.price ?? 0) || 0
+        }));
+        renderJobRows(jobsForRows);
+        renderPartRows(partsForRows);
+    });
     
     // Notes
     document.getElementById('notes').value = appointment.notes || '';
     
-    updateAppointmentTotals();
+    console.log('[EDIT] Form population complete. Updating totals...');
+    // Note: updateAppointmentTotals will be called by populateChipsFromData
+    setTimeout(() => updateAppointmentTotals(), 100); // Ensure totals update after chips load
 }
 
 // ==========================================
@@ -5005,12 +5283,11 @@ function createAppointmentCard(apt) {
     // Check if overdue
     const isOverdue = minutesDiff < 0;
     
-    // Compute payment status - READ FROM FIELD FIRST, then fallback to computation
+    // Compute payment status
     const amountPaid = toNumber(apt.amountPaid || apt.paidAmount || 0);
     const total = toNumber(apt.total || 0);
     const balance = Math.max(0, total - amountPaid);
     
-    // ✅ FIX: Read paymentStatus field first (same as toggle function)
     const storedStatus = (apt.paymentStatus || '').toLowerCase();
     const computedPaid = (amountPaid > 0 && amountPaid >= total);
     const isPaid = storedStatus === 'paid' || (!storedStatus && computedPaid);
@@ -5018,72 +5295,150 @@ function createAppointmentCard(apt) {
     // Vehicle info
     const regPlate = normalized.registrationPlate || normalized.regNumber || '';
     const makeModel = normalized.vehicleMakeModel || normalized.makeModel || '';
+    const vehicleDisplay = regPlate ? regPlate : makeModel;
     
-    // Payment meta row
-    let paymentMeta = '';
+    // Format date and time
+    const dateStr = aptDate.toLocaleDateString('en-GB', { weekday: 'short', month: 'short', day: 'numeric' });
+    const timeStr = aptDate.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+    
+    // Determine status badge
+    let statusClass = '';
+    let statusText = '';
+    
+    if (normalized.status === 'completed' || normalized.status === 'done') {
+        statusClass = 'status-completed';
+        statusText = 'Completed';
+    } else if (normalized.status === 'canceled') {
+        statusClass = 'status-canceled';
+        statusText = 'Canceled';
+    } else if (isOverdue && !isPaid) {
+        // Only show Overdue if unpaid AND overdue
+        statusClass = 'status-overdue';
+        statusText = 'Overdue';
+    } else if (minutesDiff < 60 && minutesDiff >= 0) {
+        statusClass = 'status-soon';
+        statusText = 'In Progress';
+    } else {
+        statusClass = 'status-scheduled';
+        statusText = 'Scheduled';
+    }
+    
+    // Payment section only if total exists
+    let paymentSection = '';
     if (total > 0) {
-        paymentMeta = `
-            <div class="app-card__meta">
-                <div class="app-card__vehicle">
-                    ${regPlate ? `<span class="app-card__plate">${regPlate}</span>` : ''}
-                    ${makeModel ? `<span class="app-card__model">${makeModel}</span>` : ''}
+        paymentSection = `
+            <div class="app-card__payment-summary">
+                <div class="payment-item">
+                    <span class="payment-label">Amount:</span>
+                    <span class="payment-value">${formatCurrencyGBP(total)}</span>
                 </div>
-                <div class="app-card__payment">
-                    ${amountPaid > 0 ? `<span class="app-card__meta-paid">Paid: ${formatCurrencyGBP(amountPaid)}</span>` : ''}
-                    ${balance > 0 ? `${amountPaid > 0 ? '<span class="app-card__meta-sep">•</span>' : ''}<span class="app-card__meta-due">Due: ${formatCurrencyGBP(balance)}</span>` : ''}
+                <div class="payment-item ${isPaid ? 'paid' : 'unpaid'}">
+                    <span class="payment-label">${isPaid ? 'Paid ✓' : 'Unpaid'}</span>
+                    <span class="payment-value">${isPaid ? formatCurrencyGBP(total) : formatCurrencyGBP(balance)}</span>
                 </div>
             </div>
         `;
     }
     
-    // Actions row: Invoice | Paid/Unpaid | Actions dropdown
+    // Vehicle & client info
+    const clientInfo = `
+        <div class="app-card__info">
+            <div class="info-row">
+                <span class="info-label">Vehicle:</span>
+                <span class="info-value">${vehicleDisplay || '—'}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Client:</span>
+                <span class="info-value">${normalized.customerName}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Date:</span>
+                <span class="info-value">${dateStr} at ${timeStr}</span>
+            </div>
+        </div>
+    `;
+    
+    // Actions
     const canShowActions = normalized.status !== 'canceled';
     const hasAddress = normalized.address || normalized.clientAddress;
     
+    // Smart swap logic: Call replaces Mark Paid for timed appointments until used once
+    const hasTime = Boolean(normalized.time && normalized.time.trim());
+    const customerPhone = normalized.customerPhone || '';
+    const hasPhone = Boolean(customerPhone && customerPhone.length >= 6);
+    const showCallInPrimary = hasTime && hasPhone && !callUsedOnce[apt.id];
+    
+    // Debug log for phone detection (dev mode)
+    console.log(`[CALL BTN DEBUG] Appointment ${apt.id}:`, {
+        rawPhone: apt.customerPhone || apt.phone,
+        normalizedPhone: customerPhone,
+        hasPhone,
+        hasTime,
+        showCallInPrimary
+    });
+    
     const actionsHTML = canShowActions ? `
-        <div class="app-card__bottom">
-            <div class="app-card__actions-row">
-                <button class="action-btn action-btn--primary" data-action="invoice" data-id="${apt.id}" aria-label="Invoice">
+        <div class="app-card__actions">
+            <!-- Row 1: Primary Actions (Invoice | Call or Mark Paid) -->
+            <div class="action-group action-group--primary">
+                <button class="action-btn action-btn--invoice" data-action="invoice" data-id="${apt.id}" aria-label="Invoice">
                     <i class="fas fa-file-invoice"></i><span>Invoice</span>
                 </button>
-                <button class="app-card__toggle-paid ${isPaid ? 'paid' : 'unpaid'}" 
-                        data-id="${apt.id}" 
-                        data-action="toggle-paid"
-                        title="${isPaid ? 'Click to mark as Unpaid' : 'Click to mark as Paid'}"
-                        aria-label="Toggle payment status">
-                    ${isPaid ? '<i class="fas fa-check-circle"></i><span>Paid</span>' : '<i class="fas fa-circle"></i><span>Mark Paid</span>'}
+                ${showCallInPrimary ? 
+                    `<button class="action-btn action-btn--call" data-action="call" data-id="${apt.id}" aria-label="Call">
+                        <i class="fas fa-phone"></i><span>Call</span>
+                    </button>` :
+                    `<button class="action-btn action-btn--payment ${isPaid ? 'paid' : 'unpaid'}" 
+                            data-id="${apt.id}" 
+                            data-action="toggle-paid"
+                            title="${isPaid ? 'Click to mark as Unpaid' : 'Click to mark as Paid'}"
+                            aria-label="Toggle payment status">
+                        ${isPaid ? '<i class="fas fa-check-circle"></i><span>Paid</span>' : '<i class="fas fa-circle"></i><span>Mark Paid</span>'}
+                    </button>`
+                }
+            </div>
+            
+            <!-- Row 2: Edit Always Visible + Toggle for secondary actions -->
+            <div class="action-group action-group--main">
+                <button class="action-btn action-btn--edit" data-action="edit" data-id="${apt.id}" aria-label="Edit">
+                    <i class="fas fa-edit"></i><span>Edit</span>
                 </button>
-                <div class="app-card__actions-dropdown-wrapper">
-                    <button class="app-card__actions-dropdown-btn" data-id="${apt.id}" data-action="toggle-actions-menu" aria-label="More actions">
-                        <span>Actions</span>
-                        <i class="fas fa-caret-down"></i>
-                    </button>
-                    <div class="app-card__actions-dropdown-menu" data-apt-id="${apt.id}">
-                        ${hasAddress ? `<button class="app-card__dropdown-item" data-action="visit" data-id="${apt.id}">
-                            <i class="fas fa-map-marker-alt"></i><span>Visit</span>
-                        </button>` : ''}
-                        <button class="app-card__dropdown-item" data-action="edit" data-id="${apt.id}">
-                            <i class="fas fa-edit"></i><span>Edit</span>
-                        </button>
-                        <button class="app-card__dropdown-item" data-action="delete" data-id="${apt.id}">
-                            <i class="fas fa-trash-alt"></i><span>Delete</span>
-                        </button>
-                        <button class="app-card__dropdown-item" data-action="history" data-id="${apt.id}">
-                            <i class="fas fa-history"></i><span>History</span>
-                        </button>
-                    </div>
-                </div>
+                <button class="action-btn action-btn--expand-triggers" data-action="toggle-secondary" data-id="${apt.id}" aria-label="More options" aria-expanded="false">
+                    <i class="fas fa-ellipsis-h"></i><span>More</span>
+                </button>
+            </div>
+            
+            <!-- Row 3: Secondary Actions (Collapsible on mobile) -->
+            <div class="action-group action-group--secondary collapsed" data-secondary-menu="${apt.id}">
+                ${hasAddress ? `<button class="action-btn action-btn--visit" data-action="visit" data-id="${apt.id}" aria-label="Visit">
+                    <i class="fas fa-map-marker-alt"></i><span>Visit</span>
+                </button>` : ''}
+                ${(hasPhone && !showCallInPrimary) ? `<button class="action-btn action-btn--call" data-action="call" data-id="${apt.id}" aria-label="Call">
+                    <i class="fas fa-phone"></i><span>Call</span>
+                </button>` : ''}
+                <button class="action-btn action-btn--delete" data-action="delete" data-id="${apt.id}" aria-label="Delete">
+                    <i class="fas fa-trash-alt"></i><span>Delete</span>
+                </button>
             </div>
         </div>
     ` : '';
     
     return `
         <div class="app-card" data-apt-id="${apt.id}">
-            <div class="app-card__top">
-                <h3 class="app-card__name">${normalized.customerName}</h3>
-                ${isOverdue ? `<div class="app-card__badges"><span class="badge badge--overdue"><i class="fas fa-exclamation-triangle"></i></span></div>` : ''}
+            <!-- Header: Status Badge (top-right) -->
+            <div class="app-card__header">
+                <div class="app-card__status-badge ${statusClass}">
+                    ${statusText}
+                </div>
             </div>
-            ${paymentMeta}
+            
+            <!-- Client & Vehicle Info -->
+            ${clientInfo}
+            
+            <!-- Payment Summary (if has invoice) -->
+            ${paymentSection}
+            
+            <!-- Actions -->
             ${actionsHTML}
         </div>
     `;
@@ -5116,20 +5471,18 @@ function bindAppointmentsClickDelegation() {
         try {
             switch (action) {
                 case 'toggle-paid':
-                    // Handle payment status toggle (from pill button)
+                    // Handle payment status toggle
                     console.log('[DIAG] Paid toggle clicked, appointment ID:', aptId);
                     await toggleAppointmentPaidStatus(aptId);
                     break;
 
-                case 'toggle-actions-menu':
-                    // Handle Actions dropdown toggle
-                    console.log('[DIAG] Actions menu toggle clicked, appointment ID:', aptId);
-                    toggleActionsMenu(target, aptId);
+                case 'toggle-secondary':
+                    // Handle secondary actions expand/collapse
+                    console.log('[DIAG] Toggle secondary actions for appointment ID:', aptId);
+                    toggleSecondaryActions(aptId, target);
                     break;
 
                 case 'visit':
-                    // Close dropdown after selection
-                    closeActionsDropdown(aptId);
                     if (appointmentHistory) {
                         const address = appointment?.address || appointment?.clientAddress || '';
                         await appointmentHistory.logLocationVisited(aptId, address);
@@ -5137,24 +5490,11 @@ function bindAppointmentsClickDelegation() {
                     await handleVisitAction(aptId, appointment, confirmModal);
                     break;
 
-                case 'history':
-                    // Close dropdown after selection
-                    closeActionsDropdown(aptId);
-                    // View appointment history/timeline
-                    if (appointmentHistory) {
-                        await appointmentHistory.logTimelineViewed(aptId);
-                    }
-                    // For now, just show a notification. Can extend to show full timeline modal
-                    showNotification('📋 Appointment history feature coming soon', 'info');
-                    break;
-
                 case 'invoice':
                     try {
                         const { getOrCreateInvoiceForAppointment } = await import('./src/invoices/invoice-manager.js');
                         const invoiceId = await getOrCreateInvoiceForAppointment(aptId, appointment || {});
-                        if (appointmentHistory) {
-                            await appointmentHistory.logAppointmentInvoiced(aptId, invoiceId || appointment?.invoiceNumber || 'NEW');
-                        }
+
                         const basePath = window.location.pathname.replace(/[^/]+$/, '');
                         const url = basePath + 'invoice.html?invoiceId=' + encodeURIComponent(invoiceId) + '&mode=view';
                         const popup = window.open(url, '_blank');
@@ -5167,15 +5507,24 @@ function bindAppointmentsClickDelegation() {
                     }
                     break;
                 
+                case 'call':
+                    // Call the customer
+                    const phone = (appointment?.customerPhone || appointment?.phone || '').trim();
+                    if (phone && phone.length >= 6) {
+                        // Mark Call as used for this appointment to trigger swap
+                        callUsedOnce[aptId] = true;
+                        // Trigger tel: link
+                        window.location.href = `tel:${phone}`;
+                        // Re-render to move Call to More menu and bring back Mark Paid
+                        renderAppointments();
+                    }
+                    break;
+                
                 case 'edit':
-                    // Close dropdown after selection
-                    closeActionsDropdown(aptId);
                     await handleEditAction(aptId, appointment, openCustomModal);
                     break;
 
                 case 'delete':
-                    // Close dropdown after selection
-                    closeActionsDropdown(aptId);
                     await handleDeleteAction(aptId, appointment, confirmModal);
                     break;
                     
@@ -5201,6 +5550,7 @@ let delayPopHandler = null;
 /**
  * NEW: Toggle appointment payment status (PAID ↔ UNPAID)
  * Syncs across appointment ↔ invoice ↔ storage
+ * With instant visual feedback and optimistic update
  */
 async function toggleAppointmentPaidStatus(appointmentId) {
     try {
@@ -5210,6 +5560,14 @@ async function toggleAppointmentPaidStatus(appointmentId) {
         }
 
         console.log('[TogglePaid] Toggling payment status for:', appointmentId);
+
+        // Find the button and provide instant visual feedback (optimistic update)
+        const card = document.querySelector(`[data-apt-id="${appointmentId}"]`);
+        const button = card?.querySelector('[data-action="toggle-paid"]');
+        
+        if (!button) {
+            console.warn('[TogglePaid] Button not found, proceeding without UI update');
+        }
 
         const { doc, getDoc, updateDoc, serverTimestamp, collection, query, where, getDocs } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
 
@@ -5244,7 +5602,33 @@ async function toggleAppointmentPaidStatus(appointmentId) {
 
         console.log('[TogglePaid] Toggle:', { currentStatus, newPaymentStatus, currentPaidAmount, newPaidAmount, total, balance: newBalance });
 
-        // Update appointment
+        // ✅ INSTANT VISUAL FEEDBACK: Update button immediately (optimistic UI)
+        if (button) {
+            const wasPaymentBtn = button.classList.contains('action-btn--payment');
+            if (wasPaymentBtn) {
+                // Update button appearance instantly
+                button.classList.remove('unpaid', 'paid');
+                button.classList.add(newPaymentStatus);
+                
+                // Update button text and icon instantly
+                button.innerHTML = newPaymentStatus === 'paid' 
+                    ? '<i class="fas fa-check-circle"></i><span>Paid</span>'
+                    : '<i class="fas fa-circle"></i><span>Mark Paid</span>';
+                
+                // Add visual feedback animation
+                button.style.transform = 'scale(1.05)';
+                setTimeout(() => {
+                    button.style.transition = 'all 0.3s ease';
+                    button.style.transform = 'scale(1)';
+                }, 50);
+                
+                // Disable button briefly to prevent double-clicks
+                button.disabled = true;
+                console.log('[TogglePaid] ✅ Button UI updated instantly');
+            }
+        }
+
+        // Update appointment in Firestore
         await updateDoc(appointmentRef, {
             paymentStatus: newPaymentStatus,
             paidAmount: newPaidAmount,
@@ -5252,7 +5636,7 @@ async function toggleAppointmentPaidStatus(appointmentId) {
             updatedAt: serverTimestamp()
         });
 
-        console.log('[TogglePaid] ✅ Appointment payment status updated');
+        console.log('[TogglePaid] ✅ Appointment payment status updated in Firestore');
 
         // Find and update linked invoice(s)
         const invoicesQuery = query(
@@ -5278,18 +5662,66 @@ async function toggleAppointmentPaidStatus(appointmentId) {
             console.log('[TogglePaid] ✅ Linked invoice(s) updated');
         }
 
+        // Re-enable button
+        if (button) {
+            button.disabled = false;
+        }
+
         // Show notification with new status
         const statusLabel = newPaymentStatus === 'paid' ? '✅ Marked as PAID' : '⏸️ Marked as UNPAID';
         showNotification(statusLabel, 'success');
 
     } catch (error) {
         console.error('[TogglePaid] Error:', error);
+        
+        // Revert button state on error
+        if (card) {
+            const button = card.querySelector('[data-action="toggle-paid"]');
+            if (button) {
+                button.disabled = false;
+                // Force re-render to fix button state
+                const appointment = appointments.find(a => a.id === appointmentId);
+                if (appointment) {
+                    // Re-render will be triggered by Firestore listener, but manually trigger if needed
+                }
+            }
+        }
+        
         showNotification('❌ Error toggling payment status: ' + error.message, 'error');
     }
 }
 
 /**
- * NEW: Toggle action dropdown menu for appointment card
+ * Toggle secondary actions visibility (mobile compact mode)
+ */
+function toggleSecondaryActions(appointmentId, button) {
+    if (!appointmentId || !button) return;
+    
+    const card = document.querySelector(`[data-apt-id="${appointmentId}"]`);
+    if (!card) return;
+    
+    const secondaryMenu = card.querySelector(`[data-secondary-menu="${appointmentId}"]`);
+    if (!secondaryMenu) return;
+    
+    const isExpanded = secondaryMenu.classList.contains('expanded');
+    
+    if (isExpanded) {
+        // Close
+        secondaryMenu.classList.remove('expanded');
+        secondaryMenu.classList.add('collapsed');
+        button.setAttribute('aria-expanded', 'false');
+        console.log('[ToggleSecondary] Secondary actions collapsed');
+    } else {
+        // Open
+        secondaryMenu.classList.remove('collapsed');
+        secondaryMenu.classList.add('expanded');
+        button.setAttribute('aria-expanded', 'true');
+        console.log('[ToggleSecondary] Secondary actions expanded');
+    }
+}
+
+/**
+ * NEW: Toggle action dropdown menu for appointment card (LEGACY - keep for compatibility)
  */
 function toggleAppointmentDropdown(event, appointmentId) {
     event.stopPropagation();
@@ -5324,169 +5756,6 @@ function toggleAppointmentDropdown(event, appointmentId) {
         
         document.addEventListener('click', closeHandler);
     }
-}
-
-/**
- * Portal Dropdown System - Appends to body to avoid clipping
- */
-let activePortalMenu = null;
-
-function createPortalMenu(anchorButton, appointmentId) {
-    // Close existing portal menu
-    closePortalMenu();
-    
-    const card = anchorButton.closest('.app-card');
-    if (!card) return;
-    
-    // Find dropdown items from the card template
-    const templateMenu = card.querySelector('.app-card__actions-dropdown-menu');
-    if (!templateMenu) return;
-    
-    // Create portal menu
-    const portalMenu = document.createElement('div');
-    portalMenu.className = 'portal-dropdown-menu';
-    portalMenu.innerHTML = templateMenu.innerHTML;
-    
-    // Position portal menu
-    const rect = anchorButton.getBoundingClientRect();
-    const viewportHeight = window.innerHeight;
-    const viewportWidth = window.innerWidth;
-    
-    // Calculate if should open upward
-    const menuHeight = 200; // estimated max height
-    const spaceBelow = viewportHeight - rect.bottom;
-    const openUpward = spaceBelow < menuHeight && rect.top > menuHeight;
-    
-    if (openUpward) {
-        portalMenu.style.bottom = (viewportHeight - rect.top) + 'px';
-    } else {
-        portalMenu.style.top = (rect.bottom + 4) + 'px';
-    }
-    
-    // Position horizontally (align to button)
-    let leftPos = rect.left;
-    const menuWidth = 160; // estimated width
-    if (leftPos + menuWidth > viewportWidth) {
-        leftPos = viewportWidth - menuWidth - 8;
-    }
-    portalMenu.style.left = Math.max(8, leftPos) + 'px';
-    
-    // Append to body
-    document.body.appendChild(portalMenu);
-    activePortalMenu = portalMenu;
-    
-    // ✅ FIX: Add event delegation to portal menu items
-    portalMenu.addEventListener('click', async (e) => {
-        const actionBtn = e.target.closest('[data-action]');
-        if (!actionBtn) return;
-        
-        e.preventDefault();
-        e.stopPropagation();
-        
-        const action = actionBtn.dataset.action;
-        const id = actionBtn.dataset.id;
-        
-        console.log('[Portal] Menu action clicked:', { action, id });
-        
-        // Close portal menu before executing action
-        closePortalMenu();
-        
-        // Execute the same action handlers as main delegation
-        const appointment = appointments.find(a => a.id === id);
-        const { confirmModal, openCustomModal } = await import('./src/shared/modal.js');
-        
-        try {
-            switch (action) {
-                case 'visit':
-                    if (appointmentHistory) {
-                        const address = appointment?.address || appointment?.clientAddress || '';
-                        await appointmentHistory.logLocationVisited(id, address);
-                    }
-                    await handleVisitAction(id, appointment, confirmModal);
-                    break;
-                    
-                case 'edit':
-                    if (appointmentHistory) {
-                        await appointmentHistory.logAppointmentEdited(id, 'edited_from_card');
-                    }
-                    await handleEditAction(id, appointment, openCustomModal);
-                    break;
-                    
-                case 'delete':
-                    if (appointmentHistory) {
-                        await appointmentHistory.logAppointmentDeleted(id);
-                    }
-                    await handleDeleteAction(id, appointment, confirmModal);
-                    break;
-                    
-                case 'history':
-                    if (appointmentHistory) {
-                        await appointmentHistory.logTimelineViewed(id);
-                    }
-                    showNotification('📋 Appointment history feature coming soon', 'info');
-                    break;
-            }
-        } catch (error) {
-            console.error('[Portal] Action error:', error);
-            showNotification('❌ Error: ' + error.message, 'error');
-        }
-    });
-    
-    // Add open class for animation
-    requestAnimationFrame(() => {
-        portalMenu.classList.add('open');
-    });
-    
-    // Close on outside click
-    setTimeout(() => {
-        document.addEventListener('click', handlePortalOutsideClick);
-        document.addEventListener('scroll', closePortalMenu, true);
-        window.addEventListener('resize', closePortalMenu);
-    }, 0);
-    
-    // Mark button as active
-    anchorButton.classList.add('open');
-}
-
-function closePortalMenu() {
-    if (activePortalMenu) {
-        activePortalMenu.remove();
-        activePortalMenu = null;
-        
-        // Remove listeners
-        document.removeEventListener('click', handlePortalOutsideClick);
-        document.removeEventListener('scroll', closePortalMenu, true);
-        window.removeEventListener('resize', closePortalMenu);
-        
-        // Remove open class from all buttons
-        document.querySelectorAll('.app-card__actions-dropdown-btn.open').forEach(btn => {
-            btn.classList.remove('open');
-        });
-    }
-}
-
-function handlePortalOutsideClick(e) {
-    if (activePortalMenu && !activePortalMenu.contains(e.target) && !e.target.closest('.app-card__actions-dropdown-btn')) {
-        closePortalMenu();
-    }
-}
-
-/**
- * Toggle Actions dropdown menu (Visit, Edit, Delete, History)
- */
-function toggleActionsMenu(button, appointmentId) {
-    if (activePortalMenu) {
-        closePortalMenu();
-    } else {
-        createPortalMenu(button, appointmentId);
-    }
-}
-
-/**
- * Close Actions dropdown menu
- */
-function closeActionsDropdown(appointmentId) {
-    closePortalMenu();
 }
 
 async function logTimelineEvent(aptId, eventType, eventData = {}) {
@@ -5937,25 +6206,6 @@ async function handleDelaySubmit({ form, overlay, appointment }) {
 
         await updateDoc(doc(db, 'appointments', appointment.id), updateData);
 
-        // Log to history service
-        if (appointmentHistory) {
-            if (actionType === 'delay') {
-                await appointmentHistory.logAppointmentDelayed(
-                    appointment.id,
-                    baseDate.toISOString(),
-                    targetDate.toISOString(),
-                    `${reasonCode}${note ? ': ' + note : ''}`
-                );
-            } else {
-                await appointmentHistory.logAppointmentRescheduled(
-                    appointment.id,
-                    baseDate.toISOString(),
-                    targetDate.toISOString(),
-                    `${reasonCode}${note ? ': ' + note : ''}`
-                );
-            }
-        }
-
         // Local state update for instant re-sort
         Object.assign(appointment, updateData);
         ensureScheduledFields(appointment);
@@ -6097,10 +6347,7 @@ async function handleDeleteAction(id, appointment, confirmModal) {
     try {
         const { doc, deleteDoc } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
         
-        // Log deletion to history before deleting
-        if (appointmentHistory) {
-            await appointmentHistory.logAppointmentDeleted(id, 'User deleted appointment');
-        }
+
         
         await deleteDoc(doc(db, 'appointments', id));
         

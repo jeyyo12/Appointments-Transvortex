@@ -23,8 +23,6 @@
  * - Proper service worker cache handling
  */
 
-// Import AppointmentHistoryService
-import AppointmentHistoryService from './services/historyService.js';
 import { ADMIN_UIDS } from './config/firebase.config.js';
 import { COMPANY_ADDRESS } from './shared/company-settings.js';
 
@@ -725,9 +723,6 @@ async function waitForAuth() {
         const { user } = await waitForAuthReady();
         
         currentUser = user || null;
-        if (user) {
-            appointmentHistoryService = new AppointmentHistoryService(db, user);
-        }
         return currentUser;
     } catch (error) {
         console.error('❌ Error waiting for auth:', error);
@@ -946,7 +941,6 @@ async function initializeFirebase() {
 // Global state for invoice editing
 let isEditMode = false;
 let currentAptId = null;
-let appointmentHistoryService = null;
 let originalInvoiceData = null;  // Deep clone for cancel/reset
 let draftData = {};  // Working copy during edit mode
 
@@ -1696,18 +1690,6 @@ async function saveInvoiceChanges(e) {
             await updateDoc(doc(db, 'appointments', currentAptId), updateData);
             console.log('✅ [Invoice] Updated appointment:', currentAptId);
             
-            // Log to history
-            if (appointmentHistoryService) {
-                await appointmentHistoryService.logInvoiceUpdated(
-                    currentAptId,
-                    currentInvoiceData?.invoiceNumber,
-                    {
-                        services: draftData.services?.length || 0,
-                        parts: draftData.parts?.length || 0
-                    }
-                );
-            }
-            
         } else {
             // SCENARIO 3: Creating NEW invoice (no invoiceId, no aptId)
             // NOTE: With new flow, invoices are created immediately in Firestore by handleCreateInvoice()
@@ -2151,23 +2133,6 @@ function populatePreview(vm) {
     if (balanceDueRow) balanceDueRow.style.display = 'flex';
     setTextById('balanceDue', formatCurrency(vm.remainingBalance));
 
-    const badge = document.getElementById('paymentStatusBadge');
-    if (badge) {
-        // Normalize for display (uppercase)
-        const displayStatus = (vm.paymentStatus || 'unpaid').toUpperCase();
-        badge.textContent = displayStatus;
-        badge.classList.remove('status-paid', 'status-partial', 'status-unpaid');
-        // Compare using normalized lowercase
-        const statusLower = (vm.paymentStatus || 'unpaid').toLowerCase();
-        if (statusLower === 'paid') {
-            badge.classList.add('status-paid');
-        } else if (statusLower === 'partial') {
-            badge.classList.add('status-partial');
-        } else {
-            badge.classList.add('status-unpaid');
-        }
-    }
-
     // ===== POPULATE PRINT-OPTIMIZED FIELDS =====
     setTextById('pInvNo', vm.invoiceNumber);
     setTextById('pInvDate', formatDateUK(vm.invoiceDate));
@@ -2184,22 +2149,6 @@ function populatePreview(vm) {
     setTextById('pTotal', formatCurrency(vm.total));
     setTextById('pPaid', formatCurrency(vm.amountPaid));
     setTextById('pBal', formatCurrency(vm.remainingBalance));
-    
-    // Update payment badge for print
-    const pBadge = document.getElementById('pPayBadge');
-    if (pBadge) {
-        // Display uppercase
-        pBadge.textContent = (vm.paymentStatus || 'unpaid').toUpperCase();
-        pBadge.classList.remove('paid', 'unpaid', 'partial');
-        const statusLower = (vm.paymentStatus || 'unpaid').toLowerCase();
-        if (statusLower === 'paid') {
-            pBadge.classList.add('paid');
-        } else if (statusLower === 'partial') {
-            pBadge.classList.add('partial');
-        } else {
-            pBadge.classList.add('unpaid');
-        }
-    }
 }
 
 function renderServices(items) {
@@ -2772,21 +2721,7 @@ function renderTotalsOptimized(normalizedData) {
         }
     }
 
-    const statusBadge = document.getElementById('paymentStatusBadge');
-    if (statusBadge) {
-        // Display uppercase
-        statusBadge.textContent = (paymentStatus || 'unpaid').toUpperCase();
-        statusBadge.classList.remove('status-paid', 'status-partial', 'status-unpaid');
-        // Compare lowercase
-        const statusLower = (paymentStatus || 'unpaid').toLowerCase();
-        if (statusLower === 'paid') {
-            statusBadge.classList.add('status-paid');
-        } else if (statusLower === 'partial') {
-            statusBadge.classList.add('status-partial');
-        } else {
-            statusBadge.classList.add('status-unpaid');
-        }
-    }
+    // Payment status badge removed (visual display only)
 }
 
 /**

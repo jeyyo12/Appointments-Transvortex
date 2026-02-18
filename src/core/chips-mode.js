@@ -341,6 +341,72 @@ export function getChipsData() {
 }
 
 /**
+ * Populate chips from appointment data (for Edit mode)
+ * @param {Array} jobs - Array of job objects with { name/description, qty, unitPrice/price }
+ * @param {Array} parts - Array of part objects with { name/description, qty, unitPrice/price }
+ */
+export function populateChipsFromData(jobs = [], parts = []) {
+  logger.info('[EDIT] Populating chips from appointment data', { jobs: jobs.length, parts: parts.length });
+  
+  // Clear existing chips
+  chipsState.jobs = [];
+  chipsState.parts = [];
+  
+  // Get container elements
+  const jobsChipsList = document.getElementById('jobsChips');
+  const partsChipsList = document.getElementById('partsChips');
+  const jobsCountBadge = document.getElementById('jobsCount');
+  const partsCountBadge = document.getElementById('partsCount');
+  
+  // Clear DOM
+  if (jobsChipsList) jobsChipsList.innerHTML = '';
+  if (partsChipsList) partsChipsList.innerHTML = '';
+  
+  // Add jobs
+  jobs.forEach(job => {
+    const label = job.name || job.description || '';
+    if (!label.trim()) return;
+    
+    const chip = {
+      id: `job-${Date.now()}-${Math.random()}`,
+      label: label.trim(),
+      qty: parseInt(job.qty, 10) || 1,
+      price: parseFloat(job.unitPrice ?? job.price ?? 0) || 0,
+      kind: 'job'
+    };
+    
+    chipsState.jobs.push(chip);
+    if (jobsChipsList) renderChip(chip, jobsChipsList, 'job');
+  });
+  
+  // Add parts
+  parts.forEach(part => {
+    const label = part.name || part.description || '';
+    if (!label.trim()) return;
+    
+    const chip = {
+      id: `part-${Date.now()}-${Math.random()}`,
+      label: label.trim(),
+      qty: parseInt(part.qty, 10) || 1,
+      price: parseFloat(part.unitPrice ?? part.price ?? 0) || 0,
+      kind: 'part'
+    };
+    
+    chipsState.parts.push(chip);
+    if (partsChipsList) renderChip(chip, partsChipsList, 'part');
+  });
+  
+  // Update count badges
+  if (jobsCountBadge) jobsCountBadge.textContent = chipsState.jobs.length;
+  if (partsCountBadge) partsCountBadge.textContent = chipsState.parts.length;
+  
+  // Update totals
+  recalcAllTotals();
+  
+  logger.info('[EDIT] Chips populated successfully', { jobs: chipsState.jobs.length, parts: chipsState.parts.length });
+}
+
+/**
  * Helper: Escape HTML to prevent XSS
  */
 function escapeHtml(text) {
