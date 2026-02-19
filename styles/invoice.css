@@ -440,10 +440,10 @@ body {
 
 /* ===== HEADER: Company + Logo (Compact) ===== */
 .inv-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 20px;
+    display: grid;
+    grid-template-columns: 1fr auto auto;
+    align-items: start;
+    column-gap: clamp(12px, 2vw, 18px);
     padding: 16px 20px;
     margin: 0;
     border-bottom: 2px solid #f97316;
@@ -455,6 +455,7 @@ body {
     flex-direction: column;
     gap: 6px;
     flex: 1;
+    min-width: 0;
 }
 
 .company-name {
@@ -491,20 +492,23 @@ body {
 }
 
 .inv-right {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 20px;
+    grid-column: 2 / 4;
+    display: grid;
+    grid-template-columns: auto auto;
+    align-items: start;
+    column-gap: clamp(12px, 2vw, 18px);
     flex-shrink: 0;
 }
 
 .inv-logo {
     height: auto;
-    max-width: 260px;
+    max-height: 58px;
+    width: auto;
     display: block;
     margin: 0;
     object-fit: contain;
     flex-shrink: 0;
+    contain: layout paint;
 }
 
 /* Desktop logo (visible above 768px) */
@@ -528,6 +532,10 @@ body {
     text-transform: uppercase;
     margin: 0;
     text-transform: uppercase;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 6px;
 }
 
 /* ===== META: Compact Horizontal Layout ===== */
@@ -652,6 +660,24 @@ body {
     padding: 14px;
     text-align: center;
     margin-bottom: 12px;
+    width: min(85mm, 320px);
+    max-width: 85mm;
+    margin-left: auto;
+}
+
+.invoice-header,
+.inv-header,
+.totals-card,
+.summary-card,
+.invoice-wrapper,
+.invoice-container {
+    contain: layout paint;
+}
+
+.invoice-wrapper,
+.invoice-container {
+    transform: translateZ(0);
+    backface-visibility: hidden;
 }
 
 .total-box span {
@@ -1363,6 +1389,13 @@ body {
         --print-scale: 1.04; /* Increased from 1 to fill page more evenly */
     }
 
+    .invoice-header,
+    .invoiceHeader,
+    .tvInvoiceHeader,
+    .inv-header {
+        grid-template-columns: 1fr auto auto !important;
+    }
+
     /* ===== PAGE SETUP: Exact A4 dimensions ===== */
     @page {
         size: A4 portrait;
@@ -1439,6 +1472,11 @@ body {
         page-break-inside: avoid !important;
     }
 
+    * {
+        transition: none !important;
+        animation: none !important;
+    }
+
     .invoice-sheet {
         overflow: hidden;
     }
@@ -1474,12 +1512,21 @@ body {
 
     /* ===== HEADER SECTION (Row 1: auto) ===== */
     .inv-header {
+        display: grid !important;
+        grid-template-columns: 1fr auto auto !important;
         padding: 9px 10px !important;
         border: none !important;
         margin-bottom: 0;
-        gap: 10px !important;
-        height: 85px !important;
-        align-items: center !important;
+        column-gap: 12px !important;
+        height: auto !important;
+        align-items: start !important;
+    }
+
+    .inv-right {
+        display: grid !important;
+        grid-template-columns: auto auto !important;
+        align-items: start !important;
+        column-gap: 8px !important;
     }
 
     .inv-company {
@@ -1524,15 +1571,32 @@ body {
     }
 
     .inv-logo {
-        height: 60px !important;
+        height: 55px !important;
+        max-height: 55px !important;
         width: auto !important;
         print-color-adjust: exact;
         -webkit-print-color-adjust: exact;
-        transform: scale(2) !important;
-        transform-origin: right center !important;
+        transform: none !important;
+        transform-origin: center center !important;
         filter: none !important;
         mix-blend-mode: normal !important;
         opacity: 1 !important;
+        contain: layout paint;
+    }
+
+    .invoice-logo img,
+    img.invoice-logo,
+    .inv-logo {
+        height: 55px !important;
+        width: auto !important;
+    }
+
+    .totals-card,
+    .invoiceTotals,
+    .totalBox,
+    .total-box {
+        width: 82mm !important;
+        max-width: 82mm !important;
     }
 
     .inv-title {

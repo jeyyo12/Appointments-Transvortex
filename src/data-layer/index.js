@@ -94,7 +94,10 @@ class DataLayerCoordinator {
     };
 
     const syncGlobalInvoices = () => {
-      window.allInvoices = store.getAllInvoices();
+      window.allInvoices = store.getAllInvoices().map((invoice) => ({
+        ...invoice,
+        appointmentId: invoice.appointmentId || invoice.aptId || invoice.appointmentRef || invoice.meta?.appointmentId || null
+      }));
       if (typeof window.tryRenderAll === 'function') {
         window.tryRenderAll('manual');
       }
@@ -334,6 +337,7 @@ class DataLayerCoordinator {
    * @private
    */
   exposeGlobalAPI() {
+    window.Store = store;
     window._dataLayer = {
       // Direct access to store and engines
       store,

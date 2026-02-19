@@ -780,7 +780,7 @@ body.modal-open {
     flex-direction: column-reverse;
 }
 
-@media (min-width: 480px) {
+@media (min-width: 481px) {
     .modern-modal-actions {
         flex-direction: row;
     }
@@ -1124,7 +1124,7 @@ body.modal-open {
 }
 
 /* Desktop: centered modal */
-@media (min-width: 768px) {
+@media (min-width: 769px) {
     .tvEditModalOverlay {
         padding: clamp(1rem, 3vw, 2rem);
     }

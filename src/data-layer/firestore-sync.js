@@ -155,7 +155,7 @@ class FirestoreSync {
     }
     
     try {
-      const q = query(collection(this.db, 'invoices'), orderBy('invoiceDate', 'desc'));
+      const q = query(collection(this.db, 'invoices'), orderBy('createdAt', 'desc'));
       
       const unsubscribe = onSnapshot(
         q,

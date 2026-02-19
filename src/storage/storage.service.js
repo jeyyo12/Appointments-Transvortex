@@ -43,6 +43,15 @@ function getPaymentStatus(total, paidAmount) {
   return paidAmount > 0 && paidAmount >= total ? 'PAID' : 'UNPAID';
 }
 
+function normalizeStatus(status) {
+  return String(status || '').toLowerCase().trim();
+}
+
+function isCompletedStatus(status) {
+  const normalized = normalizeStatus(status);
+  return normalized === 'completed' || normalized === 'finalized';
+}
+
 /**
  * Start invoices storage listener
  * Listens to /invoices collection and updates state
@@ -118,8 +127,7 @@ export async function startInvoicesListener(callback) {
 
         const mappedInvoices = await reconcileInvoicesWithAppointments(invoices);
         setState('allInvoices', mappedInvoices);
-        window.allInvoices = mappedInvoices;
-        console.log('[INVOICE SOURCE CHECK]', window.allInvoices?.length);
+        logger.info('Mapped invoices after reconcile:', mappedInvoices.length);
 
         if (callback) {
           callback(mappedInvoices);
@@ -157,7 +165,7 @@ async function reconcileInvoicesWithAppointments(invoices) {
   try {
     const appointmentsQuery = query(
       collection(db, 'appointments'),
-      where('status', 'in', ['done', 'finalized'])
+      where('status', 'in', ['completed', 'finalized'])
     );
 
     const snapshot = await getDocs(appointmentsQuery);
@@ -191,7 +199,7 @@ async function reconcileInvoicesWithAppointments(invoices) {
     byAppointment.forEach(invoice => merged.push(invoice));
 
     appointments.forEach(apt => {
-      if (apt.status !== 'finalized') return;
+      if (!isCompletedStatus(apt.status)) return;
       if (byAppointment.has(apt.id)) return;
 
       merged.push({

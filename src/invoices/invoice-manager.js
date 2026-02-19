@@ -235,6 +235,9 @@ export async function getOrCreateInvoiceForAppointment(appointmentId, prefillDat
       customerName: prefillData.customerName || aptData.customerName || '',
       phone: prefillData.customerPhone || aptData.customerPhone || '',
       address: prefillData.address || aptData.address || '',
+      postcode: prefillData.postcode || aptData.postcode || '',
+      serviceLocation: prefillData.serviceLocation || aptData.serviceLocation || '',
+      contactPref: prefillData.contactPref || aptData.contactPref || '',
       
       // Vehicle info
       vehicleMakeModel: prefillData.makeModel || aptData.makeModel || '',

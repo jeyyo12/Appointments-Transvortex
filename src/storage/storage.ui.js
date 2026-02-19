@@ -26,11 +26,62 @@ function sumLineItems(items) {
 }
 
 function computeInvoiceTotal(invoice) {
+  const directTotal = toNumber(invoice?.total);
+  if (directTotal > 0) return directTotal;
   const storedTotal = toNumber(invoice?.totals?.total);
   if (storedTotal > 0) return storedTotal;
   const jobsTotal = sumLineItems(invoice?.jobs);
   const partsTotal = sumLineItems(invoice?.parts);
   return jobsTotal + partsTotal;
+}
+
+function getDataLayerStore() {
+  if (typeof window === 'undefined') return null;
+  return window.Store || window._dataLayer?.store || null;
+}
+
+function getInvoiceAppointmentId(invoice) {
+  return invoice?.appointmentId || invoice?.aptId || invoice?.appointmentRef || invoice?.meta?.appointmentId || null;
+}
+
+function getStoreInvoicesArray() {
+  const store = getDataLayerStore();
+  if (!store || !(store.invoicesById instanceof Map)) return [];
+  return Array.from(store.invoicesById.values());
+}
+
+function getMissingInvoicePlaceholders() {
+  const missing = window._dataLayer?.automationEngine?.getAutomationState?.()?.uninvoicedCompleted;
+  if (!Array.isArray(missing) || missing.length === 0) return [];
+  return missing.map((apt) => ({
+    id: `missing-${apt.id}`,
+    appointmentId: apt.id,
+    customerName: apt.title || apt.name || 'Unknown',
+    status: 'missing',
+    total: 0,
+    amountPaid: 0,
+    missingInvoice: true
+  }));
+}
+
+function getSourceInvoices() {
+  const storeInvoices = getStoreInvoicesArray();
+  if (storeInvoices.length > 0) {
+    const normalized = storeInvoices.map((invoice) => ({
+      ...invoice,
+      appointmentId: getInvoiceAppointmentId(invoice)
+    }));
+
+    const existingAppointmentIds = new Set(normalized.map(inv => String(inv.appointmentId || '').trim()).filter(Boolean));
+    const missingPlaceholders = getMissingInvoicePlaceholders().filter(inv => !existingAppointmentIds.has(String(inv.appointmentId || '').trim()));
+    return [...normalized, ...missingPlaceholders];
+  }
+
+  const fallbackInvoices = Array.isArray(window.allInvoices) ? window.allInvoices : [];
+  return fallbackInvoices.map((invoice) => ({
+    ...invoice,
+    appointmentId: getInvoiceAppointmentId(invoice)
+  }));
 }
 
 /**
@@ -39,17 +90,10 @@ function computeInvoiceTotal(invoice) {
  * @returns {boolean} True if invoice is fully paid
  */
 function isInvoicePaid(inv) {
-  // Method 1: Check explicit paymentStatus field (set by sync)
-  const paymentStatus = (inv.paymentStatus || '').toLowerCase();
-  if (paymentStatus === 'paid') return true;
-  
-  // Method 2: Compute from amounts
-  const total = toNumber(inv.total || 0);
-  const amountPaid = toNumber(inv.amountPaid || inv.paidAmount || inv.totals?.amountPaid || 0);
-  const balanceDue = Math.max(0, total - amountPaid);
-  
-  // Paid if amount paid covers total and total > 0
-  return total > 0 && amountPaid > 0 && balanceDue <= 0;
+  if (inv.paymentStatus) return String(inv.paymentStatus).toLowerCase() === 'paid';
+  if (typeof inv.paid === 'boolean') return inv.paid;
+  if (typeof inv.balanceDue === 'number') return inv.balanceDue <= 0;
+  return false;
 }
 
 /**
@@ -57,9 +101,7 @@ function isInvoicePaid(inv) {
  * Counts from ALL invoices, not filtered list
  */
 function updateInvoiceKPI() {
-  const allInvoices = Array.isArray(window.allInvoices)
-    ? window.allInvoices
-    : [];
+  const allInvoices = getSourceInvoices();
   const kpiUnpaid = byId('kpiUnpaid');
   const kpiPaid = byId('kpiPaid');
   
@@ -89,9 +131,8 @@ function updateInvoiceKPI() {
  * Filter invoices based on search term and payment status
  */
 export function filterInvoices() {
-  const allInvoices = Array.isArray(window.allInvoices)
-    ? window.allInvoices
-    : [];
+  const normalizedInvoices = getSourceInvoices();
+  const allInvoices = normalizedInvoices;
   logger.info('filterInvoices() called - allInvoices.length:', allInvoices.length);
   
   const searchInput = byId('searchInvoices');
@@ -206,22 +247,11 @@ function createInvoiceCard(invoice) {
   const status = invoice.status || 'draft';
   const createdAt = invoice.createdAt;
   
-  // ✅ FIX: Read payment status from Firestore field (lowercase storage, uppercase display)
-  // Priority: Firestore field > computed from amounts
-  let paymentStatus = (invoice.paymentStatus || 'unpaid').toLowerCase();
-  
-  // Fallback to computation if Firestore field is missing (legacy data)
-  if (!invoice.paymentStatus) {
-    if (amountPaid > 0) {
-      paymentStatus = balanceDue <= 0 ? 'paid' : 'partial';
-    } else {
-      paymentStatus = 'unpaid';
-    }
-  }
+  const paymentStatus = isInvoicePaid(invoice) ? 'paid' : 'unpaid';
   
   // Normalize for display (uppercase)
   const displayStatus = paymentStatus.toUpperCase();
-  const paymentStatusColor = paymentStatus === 'paid' ? '#4CAF50' : (paymentStatus === 'partial' ? '#FFC107' : '#9E9E9E');
+  const paymentStatusColor = paymentStatus === 'paid' ? '#4CAF50' : '#9E9E9E';
   
   // Format date
   let dateStr = 'N/A';
@@ -293,7 +323,7 @@ function createInvoiceCard(invoice) {
         </button>
         <button 
           class="invoice-card__action-btn ${paymentStatus === 'paid' ? 'paid' : 'unpaid'}" 
-          onclick="window.toggleInvoicePaidStatus('${invoice.id}', '${invoice.appointmentId || ''}')"
+          onclick="window.toggleInvoicePaidStatus('${invoice.id}')"
           title="Toggle payment status"
         >
           ${paymentStatus === 'paid' ? '<i class="fas fa-check"></i> PAID' : 'UNPAID'}

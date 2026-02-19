@@ -4,10 +4,9 @@
  */
 
 import { db, checkIsAdmin } from '../firebase/firebase.js';
-import { doc, deleteDoc, getDoc, setDoc, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+import { doc, deleteDoc, getDoc, setDoc, updateDoc, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 import { createLogger } from '../shared/logger.js';
 import { showToast, confirm } from '../shared/ui.js';
-import { getState } from '../shared/state.js';
 import { refreshInvoices } from './storage.service.js';
 import { filterInvoices } from './storage.ui.js';
 import { cleanupInvoiceDuplicatesAcrossAppointments, dedupeInvoicesForAppointment, getOrCreateInvoiceForAppointment } from '../invoices/invoice-manager.js';
@@ -37,15 +36,39 @@ function sumLineItems(items) {
   }, 0);
 }
 
+function getStoreInvoicesMap() {
+  if (typeof window === 'undefined') return null;
+  const store = window.Store || window._dataLayer?.store || null;
+  if (!store || !(store.invoicesById instanceof Map)) return null;
+  return store.invoicesById;
+}
+
+export function getInvoiceAppointmentId(invoice) {
+  return invoice?.appointmentId || invoice?.aptId || invoice?.appointmentRef || invoice?.meta?.appointmentId || null;
+}
+
+export function getInvoiceById(id) {
+  const storeInvoices = getStoreInvoicesMap();
+  if (storeInvoices?.get) {
+    return storeInvoices.get(id) || null;
+  }
+  const allInvoices = Array.isArray(window.allInvoices) ? window.allInvoices : [];
+  return allInvoices.find(inv => inv.id === id) || null;
+}
+
+function isInvoicePaid(invoice) {
+  if (invoice?.paymentStatus) return String(invoice.paymentStatus).toLowerCase() === 'paid';
+  if (typeof invoice?.paid === 'boolean') return invoice.paid;
+  if (typeof invoice?.balanceDue === 'number') return invoice.balanceDue <= 0;
+  return false;
+}
+
 /**
  * Open invoice in editor
  * @param {string} invoiceId - Invoice ID
  */
 export function openInvoiceFile(invoiceId) {
-  const allInvoices = Array.isArray(window.allInvoices)
-    ? window.allInvoices
-    : [];
-  const invoice = allInvoices.find(inv => inv.id === invoiceId);
+  const invoice = getInvoiceById(invoiceId);
 
   if (!invoice) {
     logger.warn('Invoice not found in state, opening directly:', invoiceId);
@@ -53,7 +76,7 @@ export function openInvoiceFile(invoiceId) {
     return;
   }
 
-  const appointmentId = invoice.appointmentId || null;
+  const appointmentId = getInvoiceAppointmentId(invoice);
 
   if (!appointmentId) {
     logger.info('Opening invoice without appointmentId:', invoiceId);
@@ -91,10 +114,7 @@ export function openInvoiceFile(invoiceId) {
  * @param {string} invoiceId - Invoice ID
  */
 export async function deleteInvoiceConfirm(invoiceId) {
-  const allInvoices = Array.isArray(window.allInvoices)
-    ? window.allInvoices
-    : [];
-  const invoice = allInvoices.find(inv => inv.id === invoiceId);
+  const invoice = getInvoiceById(invoiceId);
   
   if (!invoice) {
     logger.warn('Invoice not found:', invoiceId);
@@ -125,6 +145,11 @@ export async function deleteInvoiceConfirm(invoiceId) {
  */
 export function handleRefreshInvoicesClick(callback) {
   logger.info('Manual refresh requested');
+  const storeInvoices = getStoreInvoicesMap();
+  if (storeInvoices?.size >= 0) {
+    callback?.();
+    return;
+  }
   refreshInvoices(callback);
 }
 
@@ -273,17 +298,60 @@ export function setupSearchAndFilterListeners() {
  * Delegates to main toggleAppointmentPaidStatus function
  */
 function toggleInvoicePaidStatus(invoiceId, appointmentId) {
-  if (!appointmentId) {
-    showNotification('❌ Appointment ID not found for this invoice', 'error');
-    return;
-  }
-  // Call the main toggle function from script.js
-  if (window.toggleAppointmentPaidStatus && typeof window.toggleAppointmentPaidStatus === 'function') {
-    window.toggleAppointmentPaidStatus(appointmentId);
-  } else {
-    showNotification('❌ Payment sync function not available', 'error');
-    logger.error('toggleAppointmentPaidStatus not found in global scope');
-  }
+  (async () => {
+    try {
+      const invoice = getInvoiceById(invoiceId);
+      if (!invoice) {
+        const hasStore = !!getStoreInvoicesMap();
+        logger.warn('Invoice not found for toggle', { invoiceId, hasStore, allInvoicesLength: Array.isArray(window.allInvoices) ? window.allInvoices.length : 0 });
+        showToast('Invoice not found', 'warning');
+        return;
+      }
+
+      const total = toNumber(invoice.total || invoice.totals?.total || sumLineItems(invoice.jobs) + sumLineItems(invoice.parts));
+      const nextPaid = !isInvoicePaid(invoice);
+      const newPaidAmount = nextPaid ? total : 0;
+      const newBalance = Math.max(0, total - newPaidAmount);
+      const nextStatus = nextPaid ? 'paid' : 'unpaid';
+
+      const invoiceUpdate = {
+        paymentStatus: nextStatus,
+        amountPaid: newPaidAmount,
+        paidAmount: newPaidAmount,
+        balanceDue: newBalance,
+        paid: nextPaid,
+        updatedAt: serverTimestamp()
+      };
+
+      if (!invoice.createdAt) {
+        invoiceUpdate.createdAt = serverTimestamp();
+      }
+
+      if (nextPaid) {
+        invoiceUpdate.paidAt = serverTimestamp();
+      } else {
+        invoiceUpdate.paidAt = null;
+      }
+
+      await updateDoc(doc(db, 'invoices', invoiceId), invoiceUpdate);
+
+      const linkedAppointmentId = appointmentId || getInvoiceAppointmentId(invoice);
+      if (linkedAppointmentId) {
+        await updateDoc(doc(db, 'appointments', linkedAppointmentId), {
+          paymentStatus: nextStatus,
+          amountPaid: newPaidAmount,
+          paidAmount: newPaidAmount,
+          balanceDue: newBalance,
+          updatedAt: serverTimestamp()
+        });
+      }
+
+      showToast(nextPaid ? 'Invoice marked as paid' : 'Invoice marked as unpaid', 'success');
+    } catch (error) {
+      logger.error('Failed to toggle invoice payment status:', error);
+      showToast('Failed to update payment status: ' + error.message, 'error');
+    }
+  })();
 }
 
 // Expose to global scope for onclick handlers

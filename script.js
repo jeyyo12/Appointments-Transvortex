@@ -5070,12 +5070,18 @@ async function handleAddAppointment(e) {
     
     // Colectare date din formular
     const customerName = document.getElementById('customerName').value.trim();
-    const customerPhone = document.getElementById('customerPhone').value.trim();
-    const contactPref = document.getElementById('contactPref').value;
-    const vehicleMakeModel = document.getElementById('makeModel').value.trim();
-    const registrationPlate = document.getElementById('regNumber').value.trim();
-    const mileageValue = document.getElementById('mileage').value.trim();
-    const serviceLocation = document.getElementById('serviceLocation').value;
+    const customerPhoneEl = document.getElementById('customerPhone');
+    const customerPhone = customerPhoneEl ? customerPhoneEl.value.trim() : '';
+    const contactPrefEl = document.getElementById('contactPref');
+    const contactPref = contactPrefEl ? contactPrefEl.value : '';
+    const makeModelEl = document.getElementById('makeModel');
+    const vehicleMakeModel = makeModelEl ? makeModelEl.value.trim() : '';
+    const regNumberEl = document.getElementById('regNumber');
+    const registrationPlate = regNumberEl ? regNumberEl.value.trim() : '';
+    const mileageEl = document.getElementById('mileage');
+    const mileageValue = mileageEl ? mileageEl.value.trim() : '';
+    const serviceLocationEl = document.getElementById('serviceLocation');
+    const serviceLocation = serviceLocationEl ? serviceLocationEl.value : '';
     const dateStr = document.getElementById('appointmentDate').value;
     const time = document.getElementById('appointmentTimeValue').value;
     const jobs = collectJobsFromUI();
@@ -5100,15 +5106,18 @@ async function handleAddAppointment(e) {
     console.log('[SAVE] notes', notes);
     console.log('[SAVE] totals', totals);
     
+    // Detect current mode (Quick or Full)
+    const isQuickMode = document.getElementById('appointmentForm').classList.contains('tvMode--quick');
+    
     // Soft warnings for missing important fields (NON-BLOCKING)
     const missingFields = [];
     if (!customerName) missingFields.push('Name');
-    if (!customerPhone) missingFields.push('Phone');
-    if (!registrationPlate) missingFields.push('Registration Plate');
+    if (!isQuickMode && !customerPhone) missingFields.push('Phone');
+    if (!isQuickMode && !registrationPlate) missingFields.push('Registration Plate');
     if (!dateStr) missingFields.push('Date');
     if (!time) missingFields.push('Time');
-    if (!serviceLocation) missingFields.push('Service Location');
-    if (!contactPref) missingFields.push('Contact Preference');
+    if (!isQuickMode && !serviceLocation) missingFields.push('Service Location');
+    if (!isQuickMode && !contactPref) missingFields.push('Contact Preference');
     
     if (missingFields.length > 0 || (jobs.length === 0 && parts.length === 0)) {
         let warningMsg = '⚠️ Some details are missing. You can still save and edit later.';
@@ -5125,8 +5134,10 @@ async function handleAddAppointment(e) {
     let postcode = '';
     
     if (serviceLocation === 'client') {
-        const clientAddress = document.getElementById('address').value.trim();
-        postcode = document.getElementById('postcode').value.trim();
+        const clientAddressEl = document.getElementById('address');
+        const postcodeEl = document.getElementById('postcode');
+        const clientAddress = clientAddressEl ? clientAddressEl.value.trim() : '';
+        postcode = postcodeEl ? postcodeEl.value.trim() : '';
         
         // Address is now optional - only validate if user entered it
         if (clientAddress) {
@@ -5241,12 +5252,17 @@ async function handleAddAppointment(e) {
             basePayload.car = vehicleMakeModel + ', ' + registrationPlate; // Legacy
         }
         
-        if (address) {
+        if (editingAppointmentId) {
             basePayload.address = address;
-        }
-        
-        if (postcode) {
             basePayload.postcode = postcode;
+        } else {
+            if (address) {
+                basePayload.address = address;
+            }
+
+            if (postcode) {
+                basePayload.postcode = postcode;
+            }
         }
 
         // Add mileage if provided (safe default: null)
@@ -5270,7 +5286,15 @@ async function handleAddAppointment(e) {
             
             console.log(`✅ [Firestore] Appointment created with ID: ${docRef.id}`);
 
-            await syncInvoiceFromAppointmentPayload(docRef.id, basePayload);
+            const syncedInvoiceId = await syncInvoiceFromAppointmentPayload(docRef.id, basePayload);
+            if (typeof DEBUG !== 'undefined' && DEBUG) {
+                console.log('[DEBUG][AppointmentSave] create', {
+                    appointmentId: docRef.id,
+                    postcode: Object.prototype.hasOwnProperty.call(basePayload, 'postcode') ? basePayload.postcode : '',
+                    address: Object.prototype.hasOwnProperty.call(basePayload, 'address') ? basePayload.address : '',
+                    invoiceId: syncedInvoiceId || null
+                });
+            }
             
             if (!isAutoSave) {
                 showNotification('✅ Programare adăugată cu succes!', 'success');
@@ -5285,7 +5309,15 @@ async function handleAddAppointment(e) {
             
             console.log(`✅ [Firestore] Appointment ${editingAppointmentId} updated`);
             
-            await syncInvoiceFromAppointmentPayload(editingAppointmentId, basePayload);
+            const syncedInvoiceId = await syncInvoiceFromAppointmentPayload(editingAppointmentId, basePayload);
+            if (typeof DEBUG !== 'undefined' && DEBUG) {
+                console.log('[DEBUG][AppointmentSave] update', {
+                    appointmentId: editingAppointmentId,
+                    postcode: basePayload.postcode || '',
+                    address: basePayload.address || '',
+                    invoiceId: syncedInvoiceId || null
+                });
+            }
             
             if (isAutoSave) {
                 // Subtle notification for auto-save
@@ -5303,14 +5335,16 @@ async function handleAddAppointment(e) {
             document.getElementById('appointmentDate').value = today;
             document.getElementById('appointmentTime').value = '';
             document.getElementById('appointmentTimeValue').value = '';
-            document.getElementById('mileage').value = '';
+            const mileageEl = document.getElementById('mileage');
+            if (mileageEl) mileageEl.value = '';
 
             renderJobRows([]);
             renderPartRows([]);
             updateAppointmentTotals();
             
             // Reset location sections
-            document.getElementById('serviceLocation').value = '';
+            const serviceLocationEl = document.getElementById('serviceLocation');
+            if (serviceLocationEl) serviceLocationEl.value = '';
             const garageSection = document.getElementById('garageAddressSection');
             const clientSection = document.getElementById('clientAddressSection');
             if (garageSection) garageSection.style.display = 'none';
@@ -5439,6 +5473,19 @@ async function syncInvoiceWithAppointment(invoiceId, appointmentData, appointmen
         const amountPaid = toNumber(appointmentData.paidAmount ?? invoice.paidAmount ?? invoice.totals?.paidAmount ?? 0);
         const newBalance = Math.max(0, newTotal - amountPaid);
         const paymentStatus = (amountPaid > 0 && amountPaid >= newTotal) ? 'PAID' : 'UNPAID';
+        const hasField = (obj, key) => Object.prototype.hasOwnProperty.call(obj || {}, key);
+        const resolvedAddress = hasField(appointmentData, 'address') ? (appointmentData.address || '') : (invoice.address || '');
+        const resolvedPostcode = hasField(appointmentData, 'postcode') ? (appointmentData.postcode || '') : (invoice.postcode || '');
+        const resolvedServiceLocation = hasField(appointmentData, 'serviceLocation') ? (appointmentData.serviceLocation || '') : (invoice.serviceLocation || '');
+        const resolvedContactPref = hasField(appointmentData, 'contactPref') ? (appointmentData.contactPref || '') : (invoice.contactPref || '');
+
+        if (typeof DEBUG !== 'undefined' && DEBUG) {
+            console.log('[DEBUG][InvoiceSyncBeforeUpdate]', {
+                invoiceId,
+                appointmentId: appointmentId || invoice.appointmentId || null,
+                postcode: resolvedPostcode
+            });
+        }
         
         // Update invoice with appointment changes
         // Preserve: amountPaid, paymentStatus, paidAt, invoiceNumber
@@ -5456,7 +5503,10 @@ async function syncInvoiceWithAppointment(invoiceId, appointmentData, appointmen
             // Customer info
             customerName: appointmentData.customerName || '',
             phone: appointmentData.customerPhone || '',
-            address: appointmentData.address || '',
+            address: resolvedAddress,
+            postcode: resolvedPostcode,
+            serviceLocation: resolvedServiceLocation,
+            contactPref: resolvedContactPref,
             // Notes
             notes: appointmentData.notes || '',
             jobsSummary: appointmentData.jobsSummary || appointmentData.problemDescription || '',
@@ -5484,7 +5534,7 @@ async function syncInvoiceFromAppointmentPayload(appointmentId, appointmentData)
     if (!appointmentId) return;
 
     try {
-        const { collection, query, where, getDocs } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+        const { collection, query, where, getDocs, doc, getDoc } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
 
         const invoicesQuery = query(
             collection(db, 'invoices'),
@@ -5505,16 +5555,40 @@ async function syncInvoiceFromAppointmentPayload(appointmentId, appointmentData)
             await syncInvoiceWithAppointment(newest.id, appointmentData, appointmentId);
             await dedupeInvoicesForAppointment(appointmentId, newest.id);
             console.log('Found invoice:', newest.id);
-            return;
+            return newest.id;
+        }
+
+        let fallbackInvoiceId = appointmentData?.invoiceId || '';
+        if (!fallbackInvoiceId) {
+            const aptRef = doc(db, 'appointments', appointmentId);
+            const aptSnap = await getDoc(aptRef);
+            if (aptSnap.exists()) {
+                fallbackInvoiceId = aptSnap.data()?.invoiceId || '';
+            }
+        }
+
+        if (fallbackInvoiceId) {
+            const fallbackRef = doc(db, 'invoices', fallbackInvoiceId);
+            const fallbackSnap = await getDoc(fallbackRef);
+            if (fallbackSnap.exists()) {
+                await syncInvoiceWithAppointment(fallbackInvoiceId, appointmentData, appointmentId);
+                await dedupeInvoicesForAppointment(appointmentId, fallbackInvoiceId);
+                console.log('Found invoice:', fallbackInvoiceId);
+                return fallbackInvoiceId;
+            }
         }
 
         if (appointmentData.status === 'finalized') {
             const invoiceId = await getOrCreateInvoiceForAppointment(appointmentId, appointmentData);
             await syncInvoiceWithAppointment(invoiceId, appointmentData, appointmentId);
             console.log('Found invoice:', invoiceId);
+            return invoiceId;
         }
+
+        return null;
     } catch (error) {
         console.warn('[Invoice Sync] Warning:', error.message || error);
+        return null;
     }
 }
 
@@ -5572,13 +5646,18 @@ function populateFormFromAppointment(appointment) {
 
     // Client info
     document.getElementById('customerName').value = appointment.customerName || '';
-    document.getElementById('customerPhone').value = appointment.customerPhone || appointment.phone || '';
-    document.getElementById('contactPref').value = appointment.contactPref || '';
+    const customerPhoneEl = document.getElementById('customerPhone');
+    if (customerPhoneEl) customerPhoneEl.value = appointment.customerPhone || appointment.phone || '';
+    const contactPrefEl = document.getElementById('contactPref');
+    if (contactPrefEl) contactPrefEl.value = appointment.contactPref || '';
     
     // Vehicle info - Direct field mapping (no parsing)
-    document.getElementById('makeModel').value = appointment.makeModel || appointment.vehicleMakeModel || '';
-    document.getElementById('regNumber').value = appointment.registrationPlate || appointment.regNumber || '';
-    document.getElementById('mileage').value = coalesceMileageValue(appointment) || '';
+    const makeModelEl = document.getElementById('makeModel');
+    if (makeModelEl) makeModelEl.value = appointment.makeModel || appointment.vehicleMakeModel || '';
+    const regNumberEl = document.getElementById('regNumber');
+    if (regNumberEl) regNumberEl.value = appointment.registrationPlate || appointment.regNumber || '';
+    const mileageEl = document.getElementById('mileage');
+    if (mileageEl) mileageEl.value = coalesceMileageValue(appointment) || '';
     
     // Refresh vehicle input formatting (formats mileage with commas, registration plate with spaces)
     if (typeof refreshVehicleFormatting === 'function') {
@@ -5598,7 +5677,8 @@ function populateFormFromAppointment(appointment) {
         vehicleTimeQuick.value = timeValue;
     }
     
-    document.getElementById('serviceLocation').value = appointment.serviceLocation || '';
+    const serviceLocationEl = document.getElementById('serviceLocation');
+    if (serviceLocationEl) serviceLocationEl.value = appointment.serviceLocation || '';
     
     // Location address
     const garageSection = document.getElementById('garageAddressSection');
@@ -5609,8 +5689,10 @@ function populateFormFromAppointment(appointment) {
     } else if (appointment.serviceLocation === 'client' && clientSection) {
         clientSection.style.display = 'block';
         if (garageSection) garageSection.style.display = 'none';
-        document.getElementById('address').value = appointment.address || '';
-        document.getElementById('postcode').value = appointment.postcode || '';
+        const addressEl = document.getElementById('address');
+        const postcodeEl = document.getElementById('postcode');
+        if (addressEl) addressEl.value = appointment.address || '';
+        if (postcodeEl) postcodeEl.value = appointment.postcode || '';
     } else {
         if (garageSection) garageSection.style.display = 'none';
         if (clientSection) clientSection.style.display = 'none';
@@ -7820,8 +7902,10 @@ function setupAppointmentFormLogic() {
                 document.getElementById('appointmentDate').value = today;
                 document.getElementById('appointmentTime').value = '';
                 document.getElementById('appointmentTimeValue').value = '';
-                document.getElementById('mileage').value = '';
-                document.getElementById('serviceLocation').value = '';
+                const mileageEl = document.getElementById('mileage');
+                if (mileageEl) mileageEl.value = '';
+                const serviceLocationEl = document.getElementById('serviceLocation');
+                if (serviceLocationEl) serviceLocationEl.value = '';
                 const garageAddrSection = document.getElementById('garageAddressSection');
                 const clientAddrSection = document.getElementById('clientAddressSection');
                 if (garageAddrSection) garageAddrSection.style.display = 'none';
@@ -7847,8 +7931,10 @@ function setupAppointmentFormLogic() {
                 if (garageSection) garageSection.style.display = 'block';
                 if (clientSection) clientSection.removeAttribute('open');
                 // Clear client address fields
-                document.getElementById('address').value = '';
-                document.getElementById('postcode').value = '';
+                const addressEl = document.getElementById('address');
+                const postcodeEl = document.getElementById('postcode');
+                if (addressEl) addressEl.value = '';
+                if (postcodeEl) postcodeEl.value = '';
             } else if (e.target.value === 'client') {
                 if (garageSection) garageSection.style.display = 'none';
                 if (clientSection) clientSection.setAttribute('open', '');
@@ -8608,6 +8694,11 @@ async function createInvoiceFromAppointment(appointmentId, prefillData) {
  * Start invoices storage listener
  */
 async function startInvoicesListener() {
+    if (window._dataLayer?.store?.invoicesById instanceof Map || window.Store?.invoicesById instanceof Map) {
+        console.log('⏭️ [Invoices] Skipping legacy listener (data-layer store is active)');
+        return;
+    }
+
     if (invoicesUnsubscribe) {
         return;
     }
@@ -8632,8 +8723,7 @@ async function startInvoicesListener() {
                     id: doc.id,
                     ...doc.data()
                 }));
-                window.allInvoices = allInvoices;
-                console.log('[INVOICE SOURCE CHECK]', window.allInvoices?.length);
+                console.log('[INVOICE SOURCE CHECK] legacy-local', allInvoices?.length);
                 
                 // ✅ PHASE 1: Trigger unified metrics engine after invoices load
                 if (window.updateDashboardMetrics) {
@@ -8985,8 +9075,10 @@ function handleRefreshInvoices() {
 // Keeping these here as fallback for compatibility
 window.openInvoiceFile = window.openInvoiceFile || openInvoiceFile;
 window.deleteInvoiceConfirm = window.deleteInvoiceConfirm || deleteInvoiceConfirm;
-window.handleRefreshInvoices = window.handleRefreshInvoices || handleRefreshInvoices;
-window.filterInvoices = window.filterInvoices || filterInvoices;
+if (!(window._dataLayer?.store?.invoicesById instanceof Map || window.Store?.invoicesById instanceof Map)) {
+    window.handleRefreshInvoices = window.handleRefreshInvoices || handleRefreshInvoices;
+    window.filterInvoices = window.filterInvoices || filterInvoices;
+}
 
 // NEW: Expose payment and dropdown toggle functions for appointment cards
 window.toggleAppointmentPaidStatus = window.toggleAppointmentPaidStatus || toggleAppointmentPaidStatus;

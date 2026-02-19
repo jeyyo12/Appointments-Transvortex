@@ -10,10 +10,13 @@
 
 .tvStats {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(clamp(140px, 45vw, 200px), 1fr));
-    gap: clamp(10px, 2vw, 16px);
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: clamp(12px, 2.5vw, 18px);
     margin-bottom: clamp(16px, 3vw, 24px);
     padding: 0;
+    max-width: 1200px;
+    margin-left: auto;
+    margin-right: auto;
 }
 
 .tvStatCard {
@@ -228,7 +231,7 @@
 }
 
 /* Responsive: Tablet */
-@media (max-width: 1024px) {
+@media (max-width: 1023px) {
     .tvStats {
         grid-template-columns: repeat(2, 1fr);
         gap: 1.25rem;
@@ -486,6 +489,11 @@
 
 .tvDashboard--workspaceOptimized {
     gap: clamp(0.75rem, 2vw, 1.25rem);
+    max-width: 1400px;
+    margin-left: auto;
+    margin-right: auto;
+    padding-left: clamp(12px, 3vw, 24px);
+    padding-right: clamp(12px, 3vw, 24px);
 }
 
 #tvWorkspaceStack {
@@ -670,7 +678,7 @@
     }
 }
 
-@media (min-width: 768px) and (max-width: 1023px) {
+@media (min-width: 769px) and (max-width: 1023px) {
     #tvStats {
         grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
     }
@@ -678,7 +686,7 @@
 
 @media (min-width: 1024px) {
     .tvDashboard--workspaceOptimized {
-        grid-template-columns: minmax(0, 1.02fr) minmax(0, 1.38fr);
+        grid-template-columns: minmax(320px, 480px) minmax(0, 1fr);
         align-items: start;
     }
 
@@ -1608,20 +1616,37 @@
 .appt-form__grid {
     display: grid;
     grid-template-columns: 1fr;
-    gap: clamp(10px, 1.6vw, 16px);
+    gap: clamp(12px, 2vw, 18px);
     align-items: start;
     min-width: 0;
+    max-width: 1200px;
+    margin-left: auto;
+    margin-right: auto;
 }
 
-@media (min-width: 481px) and (max-width: 900px) {
-    .appt-form__grid {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
+#appointmentForm .appt-form__grid {
+    grid-template-columns: 1fr !important;
+}
+
+@media (min-width: 768px) {
+    #appointmentForm .appt-form__grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
     }
 }
 
-@media (min-width: 901px) {
+#appointmentForm .appt-form__grid > * {
+    min-width: 0;
+}
+
+@media (min-width: 768px) and (max-width: 1023px) {
     .appt-form__grid {
-        grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+        grid-template-columns: repeat(2, minmax(320px, 1fr));
+    }
+}
+
+@media (min-width: 1024px) {
+    .appt-form__grid {
+        grid-template-columns: repeat(2, minmax(360px, 1fr));
     }
 }
 
@@ -1646,9 +1671,15 @@
     gap: clamp(8px, 1.2vw, 12px);
 }
 
-@media (min-width: 481px) {
+@media (min-width: 768px) {
     .tvFormGrid .field-row.two {
         grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (min-width: 481px) and (max-width: 767px) {
+    #appointmentForm:not(.tvMode--quick) .tvFormGrid .field-row.two {
+        grid-template-columns: 1fr;
     }
 }
 
@@ -1705,6 +1736,83 @@
     display: none;
 }
 
+#appointmentForm.tvMode--quick #customerPhone,
+#appointmentForm.tvMode--quick label[for="customerPhone"],
+#appointmentForm.tvMode--quick #makeModel,
+#appointmentForm.tvMode--quick label[for="makeModel"],
+#appointmentForm.tvMode--quick #mileage,
+#appointmentForm.tvMode--quick label[for="mileage"],
+#appointmentForm.tvMode--quick #vehicleTimeQuick,
+#appointmentForm.tvMode--quick label[for="vehicleTimeQuick"],
+#appointmentForm.tvMode--quick #mileage-hint {
+    display: none !important;
+}
+
+#appointmentForm.tvMode--quick .tvOptionalField:has(> label[for="appointmentTime"]),
+#appointmentForm.tvMode--quick .tvOptionalField:has(> #appointmentTime) {
+    display: block !important;
+}
+
+#appointmentForm.tvMode--quick .premium-notes-card,
+#appointmentForm.tvMode--quick #tabParts,
+#appointmentForm.tvMode--quick .itemsTabs .tabBtn[data-tab="parts"],
+#appointmentForm.tvMode--quick .totalsBar {
+    display: none !important;
+}
+
+/* Quick mode: hide entire Location card */
+.tvMode--quick .appt-card:has(> h3 > .fa-map-marker-alt) {
+    display: none;
+}
+
+#appointmentForm.tvMode--quick .appt-form__grid > .appt-card:nth-of-type(4) {
+    display: none !important;
+}
+
+/* Quick mode: hide makeModel field (keep regNumber) */
+#appointmentForm.tvMode--quick #makeModel,
+#appointmentForm.tvMode--quick label[for="makeModel"] {
+    display: none !important;
+}
+
+/* Quick mode: force 1-column grid below 600px */
+@media (max-width: 599px) {
+    #appointmentForm.tvMode--quick .appt-form__grid {
+        grid-template-columns: 1fr !important;
+    }
+}
+
+/* Quick mode: label alignment */
+#appointmentForm.tvMode--quick .appt-label {
+    display: flex;
+    align-items: center;
+    gap: clamp(4px, 1vw, 8px);
+    flex-wrap: wrap;
+}
+
+#appointmentForm.tvMode--quick .tvOptionalField .appt-label::after {
+    line-height: 1;
+    white-space: nowrap;
+}
+
+#appointmentForm.tvMode--quick {
+    gap: clamp(8px, 1.6vw, 12px);
+}
+
+#appointmentForm.tvMode--quick .tvModeToggle {
+    position: sticky;
+    top: clamp(6px, 1.6vw, 10px);
+    z-index: 6;
+    padding: clamp(4px, 1vw, 8px);
+    gap: clamp(4px, 1vw, 8px);
+    margin-bottom: clamp(8px, 1.8vw, 12px);
+}
+
+#appointmentForm.tvMode--quick .tvModeBtn {
+    min-height: clamp(36px, 6.8vw, 40px);
+    padding: clamp(6px, 1.4vw, 10px) clamp(10px, 2.2vw, 14px);
+}
+
 .tvMode--quick #notesDetails .premium-content {
     display: none;
 }
@@ -1742,7 +1850,7 @@
         max-width: 100%;
     }
 
-    #appointmentForm .tvFormGrid .field-row.two,
+    #appointmentForm:not(.tvMode--quick) .tvFormGrid .field-row.two,
     #appointmentForm .tvRow2 {
         display: grid;
         grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1834,7 +1942,7 @@
 @media (min-width: 400px) and (max-width: 600px) {
     #appointmentForm.tvMode--quick .tvFormGrid .field-row.two {
         display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
         gap: clamp(10px, 2.5vw, 16px);
         align-items: start;
     }
@@ -1854,17 +1962,17 @@
 @media (max-width: 399px) {
     #appointmentForm.tvMode--quick .tvFormGrid .field-row.two {
         display: grid;
-        grid-template-columns: 1fr;
+        grid-template-columns: 1fr !important;
         gap: clamp(10px, 2.5vw, 14px);
     }
 }
 
 #appointmentForm.tvMode--quick .appt-card {
-    padding: clamp(12px, 3vw, 16px);
+    padding: clamp(12px, 2.6vw, 15px);
 }
 
 #appointmentForm.tvMode--quick .tvFormGrid {
-    gap: clamp(10px, 2.4vw, 14px);
+    gap: clamp(8px, 1.8vw, 12px);
 }
 
 #appointmentForm.tvMode--quick .appt-card h3 {
@@ -1893,9 +2001,117 @@
     text-overflow: initial;
 }
 
+#appointmentForm.tvMode--quick .appt-input,
+#appointmentForm.tvMode--quick .appt-select {
+    box-sizing: border-box;
+}
+
+#appointmentForm.tvMode--quick .field-row.two:has(#customerName),
+#appointmentForm.tvMode--quick .field-row.two:has(#regNumber) {
+    grid-template-columns: 1fr !important;
+}
+
+#appointmentForm.tvMode--quick .field-row.two:has(#appointmentDate) {
+    align-items: start;
+}
+
+#appointmentForm.tvMode--quick .itemsPanel {
+    padding: clamp(12px, 2.6vw, 16px);
+}
+
+#appointmentForm.tvMode--quick .itemsTabs {
+    gap: clamp(6px, 1.4vw, 10px);
+}
+
+#appointmentForm.tvMode--quick .itemsTabs .tabBtn {
+    min-height: clamp(36px, 6.8vw, 40px);
+    padding: clamp(6px, 1.4vw, 10px) clamp(10px, 2vw, 14px);
+}
+
+#appointmentForm.tvMode--quick .chipAdder {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: stretch;
+    gap: clamp(8px, 1.6vw, 12px);
+}
+
+#appointmentForm.tvMode--quick .chipSearch,
+#appointmentForm.tvMode--quick .chipInput {
+    width: 100%;
+    min-width: 0;
+}
+
+#appointmentForm.tvMode--quick .chipInput,
+#appointmentForm.tvMode--quick .chipAddBtn {
+    min-height: clamp(42px, 6vw, 46px);
+}
+
+#appointmentForm.tvMode--quick .chipsHeader {
+    min-height: clamp(30px, 5vw, 34px);
+    align-items: center;
+    overflow: visible;
+}
+
+#appointmentForm.tvMode--quick .appt-form__actions {
+    position: relative;
+    z-index: 2;
+    padding-bottom: calc(clamp(10px, 2vw, 14px) + env(safe-area-inset-bottom));
+}
+
+#appointmentForm.tvMode--quick .appt-form__actions .btn-primary-apt {
+    width: 100%;
+}
+
 /* =====================================
  * CTA Scroll Target
  * ===================================== */
 #addAppointmentSection {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    overflow-x: clip;
     scroll-margin-top: clamp(12px, 2vh, 20px);
+}
+
+/* =====================================
+ * HEADER KPI OVERLAP GUARD (1024-safe)
+ * ===================================== */
+#authBar .tvHeaderKpis,
+#authBar .tvHeaderKpis .header-indicators {
+    display: grid !important;
+    grid-template-columns: repeat(auto-fit, minmax(clamp(160px, 20vw, 240px), 1fr)) !important;
+    gap: clamp(10px, 2vw, 14px) !important;
+    align-items: stretch !important;
+    min-width: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow-x: clip;
+}
+
+#authBar .tvHeaderKpis > *,
+#authBar .tvHeaderKpis .header-indicators > *,
+#authBar .tvHeaderKpis .indicator-badge,
+#authBar .tvHeaderKpis .kpiChip {
+    min-width: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+}
+
+#authBar .tvHeaderKpis {
+    grid-auto-rows: minmax(44px, auto);
+}
+
+@media (max-width: 600px) {
+    #authBar .tvHeaderKpis,
+    #authBar .tvHeaderKpis .header-indicators {
+        display: grid !important;
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        gap: clamp(10px, 2vw, 14px) !important;
+        align-items: stretch !important;
+    }
+
+    #authBar .tvHeaderKpis > *,
+    #authBar .tvHeaderKpis .header-indicators > * {
+        min-width: 0 !important;
+    }
 }

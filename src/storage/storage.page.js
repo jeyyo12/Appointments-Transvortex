@@ -11,6 +11,16 @@ import { byId } from '../shared/dom.js';
 
 const logger = createLogger('StoragePage');
 
+function getDataLayerStore() {
+  if (typeof window === 'undefined') return null;
+  return window.Store || window._dataLayer?.store || null;
+}
+
+function hasDataLayerInvoices() {
+  const store = getDataLayerStore();
+  return !!(store && store.invoicesById instanceof Map);
+}
+
 /**
  * Initialize invoices storage page
  */
@@ -32,7 +42,7 @@ export function initInvoicesStorage() {
     setupSearchAndFilterListeners();
 
     // Setup refresh button
-    const refreshBtn = byId('refreshInvoicesBtn');
+    const refreshBtn = byId('refreshInvoicesButton');
     if (refreshBtn && !refreshBtn.dataset.tvBoundRefresh) {
       refreshBtn.addEventListener('click', () => {
         handleRefreshInvoicesClick(filterInvoices);
@@ -47,8 +57,21 @@ export function initInvoicesStorage() {
       cleanupBtn.dataset.tvBoundCleanup = '1';
     }
 
-    // Start listener with filter callback
-    startInvoicesListener(filterInvoices);
+    // Single source of truth: use data-layer store when available
+    if (hasDataLayerInvoices()) {
+      const store = getDataLayerStore();
+      if (store && typeof store.subscribe === 'function' && !initState.storageInvoicesUnsub) {
+        initState.storageInvoicesUnsub = store.subscribe((event) => {
+          if (event.type === 'invoiceChanged' || event.type === 'dataReady') {
+            filterInvoices();
+          }
+        });
+      }
+      filterInvoices();
+    } else {
+      // Fallback only when data-layer is unavailable
+      startInvoicesListener(filterInvoices);
+    }
     initState.storageInitDone = true;
 
     if (!initState.initProofLogged) {
@@ -72,6 +95,13 @@ export function initInvoicesStorage() {
  */
 export function cleanupInvoicesStorage() {
   logger.info('Cleaning up invoices storage...');
+  if (typeof window !== 'undefined') {
+    const initState = window.__tvInit || {};
+    if (typeof initState.storageInvoicesUnsub === 'function') {
+      initState.storageInvoicesUnsub();
+      initState.storageInvoicesUnsub = null;
+    }
+  }
   stopInvoicesListener();
 }
 

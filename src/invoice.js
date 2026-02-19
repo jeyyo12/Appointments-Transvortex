@@ -1980,6 +1980,17 @@ function normalizeInvoiceItems(items) {
         });
 }
 
+function appendPostcodeToAddress(address, postcode) {
+    const normalizedAddress = (address || '').toString().trim();
+    const normalizedPostcode = (postcode || '').toString().trim();
+
+    if (!normalizedPostcode) return normalizedAddress;
+    if (!normalizedAddress) return normalizedPostcode;
+    if (normalizedAddress.toLowerCase().includes(normalizedPostcode.toLowerCase())) return normalizedAddress;
+
+    return `${normalizedAddress}\n${normalizedPostcode}`;
+}
+
 function normalizeInvoiceData(raw, invoiceId, appointmentFallback = null) {
     const data = raw || {};
     const appointment = appointmentFallback || {};
@@ -2029,6 +2040,13 @@ function normalizeInvoiceData(raw, invoiceId, appointmentFallback = null) {
         appointment.address
     ) || COMPANY_ADDRESS || '—';
 
+    const customerPostcode = getFirst(
+        data.postcode,
+        data.customer?.postcode,
+        data.customerPostcode,
+        appointment.postcode
+    );
+
     const customerPhone = getFirst(
         data.phone,
         data.customerPhone,
@@ -2070,6 +2088,7 @@ function normalizeInvoiceData(raw, invoiceId, appointmentFallback = null) {
         notes: data.notes || '',
         billToName: customerName || '—',
         billToAddress: customerAddress,
+        postcode: customerPostcode || '',
         billToPhone: customerPhone || '',
         vehicleMakeModel: vehicleMakeModel || '',
         vehicleReg: vehicleReg || '',
@@ -2102,7 +2121,8 @@ function populatePreview(vm) {
     setTextById('vehicleReg', vm.vehicleReg || '—');
 
     setTextById('billToName', vm.billToName || '—');
-    setTextById('billToAddress', vm.billToAddress || '—');
+    const billToAddress = appendPostcodeToAddress(vm.billToAddress || '', vm.postcode || '');
+    setTextById('billToAddress', billToAddress || '—');
     setTextById('billToPhone', vm.billToPhone || '');
     const billToPhoneEl = document.getElementById('billToPhone');
     if (billToPhoneEl) {
@@ -2223,6 +2243,12 @@ async function loadInvoicePreview(invoiceId) {
     }
 
     const normalized = normalizeInvoiceData(rawInvoice, invoiceId, appointmentData);
+    if (typeof DEBUG !== 'undefined' && DEBUG) {
+        console.log('[DEBUG][InvoiceRender]', {
+            invoiceId,
+            postcode: normalized.postcode || ''
+        });
+    }
 
     if (!normalized.refPin) {
         const refPin = generateRefPin(invoiceId, rawInvoice.appointmentId, normalized.invoiceDate);
@@ -2810,6 +2836,12 @@ async function renderInvoiceFromStandalone(invoiceData) {
     // 🔄 Use normalizeInvoiceData for consistent mileage handling
     // This function properly merges invoice + appointment data with appointment.mileage taking priority
     const normalized = normalizeInvoiceData(invoiceData, invoiceData.id, appointmentData);
+    if (typeof DEBUG !== 'undefined' && DEBUG) {
+        console.log('[DEBUG][InvoiceRender]', {
+            invoiceId: invoiceData.id,
+            postcode: normalized.postcode || ''
+        });
+    }
     
     console.log('📊 [Invoice] Normalized data with mileage:', {
         invoiceMileage: invoiceData.mileage || invoiceData.vehicle?.mileage,

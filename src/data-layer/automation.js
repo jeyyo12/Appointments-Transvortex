@@ -12,6 +12,8 @@
 
 import { store } from './store.js';
 
+const COMPLETED_STATUSES = new Set(['completed', 'finalized']);
+
 class AutomationEngine {
   constructor() {
     this.automationState = {
@@ -75,7 +77,8 @@ class AutomationEngine {
     
     // Collect all appointment IDs that have invoices (check multiple field names)
     invoices.forEach(inv => {
-      const linkId = inv.appointmentId || inv.aptId || inv.appointmentRef || inv.meta?.appointmentId || inv.meta?.aptId;
+      if (!inv?.id || String(inv.id).startsWith('missing-')) return;
+      const linkId = inv.appointmentId;
       if (linkId) {
         invoicedAppointmentIds.add(String(linkId).trim());
       }
@@ -85,7 +88,7 @@ class AutomationEngine {
       if (!apt.id) return;
       const status = this.normalizeStatus(apt.status);
       
-      if (status === 'completed' && !invoicedAppointmentIds.has(String(apt.id).trim())) {
+      if (COMPLETED_STATUSES.has(status) && !invoicedAppointmentIds.has(String(apt.id).trim())) {
         uninvoicedCompleted.push({
           id: apt.id,
           title: apt.title || apt.name || 'Untitled',
@@ -109,7 +112,7 @@ class AutomationEngine {
       const isPaid = explicitStatus === 'paid' || paidFlag || balanceDue <= 0 || (total > 0 && paidAmount >= total);
       
       if (!isPaid) {
-        const linkId = inv.appointmentId || inv.aptId || inv.appointmentRef || inv.meta?.appointmentId || inv.meta?.aptId;
+        const linkId = inv.appointmentId || null;
         unpaidInvoices.push({
           id: inv.id,
           appointmentId: linkId || null,
