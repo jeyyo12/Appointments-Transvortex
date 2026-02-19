@@ -1,0 +1,571 @@
+/* ========================================
+   ENTERPRISE SAAS DASHBOARD STYLING
+   ======================================== */
+
+/* Container for all enterprise controls */
+.tv-enterprise-controls {
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+  flex: 1;
+  padding: 0 1.5rem;
+  margin: 0 auto;
+}
+
+/* ========== GLOBAL SEARCH COMPONENT ========== */
+.tv-search-wrapper {
+  position: relative;
+  width: 100%;
+  max-width: 320px;
+}
+
+.tv-search-input {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: white;
+  color: #0f172a;
+  font-size: 0.95rem;
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.tv-search-input:focus {
+  outline: none;
+  border-color: #ff8a3d;
+  box-shadow: 0 0 0 3px rgba(255, 138, 61, 0.1);
+  background: #fffbf9;
+}
+
+.tv-search-input::placeholder {
+  color: #94a3b8;
+}
+
+.tv-search-results {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  right: 0;
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  z-index: 1000;
+  max-height: 400px;
+  overflow-y: auto;
+  animation: tvDropdownIn 0.2s ease;
+}
+
+.tv-search-results.hidden {
+  display: none;
+}
+
+@keyframes tvDropdownIn {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.tv-search-group {
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.tv-search-group:last-child {
+  border-bottom: none;
+}
+
+.tv-search-group-title {
+  padding: 0.75rem 1rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.tv-search-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.tv-search-item:hover {
+  background: #f8fafc;
+}
+
+.tv-search-item i {
+  color: #ff8a3d;
+  width: 1.25rem;
+  text-align: center;
+}
+
+.tv-search-item-name {
+  font-weight: 600;
+  color: #0f172a;
+  font-size: 0.9rem;
+}
+
+.tv-search-item-meta {
+  font-size: 0.8rem;
+  color: #94a3b8;
+}
+
+.tv-search-empty {
+  padding: 1.5rem 1rem;
+  text-align: center;
+  color: #94a3b8;
+  font-size: 0.9rem;
+}
+
+/* ========== LIVE INDICATORS COMPONENT ========== */
+.tv-live-indicators {
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+  padding: 0 1rem;
+  border-left: 1px solid #e2e8f0;
+  border-right: 1px solid #e2e8f0;
+}
+
+.tv-indicator-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 70px;
+}
+
+.tv-indicator-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #ef4444;
+  animation: tvPulse 2s infinite;
+  transition: background 0.3s ease;
+}
+
+.tv-indicator-dot.active {
+  background: #10b981;
+  box-shadow: 0 0 8px rgba(16, 185, 129, 0.5);
+}
+
+@keyframes tvPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+.tv-indicator-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: #94a3b8;
+  letter-spacing: 0.5px;
+}
+
+.tv-indicator-value {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #ff8a3d;
+}
+
+/* ========== KPI CARDS AS FILTERS ========== */
+
+/* Existing .tvStatCard with filter enhancements */
+.tvStatCard {
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+  position: relative;
+}
+
+.tvStatCard:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.08);
+}
+
+/* Active filter state */
+.tvStatCard--active {
+  border: 2px solid #ff8a3d;
+  background: linear-gradient(135deg, #fffbf9 0%, #fff5ee 100%);
+  color: #ff8a3d;
+}
+
+.tvStatCard--active i {
+  color: #ff8a3d;
+}
+
+.tvStatCard--active h3 {
+  color: #ff8a3d;
+}
+
+.tvStatCard--active p {
+  color: #ff8a3d;
+  font-weight: 600;
+}
+
+/* Glow effect for active card */
+.tvStatCard--glow {
+  box-shadow: 0 0 0 4px rgba(255, 138, 61, 0.15), 0 10px 20px rgba(0, 0, 0, 0.08);
+}
+
+/* Focus mode class for filter activation */
+.tvAppointmentsContainer.filter-focus {
+  background: linear-gradient(180deg, rgba(255, 138, 61, 0.02) 0%, transparent 100%);
+  border-radius: 12px;
+  padding: 1.5rem 0;
+}
+
+/* ========== RESPONSIVE ADJUSTMENTS ========== */
+
+@media (max-width: 768px) {
+  .tv-enterprise-controls {
+    flex-direction: column;
+    gap: 1rem;
+    padding: 1rem 0.75rem;
+  }
+  
+  .tv-search-wrapper {
+    width: 100%;
+    max-width: 100%;
+  }
+  
+  .tv-live-indicators {
+    width: 100%;
+    justify-content: space-around;
+    border: none;
+    padding: 0.75rem 0;
+    background: #f8fafc;
+    border-radius: 8px;
+  }
+  
+  .tv-indicator-item {
+    gap: 0.3rem;
+    min-width: auto;
+  }
+  
+  .tv-indicator-label {
+    font-size: 0.7rem;
+  }
+  
+  .tv-indicator-value {
+    font-size: 0.9rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .tv-enterprise-controls {
+    gap: 0.75rem;
+    padding: 0.75rem 0.5rem;
+  }
+  
+  .tv-live-indicators {
+    gap: 0.75rem;
+  }
+  
+  .tv-indicator-item {
+    min-width: 50px;
+  }
+  
+  .tv-indicator-label {
+    font-size: 0.65rem;
+  }
+  
+  .tv-search-input {
+    font-size: 0.85rem;
+    padding: 0.6rem 0.75rem;
+  }
+  
+  .tvStatCard {
+    min-width: calc(50% - 0.5rem);
+  }
+}
+
+/* ========== DARK MODE SUPPORT ========== */
+@media (prefers-color-scheme: dark) {
+  .tv-search-input {
+    background: #1e293b;
+    color: #f1f5f9;
+    border-color: #475569;
+  }
+  
+  .tv-search-input:focus {
+    background: #0f172a;
+    border-color: #ff8a3d;
+  }
+  
+  .tv-search-results {
+    background: #1e293b;
+    border-color: #475569;
+    color: #f1f5f9;
+  }
+  
+  .tv-search-group {
+    border-color: #334155;
+  }
+  
+  .tv-search-item:hover {
+    background: #334155;
+  }
+  
+  .tv-search-item-name {
+    color: #f1f5f9;
+  }
+  
+  .tvStatCard {
+    background: #1e293b;
+  }
+  
+  .tvStatCard--active {
+    background: linear-gradient(135deg, rgba(255, 138, 61, 0.1) 0%, rgba(255, 138, 61, 0.05) 100%);
+  }
+}
+
+/* ========== ANIMATION: Filter activation ========== */
+@keyframes tvFilterActivate {
+  0% {
+    transform: scale(0.95);
+    opacity: 0.5;
+  }
+  50% {
+    transform: scale(1.02);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.tvStatCard--glow {
+  animation: tvFilterActivate 0.3s ease;
+}
+
+/* ========== ACCESSIBILITY ========== */
+.tvStatCard:focus-visible {
+  outline: 2px solid #ff8a3d;
+  outline-offset: 2px;
+}
+
+.tv-search-input:focus-visible {
+  outline: 2px solid #ff8a3d;
+  outline-offset: 2px;
+}
+
+/* ========== ENHANCED VISUAL POLISH (PHASE 4) ========== */
+
+/* Loading state animation */
+@keyframes tvShimmer {
+  0% { background-position: -1000px 0; }
+  100% { background-position: 1000px 0; }
+}
+
+.tv-search-results.loading {
+  background: linear-gradient(90deg, #f8fafc 25%, #e2e8f0 50%, #f8fafc 75%);
+  background-size: 1000px 100%;
+  animation: tvShimmer 2s infinite;
+}
+
+.tv-search-item.loading {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+/* Enhanced card interaction states */
+.tvStatCard {
+  position: relative;
+  overflow: hidden;
+}
+
+.tvStatCard::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  transition: left 0.5s ease;
+}
+
+.tvStatCard:hover::before {
+  left: 100%;
+}
+
+/* Smooth indicator value transitions */
+.tv-indicator-value {
+  animation: tvValueChange 0.4s ease;
+  will-change: color;
+}
+
+@keyframes tvValueChange {
+  0% {
+    transform: scale(0.95);
+    opacity: 0.7;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* Search results enter animation */
+.tv-search-item {
+  animation: tvSlideUp 0.2s ease;
+}
+
+@keyframes tvSlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Enhanced indicator online status */
+.tv-indicator-dot.active::before {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  border: 2px solid #10b981;
+  opacity: 0.3;
+  animation: tvRadarPulse 2s infinite;
+}
+
+@keyframes tvRadarPulse {
+  0% {
+    transform: scale(1);
+    opacity: 0.5;
+  }
+  100% {
+    transform: scale(1.5);
+    opacity: 0;
+  }
+}
+
+/* Search input active state enhancement */
+.tv-search-input.active {
+  background: linear-gradient(135deg, #fffbf9 0%, #fff5ee 100%);
+  border-color: #ff8a3d;
+  box-shadow: 0 0 0 4px rgba(255, 138, 61, 0.1), 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+/* KPI card completion animations */
+.tvStatCard--active::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 4px;
+  height: 100%;
+  background: linear-gradient(180deg, #ff8a3d, #ffb366);
+  animation: tvBorderSlide 0.3s ease;
+}
+
+@keyframes tvBorderSlide {
+  from {
+    height: 0;
+  }
+  to {
+    height: 100%;
+  }
+}
+
+/* Result group header subtle animation */
+.tv-search-group-title {
+  animation: tvFadeIn 0.3s ease;
+}
+
+@keyframes tvFadeIn {
+  from {
+    opacity: 0;
+    transform: translateX(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* Smooth number transitions for indicators */
+.tv-indicator-value {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Filter active with ripple effect */
+@keyframes tvRipple {
+  0% {
+    transform: scale(0);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(2);
+    opacity: 0;
+  }
+}
+
+.tvStatCard.ripple::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 10px;
+  height: 10px;
+  background: rgba(255, 138, 61, 0.5);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  animation: tvRipple 0.6s ease-out;
+}
+
+/* Search result item click feedback */
+.tv-search-item.clicked {
+  animation: tvClickFeedback 0.3s ease;
+}
+
+@keyframes tvClickFeedback {
+  0% { transform: scale(1); }
+  50% { transform: scale(0.97); }
+  100% { transform: scale(1); }
+}
+
+/* Smooth scrolling for search results */
+.tv-search-results {
+  scroll-behavior: smooth;
+}
+
+/* Hover state for search items with smooth background */
+.tv-search-item {
+  position: relative;
+  overflow: hidden;
+}
+
+.tv-search-item::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: rgba(255, 138, 61, 0.05);
+  transition: left 0.3s ease;
+}
+
+.tv-search-item:hover::before {
+  left: 0;
+}
+
+.tv-search-item-name,
+.tv-search-item i {
+  position: relative;
+  z-index: 1;
+}

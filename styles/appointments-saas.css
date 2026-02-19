@@ -1,0 +1,383 @@
+/**
+ * APPOINTMENTS UI STYLES - SaaS Premium Theme
+ */
+
+/* ===== APPOINTMENTS LIST CONTAINER ===== */
+
+.apts-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+/* ===== APPOINTMENT CARD ===== */
+
+.apts-card {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 16px;
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.apts-card:hover {
+  border-color: #d1d5db;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.07);
+  transform: translateY(-2px);
+}
+
+.apts-card[data-apt-id] {
+  cursor: default;
+}
+
+/* ===== CARD HEADER ===== */
+
+.apts-card__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 12px;
+  gap: 12px;
+}
+
+.apts-card__customer {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+}
+
+.apts-card__customer strong {
+  font-size: clamp(14px, 2vw, 16px);
+  font-weight: 600;
+  color: #111827;
+  word-break: break-word;
+}
+
+.apts-card__badges {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+/* ===== STATUS PILLS ===== */
+
+.apts-pill {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 20px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  white-space: nowrap;
+}
+
+.apts-pill--today {
+  background: #d1fae5;
+  color: #065f46;
+  border: 1px solid #a7f3d0;
+}
+
+.apts-pill--upcoming {
+  background: #dbeafe;
+  color: #1e40af;
+  border: 1px solid #bfdbfe;
+}
+
+.apts-pill--overdue {
+  background: #fee2e2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+.apts-pill--completed {
+  background: #dcfce7;
+  color: #166534;
+  border: 1px solid #bbf7d0;
+  opacity: 0.8;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+/* ===== AUTOMATION BADGES ===== */
+
+.apts-badge {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 4px;
+  white-space: nowrap;
+  text-transform: uppercase;
+  letter-spacing: 0.2px;
+}
+
+.apts-badge--overdue {
+  background: rgba(220, 38, 38, 0.1);
+  color: #dc2626;
+  border: 1px solid rgba(220, 38, 38, 0.2);
+}
+
+.apts-badge--warning {
+  background: rgba(245, 158, 11, 0.1);
+  color: #d97706;
+  border: 1px solid rgba(245, 158, 11, 0.2);
+}
+
+.apts-badge--payment {
+  background: rgba(59, 130, 246, 0.1);
+  color: #2563eb;
+  border: 1px solid rgba(59, 130, 246, 0.2);
+}
+
+/* ===== CARD META (DATE, TIME, VEHICLE) ===== */
+
+.apts-card__meta {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+  font-size: clamp(12px, 1.5vw, 13px);
+  color: #6b7280;
+  line-height: 1.5;
+}
+
+.apts-meta__item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.apts-meta__item i {
+  color: #9ca3af;
+  font-size: 12px;
+}
+
+/* ===== CARD PHONE ===== */
+
+.apts-card__phone {
+  font-size: 13px;
+  color: #3b82f6;
+  padding: 4px 0;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.apts-card__phone i {
+  font-size: 12px;
+}
+
+/* ===== QUICK ACTIONS ===== */
+
+.apts-card__actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #f3f4f6;
+}
+
+.apts-action-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background: white;
+  color: #374151;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  min-height: 32px;
+}
+
+.apts-action-btn:hover {
+  background: #f9fafb;
+  border-color: #9ca3af;
+  transform: translateY(-1px);
+}
+
+.apts-action-btn:active {
+  transform: translateY(0);
+}
+
+.apts-action-btn i {
+  font-size: 11px;
+}
+
+.apts-action-btn span {
+  display: none;
+}
+
+@media (min-width: 640px) {
+  .apts-action-btn span {
+    display: inline;
+  }
+}
+
+/* ===== BUTTON VARIANTS ===== */
+
+.apts-action-btn--primary {
+  background: #3b82f6;
+  color: white;
+  border-color: #3b82f6;
+}
+
+.apts-action-btn--primary:hover {
+  background: #2563eb;
+  border-color: #2563eb;
+  box-shadow: 0 4px 6px rgba(37, 99, 235, 0.2);
+}
+
+.apts-action-btn--success {
+  background: #10b981;
+  color: white;
+  border-color: #10b981;
+}
+
+.apts-action-btn--success:hover {
+  background: #059669;
+  border-color: #059669;
+  box-shadow: 0 4px 6px rgba(5, 150, 105, 0.2);
+}
+
+.apts-action-btn--secondary {
+  background: #f3f4f6;
+  color: #1f2937;
+  border-color: #e5e7eb;
+}
+
+.apts-action-btn--secondary:hover {
+  background: #e5e7eb;
+  border-color: #d1d5db;
+}
+
+.apts-action-btn--call {
+  background: #ec4899;
+  color: white;
+  border-color: #ec4899;
+}
+
+.apts-action-btn--call:hover {
+  background: #db2777;
+  border-color: #db2777;
+  box-shadow: 0 4px 6px rgba(219, 39, 119, 0.2);
+}
+
+/* ===== EMPTY STATE ===== */
+
+.empty-state {
+  text-align: center;
+  padding: 40px 20px;
+  color: #6b7280;
+  display: none;
+}
+
+.empty-state i {
+  font-size: 48px;
+  color: #d1d5db;
+  margin-bottom: 16px;
+  display: block;
+}
+
+.empty-state h3 {
+  font-size: 18px;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 8px;
+}
+
+.empty-state p {
+  font-size: 14px;
+  margin-bottom: 20px;
+}
+
+/* ===== RESPONSIVE ===== */
+
+@media (max-width: 768px) {
+  .apts-card {
+    padding: 12px;
+  }
+
+  .apts-card__header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .apts-card__badges {
+    justify-content: flex-start;
+  }
+
+  .apts-card__meta {
+    gap: 12px;
+    font-size: 12px;
+  }
+
+  .apts-meta__item {
+    flex: 0 0 auto;
+  }
+
+  .apts-card__actions {
+    gap: 6px;
+  }
+
+  .apts-action-btn {
+    padding: 5px 10px;
+    font-size: 11px;
+    min-height: 30px;
+    flex: 1;
+    justify-content: center;
+  }
+}
+
+@media (max-width: 520px) {
+  .apts-card {
+    padding: 10px;
+  }
+
+  .apts-card__meta {
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .apts-action-btn {
+    flex: 1 1 calc(50% - 4px);
+  }
+
+  .apts-card__phone {
+    font-size: 12px;
+    margin-bottom: 8px;
+  }
+}
+
+/* ===== ANIMATIONS ===== */
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.apts-card {
+  animation: slideIn 0.3s ease-out;
+}

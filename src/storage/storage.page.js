@@ -15,29 +15,56 @@ const logger = createLogger('StoragePage');
  * Initialize invoices storage page
  */
 export function initInvoicesStorage() {
-  logger.info('Initializing invoices storage...');
-  
-  // Setup search and filter listeners
-  setupSearchAndFilterListeners();
-  
-  // Setup refresh button
-  const refreshBtn = byId('refreshInvoicesBtn');
-  if (refreshBtn) {
-    refreshBtn.addEventListener('click', () => {
-      handleRefreshInvoicesClick(filterInvoices);
-    });
+  const initState = typeof window !== 'undefined'
+    ? (window.__tvInit = window.__tvInit || {})
+    : {};
+
+  if (initState.storageInitDone || initState.storageInitRunning) {
+    logger.info('Skipping invoices storage init: already initialized or in progress');
+    return;
   }
 
-  // Setup cleanup duplicates button
-  const cleanupBtn = byId('cleanupInvoicesBtn');
-  if (cleanupBtn) {
-    cleanupBtn.addEventListener('click', handleCleanupDuplicatesClick);
+  initState.storageInitRunning = true;
+  logger.info('Initializing invoices storage...');
+
+  try {
+    // Setup search and filter listeners
+    setupSearchAndFilterListeners();
+
+    // Setup refresh button
+    const refreshBtn = byId('refreshInvoicesBtn');
+    if (refreshBtn && !refreshBtn.dataset.tvBoundRefresh) {
+      refreshBtn.addEventListener('click', () => {
+        handleRefreshInvoicesClick(filterInvoices);
+      });
+      refreshBtn.dataset.tvBoundRefresh = '1';
+    }
+
+    // Setup cleanup duplicates button
+    const cleanupBtn = byId('cleanupInvoicesBtn');
+    if (cleanupBtn && !cleanupBtn.dataset.tvBoundCleanup) {
+      cleanupBtn.addEventListener('click', handleCleanupDuplicatesClick);
+      cleanupBtn.dataset.tvBoundCleanup = '1';
+    }
+
+    // Start listener with filter callback
+    startInvoicesListener(filterInvoices);
+    initState.storageInitDone = true;
+
+    if (!initState.initProofLogged) {
+      initState.initProofLogged = true;
+      console.log('[INIT ONCE]', {
+        storageInitDone: true,
+        appInitDone: !!initState.appInitDone,
+        scriptBootstrapDone: !!initState.scriptBootstrapDone,
+        workspacePanelInitialized: !!initState.workspacePanelInitialized
+      });
+    }
+
+    logger.info('✅ Invoices storage initialized');
+  } finally {
+    initState.storageInitRunning = false;
   }
-  
-  // Start listener with filter callback
-  startInvoicesListener(filterInvoices);
-  
-  logger.info('✅ Invoices storage initialized');
 }
 
 /**

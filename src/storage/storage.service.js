@@ -116,11 +116,13 @@ export async function startInvoicesListener(callback) {
 
         logger.info('Mapped invoices array length:', invoices.length);
 
-        const merged = await reconcileInvoicesWithAppointments(invoices);
-        setState('allInvoices', merged);
+        const mappedInvoices = await reconcileInvoicesWithAppointments(invoices);
+        setState('allInvoices', mappedInvoices);
+        window.allInvoices = mappedInvoices;
+        console.log('[INVOICE SOURCE CHECK]', window.allInvoices?.length);
 
         if (callback) {
-          callback(merged);
+          callback(mappedInvoices);
         }
       },
       (error) => {

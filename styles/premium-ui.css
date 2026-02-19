@@ -1,0 +1,1879 @@
+/**
+ * PREMIUM UI/UX UPGRADE - v2
+ * Enterprise SaaS Visual Transformation
+ * Applied: Feb 18, 2026
+ */
+
+/* ================================================= */
+/* STAT CARDS - PREMIUM KPI FILTER ENGINE */
+/* ================================================= */
+
+.tvStats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(clamp(140px, 45vw, 200px), 1fr));
+    gap: clamp(10px, 2vw, 16px);
+    margin-bottom: clamp(16px, 3vw, 24px);
+    padding: 0;
+}
+
+.tvStatCard {
+    background: white;
+    border: 2px solid #e5e7eb;
+    border-left: 4px solid #d1d5db;
+    border-radius: 12px;
+    padding: clamp(12px, 2.5vw, 18px);
+    display: flex;
+    align-items: stretch;
+    flex-direction: column;
+    justify-content: center;
+    gap: clamp(4px, 0.8vw, 8px);
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    position: relative;
+    overflow: hidden;
+    user-select: none;
+    min-height: clamp(100px, 22vw, 140px);
+}
+
+.tvStatCard::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, rgba(255, 122, 24, 0) 0%, rgba(255, 122, 24, 0.05) 100%);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.tvStatCard:hover {
+    border-color: #FF7A18;
+    border-left-color: #FF7A18;
+    box-shadow: 0 10px 25px rgba(255, 122, 24, 0.1);
+    transform: translateY(-2px);
+}
+
+.tvStatCard:hover::before {
+    opacity: 1;
+}
+
+.tvStatCard i {
+    font-size: clamp(16px, 3.5vw, 20px);
+    color: #FF7A18;
+    opacity: 0.7;
+    transition: all 0.3s ease;
+    margin-bottom: 0;
+}
+
+.tvStatCard__content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.tvStatCard h3 {
+    margin: 0;
+    font-size: clamp(18px, 4vw, 28px);
+    font-weight: 700;
+    color: #111827;
+    line-height: 1.1;
+    transition: color 0.3s ease;
+}
+
+.tvStatCard p {
+    margin: clamp(4px, 0.8vw, 8px) 0 0 0;
+    font-size: clamp(11px, 2.4vw, 13px);
+    color: #6b7280;
+    font-weight: 500;
+    transition: color 0.3s ease;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Mini Stats (secondary info under title) */
+.tvStatCard__mini {
+    display: block;
+    margin-top: clamp(3px, 0.6vw, 6px);
+    font-size: clamp(10px, 2.2vw, 11px);
+    color: #9ca3af;
+    font-weight: 400;
+    letter-spacing: 0.02em;
+    transition: color 0.3s ease;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* ACTIVE STATE - Applied when filter is selected */
+.tvStatCard--active,
+.tvStatCard.active {
+    background: linear-gradient(135deg, #FFF8F3 0%, #FFF0E5 100%);
+    border-color: #FF7A18;
+    border-left-color: #FF7A18;
+    box-shadow:
+        0 10px 25px rgba(255, 122, 24, 0.15),
+        inset 0 1px 0 rgba(255, 255, 255, 0.8);
+    transform: translateY(-2px);
+}
+
+.tvStatCard--active i,
+.tvStatCard.active i {
+    color: #FF7A18;
+    opacity: 1;
+    transform: scale(1.1);
+}
+
+.tvStatCard--active h3,
+.tvStatCard.active h3 {
+    color: #FF7A18;
+}
+
+.tvStatCard--active p,
+.tvStatCard.active p {
+    color: #FF9A42;
+}
+
+/* GLOW EFFECT - Enhanced with animation */
+.tvStatCard--glow,
+.tvStatCard.glow {
+    animation: cardGlow 2s ease-in-out infinite;
+}
+
+@keyframes cardGlow {
+    0%, 100% {
+        box-shadow:
+            0 10px 25px rgba(255, 122, 24, 0.15),
+            inset 0 1px 0 rgba(255, 255, 255, 0.8),
+            0 0 0 0 rgba(255, 122, 24, 0.2);
+    }
+    50% {
+        box-shadow:
+            0 10px 25px rgba(255, 122, 24, 0.2),
+            inset 0 1px 0 rgba(255, 255, 255, 0.8),
+            0 0 0 6px rgba(255, 122, 24, 0);
+    }
+}
+
+/* Focus state for accessibility */
+.tvStatCard:focus-visible {
+    outline: 2px solid #FF7A18;
+    outline-offset: 2px;
+}
+
+/* Ripple effect on click */
+@keyframes ripple {
+    to {
+        transform: scale(4);
+        opacity: 0;
+    }
+}
+
+/* ================================================= */
+/* DASHBOARD SUMMARY STRIP - Live KPI Summary */
+/* ================================================= */
+
+.tvSummaryStrip {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: clamp(12px, 2vw, 18px);
+    padding: clamp(10px, 2vw, 14px) clamp(12px, 2.5vw, 18px);
+    background: linear-gradient(135deg, #FFF8F3 0%, #FFF0E5 100%);
+    border: 1px solid #FFE5D3;
+    border-radius: 12px;
+    margin-bottom: clamp(12px, 2.5vw, 18px);
+    flex-wrap: wrap;
+    animation: slideUp 0.4s ease-out;
+}
+
+.tvSummary__item {
+    display: flex;
+    align-items: center;
+    gap: clamp(4px, 0.8vw, 8px);
+    font-size: clamp(11px, 2.5vw, 13px);
+    color: #111827;
+    min-height: 40px;
+}
+
+.tvSummary__item i {
+    color: #FF7A18;
+    font-size: clamp(12px, 2.4vw, 14px);
+    opacity: 0.8;
+    flex-shrink: 0;
+}
+
+.tvSummary__item strong {
+    font-weight: 700;
+    color: #FF7A18;
+    min-width: 3rem;
+}
+
+.tvSummary__divider {
+    color: #E5E7EB;
+    font-weight: 300;
+}
+
+/* Responsive: Mobile */
+@media (max-width: 768px) {
+    .tvSummaryStrip {
+        gap: 1rem;
+        padding: 0.75rem 1rem;
+        font-size: 0.85rem;
+    }
+
+    .tvSummary__divider {
+        display: none;
+    }
+}
+
+/* Responsive: Tablet */
+@media (max-width: 1024px) {
+    .tvStats {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1.25rem;
+    }
+
+    .tvStatCard {
+        padding: 1.25rem;
+    }
+
+    .tvStatCard i {
+        font-size: 1.5rem;
+    }
+
+    .tvStatCard h3 {
+        font-size: 1.75rem;
+    }
+}
+
+/* Responsive: Mobile */
+@media (max-width: 768px) {
+    .tvStats {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .tvStatCard {
+        padding: 1rem;
+        border-radius: 12px;
+        gap: 0.75rem;
+    }
+
+    .tvStatCard i {
+        font-size: 1.25rem;
+    }
+
+    .tvStatCard h3 {
+        font-size: 1.5rem;
+    }
+
+    .tvStatCard p {
+        font-size: 0.8rem;
+    }
+}
+
+/* Responsive: Small Mobile */
+@media (max-width: 480px) {
+    .tvStats {
+        grid-template-columns: 1fr;
+        gap: 0.75rem;
+        margin-bottom: 1rem;
+    }
+
+    .tvStatCard {
+        padding: 0.875rem;
+        border-radius: 10px;
+    }
+
+    .tvStatCard i {
+        font-size: 1.1rem;
+    }
+
+    .tvStatCard h3 {
+        font-size: 1.25rem;
+    }
+
+    .tvStatCard p {
+        font-size: 0.75rem;
+        margin-top: 0.25rem;
+    }
+}
+
+/* ================================================= */
+/* MOBILE FLOATING ACTION BUTTON (FAB) */
+/* ================================================= */
+
+.mobile-fab-button {
+    display: none;
+    position: fixed;
+    bottom: 2rem;
+    right: 1.5rem;
+    z-index: 50;
+    background: linear-gradient(135deg, #FF7A18 0%, #ff9a42 100%);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 56px;
+    height: 56px;
+    cursor: pointer;
+    font-size: 1.5rem;
+    box-shadow: 0 4px 16px rgba(255, 122, 24, 0.35);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+}
+
+.mobile-fab-button:hover {
+    transform: scale(1.1) translateY(-2px);
+    box-shadow: 0 6px 24px rgba(255, 122, 24, 0.4);
+}
+
+.mobile-fab-button:active {
+    transform: scale(0.95);
+}
+
+@media (max-width: 768px) {
+    .mobile-fab-button {
+        display: flex;
+    }
+}
+
+@media (max-width: 480px) {
+    .mobile-fab-button {
+        bottom: 1rem;
+        right: 1rem;
+        width: 52px;
+        height: 52px;
+        font-size: 1.25rem;
+    }
+}
+
+/* ================================================= */
+/* PREMIUM CARD STYLING - General Updates */
+/* ================================================= */
+
+.tvCard {
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 16px;
+    padding: 1.5rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    transition: all 0.3s ease;
+}
+
+.tvCard:hover {
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
+    transform: translateY(-2px);
+}
+
+.tvCard--compact {
+    padding: 1.25rem;
+}
+
+.tvCard--accent {
+    border: 2px solid #FF7A18;
+    background: linear-gradient(135deg, #FFF8F3 0%, #FFF0E5 100%);
+}
+
+/* ================================================= */
+/* BUTTONS - Premium Styling */
+/* ================================================= */
+
+.tvBtn {
+    border-radius: 10px;
+    padding: 0.75rem 1.5rem;
+    font-weight: 600;
+    font-size: 0.95rem;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    border: none;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    user-select: none;
+}
+
+.tvBtn--primary {
+    background: linear-gradient(135deg, #FF7A18 0%, #ff9a42 100%);
+    color: white;
+    box-shadow: 0 4px 12px rgba(255, 122, 24, 0.25);
+}
+
+.tvBtn--primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(255, 122, 24, 0.35);
+}
+
+.tvBtn--secondary {
+    background: white;
+    color: #FF7A18;
+    border: 2px solid #FF7A18;
+}
+
+.tvBtn--secondary:hover {
+    background: #FFF8F3;
+    transform: translateY(-2px);
+}
+
+.tvBtn--sm {
+    padding: 0.5rem 1rem;
+    font-size: 0.85rem;
+}
+
+/* ================================================= */
+/* REMOVE !IMPORTANT OVERRIDE BLOCKERS */
+/* ================================================= */
+
+/* Override conflicting !important rules for KPI display */
+.tvStatCard {
+    display: flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    max-height: none !important;
+}
+
+.tvStats {
+    display: grid !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+}
+
+.firebase-auth-bar:not(#authBar) {
+    display: flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    max-height: none !important;
+}
+
+/* ================================================= */
+/* ANIMATIONS */
+/* ================================================= */
+
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.tvStatCard {
+    animation: slideUp 0.6s ease-out;
+}
+
+.tvStatCard:nth-child(2) {
+    animation-delay: 0.1s;
+}
+
+.tvStatCard:nth-child(3) {
+    animation-delay: 0.2s;
+}
+
+.tvStatCard:nth-child(4) {
+    animation-delay: 0.3s;
+}
+
+/* ================================================= */
+/* WORKSPACE-FIRST KPI OPTIMIZATION (MOBILE + DESKTOP) */
+/* ================================================= */
+
+.tvDashboard--workspaceOptimized {
+    gap: clamp(0.75rem, 2vw, 1.25rem);
+}
+
+#tvWorkspaceStack {
+    min-width: 0;
+    display: grid;
+    gap: clamp(8px, 1.8vw, 12px);
+    align-content: start;
+}
+
+#tvStats {
+    grid-template-columns: repeat(auto-fit, minmax(clamp(140px, 45vw, 220px), 1fr)) !important;
+    gap: clamp(8px, 1.8vw, 12px);
+    margin-bottom: 0;
+    min-width: 0;
+}
+
+#tvStats .tvStatCard {
+    min-height: clamp(104px, 25vw, 126px);
+    padding: clamp(10px, 2vw, 14px);
+    border-radius: 16px;
+    gap: clamp(4px, 1.1vw, 8px);
+}
+
+#tvStats .tvStatCard i {
+    font-size: clamp(16px, 3.6vw, 18px);
+    margin-bottom: 0;
+}
+
+#tvStats .tvStatCard h3 {
+    font-size: clamp(22px, 5vw, 32px);
+    line-height: 1.05;
+}
+
+#tvStats .tvStatCard p {
+    margin-top: clamp(2px, 0.6vw, 6px);
+    font-size: clamp(12px, 2.8vw, 14px);
+    line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+#tvStats .tvStatCard__mini {
+    margin-top: clamp(2px, 0.8vw, 6px);
+    font-size: clamp(11px, 2.6vw, 12px);
+    line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+#tvSummaryStrip.tvSummaryStrip--dock {
+    margin-bottom: 0;
+    gap: clamp(8px, 1.7vw, 12px);
+    padding: clamp(8px, 1.8vw, 12px) clamp(10px, 2.2vw, 14px);
+    border-radius: 16px;
+}
+
+#tvSummaryStrip.tvSummaryStrip--dock .tvSummary__item {
+    min-height: 42px;
+    font-size: clamp(11px, 2.5vw, 13px);
+    padding: 0 clamp(4px, 1vw, 8px);
+    white-space: nowrap;
+}
+
+#tvSummaryStrip.tvSummaryStrip--dock .tvSummary__item strong {
+    font-size: clamp(12px, 2.8vw, 14px);
+}
+
+#tvStats .tvStatCard[data-workspace-id="revenue"] {
+    grid-column: 1 / -1;
+    display: grid !important;
+    grid-template-columns: auto 1fr;
+    align-items: center;
+    min-height: 44px;
+    gap: 0;
+    padding: clamp(8px, 1.5vw, 12px);
+}
+
+#tvStats .tvStatCard[data-workspace-id="revenue"] i {
+    opacity: 0.85;
+    margin-right: clamp(4px, 1vw, 8px);
+}
+
+#tvStats .tvStatCard[data-workspace-id="revenue"] .tvStatCard__content {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: clamp(4px, 1vw, 8px);
+}
+
+#tvStats .tvStatCard[data-workspace-id="revenue"] h3 {
+    font-size: clamp(14px, 3vw, 18px);
+}
+
+#tvStats .tvStatCard[data-workspace-id="revenue"] p {
+    margin: 0;
+    font-size: clamp(11px, 2.4vw, 12px);
+}
+
+#tvStats .tvStatCard[data-workspace-id="revenue"] .tvStatCard__mini {
+    display: none;
+}
+
+#appointmentsTab,
+#tvWorkspaceStack,
+#tvWorkspacePanel,
+#tvStats {
+    min-width: 0;
+    max-width: 100%;
+    overflow-x: clip;
+}
+
+@media (max-width: 1023px) {
+    .tvDashboard--workspaceOptimized > [data-admin-only] {
+        order: 2;
+        position: static;
+    }
+
+    .tvDashboard--workspaceOptimized > #tvWorkspaceStack {
+        order: 1;
+    }
+}
+
+@media (max-width: 429px) {
+    .tvStats {
+        grid-template-columns: repeat(2, minmax(clamp(120px, 42vw, 180px), 1fr)) !important;
+        gap: clamp(8px, 1.8vw, 12px);
+    }
+
+    #tvStats .tvStatCard[data-workspace-id="revenue"] {
+        display: grid !important;
+        grid-template-columns: auto auto 1fr auto !important;
+        padding: clamp(8px, 1.5vw, 10px) !important;
+        gap: clamp(6px, 1vw, 8px) !important;
+    }
+
+    #tvStats .tvStatCard[data-workspace-id="revenue"] h3,
+    #tvStats .tvStatCard[data-workspace-id="revenue"] p {
+        font-size: 0;
+    }
+
+    #tvStats .tvStatCard[data-workspace-id="revenue"] i {
+        font-size: clamp(14px, 3vw, 16px) !important;
+    }
+
+    #tvSummaryStrip.tvSummaryStrip--dock {
+        position: sticky;
+        bottom: calc(8px + env(safe-area-inset-bottom));
+        z-index: 35;
+        box-shadow: 0 8px 24px rgba(15, 23, 42, 0.15);
+        gap: clamp(8px, 1.6vw, 12px);
+    }
+
+    #appointmentsTab {
+        padding-bottom: calc(80px + env(safe-area-inset-bottom));
+    }
+}
+
+@media (min-width: 430px) and (max-width: 767px) {
+    .tvStats {
+        grid-template-columns: repeat(3, minmax(clamp(130px, 30vw, 180px), 1fr)) !important;
+        gap: clamp(10px, 2vw, 14px);
+    }
+
+    #tvStats .tvStatCard[data-workspace-id="revenue"] {
+        display: grid !important;
+        grid-template-columns: auto auto 1fr auto !important;
+        padding: clamp(8px, 1.5vw, 10px) !important;
+        gap: clamp(6px, 1vw, 8px) !important;
+    }
+
+    #tvSummaryStrip.tvSummaryStrip--dock {
+        position: sticky;
+        bottom: calc(8px + env(safe-area-inset-bottom));
+        z-index: 35;
+        box-shadow: 0 8px 24px rgba(15, 23, 42, 0.15);
+    }
+
+    #appointmentsTab {
+        padding-bottom: calc(80px + env(safe-area-inset-bottom));
+    }
+}
+
+@media (min-width: 768px) and (max-width: 1023px) {
+    #tvStats {
+        grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    }
+}
+
+@media (min-width: 1024px) {
+    .tvDashboard--workspaceOptimized {
+        grid-template-columns: minmax(0, 1.02fr) minmax(0, 1.38fr);
+        align-items: start;
+    }
+
+    #tvWorkspaceStack {
+        position: sticky;
+        top: clamp(8px, 1.4vw, 16px);
+    }
+
+    #tvStats {
+        grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    }
+
+    #tvSummaryStrip.tvSummaryStrip--dock {
+        justify-content: flex-start;
+    }
+}
+
+/* ================================================= */
+/* === TRANSVORTEX HEADER - SINGLE SOURCE OF TRUTH === */
+/* Consolidated header CSS - responsive across all devices */
+/* ========================================================= */
+
+/* Root CSS Variables - Adjust for all breakpoints */
+:root {
+    --tvh-pad: clamp(4px, 1.8vw, 14px);
+    --tvh-gap: clamp(4px, 1.4vw, 12px);
+    --tvh-ctrl-h: clamp(32px, 5.4vw, 46px);
+    --tvh-kpi-gap: clamp(4px, 1.2vw, 10px);
+    --tvh-kpi-h: clamp(38px, 7vw, 44px);
+    --tvh-kpi-font: clamp(12px, 2.4vw, 14px);
+}
+
+#authBar,
+#authBar.tvHeader,
+#authBar.firebase-auth-bar.tvHeader {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+        "top"
+        "kpis";
+    gap: var(--tvh-gap);
+    padding: var(--tvh-pad);
+    padding-left: max(var(--tvh-pad), env(safe-area-inset-left));
+    padding-right: max(var(--tvh-pad), env(safe-area-inset-right));
+    padding-top: max(var(--tvh-pad), env(safe-area-inset-top));
+    padding-bottom: max(var(--tvh-pad), env(safe-area-inset-bottom));
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+}
+
+/* ===== A) TOP ROW LAYOUT (Brand Left, Controls Right) ===== */
+#authBar .tvHeaderTop {
+    grid-area: top !important;
+    min-width: 0;
+    display: grid !important;
+    grid-template-columns: auto 1fr auto;
+    align-items: center !important;
+    column-gap: 12px;
+    width: 100%;
+}
+
+/* ===== B) BRAND MEDIA SIZING (gif/logo) ===== */
+#authBar #tvHeaderBrandSlot {
+    min-width: 0 !important;
+    max-width: 100%;
+    flex: 0 1 auto !important;
+    display: flex !important;
+    align-items: center;
+    gap: 12px;
+    overflow: visible !important;
+}
+
+#authBar #tvHeaderGif {
+    max-height: clamp(60px, 9vw, 78px);
+    width: auto;
+    height: auto;
+    object-fit: contain !important;
+    flex: 0 0 auto !important;
+    display: block !important;
+}
+
+#authBar #tvHeaderCompanyLogo {
+    max-height: clamp(42px, 7vw, 58px);
+    max-width: clamp(200px, 35vw, 320px);
+    width: auto;
+    height: auto;
+    object-fit: contain !important;
+    display: block !important;
+    min-width: 0;
+}
+
+/* ===== C) CONTROLS SIZING (online + sign out) ===== */
+#authBar .topbarRight,
+#authBar .rightSlot,
+#authBar .hdrRight {
+    display: flex !important;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 12px;
+    min-width: 0;
+    position: relative;
+    z-index: 2;
+    white-space: nowrap;
+    flex: 0 0 auto;
+    justify-self: end;
+}
+
+#authBar #tvHeaderOnline {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 6px;
+    white-space: nowrap;
+    height: var(--tvh-ctrl-h);
+    min-height: var(--tvh-ctrl-h);
+}
+
+#authBar #tvHeaderOnline .onlineText {
+    display: inline !important;
+}
+
+#authBar #authButton,
+#authBar button#authButton,
+#authBar .btn#authButton {
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    height: var(--tvh-ctrl-h);
+    padding: 0 clamp(10px, 2vw, 14px);
+    border-radius: 12px;
+    white-space: nowrap;
+    flex: 0 0 auto;
+}
+
+/* ===== D) KPI GRID RULES ===== */
+#authBar .tvHeaderKpis {
+    grid-area: kpis;
+    min-width: 0;
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: clamp(10px, 2vw, 14px);
+    width: 100%;
+    max-width: 100%;
+    overflow: visible !important;
+}
+
+#authBar .tvHeaderKpis .header-indicators {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: clamp(10px, 2vw, 14px);
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+}
+
+#authBar .tvHeaderKpis > * {
+    min-width: 0;
+    width: 100%;
+}
+
+#authBar .tvHeaderKpis .indicator-badge,
+#authBar .tvHeaderKpis .kpiChip {
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    min-height: clamp(44px, 6.8vw, 56px);
+    padding: 0 clamp(12px, 2.6vw, 18px) !important;
+    font-size: clamp(12px, 2.4vw, 15px);
+    font-weight: 600;
+    min-width: 0;
+    flex-shrink: 0;
+    border-radius: clamp(14px, 2.6vw, 20px);
+    gap: clamp(6px, 1.2vw, 10px);
+}
+
+#authBar .tvHeaderKpis .indicator-label {
+    font-size: inherit;
+    min-width: 0;
+    overflow: visible;
+    text-overflow: clip;
+    white-space: nowrap;
+    flex: 1 1 auto;
+}
+
+#authBar .tvHeaderKpis .indicator-value {
+    font-size: inherit;
+    font-weight: 700;
+    margin-left: clamp(4px, 0.6vw, 8px);
+    min-width: 0;
+    overflow: visible;
+    text-overflow: clip;
+    white-space: nowrap;
+    flex: 0 1 auto;
+}
+
+/* ===== E) RESPONSIVE BREAKPOINTS ===== */
+
+/* Mobile-first (≤804px) */
+@media (max-width: 804px) {
+    :root {
+        --tvh-pad: 12px;
+        --tvh-gap: 12px;
+        --tvh-ctrl-h: 40px;
+        --tvh-kpi-gap: 12px;
+        --tvh-kpi-h: 48px;
+        --tvh-kpi-font: 14px;
+    }
+
+    #authBar .tvHeaderTop {
+        grid-template-columns: auto 1fr auto;
+        column-gap: 12px;
+    }
+
+    #authBar .tvHeaderKpis {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: clamp(10px, 2vw, 14px);
+    }
+
+    #authBar .tvHeaderKpis .header-indicators {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: clamp(10px, 2vw, 14px);
+    }
+
+    #authBar .tvHeaderKpis .indicator-badge,
+    #authBar .tvHeaderKpis .kpiChip {
+        min-height: clamp(44px, 6.8vw, 56px);
+        font-size: clamp(12px, 2.4vw, 15px);
+        padding: 0 clamp(12px, 2.6vw, 18px) !important;
+    }
+}
+
+/* Tablet landscape (805–1023px) */
+@media (min-width: 805px) and (max-width: 1023px) {
+    #authBar .tvHeaderKpis {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+
+    #authBar .tvHeaderKpis .header-indicators {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+
+    #authBar .tvHeaderKpis .indicator-badge,
+    #authBar .tvHeaderKpis .kpiChip {
+        font-size: clamp(13px, 1vw, 16px);
+    }
+}
+
+/* Desktop (≥1024px) - 3-column layout */
+@media (min-width: 1024px) {
+    :root {
+        --tvh-pad: clamp(10px, 2vw, 16px);
+        --tvh-gap: clamp(8px, 1.6vw, 14px);
+        --tvh-ctrl-h: clamp(36px, 5.4vw, 46px);
+        --tvh-kpi-gap: clamp(10px, 1.6vw, 14px);
+        --tvh-kpi-h: clamp(42px, 7vw, 50px);
+        --tvh-kpi-font: clamp(13px, 2.4vw, 15px);
+    }
+
+    #authBar,
+    #authBar.tvHeader,
+    #authBar.firebase-auth-bar.tvHeader {
+        grid-template-columns: minmax(200px, 0.7fr) minmax(500px, 1.6fr) auto;
+        grid-template-areas: "top kpis controls";
+        align-items: center;
+    }
+
+    #authBar .tvHeaderTop {
+        grid-column: 1 / 2;
+        grid-template-columns: auto;
+    }
+
+    #authBar .tvHeaderKpis {
+        grid-column: 2 / 3;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        align-self: center;
+    }
+
+    #authBar .tvHeaderKpis .header-indicators {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+
+    #authBar .tvHeaderKpis .indicator-badge,
+    #authBar .tvHeaderKpis .kpiChip {
+        font-size: clamp(13px, 1vw, 16px);
+    }
+
+    #authBar .topbarRight,
+    #authBar .rightSlot,
+    #authBar .hdrRight {
+        grid-column: 3 / 4;
+    }
+}
+
+/* KPI FIT: never overflow (header only) */
+#authBar {
+    overflow-x: hidden;
+}
+
+#authBar .headerKpis,
+#authBar .hdrKpis,
+#authBar .tvHeaderKpis,
+#authBar .tvHeaderKpis .header-indicators {
+    display: grid !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: clamp(12px, 2vw, 16px);
+    align-items: stretch;
+    justify-self: stretch !important;
+    overflow: hidden;
+}
+
+#authBar .headerKpis,
+#authBar .hdrKpis,
+#authBar .tvHeaderKpis {
+    grid-column: 1 / -1 !important;
+}
+
+@media (min-width: 805px) {
+    #authBar .headerKpis,
+    #authBar .hdrKpis,
+    #authBar .tvHeaderKpis,
+    #authBar .tvHeaderKpis .header-indicators {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+}
+
+#authBar .hdrKpis .indicator-badge,
+#authBar .tvHeaderKpis .indicator-badge,
+#authBar .tvHeaderKpis .kpiChip {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100%;
+    box-sizing: border-box;
+    justify-self: stretch !important;
+    min-height: clamp(3.1rem, 6vw, 3.6rem);
+    padding: 0 clamp(1rem, 2.4vw, 1.4rem);
+    border-radius: clamp(1.1rem, 2.4vw, 1.6rem);
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    column-gap: clamp(10px, 1.6vw, 14px);
+    white-space: normal;
+    overflow: visible !important;
+    text-overflow: clip !important;
+}
+
+#authBar .hdrKpis .indicator-badge *,
+#authBar .tvHeaderKpis .indicator-badge *,
+#authBar .tvHeaderKpis .kpiChip * {
+    min-width: 0;
+}
+
+#authBar .hdrKpis .indicator-label,
+#authBar .tvHeaderKpis .indicator-label,
+#authBar .tvHeaderKpis .indicator-badge span:first-child,
+#authBar .tvHeaderKpis .kpiChip span:first-child {
+    font-size: clamp(0.95rem, 1.4vw, 1.05rem);
+    font-weight: 600;
+    line-height: 1.1;
+    white-space: normal;
+    overflow: visible;
+}
+
+#authBar .hdrKpis .indicator-value,
+#authBar .tvHeaderKpis .indicator-value,
+#authBar .tvHeaderKpis .indicator-badge span:last-child,
+#authBar .tvHeaderKpis .kpiChip span:last-child,
+#authBar .tvHeaderKpis .indicator-badge strong,
+#authBar .tvHeaderKpis .kpiChip strong {
+    font-size: clamp(0.95rem, 1.4vw, 1.05rem);
+    font-weight: 700;
+    line-height: 1.1;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+}
+
+/* === HEADER KPI FULL-WIDTH UNLOCK (must be last) === */
+#authBar .headerKpis,
+#authBar .hdrKpis,
+#authBar .tvHeaderKpis {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    flex: 1 1 auto !important;
+}
+
+#authBar .header-indicators {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    justify-self: stretch !important;
+    grid-column: 1 / -1 !important;
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: clamp(12px, 2vw, 16px);
+}
+
+@media (min-width: 805px) {
+    #authBar .header-indicators {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+}
+
+#authBar .header-indicators .indicator-badge,
+#authBar .header-indicators .kpiChip {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    justify-self: stretch !important;
+}
+
+/* KPI FIT 400px: full text, 2x2 grid on small screens */
+#authBar .headerKpis,
+#authBar .hdrKpis,
+#authBar .tvHeaderKpis,
+#authBar .header-indicators {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: clamp(10px, 2.2vw, 14px);
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+}
+
+@media (min-width: 805px) {
+    #authBar .headerKpis,
+    #authBar .hdrKpis,
+    #authBar .tvHeaderKpis,
+    #authBar .header-indicators {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+}
+
+#authBar .header-indicators .indicator-badge,
+#authBar .header-indicators .kpiChip,
+#authBar .hdrKpis .indicator-badge,
+#authBar .tvHeaderKpis .indicator-badge,
+#authBar .tvHeaderKpis .kpiChip {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    box-sizing: border-box;
+    min-height: clamp(44px, 10vw, 54px);
+    padding-inline: clamp(10px, 2.2vw, 14px);
+    display: grid !important;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    column-gap: clamp(8px, 2vw, 12px);
+}
+
+#authBar .header-indicators .indicator-label,
+#authBar .hdrKpis .indicator-label,
+#authBar .tvHeaderKpis .indicator-label,
+#authBar .header-indicators .kpiLabel,
+#authBar .header-indicators span:first-child {
+    font-size: clamp(0.85rem, 2.8vw, 1rem);
+    font-weight: 600;
+    line-height: 1.1;
+    white-space: normal;
+    word-break: keep-all;
+}
+
+#authBar .header-indicators .indicator-value,
+#authBar .hdrKpis .indicator-value,
+#authBar .tvHeaderKpis .indicator-value,
+#authBar .header-indicators span:last-child,
+#authBar .header-indicators strong {
+    font-size: clamp(0.85rem, 2.8vw, 1rem);
+    font-weight: 700;
+    line-height: 1.1;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+}
+
+#authBar .header-indicators .indicator-badge,
+#authBar .header-indicators .kpiChip {
+    overflow: visible;
+    text-overflow: clip;
+}
+
+/* KPI TEXT FIT OVERRIDE (EOF) */
+#authBar .headerKpis,
+#authBar .hdrKpis,
+#authBar .tvHeaderKpis,
+#authBar .header-indicators {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: clamp(10px, 2vw, 14px) !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+}
+
+@media (min-width: 805px) {
+    #authBar .headerKpis,
+    #authBar .hdrKpis,
+    #authBar .tvHeaderKpis,
+    #authBar .header-indicators {
+        grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    }
+}
+
+#authBar .header-indicators .indicator-badge,
+#authBar .header-indicators .kpiChip,
+#authBar .hdrKpis .indicator-badge,
+#authBar .tvHeaderKpis .indicator-badge,
+#authBar .tvHeaderKpis .kpiChip {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    overflow: hidden !important;
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    gap: clamp(8px, 2vw, 12px) !important;
+    font-size: clamp(0.78rem, 2.6vw, 0.95rem) !important;
+}
+
+#authBar .header-indicators .indicator-label,
+#authBar .hdrKpis .indicator-label,
+#authBar .tvHeaderKpis .indicator-label,
+#authBar .header-indicators span:first-child,
+#authBar .tvHeaderKpis .indicator-badge span:first-child,
+#authBar .tvHeaderKpis .kpiChip span:first-child {
+    font-size: clamp(0.74rem, 2.4vw, 0.9rem) !important;
+    font-weight: 600 !important;
+    line-height: 1.1 !important;
+    white-space: nowrap !important;
+}
+
+#authBar .header-indicators .indicator-value,
+#authBar .hdrKpis .indicator-value,
+#authBar .tvHeaderKpis .indicator-value,
+#authBar .header-indicators span:last-child,
+#authBar .tvHeaderKpis .indicator-badge span:last-child,
+#authBar .tvHeaderKpis .kpiChip span:last-child,
+#authBar .tvHeaderKpis .indicator-badge strong,
+#authBar .tvHeaderKpis .kpiChip strong {
+    font-size: clamp(0.82rem, 2.8vw, 1.0rem) !important;
+    font-weight: 700 !important;
+    line-height: 1.1 !important;
+    white-space: nowrap !important;
+    font-variant-numeric: tabular-nums !important;
+}
+
+/* Only Week Revenue label can wrap to two lines */
+#authBar #tvHeaderWeekRevenue .indicator-label {
+    white-space: normal !important;
+}
+
+@media (max-width: 420px) {
+    #authBar .headerKpis,
+    #authBar .hdrKpis,
+    #authBar .tvHeaderKpis,
+    #authBar .header-indicators {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        gap: clamp(8px, 2vw, 12px) !important;
+    }
+
+    #authBar .header-indicators .indicator-badge,
+    #authBar .header-indicators .kpiChip,
+    #authBar .hdrKpis .indicator-badge,
+    #authBar .tvHeaderKpis .indicator-badge,
+    #authBar .tvHeaderKpis .kpiChip {
+        padding-inline: clamp(8px, 2vw, 12px) !important;
+        font-size: clamp(0.76rem, 2.4vw, 0.9rem) !important;
+    }
+
+    #authBar .header-indicators .indicator-label,
+    #authBar .hdrKpis .indicator-label,
+    #authBar .tvHeaderKpis .indicator-label {
+        font-size: clamp(0.72rem, 2.2vw, 0.88rem) !important;
+    }
+
+    #authBar .header-indicators .indicator-value,
+    #authBar .hdrKpis .indicator-value,
+    #authBar .tvHeaderKpis .indicator-value {
+        font-size: clamp(0.78rem, 2.4vw, 0.95rem) !important;
+    }
+}
+
+/* ================================================= */
+/* DASHBOARD KPI + WORKFLOW LAYOUT REFACTOR (UI ONLY) */
+/* ================================================= */
+
+/* KPI Header Cards: fluid baseline + no truncation */
+#authBar .headerKpis,
+#authBar .hdrKpis,
+#authBar .tvHeaderKpis,
+#authBar .header-indicators,
+#authBar .tvHeaderKpis .header-indicators {
+    display: grid !important;
+    grid-template-columns: repeat(auto-fit, minmax(clamp(140px, 45vw, 220px), 1fr)) !important;
+    gap: clamp(6px, 1.6vw, 12px) !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    overflow-x: clip;
+}
+
+#authBar .header-indicators .indicator-badge,
+#authBar .header-indicators .kpiChip,
+#authBar .hdrKpis .indicator-badge,
+#authBar .tvHeaderKpis .indicator-badge,
+#authBar .tvHeaderKpis .kpiChip {
+    min-height: clamp(40px, 8vw, 50px) !important;
+    padding: clamp(8px, 1.8vw, 12px) clamp(10px, 2.2vw, 14px) !important;
+    gap: clamp(6px, 1.2vw, 10px) !important;
+    font-size: clamp(12px, 1.6vw, 14px) !important;
+    border-radius: clamp(12px, 2vw, 16px) !important;
+}
+
+#authBar .header-indicators .indicator-label,
+#authBar .hdrKpis .indicator-label,
+#authBar .tvHeaderKpis .indicator-label,
+#authBar .header-indicators .kpiLabel,
+#authBar .header-indicators span:first-child,
+#authBar .tvHeaderKpis .indicator-badge span:first-child,
+#authBar .tvHeaderKpis .kpiChip span:first-child {
+    font-size: clamp(11px, 1.4vw, 13px) !important;
+    line-height: 1.2 !important;
+    white-space: normal !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
+}
+
+#authBar .header-indicators .indicator-value,
+#authBar .hdrKpis .indicator-value,
+#authBar .tvHeaderKpis .indicator-value,
+#authBar .header-indicators span:last-child,
+#authBar .tvHeaderKpis .indicator-badge span:last-child,
+#authBar .tvHeaderKpis .kpiChip span:last-child,
+#authBar .tvHeaderKpis .indicator-badge strong,
+#authBar .tvHeaderKpis .kpiChip strong {
+    font-size: clamp(12px, 1.6vw, 14px) !important;
+    line-height: 1.15 !important;
+}
+
+#authBar .header-indicators i,
+#authBar .tvHeaderKpis i,
+#authBar .hdrKpis i {
+    font-size: clamp(12px, 1.7vw, 15px) !important;
+}
+
+/* Workflow cards + summary strip density */
+#tvWorkspaceStack {
+    gap: clamp(6px, 1.4vw, 10px);
+}
+
+#tvSummaryStrip.tvSummaryStrip--dock,
+.tvSummaryStrip {
+    margin-bottom: clamp(6px, 1.4vw, 10px);
+    gap: clamp(6px, 1.4vw, 10px);
+    padding: clamp(8px, 1.8vw, 12px) clamp(10px, 2.2vw, 14px);
+}
+
+#tvSummaryStrip.tvSummaryStrip--dock .tvSummary__item,
+.tvSummaryStrip .tvSummary__item {
+    min-height: 40px;
+    font-size: clamp(11px, 1.5vw, 13px);
+}
+
+#tvSummaryStrip.tvSummaryStrip--dock .tvSummary__item i,
+.tvSummaryStrip .tvSummary__item i {
+    font-size: clamp(12px, 1.6vw, 14px);
+}
+
+#tvStats {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: clamp(8px, 1.8vw, 12px) !important;
+    margin-bottom: clamp(6px, 1.4vw, 10px) !important;
+    min-width: 0;
+    max-width: 100%;
+    overflow-x: clip;
+}
+
+#tvStats .tvStatCard {
+    min-height: clamp(90px, 20vw, 130px);
+    padding: clamp(12px, 2.5vw, 18px);
+    gap: clamp(4px, 1vw, 8px);
+    min-width: 0;
+    overflow: hidden;
+}
+
+#tvStats .tvStatCard i {
+    font-size: clamp(14px, 2vw, 18px);
+}
+
+#tvStats .tvStatCard h3 {
+    font-size: clamp(18px, 3.4vw, 30px);
+    line-height: 1.05;
+}
+
+#tvStats .tvStatCard p {
+    margin-top: clamp(2px, 0.6vw, 5px);
+    font-size: clamp(12px, 1.6vw, 14px);
+    line-height: 1.2;
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+    overflow-wrap: anywhere;
+}
+
+#tvStats .tvStatCard__mini {
+    margin-top: clamp(2px, 0.6vw, 5px);
+    font-size: clamp(11px, 1.4vw, 13px);
+    line-height: 1.2;
+    white-space: normal;
+    overflow-wrap: anywhere;
+}
+
+/* Mobile: first 4 cards in 2x2, Revenue Inbox as compact full-width strip */
+#tvStats .tvStatCard[data-workspace-id="revenue"] {
+    grid-column: 1 / -1;
+    display: grid !important;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    min-height: clamp(56px, 14vw, 76px);
+    padding: clamp(8px, 2vw, 12px);
+}
+
+#tvStats .tvStatCard[data-workspace-id="revenue"] .tvStatCard__content {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    align-items: center;
+    gap: clamp(6px, 1.4vw, 10px);
+}
+
+#tvStats .tvStatCard[data-workspace-id="revenue"] h3 {
+    font-size: clamp(14px, 2.4vw, 18px);
+}
+
+#tvStats .tvStatCard[data-workspace-id="revenue"] p,
+#tvStats .tvStatCard[data-workspace-id="revenue"] .tvStatCard__mini {
+    font-size: clamp(11px, 1.4vw, 13px);
+    margin: 0;
+}
+
+/* Today Focus compact optimization (small mobile) */
+@media (max-width: 440px) {
+    #authBar .headerKpis,
+    #authBar .hdrKpis,
+    #authBar .tvHeaderKpis,
+    #authBar .header-indicators,
+    #authBar .tvHeaderKpis .header-indicators {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    }
+
+    #tvStats {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        gap: clamp(8px, 1.8vw, 10px) !important;
+    }
+
+    #tvStats .tvStatCard[data-workspace-id="today"] {
+        padding: clamp(10px, 2.2vw, 14px);
+    }
+
+    #tvWorkspacePanel {
+        padding: clamp(10px, 2.2vw, 14px) !important;
+    }
+
+    #tvWorkspacePanel .tvCardHeader {
+        margin-bottom: clamp(6px, 1.6vw, 10px);
+        gap: clamp(6px, 1.4vw, 10px);
+    }
+
+    #workspacePanelTitle {
+        font-size: clamp(16px, 4.8vw, 20px);
+        line-height: 1.15;
+    }
+
+    #workspacePanelTitle i {
+        font-size: clamp(14px, 3.8vw, 18px);
+    }
+
+    #workspaceEmptyState.empty-state {
+        padding: clamp(14px, 3.2vw, 20px) clamp(10px, 2.2vw, 14px);
+    }
+
+    #workspaceEmptyState.empty-state i {
+        font-size: clamp(24px, 6vw, 32px);
+        margin-bottom: clamp(6px, 1.6vw, 10px);
+    }
+
+    #workspaceEmptyState.empty-state h3 {
+        font-size: clamp(14px, 3.8vw, 17px);
+        margin-bottom: clamp(4px, 1.2vw, 8px);
+    }
+
+    #workspaceEmptyState.empty-state p {
+        font-size: clamp(12px, 3vw, 14px);
+        margin-bottom: 0;
+    }
+}
+
+/* Tablet: 3-column KPI + workflow density */
+@media (min-width: 441px) and (max-width: 1023px) {
+    #authBar .headerKpis,
+    #authBar .hdrKpis,
+    #authBar .tvHeaderKpis,
+    #authBar .header-indicators,
+    #authBar .tvHeaderKpis .header-indicators {
+        grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    }
+
+    #tvStats {
+        grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    }
+
+    #tvStats .tvStatCard[data-workspace-id="revenue"] {
+        grid-column: 1 / -1;
+    }
+}
+
+/* Desktop: 4 KPI cards + 5 workflow cards in one row when space allows */
+@media (min-width: 1024px) {
+    #authBar .headerKpis,
+    #authBar .hdrKpis,
+    #authBar .tvHeaderKpis,
+    #authBar .header-indicators,
+    #authBar .tvHeaderKpis .header-indicators {
+        grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    }
+
+    #tvStats {
+        grid-template-columns: repeat(5, minmax(clamp(140px, 18vw, 220px), 1fr)) !important;
+    }
+
+    #tvStats .tvStatCard[data-workspace-id="revenue"] {
+        grid-column: auto;
+        min-height: clamp(90px, 20vw, 130px);
+        display: flex !important;
+        align-items: stretch;
+    }
+
+    #tvStats .tvStatCard[data-workspace-id="revenue"] .tvStatCard__content {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: clamp(2px, 0.5vw, 5px);
+    }
+}
+
+/* Revenue Inbox -> Quick Add CTA */
+#tvStats .tvStatCard[data-workspace-id="revenue"] {
+    cursor: pointer;
+    background: linear-gradient(135deg, #FF7A18, #FF8C2A);
+    color: #ffffff;
+    border-color: rgba(255, 255, 255, 0.25);
+    border-left-color: rgba(255, 255, 255, 0.35);
+    transition: all 0.25s ease;
+}
+
+#tvStats .tvStatCard[data-workspace-id="revenue"] i {
+    color: #ffffff;
+    opacity: 1;
+}
+
+#tvStats .tvStatCard[data-workspace-id="revenue"] .tvStatCard__cta h3,
+#tvStats .tvStatCard[data-workspace-id="revenue"] .tvStatCard__cta p {
+    color: #ffffff;
+}
+
+#tvStats .tvStatCard[data-workspace-id="revenue"] .tvStatCard__cta p {
+    opacity: 0.9;
+}
+
+#tvStats .tvStatCard[data-workspace-id="revenue"] .tvStatCard__meta {
+    display: none;
+}
+
+#tvStats .tvStatCard[data-workspace-id="revenue"]:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(255, 122, 24, 0.35);
+}
+
+#tvStats .tvStatCard[data-workspace-id="revenue"]:focus-visible {
+    outline: 2px solid rgba(255, 255, 255, 0.8);
+    outline-offset: 2px;
+}
+
+/* ================================================= */
+/* ADD APPOINTMENT FORM - PREMIUM LAYOUT REFACTOR     */
+/* ================================================= */
+
+#appointmentForm.appt-form {
+    display: flex;
+    flex-direction: column;
+    gap: clamp(10px, 1.8vw, 16px);
+    padding-bottom: calc(clamp(48px, 8vw, 72px) + env(safe-area-inset-bottom));
+}
+
+.tvModeToggle {
+    display: inline-flex;
+    align-items: center;
+    gap: clamp(6px, 1.2vw, 10px);
+    background: rgba(15, 23, 42, 0.04);
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    border-radius: clamp(10px, 2vw, 14px);
+    padding: clamp(6px, 1.2vw, 10px);
+    width: fit-content;
+}
+
+.tvModeBtn {
+    border: 1px solid transparent;
+    background: transparent;
+    color: rgba(15, 23, 42, 0.7);
+    font-weight: 600;
+    border-radius: clamp(8px, 1.6vw, 12px);
+    padding: clamp(8px, 1.8vw, 12px) clamp(12px, 2.4vw, 16px);
+    min-height: clamp(40px, 7.5vw, 44px);
+    font-size: clamp(12px, 1.6vw, 14px);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.tvModeBtn--active {
+    background: linear-gradient(135deg, #fff1e6 0%, #ffe8d6 100%);
+    border-color: rgba(255, 138, 61, 0.4);
+    color: #ff7a18;
+    box-shadow: 0 6px 16px rgba(255, 138, 61, 0.18);
+}
+
+.appt-form__grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: clamp(10px, 1.6vw, 16px);
+    align-items: start;
+    min-width: 0;
+}
+
+@media (min-width: 481px) and (max-width: 900px) {
+    .appt-form__grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (min-width: 901px) {
+    .appt-form__grid {
+        grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+    }
+}
+
+.appt-card,
+.itemsPanel,
+.premium-notes-card {
+    min-width: 0;
+}
+
+.itemsPanel,
+.premium-notes-card {
+    grid-column: 1 / -1;
+}
+
+.tvFormGrid {
+    display: grid;
+    gap: clamp(8px, 1.4vw, 12px);
+}
+
+.tvFormGrid .field-row {
+    margin-bottom: 0;
+    gap: clamp(8px, 1.2vw, 12px);
+}
+
+@media (min-width: 481px) {
+    .tvFormGrid .field-row.two {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+.tvFormGrid > * {
+    min-width: 0;
+}
+
+.appt-input,
+.appt-select,
+.appt-textarea {
+    min-height: clamp(44px, 7.5vw, 50px);
+    font-size: clamp(12px, 1.6vw, 14px);
+    padding: clamp(10px, 2vw, 12px) clamp(10px, 2.4vw, 14px);
+}
+
+.appt-card h3 {
+    margin-bottom: clamp(8px, 1.4vw, 12px);
+    font-size: clamp(0.98rem, 0.8rem + 0.5vw, 1.15rem);
+}
+
+.field-hint {
+    font-size: clamp(11px, 1.5vw, 13px);
+}
+
+.tvOptionalField .appt-label::after {
+    content: "Optional";
+    display: inline-flex;
+    align-items: center;
+    margin-left: clamp(6px, 1.2vw, 10px);
+    padding: 0 clamp(6px, 1.2vw, 10px);
+    height: clamp(18px, 3vw, 20px);
+    border-radius: 999px;
+    background: rgba(15, 23, 42, 0.06);
+    color: rgba(15, 23, 42, 0.65);
+    font-size: clamp(10px, 1.2vw, 12px);
+    font-weight: 600;
+}
+
+.tvOptionalBlock > summary::after {
+    content: "Optional";
+    margin-left: auto;
+    font-size: clamp(10px, 1.2vw, 12px);
+    font-weight: 600;
+    color: rgba(15, 23, 42, 0.65);
+    padding: 0 clamp(6px, 1.2vw, 10px);
+    border-radius: 999px;
+    background: rgba(15, 23, 42, 0.06);
+}
+
+.tvMode--quick .tvOptionalField,
+.tvMode--quick .tvOptionalBlock {
+    display: none;
+}
+
+.tvMode--quick #notesDetails .premium-content {
+    display: none;
+}
+
+.appt-form__actions {
+    gap: clamp(8px, 1.4vw, 12px);
+    margin-top: clamp(8px, 1.4vw, 12px);
+    padding: clamp(8px, 1.6vw, 12px) clamp(10px, 2.2vw, 14px) calc(clamp(8px, 1.6vw, 12px) + env(safe-area-inset-bottom));
+}
+
+#appointmentForm .appt-form__actions button {
+    width: 100%;
+}
+
+@media (max-width: 480px) {
+    html,
+    body {
+        overflow-x: hidden;
+    }
+
+    #appointmentForm.appt-form {
+        width: 100%;
+        max-width: 100%;
+    }
+
+    #appointmentForm .appt-form__grid {
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
+
+    #appointmentForm .appt-card,
+    #appointmentForm .itemsPanel,
+    #appointmentForm .premium-notes-card {
+        width: 100%;
+        max-width: 100%;
+    }
+
+    #appointmentForm .tvFormGrid .field-row.two,
+    #appointmentForm .tvRow2 {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+        align-items: start;
+    }
+
+    #appointmentForm .tvRow1 {
+        display: block;
+        width: 100%;
+    }
+
+    #appointmentForm label,
+    #appointmentForm .field-label,
+    #appointmentForm .input-label {
+        white-space: normal;
+        overflow: visible;
+        text-overflow: initial;
+        line-height: 1.15;
+        font-size: clamp(0.85rem, 2.8vw, 0.95rem);
+    }
+
+    #appointmentForm input,
+    #appointmentForm select,
+    #appointmentForm textarea {
+        font-size: clamp(0.95rem, 3.2vw, 1rem);
+        min-height: 44px;
+        width: 100%;
+    }
+
+    #appointmentForm .tvFormGrid .field-row.two > *,
+    #appointmentForm .tvRow2 > * {
+        min-width: 0;
+    }
+}
+
+@media (max-width: 389px) {
+    #appointmentForm .tvFormGrid .field-row.two,
+    #appointmentForm .tvRow2 {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Location section: small-phone alignment */
+@media (max-width: 440px) {
+    #appointmentForm .appt-location-row {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: clamp(10px, 2vw, 14px);
+        align-items: start;
+    }
+
+    #appointmentForm .appt-location-row > * {
+        min-width: 0;
+    }
+
+    #appointmentForm .appt-location-row .appt-label {
+        font-size: clamp(0.85rem, 1.8vw, 1rem);
+        line-height: 1.15;
+        white-space: normal;
+        overflow: visible;
+        text-overflow: initial;
+    }
+
+    #appointmentForm .appt-location-row .appt-select {
+        font-size: clamp(0.9rem, 2vw, 1rem);
+        min-height: clamp(42px, 6vw, 48px);
+        width: 100%;
+        min-width: 0;
+        box-sizing: border-box;
+    }
+}
+
+@media (max-width: 360px) {
+    #appointmentForm .appt-location-row {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Quick mode: compact mobile layout (safe 2-col inside cards only) */
+@media (max-width: 520px) {
+    #appointmentForm.tvMode--quick .tvModeToggle {
+        margin: clamp(6px, 1.6vw, 10px) 0 clamp(8px, 2vw, 12px);
+        padding: clamp(6px, 1.6vw, 10px);
+    }
+}
+
+@media (min-width: 380px) and (max-width: 520px) {
+    #appointmentForm.tvMode--quick .tvFormGrid .field-row.two {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: clamp(8px, 2vw, 12px);
+        align-items: start;
+    }
+}
+
+@media (max-width: 360px) {
+    #appointmentForm.tvMode--quick .tvFormGrid .field-row.two {
+        grid-template-columns: 1fr;
+    }
+}
+
+#appointmentForm.tvMode--quick .appt-card {
+    padding: clamp(12px, 3vw, 16px);
+}
+
+#appointmentForm.tvMode--quick .tvFormGrid {
+    gap: clamp(10px, 2.4vw, 14px);
+}
+
+#appointmentForm.tvMode--quick .appt-card h3 {
+    font-size: clamp(1.05rem, 2.8vw, 1.2rem);
+}
+
+#appointmentForm.tvMode--quick .appt-input,
+#appointmentForm.tvMode--quick .appt-select,
+#appointmentForm.tvMode--quick .appt-textarea {
+    min-height: clamp(42px, 6vw, 48px);
+    font-size: clamp(0.92rem, 2.2vw, 1rem);
+    width: 100%;
+    min-width: 0;
+}
+
+#appointmentForm.tvMode--quick .appt-label {
+    font-size: clamp(0.85rem, 2vw, 0.95rem);
+    white-space: normal;
+    overflow: visible;
+    text-overflow: initial;
+}
+
+/* =====================================
+ * CTA Scroll Target
+ * ===================================== */
+#addAppointmentSection {
+    scroll-margin-top: clamp(12px, 2vh, 20px);
+}

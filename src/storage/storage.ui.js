@@ -57,7 +57,9 @@ function isInvoicePaid(inv) {
  * Counts from ALL invoices, not filtered list
  */
 function updateInvoiceKPI() {
-  const allInvoices = getState('allInvoices') || [];
+  const allInvoices = Array.isArray(window.allInvoices)
+    ? window.allInvoices
+    : [];
   const kpiUnpaid = byId('kpiUnpaid');
   const kpiPaid = byId('kpiPaid');
   
@@ -87,7 +89,9 @@ function updateInvoiceKPI() {
  * Filter invoices based on search term and payment status
  */
 export function filterInvoices() {
-  const allInvoices = getState('allInvoices') || [];
+  const allInvoices = Array.isArray(window.allInvoices)
+    ? window.allInvoices
+    : [];
   logger.info('filterInvoices() called - allInvoices.length:', allInvoices.length);
   
   const searchInput = byId('searchInvoices');

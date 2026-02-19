@@ -1,0 +1,170 @@
+/**
+ * APPOINTMENTS TOOLBAR - SaaS Search + Filter Bar
+ */
+
+.apts-toolbar {
+  display: flex;
+  gap: clamp(8px, 2vw, 16px);
+  align-items: center;
+  flex-wrap: wrap;
+  padding: 12px;
+  background: #f9fafb;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+}
+
+/* ===== SEARCH INPUT ===== */
+
+.apts-search {
+  position: relative;
+  flex: 1;
+  min-width: 200px;
+  max-width: 400px;
+}
+
+.apts-search__input {
+  width: 100%;
+  padding: 8px 12px 8px 32px;
+  font-size: clamp(12px, 1vw, 14px);
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background: white;
+  transition: all 0.2s ease;
+}
+
+.apts-search__input:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.apts-search__icon {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #9ca3af;
+  font-size: 12px;
+  pointer-events: none;
+}
+
+/* ===== FILTER BUTTONS ===== */
+
+.apts-filters {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.apts-filter-btn {
+  padding: 7px 14px;
+  font-size: clamp(11px, 1vw, 12px);
+  font-weight: 500;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background: white;
+  color: #6b7280;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  min-height: 32px;
+}
+
+.apts-filter-btn:hover {
+  border-color: #9ca3af;
+  background: #f3f4f6;
+  color: #1f2937;
+}
+
+.apts-filter-btn--active {
+  background: #3b82f6;
+  color: white;
+  border-color: #3b82f6;
+}
+
+.apts-filter-btn--active:hover {
+  background: #2563eb;
+  border-color: #2563eb;
+}
+
+/* ===== EXPORT BUTTON ===== */
+
+.apts-export-btn {
+  padding: 7px 12px;
+  font-size: 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background: white;
+  color: #6b7280;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.apts-export-btn:hover {
+  border-color: #9ca3af;
+  background: #f3f4f6;
+  color: #1f2937;
+}
+
+/* ===== COUNT BADGE ===== */
+
+.apts-count-badge {
+  font-weight: 600;
+  color: #3b82f6;
+}
+
+/* ===== RESPONSIVE ===== */
+
+@media (max-width: 768px) {
+  .apts-toolbar {
+    gap: 8px;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .apts-search {
+    max-width: 100%;
+    flex: auto;
+  }
+
+  .apts-filters {
+    justify-content: space-between;
+  }
+
+  .apts-filter-btn {
+    flex: 1;
+    min-width: 60px;
+    font-size: 11px;
+    padding: 6px 8px;
+  }
+
+  .apts-export-btn {
+    flex: 0 0 auto;
+    padding: 6px 10px;
+  }
+}
+
+@media (max-width: 520px) {
+  .apts-toolbar {
+    gap: 6px;
+  }
+
+  .apts-filters {
+    width: 100%;
+    justify-content: flex-start;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    gap: 4px;
+    padding-bottom: 4px;
+  }
+
+  .apts-filter-btn {
+    flex: 0 0 auto;
+    padding: 5px 10px;
+    font-size: 10px;
+  }
+}

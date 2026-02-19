@@ -6,7 +6,7 @@
 import { firebaseConfig, ADMIN_UIDS, validateFirebaseConfig } from './firebase-config.js';
 import { initializeApp, getApps, getApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
 import { getAuth, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
-import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, memoryLocalCache } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+import { initializeFirestore, getFirestore, persistentLocalCache, persistentMultipleTabManager, memoryLocalCache } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 import { getStorage } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js';
 
 let app = null;
@@ -21,6 +21,15 @@ let isAdmin = false;
  * Falls back gracefully from persistent to memory cache on errors
  */
 function initializeFirestoreWithFallback(firebaseApp) {
+  try {
+    const existingDb = getFirestore(firebaseApp);
+    if (existingDb) {
+      return existingDb;
+    }
+  } catch (_err) {
+    // Firestore not initialized yet for this app - continue with configured init.
+  }
+
   // Strategy 1: Try persistent cache with multi-tab support
   try {
     console.log('🔄 Attempting Firestore with persistent multi-tab cache...');
@@ -29,7 +38,9 @@ function initializeFirestoreWithFallback(firebaseApp) {
         tabManager: persistentMultipleTabManager(),
         cacheSizeBytes: 40 * 1024 * 1024  // 40MB cache
       }),
-      ignoreUndefinedProperties: true
+      ignoreUndefinedProperties: true,
+      experimentalAutoDetectLongPolling: true,
+      useFetchStreams: false
     });
     console.log('✅ Firestore initialized with persistent multi-tab cache');
     return firestoreDb;
@@ -41,7 +52,9 @@ function initializeFirestoreWithFallback(firebaseApp) {
       console.log('🔄 Falling back to memory cache...');
       const firestoreDb = initializeFirestore(firebaseApp, {
         localCache: memoryLocalCache(),
-        ignoreUndefinedProperties: true
+        ignoreUndefinedProperties: true,
+        experimentalAutoDetectLongPolling: true,
+        useFetchStreams: false
       });
       console.log('✅ Firestore initialized with memory cache (multi-tab safe)');
       return firestoreDb;
@@ -49,7 +62,9 @@ function initializeFirestoreWithFallback(firebaseApp) {
       // Strategy 3: Minimal initialization as last resort
       console.warn('⚠️ Memory cache failed, using minimal config:', memoryError.message || memoryError.code);
       const firestoreDb = initializeFirestore(firebaseApp, {
-        ignoreUndefinedProperties: true
+        ignoreUndefinedProperties: true,
+        experimentalAutoDetectLongPolling: true,
+        useFetchStreams: false
       });
       console.log('✅ Firestore initialized with minimal config');
       return firestoreDb;
@@ -63,11 +78,23 @@ function initializeFirestoreWithFallback(firebaseApp) {
 export function initFirebase() {
   validateFirebaseConfig();
 
+  if (typeof window !== 'undefined' && window.__tvFirebase?.app && window.__tvFirebase?.db) {
+    app = window.__tvFirebase.app;
+    auth = window.__tvFirebase.auth;
+    db = window.__tvFirebase.db;
+    storage = window.__tvFirebase.storage;
+    return { app, auth, db, storage };
+  }
+
   if (!app) {
     app = getApps().length ? getApp() : initializeApp(firebaseConfig);
     auth = getAuth(app);
     db = initializeFirestoreWithFallback(app);
     storage = getStorage(app);
+
+    if (typeof window !== 'undefined') {
+      window.__tvFirebase = { app, auth, db, storage };
+    }
     
     console.log("✅ Firebase initialized");
     console.log("🔧 Project ID:", app.options.projectId);

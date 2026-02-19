@@ -15,10 +15,23 @@ import { initializeVehicleFormatting } from './utils/input-formatters.js';
 
 const logger = createLogger('App');
 
+function getInitState() {
+  if (typeof window === 'undefined') return {};
+  window.__tvInit = window.__tvInit || {};
+  return window.__tvInit;
+}
+
 /**
  * Initialize application
  */
 async function initApp() {
+  const initState = getInitState();
+  if (initState.appInitDone || initState.appInitRunning) {
+    logger.info('Skipping app init: already initialized or in progress');
+    return;
+  }
+  initState.appInitRunning = true;
+
   logger.info('🚀 Initializing Transvortex application...');
   
   try {
@@ -52,10 +65,23 @@ async function initApp() {
     restoreActiveTab();
     
     logger.info('✅ Application initialized successfully');
+    initState.appInitDone = true;
+
+    if (!initState.initProofLogged) {
+      initState.initProofLogged = true;
+      console.log('[INIT ONCE]', {
+        appInitDone: true,
+        scriptBootstrapDone: !!initState.scriptBootstrapDone,
+        storageInitDone: !!initState.storageInitDone,
+        workspacePanelInitialized: !!initState.workspacePanelInitialized
+      });
+    }
     
   } catch (error) {
     logger.error('❌ Failed to initialize application:', error);
     alert('Failed to initialize application. Please refresh the page.');
+  } finally {
+    initState.appInitRunning = false;
   }
 }
 

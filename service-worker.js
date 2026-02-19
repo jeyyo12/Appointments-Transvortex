@@ -4,7 +4,7 @@
  * No infinite reload loops, no complex update logic
  */
 
-const CACHE_NAME = 'transvortex-v17'; // Updated for Logo/ folder icon references
+const CACHE_NAME = 'transvortex-v22-amount-feature-20260218'; // Updated: Amount feature with build ID verification (Feb 18, 2026 14:15 UTC)
 const CRITICAL_ASSETS = [
   './index.html',
   './invoice.html',

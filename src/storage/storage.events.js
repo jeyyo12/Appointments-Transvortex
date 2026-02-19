@@ -13,6 +13,7 @@ import { filterInvoices } from './storage.ui.js';
 import { cleanupInvoiceDuplicatesAcrossAppointments, dedupeInvoicesForAppointment, getOrCreateInvoiceForAppointment } from '../invoices/invoice-manager.js';
 
 const logger = createLogger('StorageEvents');
+let searchFilterListenersBound = false;
 
 function toNumber(value) {
   const parsed = typeof value === 'number' ? value : parseFloat(value);
@@ -41,7 +42,9 @@ function sumLineItems(items) {
  * @param {string} invoiceId - Invoice ID
  */
 export function openInvoiceFile(invoiceId) {
-  const allInvoices = getState('allInvoices') || [];
+  const allInvoices = Array.isArray(window.allInvoices)
+    ? window.allInvoices
+    : [];
   const invoice = allInvoices.find(inv => inv.id === invoiceId);
 
   if (!invoice) {
@@ -88,7 +91,9 @@ export function openInvoiceFile(invoiceId) {
  * @param {string} invoiceId - Invoice ID
  */
 export async function deleteInvoiceConfirm(invoiceId) {
-  const allInvoices = getState('allInvoices') || [];
+  const allInvoices = Array.isArray(window.allInvoices)
+    ? window.allInvoices
+    : [];
   const invoice = allInvoices.find(inv => inv.id === invoiceId);
   
   if (!invoice) {
@@ -237,6 +242,11 @@ export async function rebuildInvoiceFromAppointment(appointmentId, invoiceId = n
  * Setup search and filter event listeners
  */
 export function setupSearchAndFilterListeners() {
+  if (searchFilterListenersBound) {
+    logger.info('Search and filter listeners already attached');
+    return;
+  }
+
   const searchInput = document.getElementById('searchInvoices');
   const paymentFilter = document.getElementById('filterInvoicePayment');
   
@@ -254,6 +264,7 @@ export function setupSearchAndFilterListeners() {
     });
   }
   
+  searchFilterListenersBound = true;
   logger.info('Search and filter listeners attached');
 }
 

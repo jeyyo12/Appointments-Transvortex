@@ -3,6 +3,28 @@ import { initAuthListener, onAuthStateChange } from './src/core/auth-state.js';
 import { bindActionDelegation } from './src/core/events.js';
 import { dedupeInvoicesForAppointment, getOrCreateInvoiceForAppointment, openInvoice } from './src/invoices/invoice-manager.js';
 import { refreshVehicleFormatting } from './src/utils/input-formatters.js';
+import './src/enterprise-dashboard.js';
+import { initializeDataLayer } from './src/data-layer/index.js';
+// Load appointments system modules to make classes available globally
+import { AppointmentsManager } from './src/data-layer/appointments-manager.js';
+import { AppointmentsUIRenderer } from './src/data-layer/appointments-ui.js';
+// ✅ PHASE 1: Import unified metrics engine
+import { computeDashboardMetrics, renderDashboardMetrics } from './src/metrics/dashboard-metrics.js';
+// ✅ PHASE 5: Import workspace controller
+import { setActiveWorkspace } from './src/workspace/workspace-controller.js';
+
+// ==========================================
+// DEFENSIVE FUNCTION STUBS (for inline onclick handlers)
+// ==========================================
+// These are placeholders that exist on window IMMEDIATELY when the module starts loading
+// They get overridden by the real implementations defined later in this file
+// This prevents "function not defined" errors if inline onclick handlers execute early
+window.handleAuthToggle = window.handleAuthToggle || (() => {});
+window.switchTab = window.switchTab || (() => {});
+window.handleRefreshAppointments = window.handleRefreshAppointments || (() => {});
+window.handleAppointmentFilter = window.handleAppointmentFilter || (() => {});
+window.handleAppointmentSearch = window.handleAppointmentSearch || (() => {});
+window.exportAppointmentsCSV = window.exportAppointmentsCSV || (() => {});
 
 // ==========================================
 // FIREBASE CONFIGURATION - SINGLE SOURCE
@@ -74,6 +96,121 @@ let renderAppointmentsCallCount = 0;
 let invoiceNumberGenerationCount = 0;
 let firebaseListenerCount = 0;
 // ==================================
+
+// ========== SINGLETON INIT FLAGS (Prevent Double Initialization) ==========
+// CRITICAL: These flags prevent DUPLICATE systems from running (root cause of overrides)
+// See OVERRIDE_AUDIT_COMPLETE.md Phase 3 for details
+window.__tvInitFlags = window.__tvInitFlags || {
+  // Disable legacy Firestore listeners - data-layer now handles all
+  scannedInvoicesListenerDisabled: true,
+  appointmentsListenerDisabled: true,
+  invoicesListenerDisabled: true,
+  
+  // Disable legacy enterprise-dashboard updates - HeaderMetrics now handles header
+  legacyDashboardUpdatesDisabled: true,
+  
+  // Track actual initializations
+  skipAppointmentsUIRenderer: true,
+  dataLayerInitialized: false,
+  headerMetricsInitialized: false
+};
+window.__tvInit = window.__tvInit || {};
+// ==========================================================================
+
+// Helper function to safely retrieve an appointment from either data-layer or legacy array
+function getAppointmentById(aptId) {
+  if (!aptId) return null;
+  
+  // Try data-layer store first (new system)
+  if (window._dataLayer?.store?.getAppointment) {
+    const apt = window._dataLayer.store.getAppointment(aptId);
+    if (apt) return apt;
+  }
+  
+  // Fall back to legacy window.appointments array
+  return appointments.find(a => a && a.id === aptId) || null;
+}
+
+// ========== PHASE 1: UNIFIED METRICS ENGINE TRIGGER ==========
+/**
+ * TRIGGER: Recompute dashboard metrics from current appointments + invoices
+ * Called automatically whenever:
+ * - Snapshot arrives from Firestore (appointments or invoices)
+ * - User applies filters
+ * - Page loads
+ * 
+ * This is the SINGLE METRICS PIPELINE that feeds:
+ * - KPI cards (4 cards)
+ * - Summary strip
+ * - Header badges
+ */
+function updateDashboardMetrics() {
+    tryRenderAll('manual');
+}
+
+// Make it globally available
+window.updateDashboardMetrics = updateDashboardMetrics;
+
+function updateHeaderMetrics() {
+    if (window._headerMetrics && typeof window._headerMetrics.update === 'function') {
+        window._headerMetrics.update();
+    }
+}
+window.updateHeaderMetrics = updateHeaderMetrics;
+
+function tryRenderAll(source = 'manual') {
+    window.__tvRenderGate = window.__tvRenderGate || {
+        appointmentsReady: false,
+        invoicesReady: false,
+        timer: null,
+        pendingSeq: 0,
+        lastRenderedSeq: 0
+    };
+
+    const gate = window.__tvRenderGate;
+    if (source === 'appointments') gate.appointmentsReady = true;
+    if (source === 'invoices') gate.invoicesReady = true;
+
+    if (!gate.appointmentsReady || !gate.invoicesReady) {
+        return;
+    }
+
+    gate.pendingSeq += 1;
+    const targetSeq = gate.pendingSeq;
+
+    if (gate.timer) {
+        clearTimeout(gate.timer);
+    }
+
+    gate.timer = setTimeout(() => {
+        gate.timer = null;
+
+        const aptsToUse = Array.isArray(window.appointments) ? window.appointments : null;
+        const invoicesToUse = Array.isArray(window.allInvoices) ? window.allInvoices : null;
+
+        if (!Array.isArray(aptsToUse) || !Array.isArray(invoicesToUse)) {
+            return;
+        }
+
+        if (targetSeq <= gate.lastRenderedSeq) {
+            return;
+        }
+
+        gate.lastRenderedSeq = targetSeq;
+
+        const activeWorkspace = window.__workspaceState?.activeWorkspace || 'today';
+
+        updateHeaderMetrics();
+        const metrics = computeDashboardMetrics(aptsToUse, invoicesToUse);
+        renderDashboardMetrics(metrics);
+
+        if (typeof window.renderWorkspace === 'function' && activeWorkspace) {
+            window.renderWorkspace(activeWorkspace);
+        }
+    }, 100);
+}
+
+window.tryRenderAll = tryRenderAll;
 
 // ========== WRITE TRACING (TEMPORARY DEBUG) ==========
 const writeTraces = [];
@@ -736,8 +873,20 @@ async function initializeFirebase() {
                 await loadPresetsFromFirestore();
 
                 setupEventListeners();
-                subscribeToAppointments();
-                subscribeToScannedInvoices();
+                
+                // PHASE 3 FIX: Disable duplicate Firestore listeners
+                // These are now managed by data-layer/firestore-sync.js
+                // subscribeToAppointments();  // ← DISABLED (data-layer handles this)
+                // subscribeToScannedInvoices();  // ← DISABLED (data-layer handles this)
+                console.log('[OVERRIDE AUDIT] Legacy Firestore listeners DISABLED - data-layer active');
+                
+                // Initialize data layer (new Firestore architecture)
+                // This provides incremental updates and reliable KPI sync
+                if (typeof initializeDataLayer === 'function' && db) {
+                    initializeDataLayer(db, user.uid).catch(err => {
+                        console.warn('⚠️ Data layer initialization warning (app continues to work):', err);
+                    });
+                }
 
             } else {
                 console.log("🔓 User logged out");
@@ -838,7 +987,7 @@ function updateAuthUI() {
 
     // Update auth button based on login state
     if (currentUser) {
-        authButton.textContent = 'Deconectare';
+        authButton.textContent = 'Sign Out';
         authButton.disabled = false;
         
         // Show admin-only sections
@@ -846,7 +995,7 @@ function updateAuthUI() {
             el.classList.toggle('admin-visible', isAdmin);
         });
     } else {
-        authButton.textContent = 'Conectare cu Google';
+        authButton.textContent = 'Sign in with Google';
         authButton.disabled = false;
         
         // Hide admin sections for logged-out users
@@ -862,40 +1011,11 @@ function updateAuthUI() {
 }
 
 /**
- * Ensure stable header brand content exists exactly once
+ * Ensure header brand area is available before animation/auth updates.
  */
 function ensureTvHeaderBrandContent(slot) {
-    let headerGif = document.getElementById('tvHeaderGif');
-    let headerFallback = document.getElementById('tvHeaderFallback');
-
-    if (!headerGif) {
-        headerGif = document.createElement('img');
-        headerGif.id = 'tvHeaderGif';
-        headerGif.src = '/Logo/gif.gif';
-        headerGif.alt = 'Admin';
-        headerGif.loading = 'eager';
-        headerGif.decoding = 'async';
-        slot.appendChild(headerGif);
-    }
-
-    if (!headerFallback) {
-        headerFallback = document.createElement('img');
-        headerFallback.id = 'tvHeaderFallback';
-        headerFallback.className = 'tv-header-fallback';
-        headerFallback.alt = 'Transvortex';
-        headerFallback.src = '/Logo/icon-192.png';
-        headerFallback.hidden = true;
-        slot.appendChild(headerFallback);
-    }
-
-    if (headerGif) {
-        headerGif.onerror = () => {
-            headerGif.hidden = true;
-            headerFallback.hidden = false;
-        };
-        headerGif.hidden = false;
-        headerFallback.hidden = true;
-    }
+    if (!slot) return;
+    return;
 }
 
 function waitForTvHeaderSlot(timeoutMs = 1000) {
@@ -949,8 +1069,10 @@ async function runTvSplashIntro() {
 
     ensureTvHeaderBrandContent(headerSlot);
 
+    const targetGif = document.getElementById('tvHeaderGif') || headerSlot;
+
     const sourceRect = splashMedia.getBoundingClientRect();
-    const targetRect = headerSlot.getBoundingClientRect();
+    const targetRect = targetGif.getBoundingClientRect();
 
     const sourceCenterX = sourceRect.left + sourceRect.width / 2;
     const sourceCenterY = sourceRect.top + sourceRect.height / 2;
@@ -3789,37 +3911,19 @@ function getScannedInvoiceSortTimestamp(scan) {
     return 0;
 }
 
+/**
+ * [DISABLED] subscribeToScannedInvoices - DUPLICATE FIRESTORE LISTENER REMOVED
+ * ❌ OVERRIDE CONFLICT: This created a parallel listener competing with data-layer
+ * ✅ RESOLUTION: src/data-layer/firestore-sync.js manages ALL Firestore listeners
+ * See: OVERRIDE_AUDIT_COMPLETE.md PHASE 2 for full details
+ */
 function subscribeToScannedInvoices() {
-    if (!currentUser || !db) return;
-
-    import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js')
-        .then(({ collection, query, where, onSnapshot }) => {
-            if (scannedInvoicesUnsubscribe) {
-                scannedInvoicesUnsubscribe();
-                scannedInvoicesUnsubscribe = null;
-            }
-
-            const handleSnapshot = (snapshot) => {
-                applyScannedInvoiceDocChanges(snapshot);
-            };
-
-            const handleSnapshotError = (error) => {
-                console.error('❌ Error loading scanned invoices:', error);
-                showNotification('❌ Unable to load scanned invoices', 'error');
-            };
-
-            const scansQuery = isAccountant
-                ? query(collection(db, 'scannedInvoices'))
-                : query(
-                    collection(db, 'scannedInvoices'),
-                    where('createdByUid', '==', currentUser.uid)
-                );
-
-            scannedInvoicesUnsubscribe = onSnapshot(scansQuery, handleSnapshot, handleSnapshotError);
-        })
-        .catch((error) => {
-            console.error('❌ Failed to subscribe scanned invoices:', error);
-        });
+    if (window.__tvInitFlags?.scannedInvoicesListenerDisabled) {
+        console.log('[OVERRIDE AUDIT Phase 3] subscribeToScannedInvoices() disabled - using data-layer listener');
+        return;
+    }
+    console.warn('[OVERRIDE AUDIT] BLOCKED: Attempted duplicate Firestore listener');
+    console.warn('→ Data now flows through: window._dataLayer?.store?.scannedInvoicesById');
 }
 
 function setupScannedInvoicesUI() {
@@ -3875,7 +3979,7 @@ async function handleRefreshAppointments() {
     const refreshButton = document.getElementById('refreshAppointmentsButton');
     
     if (!currentUser) {
-        showNotification('⚠️ Conectează-te pentru a reîncărca programările', 'info');
+        showNotification('⚠️ Please sign in to refresh appointments', 'info');
         return;
     }
     
@@ -3885,14 +3989,16 @@ async function handleRefreshAppointments() {
             refreshButton.disabled = true;
         }
         
-        console.log('🔄 Manual appointments refresh triggered...');
+        console.log('🔄 Manual appointments refresh triggered');
         
-        // Appointments auto-update via Firestore listener, but we can show notification
-        showNotification(`✅ Actualizat! ${appointments.length} programări`, 'success');
+        // Re-apply filter (data already synced from Firestore listener)
+        filterAppointments();
+        
+        showNotification(`✅ Refreshed! ${appointments.length} appointments`, 'success');
         
     } catch (error) {
         console.error('❌ Error refreshing appointments:', error);
-        showNotification('❌ Eroare la reîncărcare', 'error');
+        showNotification('❌ Error refreshing', 'error');
     } finally {
         if (refreshButton) {
             refreshButton.classList.remove('refreshing');
@@ -4130,31 +4236,115 @@ function initChipsModeAutoSave() {
 }
 
 // ==========================================
+/**
+ * APPOINTMENT FILTER HANDLER - Called by filter button clicks
+ * Updates active filter and re-applies filtering
+ */
+function handleAppointmentFilter(filterType) {
+    console.log(`🔍 Filter changed: ${filterType}`);
+    
+    // Update active button state
+    document.querySelectorAll('.apts-filter-btn').forEach(btn => {
+        btn.classList.remove('apts-filter-btn--active');
+        if (btn.dataset.filter === filterType) {
+            btn.classList.add('apts-filter-btn--active');
+        }
+    });
+    
+    // Re-apply filtering
+    filterAppointments();
+}
+
+/**
+ * APPOINTMENT SEARCH HANDLER - Called by search input changes
+ * Debounced to avoid excessive filtering
+ */
+let appointmentSearchDebounceTimer = null;
+function handleAppointmentSearch(event) {
+    // Debounce: wait 300ms after user stops typing before filtering
+    clearTimeout(appointmentSearchDebounceTimer);
+    appointmentSearchDebounceTimer = setTimeout(() => {
+        filterAppointments();
+    }, 300);
+}
+
 // INITIALIZE ON PAGE LOAD
 // ==========================================
+// Expose core functions to window IMMEDIATELY for inline onclick handlers
+// These must be available before DOMContentLoaded fires
 window.handleAuthToggle = handleAuthToggle;
 window.switchTab = switchTab;
 window.handleRefreshAppointments = handleRefreshAppointments;
+window.handleAppointmentFilter = handleAppointmentFilter;
+window.handleAppointmentSearch = handleAppointmentSearch;
 window.exportAppointmentsCSV = exportAppointmentsCSV;
 
-document.addEventListener('DOMContentLoaded', () => {
-    console.log('%c🔍 APPOINTMENT SYSTEM DIAGNOSTICS', 'font-size: 14px; font-weight: bold; color: #FF7A24;');
-    console.log('Watch the console for these diagnostic messages:');
-    console.log('- 📊 [DIAG] renderAppointments called - shows how often render is triggered');
-    console.log('- 🔐 [DIAG] Active Firestore listener status');
-    console.log('- 🆕 [DIAG] Invoice number generation tracking');
-    console.log('%cURL: ' + window.location.href, 'color: #666; font-size: 11px;');
-    
-    // ✅ Add WebChannel error diagnostics
-    console.log('%c🔌 Firestore Connection Diagnostics', 'font-size: 12px; font-weight: bold; color: #0066cc;');
-    console.log('If you see WebChannel 404/400 errors: This is Firebase SDK handling transport fallback.');
-    console.log('It will automatically use REST if WebChannel is unavailable.');
-    console.log('---');
+// Expose functions needed by workspace controller
+window.createAppointmentCard = createAppointmentCard;
+window.getScheduledDate = getScheduledDate;
+window.normalizeAppointment = normalizeAppointment;
+window.formatCurrencyGBP = formatCurrencyGBP;
+window.formatDateShort = formatDateShort;
+window.formatTimeShort = formatTimeShort;
+window.toNumber = toNumber;
 
+// Expose action handlers for workspace panel
+window.handleEditAction = handleEditAction;
+window.handleDeleteAction = handleDeleteAction;
+window.handleVisitAction = handleVisitAction;
+window.toggleAppointmentPaidStatus = toggleAppointmentPaidStatus;
+window.toggleSecondaryActions = toggleSecondaryActions;
+window.renderAppointments = renderAppointments;
+window.enterEditMode = enterEditMode;
+window.showNotification = showNotification;
+window.getOrCreateInvoiceForAppointment = getOrCreateInvoiceForAppointment;
+window.openInvoice = openInvoice;
+
+// Expose amount helper used by workspace cards
+window.getAppointmentAmountGBP = getAppointmentAmountGBP;
+
+// Initialize callUsedOnce tracking object if not already exists
+window.callUsedOnce = window.callUsedOnce || {};
+
+document.addEventListener('DOMContentLoaded', () => {
+    const initState = window.__tvInit = window.__tvInit || {};
+    if (initState.scriptBootstrapDone || initState.scriptBootstrapRunning) {
+        return;
+    }
+    initState.scriptBootstrapRunning = true;
+
+    try {
     setupScannedInvoicesUI();
     setupAccountingUI();
     applyAccountantModeUi();
     renderScannedInvoicesList();
+    
+    // PHASE 3 FIX: Disable legacy enterprise dashboard updates
+    // The data-layer system (HeaderMetrics, UIUpdater) now manages all header/KPI updates
+    // Enterprise-dashboard is disabled to prevent competing metrics systems
+    window.__tvInitFlags.legacyDashboardUpdatesDisabled = true;
+    if (window.__tvInitFlags.legacyDashboardUpdatesDisabled) {
+        // DO NOT call initEnterpriseHeaderControls(), initKpiFilterButtons(), enhanceAppointmentSubscription()
+        // These compete with HeaderMetrics, UIUpdater, and data-layer listeners
+    } else {
+        // Legacy path (disabled):
+        // if (typeof window.initEnterpriseHeaderControls === 'function') {
+        //     window.initEnterpriseHeaderControls();
+        //     window.initKpiFilterButtons();
+        //     window.enhanceAppointmentSubscription();
+        // }
+    }
+    
+    // PHASE 5: Calculate business metrics
+    if (typeof calculateBusinessMetrics === 'function') {
+        calculateBusinessMetrics();
+    }
+    
+    // PHASE 7: Production safety verification
+    if (typeof verifyProductionSafety === 'function') {
+        verifyProductionSafety();
+        verifyRelativePaths();
+    }
     
     initializeFirebase();
     
@@ -4216,8 +4406,29 @@ document.addEventListener('DOMContentLoaded', () => {
     if (typeof window.initPWA === 'function') {
         window.initPWA();
     }
+
+    // ✅ PHASE 5: Initialize workspace panel
+    if (typeof window.initWorkspacePanel === 'function') {
+        window.initWorkspacePanel();
+    }
+
+    initState.scriptBootstrapDone = true;
+    if (!initState.initProofLogged) {
+        initState.initProofLogged = true;
+        console.log('[INIT ONCE]', {
+            scriptBootstrapDone: true,
+            appInitDone: !!initState.appInitDone,
+            storageInitDone: !!initState.storageInitDone,
+            workspacePanelInitialized: !!initState.workspacePanelInitialized
+        });
+    }
     
     // Deleted: bindStatsPopupButtons - removed per user request (no popups on stat cards)
+    } catch (error) {
+        console.error('[INIT ONCE] script bootstrap failed:', error);
+    } finally {
+        initState.scriptBootstrapRunning = false;
+    }
 });
 
 // Deleted: confirmModal function - removed per user request
@@ -4810,58 +5021,23 @@ function switchTab(tabName) {
 // APPOINTMENTS MANAGEMENT
 // ==========================================
 
-// Subscribe to appointments real-time updates
+/**
+ * LEGACY: Keep for backward compatibility only
+ * The data layer (FirestoreSync) now handles all Firestore listeners.
+ * This function is kept as a no-op to avoid breaking code that calls it.
+ * 
+ * The global 'appointments' array is now synced from the data layer's store.
+ * KPI updates are handled by updateKPIWidgets() in the data layer.
+ */
 function subscribeToAppointments() {
-    if (!currentUser) {
-        console.error('❌ subscribeToAppointments: No user authenticated - Firestore will deny access');
-        return;
-    }
-    
-    if (!db) {
-        console.error('❌ subscribeToAppointments: db not initialized - Firestore not ready');
-        return;
-    }
-    
-    console.log('✅ subscribeToAppointments: Auth ready, user:', currentUser.email, 'UID:', currentUser.uid);
-    
-    import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js')
-                .then(({ collection, query, orderBy, onSnapshot }) => {
-                    // CRITICAL FIX: Unsubscribe previous listener if it exists to prevent duplicate listeners
-                    if (appointmentsUnsubscribe) {
-                        console.log('🧹 [Firestore] Unsubscribing from previous appointments listener...');
-                        appointmentsUnsubscribe();
-                        appointmentsUnsubscribe = null;
-                        firebaseListenerCount = 0;
-                    }
-                    
-                    console.log('📥 [Firestore] Setting up real-time listener on appointments collection...');
-                    
-                    const q = query(collection(db, 'appointments'), orderBy('startAt', 'asc'));
-                    
-                    console.log('🔐 [Firestore] onSnapshot listener attached. Current user:', currentUser?.email);
-                    firebaseListenerCount = 1;
-                    
-                    appointmentsUnsubscribe = onSnapshot(q, (snapshot) => {
-                        console.log('📊 [Firestore] Real-time update received:', snapshot.docs.length, 'appointments');
-                        
-                        appointments = snapshot.docs.map(doc => normalizeAppointmentMileage(ensureScheduledFields({
-                            id: doc.id,
-                            ...doc.data()
-                        })));
-                        
-                        console.log(`✅ [Firestore] Appointments loaded: ${appointments.length}`);
-                        
-                        // Filter and render
-                        filterAppointments();
-                        updateAppointmentStats();
-                    }, (error) => {
-                        console.error('❌ Error loading appointments:', error);
-                        showNotification('❌ Eroare la încărcarea programărilor', 'error');
-                    });
-                })
-                .catch((error) => {
-                    console.error('❌ Error importing Firestore modules:', error);
-                });
+    // Data layer (FirestoreSync) handles all Firestore real-time updates
+    // This function is now just an empty stub
+    // The appointment rendering is triggered by:
+    // 1. Store changes (data-layer listener)
+    // 2. Filter button clicks
+    // 3. Search input changes
+    // 4. Manual refresh clicks
+    console.log('✅ Appointments subscribed (via data-layer FirestoreSync)');
 }
 
 // Add new appointment (MODERN FORM)
@@ -4994,7 +5170,7 @@ async function handleAddAppointment(e) {
         const jobsSummary = buildJobsSummary(services, legacyParts);
 
         const existingAppointment = editingAppointmentId
-            ? appointments.find(apt => apt.id === editingAppointmentId)
+            ? getAppointmentById(editingAppointmentId)
             : null;
         const paidAmount = toNumber(existingAppointment?.paidAmount || 0);
         const balanceDue = Math.max(0, totals.total - paidAmount);
@@ -5811,173 +5987,191 @@ function formatTimeShort(date) {
     return `${hours}:${minutes}`;
 }
 
-// Filter appointments (search only + show only scheduled/upcoming)
+// DEPRECATED: Kept for backward compatibility
+// New system uses appointmentsManager (see appointments-manager.js)
+/**
+ * FILTER APPOINTMENTS - Core Logic
+ * Applies current filter + search to window.appointments array
+ * Populates filteredAppointments and triggers render
+ */
 function filterAppointments() {
-    const searchTerm = document.getElementById('searchAppointments')?.value.toLowerCase() || '';
+    // Log to confirm using correct renderer (only once per page load)
+    if (!window.__tvFilterAptsInitialized) {
+        window.__tvFilterAptsInitialized = true;
+    }
     
-    // Show only SCHEDULED appointments (exclude finalized)
-    filteredAppointments = appointments.filter(apt => {
-        // Only include scheduled appointments
-        if (!isAppointmentScheduled(apt)) return false;
-
-        // Search filter (client name, car, make/model, reg number)
-        const matchesSearch = !searchTerm ||
-            (apt.customerName && apt.customerName.toLowerCase().includes(searchTerm)) ||
-            (apt.car && apt.car.toLowerCase().includes(searchTerm)) ||
-            (apt.makeModel && apt.makeModel.toLowerCase().includes(searchTerm)) ||
-            (apt.regNumber && apt.regNumber.toLowerCase().includes(searchTerm));
-        
-        return matchesSearch;
-    });
+    // Get current filter from UI state
+    const activeFilterBtn = document.querySelector('.apts-filter-btn.apts-filter-btn--active');
+    const currentFilter = activeFilterBtn ? activeFilterBtn.dataset.filter : 'all';
     
-    // Sort by scheduled datetime (nearest first)
-    filteredAppointments.sort((a, b) => {
-        const aDate = getScheduledDate(a) || new Date(a.dateStr || 0);
-        const bDate = getScheduledDate(b) || new Date(b.dateStr || 0);
+    // Get search term
+    const searchInput = document.getElementById('searchAppointments');
+    const searchTerm = searchInput ? (searchInput.value || '').toLowerCase().trim() : '';
+    
+    // Start with all appointments from data-layer sync (window.appointments)
+    let result = [...(window.appointments || [])];
+    
+    // Apply filter by type
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+    
+    switch(currentFilter) {
+        case 'today': {
+            result = result.filter(apt => {
+                const aptDate = getScheduledDate(apt);
+                if (!aptDate) return false;
+                const aptDateNorm = new Date(aptDate);
+                aptDateNorm.setHours(0, 0, 0, 0);
+                return aptDateNorm.getTime() === now.getTime() && 
+                       (apt.status || '').toLowerCase() !== 'cancelled' &&
+                       (apt.status || '').toLowerCase() !== 'cancelled';
+            });
+            break;
+        }
+        case 'upcoming': {
+            const tomorrow = new Date(now);
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            result = result.filter(apt => {
+                const aptDate = getScheduledDate(apt);
+                if (!aptDate) return false;
+                const status = (apt.status || '').toLowerCase();
+                return aptDate > tomorrow && status !== 'completed' && status !== 'cancelled';
+            });
+            break;
+        }
+        case 'completed': {
+            result = result.filter(apt => {
+                const status = (apt.status || 'upcoming').toLowerCase();
+                return status === 'completed' || status === 'completă' || status === 'done';
+            });
+            break;
+        }
+        case 'past': {
+            result = result.filter(apt => {
+                const aptDate = getScheduledDate(apt);
+                if (!aptDate) return false;
+                const aptDateNorm = new Date(aptDate);
+                aptDateNorm.setHours(0, 0, 0, 0);
+                const status = (apt.status || '').toLowerCase();
+                return aptDateNorm < now && status !== 'completed' && status !== 'cancelled';
+            });
+            break;
+        }
+        case 'overdue': {
+            // Overdue = in the past AND not completed AND not cancelled
+            result = result.filter(apt => {
+                if (!apt.appointmentDate && !apt.startAt && !apt.dateStr) return false;
+                let aptDate;
+                if (apt.appointmentDate) aptDate = new Date(apt.appointmentDate);
+                else if (apt.startAt) aptDate = apt.startAt instanceof Date ? apt.startAt : new Date(apt.startAt);
+                else if (apt.dateStr) aptDate = new Date(apt.dateStr);
+                else return false;
+                
+                const status = (apt.status || '').toLowerCase();
+                return aptDate < new Date() && status !== 'completed' && status !== 'cancelled';
+            });
+            break;
+        }
+        case 'all':
+        default: {
+            result = result.filter(apt => (apt.status || '').toLowerCase() !== 'cancelled');
+            break;
+        }
+    }
+    
+    // Apply search filter
+    if (searchTerm) {
+        result = result.filter(apt => {
+            const searchableText = `${apt.customerName || ''} ${apt.phone || apt.customerPhone || ''} ${apt.vehicleMakeModel || apt.makeModel || ''} ${apt.registrationPlate || apt.regNumber || ''} ${apt.notes || ''}`.toLowerCase();
+            return searchableText.includes(searchTerm);
+        });
+    }
+    
+    // Sort by date (nearest first)
+    result.sort((a, b) => {
+        const aDate = getScheduledDate(a) || new Date(9999, 0, 0);
+        const bDate = getScheduledDate(b) || new Date(9999, 0, 0);
         return aDate - bDate;
     });
     
+    // Store filtered result
+    filteredAppointments = result;
+    
+    // Trigger render
     renderAppointments();
 }
 
-// Render appointments grouped by day
-// Render appointments with premium Active Workflow Mode
-// Today Active (unpaid) → Completed Today (paid, collapsed) → History by month
+/**
+ * RENDER APPOINTMENTS - Main Display Logic
+ * Takes filteredAppointments and renders to #appointmentsList
+ * Supports today/upcoming/completed/past views
+ */
 function renderAppointments() {
-    renderAppointmentsCallCount++;
-    console.log(`📊 [DIAG] renderAppointments called (${renderAppointmentsCallCount} times), Active Firestore listener: ${!!appointmentsUnsubscribe}`);
+    // Log to confirm we're using correct renderer
+    if (!window.__tvRenderAptsInitialized) {
+        window.__tvRenderAptsInitialized = true;
+    }
     
     const container = document.getElementById('appointmentsList');
     const emptyState = document.getElementById('emptyStateAppointments');
-
+    const countBadge = document.getElementById('aptsCountBadge');
+    
+    // Safety check - silently return (workspace panel is in use, not legacy list)
+    if (!container) {
+        return;
+    }
+    
+    // Update count badge
+    if (countBadge) {
+        const total = (window.appointments || []).length;
+        const filtered = (filteredAppointments || []).length;
+        countBadge.textContent = filtered === total ? String(total) : `${filtered}/${total}`;
+    }
+    
+    // Check if empty
     if (!filteredAppointments || filteredAppointments.length === 0) {
         container.innerHTML = '';
         if (emptyState) {
-            emptyState.querySelector('h3').textContent = 'Nu există programări planificate.';
             emptyState.style.display = 'block';
+            const h3 = emptyState.querySelector('h3');
+            const p = emptyState.querySelector('p');
+            if (h3) h3.textContent = 'No appointments match this filter';
+            if (p) p.textContent = 'Try adjusting your search or filter options';
         }
         return;
     }
     
+    // Hide empty state
     if (emptyState) emptyState.style.display = 'none';
     
-    // Separate appointments into today and historical
-    const todayAll = filteredAppointments.filter(apt => isTodayAppointment(apt));
-    const historical = filteredAppointments.filter(apt => isPastAppointment(apt));
-    
-    // Split today into active vs completed
-    const todayActive = todayAll.filter(apt => !isTodayAppointmentPaid(apt));
-    const todayCompleted = todayAll.filter(apt => isTodayAppointmentPaid(apt));
-    
-    // Sort today appointments by time
-    todayActive.sort((a, b) => {
-        const aDate = getScheduledDate(a) || new Date(a.dateStr || 0);
-        const bDate = getScheduledDate(b) || new Date(b.dateStr || 0);
-        return aDate - bDate;
-    });
-    
-    todayCompleted.sort((a, b) => {
-        const aDate = getScheduledDate(a) || new Date(a.dateStr || 0);
-        const bDate = getScheduledDate(b) || new Date(b.dateStr || 0);
-        return aDate - bDate;
-    });
-    
-    // Group historical by month
-    const historicalByMonth = {};
-    historical.forEach(apt => {
-        const aptDate = getScheduledDate(apt);
-        if (!aptDate) return;
-        const key = monthKey(aptDate);
-        if (!historicalByMonth[key]) {
-            historicalByMonth[key] = [];
-        }
-        historicalByMonth[key].push(apt);
-    });
-    
-    // Sort months in descending order (newest first)
-    const sortedMonths = Object.keys(historicalByMonth).sort().reverse();
-    
-    // Build HTML
+    // Build HTML from filtered appointments
     let html = '';
     const now = new Date();
-    const todayStr = now.toISOString().split('T')[0];
     
-    // ===== TODAY ACTIVE SECTION (Always shown) =====
-    html += `<section class="workflow-section workflow-section--today-active">
-        <div class="workflow-header">
-            <h3><i class="fas fa-calendar-day"></i> Today Active (${todayStr})</h3>
-            <span class="workflow-count">${todayActive.length}</span>
-        </div>
-        <div class="appointments-grid">
-            ${todayActive.map(apt => createAppointmentCard(apt, now)).join('')}
-        </div>
-    </section>`;
+    filteredAppointments.forEach(apt => {
+        const card = createAppointmentCard(apt, now);
+        if (card) html += card;
+    });
     
-    // ===== COMPLETED TODAY SECTION (Collapsed if any items) =====
-    if (todayCompleted.length > 0) {
-        html += `<details class="workflow-section workflow-section--completed-today">
-            <summary class="workflow-header workflow-header--collapsible">
-                <span>
-                    <i class="fas fa-check-circle"></i> Completed Today
-                    <span class="workflow-count">${todayCompleted.length}</span>
-                </span>
-                <i class="fas fa-chevron-down"></i>
-            </summary>
-            <div class="workflow-content">
-                <div class="appointments-grid">
-                    ${todayCompleted.map(apt => createAppointmentCard(apt, now)).join('')}
-                </div>
-            </div>
-        </details>`;
-    }
-    
-    // ===== HISTORY SECTION (Grouped by month, collapsed) =====
-    if (sortedMonths.length > 0) {
-        html += `<section class="workflow-section workflow-section--history">
-            <div class="workflow-header">
-                <h3><i class="fas fa-history"></i> History</h3>
-            </div>`;
-        
-        sortedMonths.forEach(monthStr => {
-            const monthAppts = historicalByMonth[monthStr];
-            const displayMonth = formatMonthYear(monthStr);
-            
-            // Sort appointments within month by date descending (newest first)
-            monthAppts.sort((a, b) => {
-                const aDate = getScheduledDate(a) || new Date(a.dateStr || 0);
-                const bDate = getScheduledDate(b) || new Date(b.dateStr || 0);
-                return bDate - aDate;
-            });
-            
-            html += `<details class="month-accordion" open>
-                <summary class="month-summary">
-                    <span>${displayMonth}</span>
-                    <span class="workflow-count">${monthAppts.length}</span>
-                </summary>
-                <div class="month-content">
-                    <div class="appointments-grid">
-                        ${monthAppts.map(apt => createAppointmentCard(apt, now)).join('')}
-                    </div>
-                </div>
-            </details>`;
-        });
-        
-        html += `</section>`;
-    }
-    
+    // Render to the DOM
     container.innerHTML = html;
     
     // Keep Invoice tab selector in sync
     refreshInvoiceAppointmentOptions();
-
-    // Bind delegation handler for appointment actions
+    
+    // Bind event handlers
     bindAppointmentsClickDelegation();
+    
+    // ✅ PHASE 1: Trigger unified metrics engine after render
+    // Ensures KPI cards show accurate data for current filter
+    if (window.updateDashboardMetrics) {
+        window.updateDashboardMetrics();
+    }
 }
 
 // LEGACY: Render appointments grouped by day (kept for reference, replaced by renderAppointments above)
 function renderAppointmentsByDay_Legacy() {
     renderAppointmentsCallCount++;
-    console.log(`📊 [DIAG] renderAppointments called (${renderAppointmentsCallCount} times), Active Firestore listener: ${!!appointmentsUnsubscribe}`);
     
     const container = document.getElementById('appointmentsList');
     const emptyState = document.getElementById('emptyStateAppointments');
@@ -6057,26 +6251,97 @@ function renderAppointmentsByDay_Legacy() {
     bindAppointmentsClickDelegation();
 }
 
+/**
+ * Get appointment amount in GBP (from invoice or fallback to appointment totals)
+ * @param {Object} apt - Appointment object
+ * @returns {Object} { amount: number, status: 'paid'|'unpaid'|null, formatted: '£XX.XX' } or null
+ */
+function getAppointmentAmountGBP(apt) {
+    if (!apt || !apt.id) return null;
+    
+    try {
+        const appointmentId = String(apt.id);
+        const invoices = Array.isArray(window.allInvoices) ? window.allInvoices : [];
+
+        // Priority A: Find linked invoice by invoiceId reference
+        let invoice = null;
+        if (apt.invoiceId) {
+            const targetInvoiceId = String(apt.invoiceId);
+            invoice = invoices.find(inv => String(inv?.id || '') === targetInvoiceId);
+        }
+        
+        // Priority B: Find invoice by matching appointmentId/aptId
+        if (!invoice) {
+            invoice = invoices.find(inv =>
+                String(inv?.appointmentId || '') === appointmentId ||
+                String(inv?.aptId || '') === appointmentId ||
+                String(inv?.meta?.appointmentId || '') === appointmentId
+            );
+        }
+        
+        // If invoice exists, use its total and payment status
+        if (invoice) {
+            const amount = toNumber(invoice.total || invoice.totalAmount || invoice.grandTotal || invoice.amount || invoice.totals?.total || 0);
+            const explicit = (invoice.paymentStatus || invoice.status || '').toLowerCase();
+            const paidAmount = toNumber(invoice.paidAmount || invoice.amountPaid || invoice.totals?.paidAmount || 0);
+            const isPaid = explicit === 'paid' || invoice.paid === true || (amount > 0 && paidAmount >= amount);
+            const paymentStatus = isPaid ? 'paid' : 'unpaid';
+            if (amount > 0) {
+                return {
+                    amount,
+                    status: paymentStatus,
+                    formatted: new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP' }).format(amount)
+                };
+            }
+        }
+        
+        // Priority C: Fallback to appointment totals
+        const aptAmount = toNumber(apt.total || apt.subtotal || apt.amount || apt.totals?.total || 0);
+        if (aptAmount > 0) {
+            return {
+                amount: aptAmount,
+                status: null,
+                formatted: new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP' }).format(aptAmount)
+            };
+        }
+        
+        // Priority D: No amount found
+        return null;
+    } catch (err) {
+        console.error('Error getting appointment amount:', err);
+        return null;
+    }
+}
+
 // Create appointment card HTML - PREMIUM SAAS COMPACT
 function createAppointmentCard(apt) {
-    const aptDate = getScheduledDate(apt) || new Date();
-    const timeDiff = aptDate - new Date();
-    const minutesDiff = Math.floor(timeDiff / 60000);
-    
-    // Normalize appointment data
-    const normalized = normalizeAppointment(apt);
-    
-    // Check if overdue
+    try {
+        if (!apt || !apt.id) {
+            console.error('❌ [createAppointmentCard] Invalid appointment:', apt);
+            return null;
+        }
+
+        const aptDate = getScheduledDate(apt) || new Date();
+        const timeDiff = aptDate - new Date();
+        const minutesDiff = Math.floor(timeDiff / 60000);
+
+        // Normalize appointment data
+        const normalized = normalizeAppointment(apt);
+
+        // Check if overdue
     const isOverdue = minutesDiff < 0;
     
+    const amountInfo = getAppointmentAmountGBP(apt);
+
     // Compute payment status
     const amountPaid = toNumber(apt.amountPaid || apt.paidAmount || 0);
-    const total = toNumber(apt.total || 0);
+    const total = toNumber(amountInfo?.amount || apt.total || apt.subtotal || apt.amount || 0);
     const balance = Math.max(0, total - amountPaid);
     
     const storedStatus = (apt.paymentStatus || '').toLowerCase();
     const computedPaid = (amountPaid > 0 && amountPaid >= total);
-    const isPaid = storedStatus === 'paid' || (!storedStatus && computedPaid);
+    const invoicePaid = (amountInfo?.status || '').toLowerCase() === 'paid';
+    const isPaid = storedStatus === 'paid' || invoicePaid || (!storedStatus && computedPaid);
     
     // Vehicle info
     const regPlate = normalized.registrationPlate || normalized.regNumber || '';
@@ -6117,18 +6382,28 @@ function createAppointmentCard(apt) {
         timeStatusClass = 'time-badge--scheduled';
     }
     
-    // Payment section only if total exists
+    const displayAmount = amountInfo?.formatted || '£—';
+    const hasInvoiceAmount = !!amountInfo;
+    
+    // Payment section - show amount from invoice if available, otherwise from appointment
     let paymentSection = '';
-    if (total > 0) {
+    if (hasInvoiceAmount) {
+        const paidLabel = amountInfo.status === 'paid' ? 'Paid ✓' : 'Unpaid';
         paymentSection = `
             <div class="app-card__payment-summary">
                 <div class="payment-item">
                     <span class="payment-label">Amount:</span>
-                    <span class="payment-value">${formatCurrencyGBP(total)}</span>
+                    <span class="payment-value">${displayAmount} (${paidLabel})</span>
                 </div>
-                <div class="payment-item ${isPaid ? 'paid' : 'unpaid'}">
-                    <span class="payment-label">${isPaid ? 'Paid ✓' : 'Unpaid'}</span>
-                    <span class="payment-value">${isPaid ? formatCurrencyGBP(total) : formatCurrencyGBP(balance)}</span>
+            </div>
+        `;
+    } else if (total > 0) {
+        const paidLabel = isPaid ? 'Paid ✓' : 'Unpaid';
+        paymentSection = `
+            <div class="app-card__payment-summary">
+                <div class="payment-item">
+                    <span class="payment-label">Amount:</span>
+                    <span class="payment-value">${formatCurrencyGBP(total)} (${paidLabel})</span>
                 </div>
             </div>
         `;
@@ -6161,15 +6436,6 @@ function createAppointmentCard(apt) {
     const customerPhone = normalized.customerPhone || '';
     const hasPhone = Boolean(customerPhone && customerPhone.length >= 6);
     const showCallInPrimary = hasTime && hasPhone && !callUsedOnce[apt.id];
-    
-    // Debug log for phone detection (dev mode)
-    console.log(`[CALL BTN DEBUG] Appointment ${apt.id}:`, {
-        rawPhone: apt.customerPhone || apt.phone,
-        normalizedPhone: customerPhone,
-        hasPhone,
-        hasTime,
-        showCallInPrimary
-    });
     
     const actionsHTML = canShowActions ? `
         <div class="app-card__actions">
@@ -6249,6 +6515,11 @@ function createAppointmentCard(apt) {
             ${actionsHTML}
         </div>
     `;
+    } catch (error) {
+        console.error(`❌ [createAppointmentCard] Error for ${apt?.id}:`, error.message);
+        console.error('Stack:', error.stack);
+        return null;
+    }
 }
 
 // Bind appointment action buttons using event delegation
@@ -6266,7 +6537,12 @@ function bindAppointmentsClickDelegation() {
             return;
         }
 
-        const appointment = appointments.find(a => a.id === aptId);
+        // Try to get appointment from data-layer first (new system), then fall back to window.appointments (old system)
+        let appointment = window._dataLayer?.store?.getAppointment(aptId);
+        if (!appointment) {
+            appointment = appointments.find(a => a.id === aptId);
+        }
+        
         if (!appointment && action !== 'invoice') {
             console.error('[Main] Appointment not found:', aptId);
             showNotification('Programarea nu a fost găsită', 'error');
@@ -6279,13 +6555,11 @@ function bindAppointmentsClickDelegation() {
             switch (action) {
                 case 'toggle-paid':
                     // Handle payment status toggle
-                    console.log('[DIAG] Paid toggle clicked, appointment ID:', aptId);
                     await toggleAppointmentPaidStatus(aptId);
                     break;
 
                 case 'toggle-secondary':
                     // Handle secondary actions expand/collapse
-                    console.log('[DIAG] Toggle secondary actions for appointment ID:', aptId);
                     toggleSecondaryActions(aptId, target);
                     break;
 
@@ -6336,7 +6610,7 @@ function bindAppointmentsClickDelegation() {
                     break;
                     
                 default:
-                    console.warn('[Main] Unknown action:', action);
+                    return;
             }
         } catch (error) {
             console.error(`[Main] Error handling action "${action}":`, error);
@@ -6357,7 +6631,8 @@ let delayPopHandler = null;
 /**
  * NEW: Toggle appointment payment status (PAID ↔ UNPAID)
  * Syncs across appointment ↔ invoice ↔ storage
- * With instant visual feedback and optimistic update
+ * CRITICAL: Also updates appointment status to "completed" when marked PAID
+ * Then triggers metrics refresh so KPI cards + Summary bar update
  */
 async function toggleAppointmentPaidStatus(appointmentId) {
     try {
@@ -6366,14 +6641,12 @@ async function toggleAppointmentPaidStatus(appointmentId) {
             return;
         }
 
-        console.log('[TogglePaid] Toggling payment status for:', appointmentId);
 
         // Find the button and provide instant visual feedback (optimistic update)
         const card = document.querySelector(`[data-apt-id="${appointmentId}"]`);
         const button = card?.querySelector('[data-action="toggle-paid"]');
         
         if (!button) {
-            console.warn('[TogglePaid] Button not found, proceeding without UI update');
         }
 
         const { doc, getDoc, updateDoc, serverTimestamp, collection, query, where, getDocs } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
@@ -6388,26 +6661,28 @@ async function toggleAppointmentPaidStatus(appointmentId) {
         }
 
         const appointment = appointmentSnap.data();
-        const total = toNumber(appointment.total || 0);
+        const amountInfo = getAppointmentAmountGBP({ id: appointmentId, ...appointment });
+        const total = toNumber(amountInfo?.amount || appointment.total || appointment.subtotal || appointment.amount || 0);
         const currentPaidAmount = toNumber(appointment.paidAmount || appointment.amountPaid || 0);
         
         // ✅ FIX: Normalize to lowercase with explicit default
         const currentStatus = (appointment.paymentStatus || 'unpaid').toLowerCase();
         
-        let newPaidAmount, newPaymentStatus;
+        let newPaidAmount, newPaymentStatus, newAppointmentStatus;
 
         // ✅ FIX: Toggle logic - current === paid ? unpaid : paid
         if (currentStatus === 'paid') {
             newPaidAmount = 0;
             newPaymentStatus = 'unpaid';
+            newAppointmentStatus = 'scheduled';  // Reset to scheduled when marking unpaid
         } else {
             newPaidAmount = total;
             newPaymentStatus = 'paid';
+            newAppointmentStatus = 'completed';  // ✅ CRITICAL: Mark as completed when paid
         }
 
         const newBalance = Math.max(0, total - newPaidAmount);
 
-        console.log('[TogglePaid] Toggle:', { currentStatus, newPaymentStatus, currentPaidAmount, newPaidAmount, total, balance: newBalance });
 
         // ✅ INSTANT VISUAL FEEDBACK: Update button immediately (optimistic UI)
         if (button) {
@@ -6431,42 +6706,76 @@ async function toggleAppointmentPaidStatus(appointmentId) {
                 
                 // Disable button briefly to prevent double-clicks
                 button.disabled = true;
-                console.log('[TogglePaid] ✅ Button UI updated instantly');
             }
         }
 
-        // Update appointment in Firestore
-        await updateDoc(appointmentRef, {
+        // ✅ CRITICAL FIX: Update appointment status field (not just paymentStatus)
+        // This ensures metrics engine will count it as "completed"
+        const appointmentUpdate = {
             paymentStatus: newPaymentStatus,
             paidAmount: newPaidAmount,
             balanceDue: newBalance,
+            status: newAppointmentStatus,  // ✅ Update primary status field
             updatedAt: serverTimestamp()
-        });
+        };
 
-        console.log('[TogglePaid] ✅ Appointment payment status updated in Firestore');
+        await updateDoc(appointmentRef, appointmentUpdate);
 
-        // Find and update linked invoice(s)
-        const invoicesQuery = query(
-            collection(db, 'invoices'),
-            where('appointmentId', '==', appointmentId)
+        // Find existing linked invoice(s) across all known link fields
+        const linkedInvoiceIds = new Set(
+            (window.allInvoices || [])
+                .filter(inv => inv && (
+                    inv.id === appointment.invoiceId ||
+                    inv.appointmentId === appointmentId ||
+                    inv.aptId === appointmentId ||
+                    inv.meta?.appointmentId === appointmentId
+                ))
+                .map(inv => inv.id)
+                .filter(Boolean)
         );
-        
-        const invoiceSnaps = await getDocs(invoicesQuery);
-        
-        if (!invoiceSnaps.empty) {
-            const invoicePromises = invoiceSnaps.docs.map(docSnap => {
-                const invoiceRef = doc(db, 'invoices', docSnap.id);
-                return updateDoc(invoiceRef, {
-                    paymentStatus: newPaymentStatus,
-                    paidAmount: newPaidAmount,
-                    balanceDue: newBalance,
-                    amountPaid: newPaidAmount,
-                    updatedAt: serverTimestamp()
-                });
-            });
 
-            await Promise.all(invoicePromises);
-            console.log('[TogglePaid] ✅ Linked invoice(s) updated');
+        // If no invoice exists, create/reuse exactly one (idempotent)
+        let ensuredInvoiceId = null;
+        if (linkedInvoiceIds.size === 0 && typeof getOrCreateInvoiceForAppointment === 'function') {
+            ensuredInvoiceId = await getOrCreateInvoiceForAppointment(appointmentId, appointment || {});
+            if (ensuredInvoiceId) {
+                linkedInvoiceIds.add(ensuredInvoiceId);
+            }
+        }
+
+        // Update appointment with ensured invoiceId when created from paid action
+        if (ensuredInvoiceId && !appointment.invoiceId) {
+            await updateDoc(appointmentRef, {
+                invoiceId: ensuredInvoiceId,
+                updatedAt: serverTimestamp()
+            });
+        }
+
+        // Fallback query by appointmentId for legacy docs not yet synced in window.allInvoices
+        if (linkedInvoiceIds.size === 0) {
+            const invoicesQuery = query(
+                collection(db, 'invoices'),
+                where('appointmentId', '==', appointmentId)
+            );
+            const invoiceSnaps = await getDocs(invoicesQuery);
+            invoiceSnaps.forEach(docSnap => linkedInvoiceIds.add(docSnap.id));
+        }
+
+        // Update all linked invoices
+        if (linkedInvoiceIds.size > 0) {
+            await Promise.all(
+                Array.from(linkedInvoiceIds).map(invoiceId => {
+                    const invoiceRef = doc(db, 'invoices', invoiceId);
+                    return updateDoc(invoiceRef, {
+                        paymentStatus: newPaymentStatus,
+                        paidAmount: newPaidAmount,
+                        balanceDue: newBalance,
+                        amountPaid: newPaidAmount,
+                        appointmentId,
+                        updatedAt: serverTimestamp()
+                    });
+                })
+            );
         }
 
         // Re-enable button
@@ -6474,8 +6783,20 @@ async function toggleAppointmentPaidStatus(appointmentId) {
             button.disabled = false;
         }
 
+        // ✅ CRITICAL FIX: Trigger metrics refresh so KPI + Summary bar update
+        if (typeof window.updateDashboardMetrics === 'function') {
+            window.updateDashboardMetrics();
+        }
+
+        // ✅ Re-render workspace so paid jobs move to "Completed & Invoices" workspace
+        if (typeof window.renderWorkspace === 'function' && window.__workspaceState?.activeWorkspace) {
+            window.renderWorkspace(window.__workspaceState.activeWorkspace);
+        }
+
         // Show notification with new status
-        const statusLabel = newPaymentStatus === 'paid' ? '✅ Marked as PAID' : '⏸️ Marked as UNPAID';
+        const statusLabel = newPaymentStatus === 'paid' 
+            ? '✅ Marked as PAID • Moved to Completed' 
+            : '⏸️ Marked as UNPAID';
         showNotification(statusLabel, 'success');
 
     } catch (error) {
@@ -6486,11 +6807,6 @@ async function toggleAppointmentPaidStatus(appointmentId) {
             const button = card.querySelector('[data-action="toggle-paid"]');
             if (button) {
                 button.disabled = false;
-                // Force re-render to fix button state
-                const appointment = appointments.find(a => a.id === appointmentId);
-                if (appointment) {
-                    // Re-render will be triggered by Firestore listener, but manually trigger if needed
-                }
             }
         }
         
@@ -6517,13 +6833,11 @@ function toggleSecondaryActions(appointmentId, button) {
         secondaryMenu.classList.remove('expanded');
         secondaryMenu.classList.add('collapsed');
         button.setAttribute('aria-expanded', 'false');
-        console.log('[ToggleSecondary] Secondary actions collapsed');
     } else {
         // Open
         secondaryMenu.classList.remove('collapsed');
         secondaryMenu.classList.add('expanded');
         button.setAttribute('aria-expanded', 'true');
-        console.log('[ToggleSecondary] Secondary actions expanded');
     }
 }
 
@@ -7803,7 +8117,7 @@ function initInvoiceTabUI() {
   selectEl.addEventListener('change', () => {
     currentInvoiceEditAptId = selectEl.value || null;
     const apt = currentInvoiceEditAptId
-      ? appointments.find(a => a && a.id === currentInvoiceEditAptId)
+      ? getAppointmentById(currentInvoiceEditAptId)
       : null;
     fillInvoiceFormFromAppointment(apt);
     setInvoiceSaveStatus('');
@@ -7997,7 +8311,7 @@ async function clearInvoiceOverrides() {
     await updateDoc(doc(db, 'appointments', currentInvoiceEditAptId), {
       invoiceOverrides: deleteField()
     });
-    fillInvoiceFormFromAppointment(appointments.find(a => a?.id === currentInvoiceEditAptId) || null);
+    fillInvoiceFormFromAppointment((window._dataLayer?.store?.getAppointment(currentInvoiceEditAptId) || appointments.find(a => a?.id === currentInvoiceEditAptId)) || null);
     setInvoiceSaveStatus('Reset ✅');
     showNotification('Override-ul de invoice a fost șters ✅', 'success');
   } catch (err) {
@@ -8254,7 +8568,6 @@ async function createInvoiceFromAppointment(appointmentId, prefillData) {
  */
 async function startInvoicesListener() {
     if (invoicesUnsubscribe) {
-        console.log('📦 [Invoices] Listener already active, skipping duplicate');
         return;
     }
     
@@ -8266,8 +8579,6 @@ async function startInvoicesListener() {
         
         const { collection, query, orderBy, onSnapshot } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
         
-        console.log('📦 [Invoices] Setting up query: collection(db, "invoices") with orderBy("createdAt", "desc")');
-        
         const invoicesQuery = query(
             collection(db, 'invoices'),
             orderBy('createdAt', 'desc')
@@ -8276,31 +8587,17 @@ async function startInvoicesListener() {
         invoicesUnsubscribe = onSnapshot(
             invoicesQuery,
             (snapshot) => {
-                console.log(`📦 [Invoices] Snapshot received - size: ${snapshot.size}`);
-                
-                // Log all invoice IDs for debugging
-                if (snapshot.size > 0) {
-                    const allIds = snapshot.docs.map(d => d.id);
-                    console.log('📦 [Invoices] All invoice IDs:', allIds);
-                    
-                    // Log first invoice details
-                    const firstDoc = snapshot.docs[0];
-                    console.log('📦 [Invoices] Invoice 1:', firstDoc.id, firstDoc.data());
-                    
-                    // Log all invoices for comprehensive debugging
-                    snapshot.docs.forEach((doc, index) => {
-                        console.log(`📦 [Invoices] Invoice ${index + 1}:`, doc.id, doc.data());
-                    });
-                } else {
-                    console.warn('⚠️ [Invoices] No invoices found in query result');
-                }
-                
-                allInvoices = snapshot.docs.map(doc => ({
+        allInvoices = snapshot.docs.map(doc => ({
                     id: doc.id,
                     ...doc.data()
                 }));
+                window.allInvoices = allInvoices;
+                console.log('[INVOICE SOURCE CHECK]', window.allInvoices?.length);
                 
-                console.log('📦 [Invoices] Mapped invoices array length:', allInvoices.length);
+                // ✅ PHASE 1: Trigger unified metrics engine after invoices load
+                if (window.updateDashboardMetrics) {
+                  window.updateDashboardMetrics();
+                }
                 
                 // Apply filters and render
                 filterInvoices();
@@ -8312,7 +8609,6 @@ async function startInvoicesListener() {
             }
         );
         
-        console.log('✅ [Invoices] Listener started');
     } catch (error) {
         console.error('❌ [Invoices] Error starting listener:', error);
     }
@@ -8323,7 +8619,6 @@ async function startInvoicesListener() {
  */
 function stopInvoicesListener() {
     if (invoicesUnsubscribe) {
-        console.log('🧹 [Invoices] Stopping listener');
         invoicesUnsubscribe();
         invoicesUnsubscribe = null;
     }
@@ -8352,14 +8647,11 @@ function isInvoicePaid(inv) {
  * Filter and search invoices
  */
 function filterInvoices() {
-    console.log('🔍 [Invoices] filterInvoices() called - allInvoices.length:', allInvoices.length);
     const searchInput = document.getElementById('searchInvoices');
     const paymentFilter = document.getElementById('filterInvoicePayment');
     
     const searchTerm = searchInput ? searchInput.value.toLowerCase().trim() : '';
     const paymentValue = paymentFilter ? paymentFilter.value : 'unpaid';
-    
-    console.log('🔍 [Filter] Payment filter:', paymentValue, 'Search:', searchTerm);
     
     let filtered = allInvoices;
     
@@ -8376,7 +8668,6 @@ function filterInvoices() {
                    custPhone.includes(searchTerm) ||
                    plate.includes(searchTerm);
         });
-        console.log('🔍 [Filter] After search:', filtered.length);
     }
     
     // Step 2: Filter by payment status within search results
@@ -8391,12 +8682,17 @@ function filterInvoices() {
             }
             return true;
         });
-        console.log('🔍 [Filter] After payment filter (', paymentValue, '):', filtered.length);
     }
     
     filteredInvoices = filtered;
     updateInvoiceKPI();
     renderInvoicesStorage();
+    
+    // ✅ PHASE 1: Trigger unified metrics engine after invoice filter
+    // Ensures revenue metrics are up-to-date
+    if (window.updateDashboardMetrics) {
+        window.updateDashboardMetrics();
+    }
 }
 
 /**
@@ -8422,7 +8718,6 @@ function updateInvoiceKPI() {
     kpiUnpaid.textContent = unpaidCount;
     kpiPaid.textContent = paidCount;
     
-    console.log('📊 [KPI] Updated:', { unpaidCount, paidCount });
 }
 
 /**

@@ -2259,3 +2259,287 @@ footer p {
         transform: translate3d(-50%, -50%, 0) scale(1);
     }
 }
+
+/* ==========================================
+   WORKSPACE PANEL STYLING
+   ========================================== */
+
+#tvWorkspacePanel {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    padding: 24px 20px;
+    border-radius: var(--radius-lg);
+    background: var(--surface-solid);
+    box-shadow: var(--shadow-sm);
+    min-height: 400px;
+}
+
+#tvWorkspacePanel .workspace-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+#workspacePanelTitle {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--text);
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+#workspacePanelTitle i {
+    font-size: 1.3rem;
+    color: var(--accent-orange);
+}
+
+#workspaceCountBadge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 28px;
+    height: 28px;
+    padding: 0 8px;
+    background: var(--accent-orange);
+    color: white;
+    border-radius: 12px;
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+#workspaceSearch {
+    width: 100%;
+    padding: 12px 16px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-size: 0.95rem;
+    outline: none;
+    transition: all 0.2s ease;
+    background: var(--surface-dark);
+}
+
+#workspaceSearch:focus {
+    border-color: var(--accent-orange);
+    box-shadow: 0 0 0 3px rgba(255, 122, 24, 0.1);
+}
+
+#workspaceContent {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+#workspaceEmptyState {
+    display: none;
+    text-align: center;
+    padding: 60px 20px;
+}
+
+#workspaceEmptyState.shown {
+    display: block;
+}
+
+#emptyTitle {
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 8px;
+}
+
+#emptyDescription {
+    color: var(--text-secondary);
+    font-size: 0.95rem;
+}
+
+.workspace-day-group {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.workspace-day-group h4 {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin: 16px 0 8px 0;
+    padding-top: 8px;
+    border-top: 1px solid var(--border-light);
+}
+
+.workspace-day-group h4:first-child {
+    border-top: none;
+    padding-top: 0;
+    margin-top: 0;
+}
+
+/* Workspace-specific card styling */
+.tvCard.workspace-card {
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+
+.tvCard.workspace-card:hover {
+    box-shadow: var(--shadow);
+    transform: translateY(-2px);
+}
+
+/* Revenue invoice card styling */
+.revenue-invoice-card {
+    padding: 16px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--surface-dark);
+    transition: all 0.2s ease;
+}
+
+.revenue-invoice-card:hover {
+    border-color: var(--accent-orange);
+    box-shadow: 0 4px 12px rgba(255, 122, 24, 0.1);
+}
+
+.revenue-card__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border-light);
+}
+
+.revenue-card__amount {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--accent-orange);
+}
+
+.revenue-card__details {
+    margin-bottom: 12px;
+}
+
+.revenue-card__details p {
+    margin: 4px 0;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+
+.revenue-card__details p:first-child {
+    color: var(--text);
+    font-weight: 500;
+    margin-bottom: 8px;
+}
+
+.revenue-card__actions {
+    display: flex;
+    gap: 8px;
+}
+
+.revenue-card__actions button {
+    flex: 1;
+    font-size: 0.85rem;
+    padding: 8px 12px;
+}
+
+/* Appointment invoice section */
+.apt-invoice-section {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 0.9rem;
+}
+
+.invoice-status {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-weight: 500;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.invoice-status--paid {
+    background: rgba(52, 211, 153, 0.1);
+    color: #059669;
+}
+
+.invoice-status--partial {
+    background: rgba(251, 191, 36, 0.1);
+    color: #d97706;
+}
+
+.invoice-status--unpaid {
+    background: rgba(239, 68, 68, 0.1);
+    color: #dc2626;
+}
+
+.invoice-action {
+    display: inline-flex;
+    align-items: center;
+    padding: 6px 12px;
+    background: var(--accent-orange);
+    color: white;
+    border-radius: 6px;
+    text-decoration: none;
+    font-weight: 500;
+    font-size: 0.9rem;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.invoice-action:hover {
+    background: var(--primary-dark);
+    transform: translateY(-1px);
+}
+
+/* KPI card active state for workspace selection */
+.tvStatCard--workspace {
+    cursor: pointer;
+    transition: all 0.2s ease;
+    position: relative;
+}
+
+.tvStatCard--workspace:hover {
+    transform: translateY(-2px);
+}
+
+.tvStatCard--active {
+    background: linear-gradient(135deg, rgba(255, 122, 24, 0.15), rgba(34, 211, 238, 0.1));
+    border: 2px solid var(--accent-orange);
+}
+
+.tvStatCard--glow {
+    box-shadow: 0 0 20px rgba(255, 122, 24, 0.2);
+}
+
+/* Mobile responsiveness */
+@media (max-width: 768px) {
+    #tvWorkspacePanel {
+        padding: 16px;
+        gap: 16px;
+    }
+
+    #workspacePanelTitle {
+        font-size: 1.25rem;
+    }
+
+    .revenue-card__actions {
+        flex-direction: column;
+    }
+
+    .revenue-card__actions button {
+        width: 100%;
+    }
+
+    .apt-invoice-section {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+}
