@@ -1055,7 +1055,7 @@ async function runTvSplashIntro() {
 
     let splashMedia = splashGif;
     splashGif.onerror = () => {
-        splashGif.src = '/Logo/icon-192.png';
+        splashGif.src = './Logo/icon-192.png';
     };
 
     await new Promise(resolve => setTimeout(resolve, 500));

@@ -3204,7 +3204,7 @@
         <img
             id="tvSplashGif"
             class="tv-splash-gif"
-            src="/Logo/gif.gif"
+            src="./Logo/gif.gif"
             alt="Loading">
         <div class="tv-splash-vignette"></div>
     </div>
@@ -3214,8 +3214,8 @@
     <div class="headerTop hdrTop tvHeaderTop">
         <!-- LEFT: Brand -->
         <div class="auth-left hdrLogoWrap brandSlot" id="tvHeaderBrandSlot">
-            <img id="tvHeaderGif" class="brandGif" src="/Logo/gif.gif" alt="Loading" decoding="async" loading="eager">
-            <img id="tvHeaderCompanyLogo" class="brandLogoImg" src="assets/images/Logo.png" alt="Transvortex">
+            <img id="tvHeaderGif" class="brandGif" src="./Logo/gif.gif" alt="Loading" decoding="async" loading="eager">
+            <img id="tvHeaderCompanyLogo" class="brandLogoImg" src="./assets/images/Logo.png" alt="Transvortex">
         </div>
 
         <div class="rightSlot">
@@ -4167,14 +4167,40 @@
     <!-- PWA - Simple Service Worker Registration -->
     <script>
     if ('serviceWorker' in navigator) {
+        const RELOAD_FLAG = 'tvx_sw_reloading';
         window.addEventListener('load', () => {
-            navigator.serviceWorker.register('./service-worker.js')
+            navigator.serviceWorker.register('./service-worker.js', { scope: './' })
                 .then(reg => {
                     console.log('[PWA] Service Worker registered:', reg.scope);
+
+                    if (navigator.serviceWorker.controller) {
+                        reg.update().catch(() => {});
+                    }
+
+                    reg.addEventListener('updatefound', () => {
+                        const installing = reg.installing;
+                        if (!installing) return;
+
+                        installing.addEventListener('statechange', () => {
+                            if (installing.state === 'installed' && navigator.serviceWorker.controller) {
+                                installing.postMessage({ type: 'SKIP_WAITING' });
+                            }
+                        });
+                    });
                 })
                 .catch(err => {
                     console.error('[PWA] Service Worker registration failed:', err);
                 });
+        });
+
+        navigator.serviceWorker.addEventListener('controllerchange', () => {
+            if (sessionStorage.getItem(RELOAD_FLAG) === '1') return;
+            sessionStorage.setItem(RELOAD_FLAG, '1');
+            window.location.reload();
+        });
+
+        window.addEventListener('pageshow', () => {
+            sessionStorage.removeItem(RELOAD_FLAG);
         });
     }
     </script>

@@ -322,7 +322,7 @@ async function handleWorkspaceAction(action, appointmentId, buttonElement) {
       // ===== EDIT ACTION =====
       case 'edit':
         if (typeof window.handleEditAction === 'function') {
-          const { openCustomModal } = await import('/src/shared/modal.js').catch(() => ({ openCustomModal: null }));
+          const { openCustomModal } = await import('../shared/modal.js').catch(() => ({ openCustomModal: null }));
           await window.handleEditAction(appointmentId, apt, openCustomModal);
         } else if (typeof window.enterEditMode === 'function') {
           window.enterEditMode(apt);
@@ -366,7 +366,7 @@ async function handleWorkspaceAction(action, appointmentId, buttonElement) {
       // ===== VISIT ACTION =====
       case 'visit':
         if (typeof window.handleVisitAction === 'function') {
-          const { confirmModal } = await import('/src/shared/modal.js').catch(() => ({ confirmModal: null }));
+          const { confirmModal } = await import('../shared/modal.js').catch(() => ({ confirmModal: null }));
           await window.handleVisitAction(appointmentId, apt, confirmModal);
         } else if (apt?.address) {
           window.location.href = `https://maps.google.com/?q=${encodeURIComponent(apt.address)}`;
@@ -395,7 +395,7 @@ async function handleWorkspaceAction(action, appointmentId, buttonElement) {
       // ===== DELETE ACTION =====
       case 'delete':
         if (typeof window.handleDeleteAction === 'function') {
-          const { confirmModal } = await import('/src/shared/modal.js').catch(() => ({ confirmModal: null }));
+          const { confirmModal } = await import('../shared/modal.js').catch(() => ({ confirmModal: null }));
           await window.handleDeleteAction(appointmentId, apt, confirmModal);
         }
         break;

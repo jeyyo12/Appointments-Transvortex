@@ -230,77 +230,18 @@
     }
 }
 
-/* Responsive: Tablet */
+/* Responsive: Tablet - consolidated with main breakpoints */
 @media (max-width: 1023px) {
-    .tvStats {
-        grid-template-columns: repeat(2, 1fr);
-        gap: 1.25rem;
-    }
-
     .tvStatCard {
-        padding: 1.25rem;
+        padding: clamp(12px, 2.5vw, 18px);
     }
 
     .tvStatCard i {
-        font-size: 1.5rem;
+        font-size: clamp(16px, 3.5vw, 20px);
     }
 
     .tvStatCard h3 {
-        font-size: 1.75rem;
-    }
-}
-
-/* Responsive: Mobile */
-@media (max-width: 768px) {
-    .tvStats {
-        grid-template-columns: repeat(2, 1fr);
-        gap: 1rem;
-        margin-bottom: 1.5rem;
-    }
-
-    .tvStatCard {
-        padding: 1rem;
-        border-radius: 12px;
-        gap: 0.75rem;
-    }
-
-    .tvStatCard i {
-        font-size: 1.25rem;
-    }
-
-    .tvStatCard h3 {
-        font-size: 1.5rem;
-    }
-
-    .tvStatCard p {
-        font-size: 0.8rem;
-    }
-}
-
-/* Responsive: Small Mobile */
-@media (max-width: 480px) {
-    .tvStats {
-        grid-template-columns: 1fr;
-        gap: 0.75rem;
-        margin-bottom: 1rem;
-    }
-
-    .tvStatCard {
-        padding: 0.875rem;
-        border-radius: 10px;
-    }
-
-    .tvStatCard i {
-        font-size: 1.1rem;
-    }
-
-    .tvStatCard h3 {
-        font-size: 1.25rem;
-    }
-
-    .tvStatCard p {
-        font-size: 0.75rem;
-        margin-top: 0.25rem;
+        font-size: clamp(18px, 4vw, 28px);
     }
 }
 
@@ -618,7 +559,8 @@
     }
 }
 
-@media (max-width: 429px) {
+/* Stable mobile layout: 2-col KPI cards for all screens ≤723px */
+@media (max-width: 723px) {
     .tvStats {
         grid-template-columns: repeat(2, minmax(clamp(120px, 42vw, 180px), 1fr)) !important;
         gap: clamp(8px, 1.8vw, 12px);
@@ -629,15 +571,6 @@
         grid-template-columns: auto auto 1fr auto !important;
         padding: clamp(8px, 1.5vw, 10px) !important;
         gap: clamp(6px, 1vw, 8px) !important;
-    }
-
-    #tvStats .tvStatCard[data-workspace-id="revenue"] h3,
-    #tvStats .tvStatCard[data-workspace-id="revenue"] p {
-        font-size: 0;
-    }
-
-    #tvStats .tvStatCard[data-workspace-id="revenue"] i {
-        font-size: clamp(14px, 3vw, 16px) !important;
     }
 
     #tvSummaryStrip.tvSummaryStrip--dock {
@@ -653,32 +586,8 @@
     }
 }
 
-@media (min-width: 430px) and (max-width: 600px) {
-    .tvStats {
-        grid-template-columns: repeat(2, minmax(clamp(120px, 42vw, 180px), 1fr)) !important;
-        gap: clamp(8px, 1.8vw, 12px);
-    }
-
-    #tvStats .tvStatCard[data-workspace-id="revenue"] {
-        display: grid !important;
-        grid-template-columns: auto auto 1fr auto !important;
-        padding: clamp(8px, 1.5vw, 10px) !important;
-        gap: clamp(6px, 1vw, 8px) !important;
-    }
-
-    #tvSummaryStrip.tvSummaryStrip--dock {
-        position: sticky;
-        bottom: calc(8px + env(safe-area-inset-bottom));
-        z-index: 35;
-        box-shadow: 0 8px 24px rgba(15, 23, 42, 0.15);
-    }
-
-    #appointmentsTab {
-        padding-bottom: calc(80px + env(safe-area-inset-bottom));
-    }
-}
-
-@media (min-width: 769px) and (max-width: 1023px) {
+/* Tablet layout: 3-col for 724-1023px range */
+@media (min-width: 724px) and (max-width: 1023px) {
     #tvStats {
         grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
     }
@@ -884,7 +793,7 @@
 
 /* ===== E) RESPONSIVE BREAKPOINTS ===== */
 
-/* Mobile-first (≤804px) */
+/* Mobile-first (≤804px) - uses base 2-col defined above */
 @media (max-width: 804px) {
     :root {
         --tvh-pad: 12px;
@@ -918,23 +827,7 @@
     }
 }
 
-/* Tablet landscape (805–1023px) */
-@media (min-width: 805px) and (max-width: 1023px) {
-    #authBar .tvHeaderKpis {
-        grid-template-columns: repeat(4, minmax(0, 1fr));
-    }
-
-    #authBar .tvHeaderKpis .header-indicators {
-        grid-template-columns: repeat(4, minmax(0, 1fr));
-    }
-
-    #authBar .tvHeaderKpis .indicator-badge,
-    #authBar .tvHeaderKpis .kpiChip {
-        font-size: clamp(13px, 1vw, 16px);
-    }
-}
-
-/* Desktop (≥1024px) - 3-column layout */
+/* Large desktop: scale variables only, maintain same grid structure as 1024px */
 @media (min-width: 1401px) {
     :root {
         --tvh-pad: clamp(10px, 2vw, 16px);
@@ -945,38 +838,10 @@
         --tvh-kpi-font: clamp(13px, 2.4vw, 15px);
     }
 
-    #authBar,
-    #authBar.tvHeader,
-    #authBar.firebase-auth-bar.tvHeader {
-        grid-template-columns: minmax(200px, 0.7fr) minmax(500px, 1.6fr) auto;
-        grid-template-areas: "top kpis controls";
-        align-items: center;
-    }
-
-    #authBar .tvHeaderTop {
-        grid-column: 1 / 2;
-        grid-template-columns: auto;
-    }
-
-    #authBar .tvHeaderKpis {
-        grid-column: 2 / 3;
-        grid-template-columns: repeat(4, minmax(0, 1fr));
-        align-self: center;
-    }
-
-    #authBar .tvHeaderKpis .header-indicators {
-        grid-template-columns: repeat(4, minmax(0, 1fr));
-    }
-
+    /* Keep 4-col KPI layout (same as 1024px, just scaled) */
     #authBar .tvHeaderKpis .indicator-badge,
     #authBar .tvHeaderKpis .kpiChip {
         font-size: clamp(13px, 1vw, 16px);
-    }
-
-    #authBar .topbarRight,
-    #authBar .rightSlot,
-    #authBar .hdrRight {
-        grid-column: 3 / 4;
     }
 }
 
@@ -1428,8 +1293,8 @@
     margin: 0;
 }
 
-/* Today Focus compact optimization (small mobile) */
-@media (max-width: 440px) {
+/* Stable header pills: 2-col for ≤723px (consolidates mobile ranges) */
+@media (max-width: 723px) {
     #authBar .headerKpis,
     #authBar .hdrKpis,
     #authBar .tvHeaderKpis,
@@ -1485,8 +1350,8 @@
     }
 }
 
-/* Tablet: 3-column KPI + workflow density */
-@media (min-width: 441px) and (max-width: 1023px) {
+/* Tablet: 3-col KPI pills + 3-col workspace density for 724-1023px */
+@media (min-width: 724px) and (max-width: 1023px) {
     #authBar .headerKpis,
     #authBar .hdrKpis,
     #authBar .tvHeaderKpis,
@@ -1504,7 +1369,7 @@
     }
 }
 
-/* Desktop: 4 KPI cards + 5 workflow cards in one row when space allows */
+/* Desktop: 4 KPI pills + 4 workspace cards for 1024+ (stable through 1400px) */
 @media (min-width: 1024px) {
     #authBar .headerKpis,
     #authBar .hdrKpis,
@@ -1515,7 +1380,7 @@
     }
 
     #tvStats {
-        grid-template-columns: repeat(5, minmax(clamp(140px, 18vw, 220px), 1fr)) !important;
+        grid-template-columns: repeat(4, minmax(clamp(140px, 18vw, 220px), 1fr)) !important;
     }
 
     #tvStats .tvStatCard[data-workspace-id="revenue"] {
