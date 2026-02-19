@@ -8,7 +8,7 @@ import { doc, deleteDoc, getDoc, setDoc, updateDoc, serverTimestamp } from 'http
 import { createLogger } from '../shared/logger.js';
 import { showToast, confirm } from '../shared/ui.js';
 import { refreshInvoices } from './storage.service.js';
-import { filterInvoices } from './storage.ui.js';
+import { filterInvoices, setActivePaymentFilter, toggleActivePaymentFilter } from './storage.ui.js';
 import { cleanupInvoiceDuplicatesAcrossAppointments, dedupeInvoicesForAppointment, getOrCreateInvoiceForAppointment } from '../invoices/invoice-manager.js';
 
 const logger = createLogger('StorageEvents');
@@ -146,7 +146,7 @@ export async function deleteInvoiceConfirm(invoiceId) {
 export function handleRefreshInvoicesClick(callback) {
   logger.info('Manual refresh requested');
   const storeInvoices = getStoreInvoicesMap();
-  if (storeInvoices?.size >= 0) {
+  if (storeInvoices instanceof Map) {
     callback?.();
     return;
   }
@@ -274,6 +274,15 @@ export function setupSearchAndFilterListeners() {
 
   const searchInput = document.getElementById('searchInvoices');
   const paymentFilter = document.getElementById('filterInvoicePayment');
+  const unpaidKpiCard = document.querySelector('.invoice-kpi .kpi-item--unpaid');
+  const paidKpiCard = document.querySelector('.invoice-kpi .kpi-item--paid');
+
+  const setupKpiCard = (card) => {
+    if (!card) return;
+    card.setAttribute('role', 'button');
+    card.setAttribute('tabindex', '0');
+    card.setAttribute('aria-pressed', 'false');
+  };
   
   if (searchInput) {
     searchInput.addEventListener('input', () => {
@@ -284,8 +293,42 @@ export function setupSearchAndFilterListeners() {
   
   if (paymentFilter) {
     paymentFilter.addEventListener('change', () => {
-      logger.debug('Payment filter changed');
-      filterInvoices();
+      logger.debug('Payment dropdown changed - forcing all');
+      if (paymentFilter.value !== 'all') {
+        paymentFilter.value = 'all';
+      }
+      setActivePaymentFilter('all');
+    });
+
+    if (paymentFilter.value !== 'all') {
+      paymentFilter.value = 'all';
+    }
+  }
+
+  setupKpiCard(unpaidKpiCard);
+  setupKpiCard(paidKpiCard);
+
+  if (unpaidKpiCard) {
+    unpaidKpiCard.addEventListener('click', () => {
+      toggleActivePaymentFilter('unpaid');
+    });
+    unpaidKpiCard.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        toggleActivePaymentFilter('unpaid');
+      }
+    });
+  }
+
+  if (paidKpiCard) {
+    paidKpiCard.addEventListener('click', () => {
+      toggleActivePaymentFilter('paid');
+    });
+    paidKpiCard.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        toggleActivePaymentFilter('paid');
+      }
     });
   }
   

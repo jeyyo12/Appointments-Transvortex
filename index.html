@@ -1403,7 +1403,7 @@
             border: 1.5px solid transparent;
         }
         
-        .status-completed {
+        .app-card__status-badge.status-completed {
             background: rgba(16, 185, 129, 0.12);
             border-color: rgba(16, 185, 129, 0.35);
             color: rgba(5, 115, 40, 0.95);
@@ -1721,7 +1721,7 @@
             letter-spacing: 0.03em;
         }
         
-        .status-completed {
+        .app-card__status-badge.status-completed {
             background: rgba(16, 185, 129, 0.15);
             border: 1px solid rgba(16, 185, 129, 0.3);
             color: rgba(5, 150, 105, 0.95);
@@ -1994,7 +1994,7 @@
         }
         
         /* ========== TABLET - MEDIUM SCREENS ========== */
-        @media (min-width: 480px) and (max-width: 768px) {
+        @media (min-width: 724px) and (max-width: 768px) {
             /* Always show secondary on tablet/desktop size */
             .action-group--secondary {
                 grid-template-columns: repeat(3, 1fr);
@@ -3725,16 +3725,16 @@
                 </div>
 
                 <!-- ===== INVOICES STORAGE SECTION ===== -->
-                <section class="tvCard tvCard--compact" style="margin-top: var(--tv-gap-lg);">
-                    <div class="tvCardHeader">
-                        <div style="flex: 1;">
+                <section class="tvCard tvCard--compact tvInvoicesStorage" style="margin-top: var(--tv-gap-lg);">
+                    <div class="tvCardHeader tvInvoicesStorage__header">
+                        <div class="tvInvoicesStorage__title" style="flex: 1;">
                             <h2><i class="fas fa-file-invoice-dollar"></i> Invoices Storage</h2>
                             <p style="font-size: 0.9rem; color: var(--tv-text-secondary); margin-top: 0.25rem;">View and manage all created invoices</p>
                         </div>
-                        <button id="cleanupInvoicesBtn" class="tvBtn tvBtn--secondary tvBtn--sm" title="Cleanup duplicate invoices">
+                        <button id="cleanupInvoicesBtn" class="tvBtn tvBtn--secondary tvBtn--sm tvInvoicesStorage__action" title="Cleanup duplicate invoices">
                             <i class="fas fa-broom"></i> <span class="tvHideMobile">Cleanup Duplicates</span>
                         </button>
-                        <button id="refreshInvoicesButton" class="tvBtn tvBtn--secondary tvBtn--sm" title="Refresh invoices list">
+                        <button id="refreshInvoicesButton" class="tvBtn tvBtn--secondary tvBtn--sm tvInvoicesStorage__action" title="Refresh invoices list">
                             <i class="fas fa-sync-alt"></i> <span class="tvHideMobile">Refresh</span>
                         </button>
                     </div>
@@ -3758,18 +3758,16 @@
                     </div>
 
                     <!-- Filters -->
-                    <div class="filters-wrapper" style="margin-bottom: var(--tv-gap-lg);">
-                        <div class="filter-group">
+                    <div class="filters-wrapper tvInvoicesStorage__filters" style="margin-bottom: var(--tv-gap-lg);">
+                        <div class="filter-group tvInvoicesStorage__filter">
                             <label for="filterInvoicePayment"><span data-i18n="filterLabel">Filter:</span></label>
                             <select id="filterInvoicePayment">
-                                <option value="unpaid" selected>Unpaid</option>
-                                <option value="paid">Paid</option>
-                                <option value="all">All</option>
+                                <option value="all" selected>All</option>
                             </select>
                         </div>
-                        <div class="filter-group">
+                        <div class="filter-group tvInvoicesStorage__filter tvInvoicesStorage__filter--search">
                             <label for="searchInvoices"><span data-i18n="searchLabel">Search:</span></label>
-                            <input type="text" id="searchInvoices" placeholder="Invoice #, customer name, or plate...">
+                            <input type="text" id="searchInvoices" placeholder="Invoice,or plate...">
                         </div>
                     </div>
 
@@ -3778,10 +3776,15 @@
                         <!-- Invoice cards will be rendered here with storage-grid wrapper -->
                     </div>
 
-                    <div id="emptyStateInvoices" class="empty-state">
+                    <div id="emptyStateInvoices" class="empty-state tvInvoicesStorage__empty" aria-live="polite">
                         <i class="fas fa-inbox"></i>
                         <h3>No invoices yet</h3>
                         <p>Create your first invoice from an appointment's action menu</p>
+                        <div class="tvInvoicesStorage__emptyTips" aria-hidden="true">
+                            <span>Clear search</span>
+                            <span>Switch to Paid</span>
+                            <span>Switch to Unpaid</span>
+                        </div>
                     </div>
                 </section>
             </div>

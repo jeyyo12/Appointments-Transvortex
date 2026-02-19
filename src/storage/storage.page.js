@@ -8,6 +8,7 @@ import { filterInvoices } from './storage.ui.js';
 import { setupSearchAndFilterListeners, handleRefreshInvoicesClick, handleCleanupDuplicatesClick } from './storage.events.js';
 import { createLogger } from '../shared/logger.js';
 import { byId } from '../shared/dom.js';
+import { setState } from '../shared/state.js';
 
 const logger = createLogger('StoragePage');
 
@@ -60,9 +61,15 @@ export function initInvoicesStorage() {
     // Single source of truth: use data-layer store when available
     if (hasDataLayerInvoices()) {
       const store = getDataLayerStore();
+      if ((store?.invoicesById instanceof Map) && store.invoicesById.size > 0) {
+        setState('storageInvoicesLoaded', true);
+      }
       if (store && typeof store.subscribe === 'function' && !initState.storageInvoicesUnsub) {
         initState.storageInvoicesUnsub = store.subscribe((event) => {
           if (event.type === 'invoiceChanged' || event.type === 'dataReady') {
+            if (event.type === 'dataReady') {
+              setState('storageInvoicesLoaded', true);
+            }
             filterInvoices();
           }
         });

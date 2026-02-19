@@ -23,14 +23,14 @@
 }
 
 /* MOBILE: allow carousel horizontal scroll */
-@media (max-width: 600px) {
+@media (max-width: 723px) {
     #appointmentsList {
         overflow-x: visible;
     }
 }
 
 /* DESKTOP: prevent overflow, center container */
-@media (min-width: 601px) {
+@media (min-width: 724px) {
     #appointmentsList {
         overflow-x: clip;
         margin: 0 auto;
@@ -46,7 +46,7 @@
    ========================================== */
 
 /* MOBILE — horizontal carousel (<= 600px) */
-@media (max-width: 600px) {
+@media (max-width: 723px) {
     .tvCarousel {
         overflow-x: auto;
         overflow-y: visible;
@@ -72,7 +72,7 @@
 }
 
 /* DESKTOP / TABLET — normal grid, NO carousel (>= 601px) */
-@media (min-width: 601px) {
+@media (min-width: 724px) {
     .tvCarousel {
         overflow: visible;
         overflow-x: visible;
@@ -105,7 +105,7 @@
 /* No need for hardcoded column breakpoint, minmax adapts fluidly */
 
 /* DESKTOP TEXT FIX - Prevent vertical letter-by-letter rendering */
-@media (min-width: 601px) {
+@media (min-width: 724px) {
     .tvCard,
     .aptRow,
     .tvCardName {
@@ -150,7 +150,7 @@
 }
 
 /* Mobile only: scrollbar styling */
-@media (max-width: 600px) {
+@media (max-width: 723px) {
     .tvCarousel {
         scrollbar-width: auto;
         scrollbar-color: rgba(0, 0, 0, 0.25) rgba(0, 0, 0, 0.08);

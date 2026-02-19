@@ -77,6 +77,14 @@ function getSourceInvoices() {
     return [...normalized, ...missingPlaceholders];
   }
 
+  const stateInvoices = getState('allInvoices');
+  if (Array.isArray(stateInvoices) && stateInvoices.length > 0) {
+    return stateInvoices.map((invoice) => ({
+      ...invoice,
+      appointmentId: getInvoiceAppointmentId(invoice)
+    }));
+  }
+
   const fallbackInvoices = Array.isArray(window.allInvoices) ? window.allInvoices : [];
   return fallbackInvoices.map((invoice) => ({
     ...invoice,
@@ -92,8 +100,54 @@ function getSourceInvoices() {
 function isInvoicePaid(inv) {
   if (inv.paymentStatus) return String(inv.paymentStatus).toLowerCase() === 'paid';
   if (typeof inv.paid === 'boolean') return inv.paid;
-  if (typeof inv.balanceDue === 'number') return inv.balanceDue <= 0;
+  const balanceDue = toNumber(inv.balanceDue);
+  if (balanceDue > 0) return false;
+
+  const total = computeInvoiceTotal(inv);
+  const amountPaid = toNumber(inv.paidAmount ?? inv.amountPaid ?? 0);
+  if (total > 0) return amountPaid >= total;
+
+  if (typeof inv.balanceDue !== 'undefined') return balanceDue <= 0;
   return false;
+}
+
+function getActivePaymentFilter() {
+  const active = String(getState('activePaymentFilter') || 'all').toLowerCase();
+  return active === 'paid' || active === 'unpaid' ? active : 'all';
+}
+
+function updateActivePaymentFilterUI() {
+  const activeFilter = getActivePaymentFilter();
+  const unpaidCard = document.querySelector('.invoice-kpi .kpi-item--unpaid');
+  const paidCard = document.querySelector('.invoice-kpi .kpi-item--paid');
+
+  const syncCardState = (card, isActive) => {
+    if (!card) return;
+    card.classList.toggle('active', isActive);
+    card.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+  };
+
+  syncCardState(unpaidCard, activeFilter === 'unpaid');
+  syncCardState(paidCard, activeFilter === 'paid');
+
+  const paymentFilter = byId('filterInvoicePayment');
+  if (paymentFilter && paymentFilter.value !== 'all') {
+    paymentFilter.value = 'all';
+  }
+}
+
+export function setActivePaymentFilter(nextFilter) {
+  const normalized = String(nextFilter || 'all').toLowerCase();
+  const value = normalized === 'paid' || normalized === 'unpaid' ? normalized : 'all';
+  setState('activePaymentFilter', value);
+  filterInvoices();
+}
+
+export function toggleActivePaymentFilter(targetFilter) {
+  const target = String(targetFilter || 'all').toLowerCase();
+  const active = getActivePaymentFilter();
+  const next = active === target ? 'all' : target;
+  setActivePaymentFilter(next);
 }
 
 /**
@@ -104,9 +158,16 @@ function updateInvoiceKPI() {
   const allInvoices = getSourceInvoices();
   const kpiUnpaid = byId('kpiUnpaid');
   const kpiPaid = byId('kpiPaid');
+  const isLoaded = !!getState('storageInvoicesLoaded');
   
   if (!kpiUnpaid || !kpiPaid) {
     logger.warn('KPI elements not found');
+    return;
+  }
+
+  if (!isLoaded && allInvoices.length === 0) {
+    kpiUnpaid.textContent = '…';
+    kpiPaid.textContent = '…';
     return;
   }
   
@@ -133,17 +194,26 @@ function updateInvoiceKPI() {
 export function filterInvoices() {
   const normalizedInvoices = getSourceInvoices();
   const allInvoices = normalizedInvoices;
+  if (allInvoices.length > 0) {
+    setState('storageInvoicesLoaded', true);
+  }
   logger.info('filterInvoices() called - allInvoices.length:', allInvoices.length);
   
   const searchInput = byId('searchInvoices');
-  const paymentFilter = byId('filterInvoicePayment');
   
   const searchTerm = searchInput ? searchInput.value.toLowerCase().trim() : '';
-  const paymentValue = paymentFilter ? paymentFilter.value : 'unpaid';
+  const paymentValue = getActivePaymentFilter();
   
   let filtered = allInvoices;
+
+  // Filter by payment status first
+  if (paymentValue !== 'all') {
+    filtered = filtered.filter(inv => {
+      return paymentValue === 'paid' ? isInvoicePaid(inv) : !isInvoicePaid(inv);
+    });
+  }
   
-  // Filter by search term
+  // Filter by search term on top of active payment filter
   if (searchTerm) {
     filtered = filtered.filter(inv => {
       const invNumber = (inv.invoiceNumber || '').toLowerCase();
@@ -158,15 +228,9 @@ export function filterInvoices() {
     });
   }
   
-  // Filter by payment status
-  if (paymentValue !== 'all') {
-    filtered = filtered.filter(inv => {
-      return paymentValue === 'paid' ? isInvoicePaid(inv) : !isInvoicePaid(inv);
-    });
-  }
-  
   setState('filteredInvoices', filtered);
   updateInvoiceKPI();
+  updateActivePaymentFilterUI();
   renderInvoicesStorage();
 }
 
@@ -179,12 +243,34 @@ export function renderInvoicesStorage() {
   
   const container = byId('invoicesList');
   const emptyState = byId('emptyStateInvoices');
+  const allInvoices = getSourceInvoices();
+  const isLoaded = !!getState('storageInvoicesLoaded');
   
   if (!container) return;
   
   if (filteredInvoices.length === 0) {
     setHTML(container, '');
-    if (emptyState) emptyState.style.display = 'flex';
+    if (emptyState) {
+      const emptyTitle = emptyState.querySelector('h3');
+      const emptyText = emptyState.querySelector('p');
+
+      if (!isLoaded && allInvoices.length === 0) {
+        if (emptyTitle) emptyTitle.textContent = 'Loading invoices…';
+        if (emptyText) emptyText.textContent = 'Syncing latest invoice data.';
+        emptyState.style.display = 'flex';
+        return;
+      }
+
+      if (allInvoices.length === 0) {
+        if (emptyTitle) emptyTitle.textContent = 'No invoices yet';
+        if (emptyText) emptyText.textContent = 'Create your first invoice from an appointment\'s action menu';
+      } else {
+        if (emptyTitle) emptyTitle.textContent = 'No invoices match current filters';
+        if (emptyText) emptyText.textContent = 'Try clearing search or toggling the status filter.';
+      }
+
+      emptyState.style.display = 'flex';
+    }
     return;
   }
   

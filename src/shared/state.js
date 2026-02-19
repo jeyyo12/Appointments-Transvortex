@@ -17,6 +17,8 @@ const state = {
   filteredAppointments: [],
   allInvoices: [],
   filteredInvoices: [],
+  activePaymentFilter: 'all', // 'all' | 'paid' | 'unpaid'
+  storageInvoicesLoaded: false,
   
   // Listeners (unsubscribe functions)
   appointmentsUnsubscribe: null,
@@ -71,6 +73,8 @@ export function resetState() {
   state.filteredAppointments = [];
   state.allInvoices = [];
   state.filteredInvoices = [];
+  state.activePaymentFilter = 'all';
+  state.storageInvoicesLoaded = false;
   state.appointmentsUnsubscribe = null;
   state.invoicesUnsubscribe = null;
 }

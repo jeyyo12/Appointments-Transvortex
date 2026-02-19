@@ -81,6 +81,7 @@ export async function startInvoicesListener(callback) {
     const unsubscribe = onSnapshot(
       invoicesQuery,
       async (snapshot) => {
+        setState('storageInvoicesLoaded', true);
         logger.info(`Snapshot received - size: ${snapshot.size}`);
         
         // Log all invoice IDs for debugging
