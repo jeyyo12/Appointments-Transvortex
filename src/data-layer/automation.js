@@ -72,9 +72,12 @@ class AutomationEngine {
     // B) COMPLETED WITHOUT INVOICE
     const uninvoicedCompleted = [];
     const invoicedAppointmentIds = new Set();
+    
+    // Collect all appointment IDs that have invoices (check multiple field names)
     invoices.forEach(inv => {
-      if (inv.appointmentId) {
-        invoicedAppointmentIds.add(inv.appointmentId);
+      const linkId = inv.appointmentId || inv.aptId || inv.appointmentRef || inv.meta?.appointmentId || inv.meta?.aptId;
+      if (linkId) {
+        invoicedAppointmentIds.add(String(linkId).trim());
       }
     });
     
@@ -82,7 +85,7 @@ class AutomationEngine {
       if (!apt.id) return;
       const status = this.normalizeStatus(apt.status);
       
-      if (status === 'completed' && !invoicedAppointmentIds.has(apt.id)) {
+      if (status === 'completed' && !invoicedAppointmentIds.has(String(apt.id).trim())) {
         uninvoicedCompleted.push({
           id: apt.id,
           title: apt.title || apt.name || 'Untitled',
@@ -96,15 +99,23 @@ class AutomationEngine {
     invoices.forEach(inv => {
       if (!inv.id) return;
       
-      const isPaid = inv.paid === true;
+      // Check payment status robustly (matches dashboard-metrics.js logic)
+      const total = inv.total || inv.totalAmount || inv.grandTotal || inv.amount || 0;
+      const paidAmount = inv.paidAmount || inv.amountPaid || inv.paidAmountGBP || 0;
+      const balanceDue = Math.max(0, total - paidAmount);
+      const explicitStatus = (inv.paymentStatus || inv.status || '').toLowerCase();
+      const paidFlag = inv.paid === true;
+      
+      const isPaid = explicitStatus === 'paid' || paidFlag || balanceDue <= 0 || (total > 0 && paidAmount >= total);
       
       if (!isPaid) {
+        const linkId = inv.appointmentId || inv.aptId || inv.appointmentRef || inv.meta?.appointmentId || inv.meta?.aptId;
         unpaidInvoices.push({
           id: inv.id,
-          appointmentId: inv.appointmentId,
-          amount: inv.total || 0,
+          appointmentId: linkId || null,
+          amount: total,
           dueDate: inv.dueDate || inv.createdAt,
-          clientName: inv.clientName || 'Unknown Client'
+          clientName: inv.clientName || inv.customerName || 'Unknown Client'
         });
       }
     });

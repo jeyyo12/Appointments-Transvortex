@@ -4802,6 +4802,13 @@ const TimePicker = {
                     const timeStr = `${this.selectedHour.toString().padStart(2, '0')}:${this.selectedMinute.toString().padStart(2, '0')}`;
                     this.input.value = timeStr;
                     this.hiddenInput.value = timeStr;
+                    
+                    // Sync with Quick mode time field
+                    const vehicleTimeQuick = document.getElementById('vehicleTimeQuick');
+                    if (vehicleTimeQuick) {
+                        vehicleTimeQuick.value = timeStr;
+                    }
+                    
                     this.close();
                 }
             }
@@ -4810,7 +4817,16 @@ const TimePicker = {
             const timeStr = `${this.selectedHour.toString().padStart(2, '0')}:${this.selectedMinute.toString().padStart(2, '0')}`;
             this.input.value = timeStr;
             this.hiddenInput.value = timeStr;
+            
+            // Sync with Quick mode time field
+            const vehicleTimeQuick = document.getElementById('vehicleTimeQuick');
+            if (vehicleTimeQuick) {
+                vehicleTimeQuick.value = timeStr;
+            }
+            
             this.close();
+        } else {
+            alert('Please select a valid time');
         }
     },
     
@@ -5575,6 +5591,12 @@ function populateFormFromAppointment(appointment) {
     const timeValue = appointment.time || '';
     document.getElementById('appointmentTimeValue').value = timeValue;
     document.getElementById('appointmentTime').value = timeValue; // Display field
+    
+    // Populate Quick mode time field if exists
+    const vehicleTimeQuick = document.getElementById('vehicleTimeQuick');
+    if (vehicleTimeQuick) {
+        vehicleTimeQuick.value = timeValue;
+    }
     
     document.getElementById('serviceLocation').value = appointment.serviceLocation || '';
     
@@ -7843,17 +7865,36 @@ function setupAppointmentFormLogic() {
     
     if (makeModelInput) {
         makeModelInput.addEventListener('input', (e) => {
+            const cursorPos = e.target.selectionStart;
             e.target.value = e.target.value.toUpperCase();
+            e.target.setSelectionRange(cursorPos, cursorPos);
         });
     }
     
     if (regNumberInput) {
         regNumberInput.addEventListener('input', (e) => {
+            const cursorPos = e.target.selectionStart;
             e.target.value = e.target.value.toUpperCase();
+            e.target.setSelectionRange(cursorPos, cursorPos);
+        });
+    }
+    
+    // 3. Sync vehicleTimeQuick (Quick mode) with appointmentTimeValue
+    const vehicleTimeQuick = document.getElementById('vehicleTimeQuick');
+    const appointmentTimeValue = document.getElementById('appointmentTimeValue');
+    const appointmentTime = document.getElementById('appointmentTime');
+    
+    if (vehicleTimeQuick && appointmentTimeValue) {
+        vehicleTimeQuick.addEventListener('change', (e) => {
+            const timeValue = e.target.value;
+            appointmentTimeValue.value = timeValue;
+            if (appointmentTime) {
+                appointmentTime.value = timeValue;
+            }
         });
     }
 
-    // 3. Items Panel - Tabs & Buttons
+    // 4. Items Panel - Tabs & Buttons
     const tabBtns = document.querySelectorAll('.tabBtn');
     const itemsPanel = document.querySelector('.itemsPanel');
     

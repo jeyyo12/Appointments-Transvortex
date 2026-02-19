@@ -1685,6 +1685,8 @@
     color: rgba(15, 23, 42, 0.65);
     font-size: clamp(10px, 1.2vw, 12px);
     font-weight: 600;
+    line-height: 1;
+    flex-shrink: 0;
 }
 
 .tvOptionalBlock > summary::after {
@@ -1828,18 +1830,32 @@
     }
 }
 
-@media (min-width: 380px) and (max-width: 520px) {
+/* Quick mode: 2-column layout for 400-600px phone widths */
+@media (min-width: 400px) and (max-width: 600px) {
     #appointmentForm.tvMode--quick .tvFormGrid .field-row.two {
         display: grid;
         grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: clamp(8px, 2vw, 12px);
+        gap: clamp(10px, 2.5vw, 16px);
         align-items: start;
+    }
+    
+    #appointmentForm.tvMode--quick .tvFormGrid .field-row.two > * {
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+    }
+    
+    #appointmentForm.tvMode--quick .field-hint {
+        margin-top: 4px;
     }
 }
 
-@media (max-width: 360px) {
+/* Quick mode: Fall back to 1 column below 400px */
+@media (max-width: 399px) {
     #appointmentForm.tvMode--quick .tvFormGrid .field-row.two {
+        display: grid;
         grid-template-columns: 1fr;
+        gap: clamp(10px, 2.5vw, 14px);
     }
 }
 
@@ -1862,6 +1878,12 @@
     font-size: clamp(0.92rem, 2.2vw, 1rem);
     width: 100%;
     min-width: 0;
+}
+
+#appointmentForm.tvMode--quick input[type="time"].appt-input {
+    padding-top: clamp(10px, 2vw, 12px);
+    padding-bottom: clamp(10px, 2vw, 12px);
+    line-height: normal;
 }
 
 #appointmentForm.tvMode--quick .appt-label {
