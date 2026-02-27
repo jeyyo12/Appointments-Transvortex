@@ -7,21 +7,14 @@ import { db, getCurrentUser } from '../firebase/firebase.js';
 import { collection, addDoc, doc, getDoc, updateDoc, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 import { createLogger } from '../shared/logger.js';
 import { showToast } from '../shared/ui.js';
-import { getOrCreateInvoiceForAppointment, openInvoice } from '../invoices/invoice-manager.js';
+import { getOrCreateInvoiceForAppointment, openInvoice, generateInvoiceNumber } from '../invoices/invoice-manager.js';
 
 const logger = createLogger('InvoiceCreate');
 
-/**
- * Generate unique invoice number
- * Format: INV-{RANDOM}-{YYMMDD}
- * @returns {string} Generated invoice number
- */
-export function generateInvoiceNumber() {
-  const now = new Date();
-  const dateStr = now.toISOString().slice(2, 8).replace(/-/g, '');
-  const random = Math.random().toString(36).substring(2, 7).toUpperCase();
-  return `INV-${random}-${dateStr}`;
-}
+// generateInvoiceNumber is now imported from the canonical source:
+// src/invoices/invoice-manager.js
+// Re-exported here for any consumers that import from this module.
+export { generateInvoiceNumber };
 
 /**
  * Create invoice document in Firestore immediately
@@ -154,7 +147,7 @@ export async function createInvoiceFromAppointment(appointmentId, prefillData) {
     
     // Open invoice editor to complete details
     logger.info('📝 Opening invoice editor...');
-    window.open(`invoice.html?invoiceId=${invoiceId}&mode=edit`, '_blank');
+    openInvoice(null, invoiceId, 'edit');
     
     return invoiceId;
     

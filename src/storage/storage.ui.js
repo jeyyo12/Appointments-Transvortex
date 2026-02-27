@@ -44,6 +44,29 @@ function getInvoiceAppointmentId(invoice) {
   return invoice?.appointmentId || invoice?.aptId || invoice?.appointmentRef || invoice?.meta?.appointmentId || null;
 }
 
+function toTimestampMs(value) {
+  if (!value) return 0;
+  if (typeof value?.toDate === 'function') {
+    const date = value.toDate();
+    return Number.isFinite(date?.getTime?.()) ? date.getTime() : 0;
+  }
+  const date = value instanceof Date ? value : new Date(value);
+  const time = date.getTime();
+  return Number.isFinite(time) ? time : 0;
+}
+
+function getInvoiceSortMs(invoice) {
+  return Math.max(
+    toTimestampMs(invoice?.createdAt),
+    toTimestampMs(invoice?.invoiceDate),
+    toTimestampMs(invoice?.updatedAt)
+  );
+}
+
+function sortInvoicesByDateDesc(invoices) {
+  return [...invoices].sort((a, b) => getInvoiceSortMs(b) - getInvoiceSortMs(a));
+}
+
 function getStoreInvoicesArray() {
   const store = getDataLayerStore();
   if (!store || !(store.invoicesById instanceof Map)) return [];
@@ -74,22 +97,22 @@ function getSourceInvoices() {
 
     const existingAppointmentIds = new Set(normalized.map(inv => String(inv.appointmentId || '').trim()).filter(Boolean));
     const missingPlaceholders = getMissingInvoicePlaceholders().filter(inv => !existingAppointmentIds.has(String(inv.appointmentId || '').trim()));
-    return [...normalized, ...missingPlaceholders];
+    return sortInvoicesByDateDesc([...normalized, ...missingPlaceholders]);
   }
 
   const stateInvoices = getState('allInvoices');
   if (Array.isArray(stateInvoices) && stateInvoices.length > 0) {
-    return stateInvoices.map((invoice) => ({
+    return sortInvoicesByDateDesc(stateInvoices.map((invoice) => ({
       ...invoice,
       appointmentId: getInvoiceAppointmentId(invoice)
-    }));
+    })));
   }
 
   const fallbackInvoices = Array.isArray(window.allInvoices) ? window.allInvoices : [];
-  return fallbackInvoices.map((invoice) => ({
+  return sortInvoicesByDateDesc(fallbackInvoices.map((invoice) => ({
     ...invoice,
     appointmentId: getInvoiceAppointmentId(invoice)
-  }));
+  })));
 }
 
 /**
@@ -166,8 +189,8 @@ function updateInvoiceKPI() {
   }
 
   if (!isLoaded && allInvoices.length === 0) {
-    kpiUnpaid.textContent = '…';
-    kpiPaid.textContent = '…';
+    kpiUnpaid.textContent = 'â€¦';
+    kpiPaid.textContent = 'â€¦';
     return;
   }
   
@@ -175,6 +198,8 @@ function updateInvoiceKPI() {
   let paidCount = 0;
   
   allInvoices.forEach(inv => {
+    if (!inv?.id) return;
+    if (String(inv.id).startsWith('missing-') || inv.missingInvoice === true) return;
     if (isInvoicePaid(inv)) {
       paidCount++;
     } else {
@@ -185,7 +210,7 @@ function updateInvoiceKPI() {
   kpiUnpaid.textContent = unpaidCount;
   kpiPaid.textContent = paidCount;
   
-  logger.info('📊 KPI Updated:', { unpaidCount, paidCount, total: allInvoices.length });
+  logger.info('ðŸ“Š KPI Updated:', { unpaidCount, paidCount, total: allInvoices.length });
 }
 
 /**
@@ -255,7 +280,7 @@ export function renderInvoicesStorage() {
       const emptyText = emptyState.querySelector('p');
 
       if (!isLoaded && allInvoices.length === 0) {
-        if (emptyTitle) emptyTitle.textContent = 'Loading invoices…';
+        if (emptyTitle) emptyTitle.textContent = 'Loading invoicesâ€¦';
         if (emptyText) emptyText.textContent = 'Syncing latest invoice data.';
         emptyState.style.display = 'flex';
         return;
@@ -275,153 +300,82 @@ export function renderInvoicesStorage() {
   }
   
   if (emptyState) emptyState.style.display = 'none';
-  
-  setHTML(container, filteredInvoices.map(invoice => createInvoiceCard(invoice)).join(''));
+
+  const INV_PAGE = 10;
+  const cards = filteredInvoices.map((invoice, i) => {
+    const card = createInvoiceCard(invoice);
+    return i < INV_PAGE ? card : `<div class="inv-hidden" style="display:none">${card}</div>`;
+  });
+  const remaining = filteredInvoices.length - INV_PAGE;
+  const loadMore = remaining > 0
+    ? `<button class="inv-load-more" onclick="window.tvInvLoadMore(this)">Load ${Math.min(INV_PAGE, remaining)} more</button>`
+    : '';
+  setHTML(container, `<div class="inv-list">${cards.join('')}</div>${loadMore}`);
 }
 
 /**
- * Create HTML for invoice card
- * @param {Object} invoice - Invoice data
+ * Compact invoice card â€” 4-row layout with icon-only actions
+ * @param {Object} invoice
  * @returns {string} HTML string
  */
 function createInvoiceCard(invoice) {
   if (invoice.missingInvoice) {
-    const customerName = invoice.customerName || 'Unknown';
-    const regPlate = invoice.regPlate || '';
-    return `
-      <div class="invoice-card invoice-card--missing" data-invoice-id="${invoice.id}">
-        <div class="invoice-card__header">
-          <div>
-            <div class="invoice-card__number">Missing Invoice</div>
-            <div class="invoice-card__date">Finalized appointment</div>
-          </div>
-          <span class="invoice-card__status" style="background: #FEE2E2; color: #991B1B;">MISSING</span>
-        </div>
-        <div class="invoice-card__meta">
-          <div class="invoice-card__meta-item">
-            <i class="fas fa-user"></i>
-            <strong>${customerName}</strong>
-          </div>
-          ${regPlate ? `<div class="invoice-card__meta-item">
-            <i class="fas fa-car"></i>
-            ${regPlate}
-          </div>` : ''}
-        </div>
-        <div style="padding: 0.75rem; background: #FFF7ED; border-radius: 0.375rem; margin: 0.5rem 0; font-size: 0.9rem; color: #9A3412;">
-          Invoice document is missing for this appointment.
-        </div>
-        <div class="invoice-card__actions">
-          <button
-            class="invoice-card__action-btn"
-            onclick="window.rebuildInvoiceFromAppointment('${invoice.appointmentId}', '${invoice.id}')"
-            title="Rebuild invoice"
-          >
-            <i class="fas fa-hammer"></i> Rebuild Invoice
-          </button>
-        </div>
-      </div>
-    `;
+    const clientLine = [invoice.customerName || 'Unknown', invoice.regPlate].filter(Boolean).join(' â€” ');
+    return `<div class="inv-row inv-row--missing" data-invoice-id="${invoice.id}">
+  <div class="inv-row__head"><span class="inv-row__num">Missing Invoice</span><span class="inv-badge inv-badge--missing">MISSING</span></div>
+  <div class="inv-row__info"><span class="inv-row__client">${clientLine}</span></div>
+  <div class="inv-row__actions"><button class="inv-btn" onclick="window.rebuildInvoiceFromAppointment('${invoice.appointmentId}', '${invoice.id}')" title="Rebuild invoice"><i class="fas fa-hammer"></i></button></div>
+</div>`;
   }
 
   const customerName = invoice.customerName || 'Unknown';
-  const phone = invoice.phone || '';
+  const vehicleMakeModel = invoice.vehicleMakeModel || invoice.makeModel || '';
   const regPlate = invoice.regPlate || '';
   const invoiceNumber = invoice.invoiceNumber || invoice.id?.slice(0, 8) || 'DRAFT';
   const total = computeInvoiceTotal(invoice);
   const amountPaid = toNumber(invoice.paidAmount || invoice.amountPaid || 0);
   const balanceDue = Math.max(0, total - amountPaid);
   const status = invoice.status || 'draft';
-  const createdAt = invoice.createdAt;
-  
-  const paymentStatus = isInvoicePaid(invoice) ? 'paid' : 'unpaid';
-  
-  // Normalize for display (uppercase)
-  const displayStatus = paymentStatus.toUpperCase();
-  const paymentStatusColor = paymentStatus === 'paid' ? '#4CAF50' : '#9E9E9E';
-  
-  // Format date
-  let dateStr = 'N/A';
-  if (createdAt) {
+  const isPaid = isInvoicePaid(invoice);
+  const isPartial = amountPaid > 0 && balanceDue > 0 && !isPaid;
+
+  let dateStr = '';
+  if (invoice.createdAt) {
     try {
-      const date = createdAt.toDate ? createdAt.toDate() : new Date(createdAt);
-      dateStr = date.toLocaleDateString('en-GB', { 
-        day: '2-digit', 
-        month: 'short', 
-        year: 'numeric' 
-      });
-    } catch (e) {
-      dateStr = 'N/A';
-    }
+      const d = invoice.createdAt.toDate ? invoice.createdAt.toDate() : new Date(invoice.createdAt);
+      dateStr = d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' });
+    } catch (e) {}
   }
-  
-  const statusClass = status === 'final' ? 'final' : 'draft';
-  
-  return `
-    <div class="invoice-card" data-invoice-id="${invoice.id}">
-      <div class="invoice-card__header">
-        <div>
-          <div class="invoice-card__number">${invoiceNumber}</div>
-          <div class="invoice-card__date">${dateStr}</div>
-        </div>
-        <div style="display: flex; gap: 0.5rem; align-items: center;">
-          <span class="invoice-card__status ${statusClass}" style="padding: 0.25rem 0.75rem;">${status.toUpperCase()}</span>
-          <span class="invoice-card__status" style="background: ${paymentStatusColor}; padding: 0.25rem 0.75rem; font-size: 0.8rem;">${displayStatus}</span>
-        </div>
-      </div>
-      
-      <div class="invoice-card__meta">
-        <div class="invoice-card__meta-item">
-          <i class="fas fa-user"></i>
-          <strong>${customerName}</strong>
-        </div>
-        ${phone ? `<div class="invoice-card__meta-item">
-          <i class="fas fa-phone"></i>
-          ${phone}
-        </div>` : ''}
-        ${regPlate ? `<div class="invoice-card__meta-item">
-          <i class="fas fa-car"></i>
-          ${regPlate}
-        </div>` : ''}
-      </div>
-      
-      <div style="padding: 0.75rem; background: #f5f5f5; border-radius: 0.375rem; margin: 0.5rem 0;">
-        <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem; font-size: 0.9rem;">
-          <span>Total:</span>
-          <strong>${formatCurrencyGBP(total)}</strong>
-        </div>
-        ${amountPaid > 0 ? `<div style="display: flex; justify-content: space-between; margin-bottom: 0.25rem; font-size: 0.9rem; color: #4CAF50;">
-          <span>Paid:</span>
-          <strong>${formatCurrencyGBP(amountPaid)}</strong>
-        </div>` : ''}
-        ${balanceDue > 0 ? `<div style="display: flex; justify-content: space-between; font-size: 0.9rem; color: #d32f2f;">
-          <span>Due:</span>
-          <strong>${formatCurrencyGBP(balanceDue)}</strong>
-        </div>` : ''}
-      </div>
-      
-      <div class="invoice-card__actions">
-        <button 
-          class="invoice-card__action-btn" 
-          onclick="window.openInvoiceFile('${invoice.id}')"
-          title="Open invoice"
-        >
-          <i class="fas fa-external-link-alt"></i> Open
-        </button>
-        <button 
-          class="invoice-card__action-btn ${paymentStatus === 'paid' ? 'paid' : 'unpaid'}" 
-          onclick="window.toggleInvoicePaidStatus('${invoice.id}')"
-          title="Toggle payment status"
-        >
-          ${paymentStatus === 'paid' ? '<i class="fas fa-check"></i> PAID' : 'UNPAID'}
-        </button>
-        <button 
-          class="invoice-card__action-btn danger" 
-          onclick="window.deleteInvoiceConfirm('${invoice.id}')"
-          title="Delete invoice"
-        >
-          <i class="fas fa-trash"></i> Delete
-        </button>
-      </div>
-    </div>
-  `;
+
+  const vehicleStr = [regPlate, vehicleMakeModel].filter(Boolean).join(' Â· ');
+  const clientLine = vehicleStr ? `${customerName} â€” ${vehicleStr}` : customerName;
+
+  const payBadge = isPaid
+    ? '<span class="inv-badge inv-badge--paid">PAID</span>'
+    : isPartial
+      ? '<span class="inv-badge inv-badge--partial">PARTIAL</span>'
+      : '<span class="inv-badge inv-badge--due">DUE</span>';
+  const statusBadge = status === 'final'
+    ? '<span class="inv-badge inv-badge--final">FINAL</span>'
+    : '<span class="inv-badge inv-badge--draft">DRAFT</span>';
+
+  let finRow;
+  if (isPaid) {
+    finRow = `<strong class="inv-fin__total">${formatCurrencyGBP(total)}</strong><span class="inv-fin__paid">âœ“ Paid</span>`;
+  } else if (isPartial) {
+    finRow = `<strong class="inv-fin__total">${formatCurrencyGBP(total)}</strong><span class="inv-fin__partial">Paid ${formatCurrencyGBP(amountPaid)}</span><span class="inv-fin__due">Due ${formatCurrencyGBP(balanceDue)}</span>`;
+  } else {
+    finRow = `<strong class="inv-fin__total">${formatCurrencyGBP(total)}</strong><span class="inv-fin__due">${formatCurrencyGBP(balanceDue)} due</span>`;
+  }
+
+  const payBtn = !isPaid
+    ? `<button class="inv-btn inv-btn--pay" onclick="window.toggleInvoicePaidStatus('${invoice.id}', '${invoice.appointmentId || ''}')" title="${isPartial ? 'Mark fully paid' : 'Mark Paid'}" aria-label="Mark paid"><i class="fas fa-check"></i></button>`
+    : `<button class="inv-btn inv-btn--unpay" onclick="window.toggleInvoicePaidStatus('${invoice.id}', '${invoice.appointmentId || ''}')" title="Mark Unpaid" aria-label="Mark unpaid"><i class="fas fa-undo"></i></button>`;
+
+  return `<div class="inv-row" data-invoice-id="${invoice.id}">
+  <div class="inv-row__head"><span class="inv-row__num">${invoiceNumber}</span><div class="inv-row__chips">${payBadge}${statusBadge}</div></div>
+  <div class="inv-row__info"><span class="inv-row__client">${clientLine}</span><span class="inv-row__date">${dateStr}</span></div>
+  <div class="inv-row__fin">${finRow}</div>
+  <div class="inv-row__actions"><button class="inv-btn inv-btn--open" onclick="window.openInvoiceFile('${invoice.id}', '${invoice.appointmentId || ''}')" title="Open" aria-label="Open invoice"><i class="fas fa-external-link-alt"></i></button>${payBtn}<button class="inv-btn inv-btn--del" onclick="window.deleteInvoiceConfirm('${invoice.id}')" title="Delete" aria-label="Delete invoice"><i class="fas fa-trash"></i></button></div>
+</div>`;
 }

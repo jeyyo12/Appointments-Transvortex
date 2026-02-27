@@ -4,10 +4,11 @@
  * No infinite reload loops, no complex update logic
  */
 
-const CACHE_NAME = 'transvortex-v23-deploy-parity-20260219';
+const CACHE_NAME = 'transvortex-v24-deploy-parity-20260224';
 const CRITICAL_ASSETS = [
   './index.html',
   './invoice.html',
+  './offline.html',
   './styles.css',
   './script.js'
 ];
@@ -73,6 +74,12 @@ self.addEventListener('activate', event => {
   );
 });
 
+self.addEventListener('message', event => {
+  if (event?.data?.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
+});
+
 /**
  * Fetch - Smart caching strategy
  * HTML: Network-first (always try fresh)
@@ -133,7 +140,7 @@ self.addEventListener('fetch', event => {
         .catch(() => {
           // Offline: return cached HTML or fallback to index.html
           return caches.match(event.request)
-            .then(response => response || caches.match('index.html'));
+            .then(response => response || caches.match('./index.html') || caches.match('./offline.html'));
         })
     );
     return;

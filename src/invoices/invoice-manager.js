@@ -11,10 +11,11 @@ import { showToast } from '../shared/ui.js';
 const logger = createLogger('InvoiceManager');
 
 /**
- * Generate unique invoice number
+ * Generate unique invoice number — canonical single source of truth.
  * Format: INV-{RANDOM}-{YYMMDD}
+ * Export so all modules import this instead of defining their own.
  */
-function generateInvoiceNumber() {
+export function generateInvoiceNumber() {
   const now = new Date();
   const dateStr = now.toISOString().slice(2, 8).replace(/-/g, '');
   const random = Math.random().toString(36).substring(2, 7).toUpperCase();
@@ -78,6 +79,86 @@ function pickBestInvoice(invoices, preferredId = null) {
 
   // Requirement: keep newest invoice by createdAt
   return [...invoices].sort((a, b) => getInvoiceCreatedAt(b) - getInvoiceCreatedAt(a))[0];
+}
+
+function normalizeAppointmentLegalProfile(prefillData = {}, aptData = {}) {
+  const fromPrefill = prefillData?.invoiceLegalProfile;
+  const fromAppointment = aptData?.invoiceLegalProfile;
+  const candidate = fromPrefill?.type === 'ro_company' ? fromPrefill : fromAppointment;
+  return candidate?.type === 'ro_company' ? candidate : null;
+}
+
+function normalizeAppointmentEUCompanyProfile(prefillData = {}, aptData = {}) {
+  const fromPrefill = prefillData?.invoiceLegalProfile;
+  const fromAppointment = aptData?.invoiceLegalProfile;
+  const candidate = fromPrefill?.type === 'eu_company' ? fromPrefill : fromAppointment;
+  return candidate?.type === 'eu_company' ? candidate : null;
+}
+
+function buildReverseChargeNote(profile) {
+  if (profile?.vat?.reverseCharge !== true) return '';
+  const vatNumber = (profile?.buyer?.vatNumber || '').toString().trim();
+  if (vatNumber) {
+    return `VAT reverse charged to customer (B2B EU). Customer VAT number: ${vatNumber}`;
+  }
+  return 'VAT reverse charged to customer (B2B EU).';
+}
+
+function appendNoteOnce(baseText = '', extraLine = '') {
+  const extra = (extraLine || '').toString().trim();
+  if (!extra) return (baseText || '').toString().trim();
+
+  const base = (baseText || '').toString().trim();
+  if (base.includes(extra)) return base;
+  return base ? `${base}\n${extra}` : extra;
+}
+
+function normalizeInvoiceTemplateType(prefillData = {}) {
+  return prefillData?.templateType === 'mechanic' ? 'mechanic' : 'standard';
+}
+
+function buildMechanicDetails(prefillData = {}, aptData = {}) {
+  const complaint = (prefillData?.mechanicDetails?.complaint || aptData?.notes || '').toString().trim();
+  const diagnosis = (prefillData?.mechanicDetails?.diagnosis || '').toString().trim();
+  const workPerformed = (prefillData?.mechanicDetails?.workPerformed || '').toString().trim();
+  const recommendations = (prefillData?.mechanicDetails?.recommendations || '').toString().trim();
+
+  const vin = (
+    prefillData?.mechanicDetails?.vehicle?.vin ||
+    prefillData?.vin ||
+    aptData?.vin ||
+    aptData?.vehicle?.vin ||
+    ''
+  ).toString().trim();
+
+  const mileageValue =
+    prefillData?.mechanicDetails?.vehicle?.mileage ??
+    prefillData?.mileage ??
+    aptData?.mileage ??
+    aptData?.vehicle?.mileage ??
+    '';
+  const mileage = mileageValue === null || mileageValue === undefined ? '' : String(mileageValue).trim();
+
+  const warrantyText = (prefillData?.mechanicDetails?.terms?.warrantyText || '').toString().trim();
+  const disclaimerText = (prefillData?.mechanicDetails?.terms?.disclaimerText || '').toString().trim();
+
+  const vehicle = {};
+  if (vin) vehicle.vin = vin;
+  if (mileage) vehicle.mileage = mileage;
+
+  const terms = {};
+  if (warrantyText) terms.warrantyText = warrantyText;
+  if (disclaimerText) terms.disclaimerText = disclaimerText;
+
+  const details = {};
+  if (complaint) details.complaint = complaint;
+  if (diagnosis) details.diagnosis = diagnosis;
+  if (workPerformed) details.workPerformed = workPerformed;
+  if (recommendations) details.recommendations = recommendations;
+  if (Object.keys(vehicle).length > 0) details.vehicle = vehicle;
+  if (Object.keys(terms).length > 0) details.terms = terms;
+
+  return Object.keys(details).length > 0 ? details : null;
 }
 
 /**
@@ -220,6 +301,25 @@ export async function getOrCreateInvoiceForAppointment(appointmentId, prefillDat
     const paidAmount = toNumber(aptData.paidAmount || 0);
     const balanceDue = Math.max(0, subtotal - paidAmount);
     const paymentStatus = (paidAmount > 0 && paidAmount >= subtotal) ? 'PAID' : 'UNPAID';
+    const appointmentLegalProfile = normalizeAppointmentLegalProfile(prefillData, aptData);
+    const appointmentEUProfile = normalizeAppointmentEUCompanyProfile(prefillData, aptData);
+    const templateType = normalizeInvoiceTemplateType(prefillData);
+    const mechanicDetails = templateType === 'mechanic'
+      ? buildMechanicDetails(prefillData, aptData)
+      : null;
+
+    const euBuyer = appointmentEUProfile?.buyer || {};
+    const euVehicleReg = (appointmentEUProfile?.vehicle?.reg || '').toString().trim();
+    const euWorkSummary = (appointmentEUProfile?.work?.summary || '').toString().trim();
+    const reverseChargeNote = buildReverseChargeNote(appointmentEUProfile);
+    const baseNotes = prefillData.notes || prefillData.problemDescription || aptData.notes || aptData.problemDescription || '';
+    const mergedNotes = appendNoteOnce(baseNotes, reverseChargeNote);
+    const baseJobsSummary = prefillData.jobsSummary || aptData.jobsSummary || '';
+    const mergedJobsSummary = baseJobsSummary || euWorkSummary || '';
+    const baseCustomerName = prefillData.customerName || aptData.customerName || '';
+    const basePhone = prefillData.customerPhone || aptData.customerPhone || '';
+    const baseAddress = prefillData.address || aptData.address || '';
+    const baseEmail = prefillData.customerEmail || prefillData.email || aptData.customerEmail || aptData.email || '';
     
     const invoicePayload = {
       invoiceNumber: invoiceNumber,
@@ -232,16 +332,17 @@ export async function getOrCreateInvoiceForAppointment(appointmentId, prefillDat
       appointmentId: appointmentId,
       
       // Customer info from prefill or appointment
-      customerName: prefillData.customerName || aptData.customerName || '',
-      phone: prefillData.customerPhone || aptData.customerPhone || '',
-      address: prefillData.address || aptData.address || '',
+      customerName: baseCustomerName || euBuyer.companyName || '',
+      phone: basePhone || euBuyer.phone || '',
+      address: baseAddress || euBuyer.address || '',
       postcode: prefillData.postcode || aptData.postcode || '',
       serviceLocation: prefillData.serviceLocation || aptData.serviceLocation || '',
       contactPref: prefillData.contactPref || aptData.contactPref || '',
+      ...(baseEmail || euBuyer.email ? { customerEmail: baseEmail || euBuyer.email } : {}),
       
       // Vehicle info
-      vehicleMakeModel: prefillData.makeModel || aptData.makeModel || '',
-      regPlate: prefillData.registrationPlate || aptData.regNumber || '',
+      vehicleMakeModel: prefillData.vehicleMakeModel || prefillData.makeModel || aptData.vehicleMakeModel || aptData.makeModel || '',
+      regPlate: prefillData.registrationPlate || prefillData.regPlate || aptData.registrationPlate || aptData.regNumber || aptData.regPlate || euVehicleReg || '',
       mileage: prefillData.mileage || aptData.mileage || '',
       
       // STEP 4: Store jobs/parts in new schema
@@ -262,8 +363,12 @@ export async function getOrCreateInvoiceForAppointment(appointmentId, prefillDat
       paymentStatus,
       
       // Notes
-      notes: prefillData.notes || prefillData.problemDescription || aptData.notes || aptData.problemDescription || '',
-      jobsSummary: prefillData.jobsSummary || aptData.jobsSummary || ''
+      notes: mergedNotes,
+      jobsSummary: mergedJobsSummary,
+
+      ...(appointmentLegalProfile ? { legalProfile: appointmentLegalProfile } : {}),
+      ...(templateType === 'mechanic' ? { templateType: 'mechanic' } : {}),
+      ...(templateType === 'mechanic' && mechanicDetails ? { mechanicDetails } : {})
     };
     
     logger.info('📝 Creating invoice with payload:', invoicePayload);
@@ -515,6 +620,22 @@ export async function cleanupOrphanedInvoices() {
  * @param {string} directInvoiceId - Direct invoice ID (optional)
  * @param {string} mode - 'view' or 'edit'
  */
+/**
+ * Canonical URL navigator for invoice.html.
+ * All code that opens invoice.html MUST go through this function.
+ * Contract: invoice.html?invoiceId=<firestoreDocId>&mode=<view|edit>
+ *
+ * @param {string} invoiceId - Firestore invoice document id (required)
+ * @param {string} [mode='view'] - 'view' or 'edit'
+ */
+export function openInvoicePage(invoiceId, mode = 'view') {
+  if (!invoiceId) {
+    logger.error('openInvoicePage: invoiceId is required');
+    return;
+  }
+  window.open(`invoice.html?invoiceId=${invoiceId}&mode=${mode}`, '_blank');
+}
+
 export async function openInvoice(appointmentId = null, directInvoiceId = null, mode = 'view') {
   logger.info('📂 Opening invoice...', { appointmentId, directInvoiceId, mode });
   if (appointmentId) {

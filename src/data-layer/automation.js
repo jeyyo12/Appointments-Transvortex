@@ -14,6 +14,10 @@ import { store } from './store.js';
 
 const COMPLETED_STATUSES = new Set(['completed', 'finalized']);
 
+function getInvoiceAppointmentId(inv) {
+  return inv?.appointmentId || inv?.aptId || inv?.appointmentRef || inv?.meta?.appointmentId || null;
+}
+
 class AutomationEngine {
   constructor() {
     this.automationState = {
@@ -74,11 +78,13 @@ class AutomationEngine {
     // B) COMPLETED WITHOUT INVOICE
     const uninvoicedCompleted = [];
     const invoicedAppointmentIds = new Set();
+    const invoiceIds = new Set();
     
     // Collect all appointment IDs that have invoices (check multiple field names)
     invoices.forEach(inv => {
       if (!inv?.id || String(inv.id).startsWith('missing-')) return;
-      const linkId = inv.appointmentId;
+      invoiceIds.add(String(inv.id).trim());
+      const linkId = getInvoiceAppointmentId(inv);
       if (linkId) {
         invoicedAppointmentIds.add(String(linkId).trim());
       }
@@ -88,7 +94,12 @@ class AutomationEngine {
       if (!apt.id) return;
       const status = this.normalizeStatus(apt.status);
       
-      if (COMPLETED_STATUSES.has(status) && !invoicedAppointmentIds.has(String(apt.id).trim())) {
+      const normalizedAptId = String(apt.id).trim();
+      const linkedInvoiceId = String(apt.invoiceId || '').trim();
+      const hasLinkedInvoiceByAppointmentId = invoicedAppointmentIds.has(normalizedAptId);
+      const hasLinkedInvoiceByInvoiceId = !!(linkedInvoiceId && invoiceIds.has(linkedInvoiceId));
+
+      if (COMPLETED_STATUSES.has(status) && !hasLinkedInvoiceByAppointmentId && !hasLinkedInvoiceByInvoiceId) {
         uninvoicedCompleted.push({
           id: apt.id,
           title: apt.title || apt.name || 'Untitled',
@@ -101,6 +112,7 @@ class AutomationEngine {
     const unpaidInvoices = [];
     invoices.forEach(inv => {
       if (!inv.id) return;
+      if (String(inv.id).startsWith('missing-') || inv.missingInvoice === true) return;
       
       // Check payment status robustly (matches dashboard-metrics.js logic)
       const total = inv.total || inv.totalAmount || inv.grandTotal || inv.amount || 0;
@@ -112,7 +124,7 @@ class AutomationEngine {
       const isPaid = explicitStatus === 'paid' || paidFlag || balanceDue <= 0 || (total > 0 && paidAmount >= total);
       
       if (!isPaid) {
-        const linkId = inv.appointmentId || null;
+        const linkId = getInvoiceAppointmentId(inv) || null;
         unpaidInvoices.push({
           id: inv.id,
           appointmentId: linkId || null,

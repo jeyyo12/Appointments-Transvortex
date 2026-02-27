@@ -2862,6 +2862,33 @@ body {
     gap: 1.5rem;
 }
 
+.invoice-mode-tabs {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    background: var(--surface-dark);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 0.25rem;
+}
+
+.invoice-mode-tab {
+    border: 1px solid transparent;
+    background: transparent;
+    color: var(--text-secondary);
+    border-radius: calc(var(--radius-sm) - 2px);
+    padding: 0.45rem 0.8rem;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.invoice-mode-tab.active {
+    background: white;
+    color: var(--color-primary);
+    border-color: rgba(255, 122, 24, 0.25);
+}
+
 /* Edit Section (Details) */
 .edit-section {
     border: 1px solid var(--border);
@@ -3127,6 +3154,56 @@ body {
     }
 }
 
+@media screen and (min-width: 980px) {
+    .controls-container,
+    .invoice-container,
+    .edit-form-container {
+        max-width: 68.75rem;
+        margin-left: auto;
+        margin-right: auto;
+    }
+
+    .inv-meta {
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        column-gap: 0.75rem;
+        row-gap: 0.5rem;
+    }
+
+    .perf-grid {
+        grid-template-columns: minmax(0, 1.35fr) minmax(0, 1.15fr) minmax(0, 0.95fr);
+        column-gap: 0.85rem;
+    }
+
+    .invoice-sheet,
+    .invoice-sheet * {
+        overflow-wrap: break-word;
+        word-break: normal;
+        white-space: normal;
+    }
+
+    .inv-meta,
+    .perf-card,
+    .company-info,
+    .client-address,
+    .summary-line,
+    .sec-text,
+    .inv-thanks {
+        line-height: 1.45;
+    }
+
+    .edit-fields {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        column-gap: 1rem;
+        row-gap: 0.9rem;
+    }
+
+    .edit-field:has(textarea),
+    .edit-field:has(label[style*="font-weight:700"]),
+    .edit-field[style*="display: flex"] {
+        grid-column: 1 / -1;
+    }
+}
+
 /* ===== PRINT-ONLY LOGO CONTROL ===== */
 /* Hide logo on screen by default (respects responsive media queries) */
 .print-only-logo {
@@ -3145,6 +3222,404 @@ body {
     }
     
     .inv-logo-mobile {
+        display: none !important;
+    }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   FORMAL ACCOUNTING DOCUMENT OVERRIDES
+   Applied after all existing rules. Converts the performance-
+   garage aesthetic into a clean, print-ready accounting invoice.
+   No data logic or JS behaviour is affected.
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── Outer sheet: flat, no card shadow ── */
+.invoice-container {
+    background: #f7f8fb;
+    padding: 0 0 20px 0;
+}
+
+.invoice-sheet {
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    border: none !important;
+    max-width: 210mm;
+    margin: 0 auto;
+    background: #fff;
+}
+
+/* ── 1. HEADER: flat white, thin rule, no gradient ── */
+.inv-header {
+    background: #ffffff !important;
+    border-bottom: 1.5px solid #0f172a !important;
+    padding: 16px 20px 12px !important;
+}
+
+.company-name {
+    font-size: 22px !important;
+    font-weight: 800 !important;
+    color: #0f172a !important;
+}
+
+.company-info {
+    font-size: 12px !important;
+    color: #475569 !important;
+    gap: 10px !important;
+}
+
+.company-info .site,
+.company-info .site a {
+    color: #f97316 !important;
+    font-weight: 700 !important;
+}
+
+.inv-title {
+    font-size: 26px !important;
+    font-weight: 900 !important;
+    color: #0f172a !important;
+    letter-spacing: 4px !important;
+    text-transform: uppercase !important;
+    line-height: 1 !important;
+    display: block !important;
+    align-items: unset !important;
+    gap: unset !important;
+}
+
+/* ── 2. META ROW: subtle rule, consistent padding ── */
+.inv-meta {
+    padding: 8px 20px !important;
+    border-bottom: 1px solid #e5e7eb !important;
+    gap: 20px !important;
+}
+
+/* ── 3. BILL TO / VEHICLE / TOTALS GRID: no cards ── */
+.perf-grid {
+    gap: 0 !important;
+    margin-top: 0 !important;
+    padding: 0 !important;
+    border-bottom: 1px solid #e5e7eb !important;
+}
+
+/* Remove rounded corners + orange left accent strip */
+.perf-card {
+    border: none !important;
+    border-right: 1px solid #e5e7eb !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    padding: 14px 16px !important;
+    background: #ffffff !important;
+}
+
+.perf-card:last-child {
+    border-right: none !important;
+}
+
+.perf-card::before {
+    display: none !important;
+}
+
+/* Bill To / Vehicle section labels */
+.bill-card h4,
+.vehicle-card h4 {
+    font-size: 10px !important;
+    letter-spacing: 1.5px !important;
+    text-transform: uppercase !important;
+    color: #6b7280 !important;
+    font-weight: 700 !important;
+    margin: 0 0 6px 0 !important;
+    border-bottom: 1px solid #f3f4f6 !important;
+    padding-bottom: 4px !important;
+}
+
+.client-name,
+.vehicle-make {
+    font-size: 16px !important;
+    font-weight: 700 !important;
+    color: #0f172a !important;
+}
+
+.client-address,
+.mileage {
+    font-size: 12.5px !important;
+    color: #374151 !important;
+}
+
+/* ── 4. TOTALS SECTION: white background, right-aligned, no dark box ── */
+.summary-card {
+    background: #ffffff !important;
+    color: #0f172a !important;
+    border-left: 1px solid #e5e7eb !important;
+}
+
+/* Remove the dark total box — just show bold text right-aligned */
+.total-box {
+    background: transparent !important;
+    border: none !important;
+    border-bottom: 1px solid #e5e7eb !important;
+    border-radius: 0 !important;
+    padding: 0 0 10px 0 !important;
+    margin-bottom: 10px !important;
+    text-align: right !important;
+    width: auto !important;
+    max-width: none !important;
+    margin-left: 0 !important;
+}
+
+.total-label {
+    font-size: 10px !important;
+    letter-spacing: 1.5px !important;
+    text-transform: uppercase !important;
+    color: #6b7280 !important;
+    font-weight: 700 !important;
+    display: block !important;
+}
+
+.total-value {
+    font-size: 26px !important;
+    font-weight: 900 !important;
+    color: #0f172a !important;
+    display: block !important;
+    margin-top: 2px !important;
+}
+
+.summary-line {
+    font-size: 13px !important;
+    color: #374151 !important;
+    margin-bottom: 5px !important;
+    justify-content: space-between !important;
+}
+
+.summary-line span:last-child {
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+}
+
+.summary-line.paid {
+    color: #15803d !important;
+    font-weight: 700 !important;
+}
+
+.summary-line.balance {
+    color: #dc2626 !important;
+    font-weight: 800 !important;
+    font-size: 14px !important;
+    border-top: 1px solid #e5e7eb;
+    padding-top: 5px;
+    margin-top: 3px;
+}
+
+/* ── 5. SERVICES TABLE: light header, minimal borders ── */
+.inv-lines {
+    padding: 0 !important;
+    border-bottom: 1px solid #e5e7eb !important;
+}
+
+.inv-table {
+    font-size: 13px !important;
+}
+
+/* Light grey header — not dark */
+.inv-table thead {
+    background: #f8fafc !important;
+    color: #374151 !important;
+}
+
+.inv-table th {
+    color: #374151 !important;
+    font-size: 10.5px !important;
+    font-weight: 700 !important;
+    padding: 7px 10px !important;
+    border-bottom: 1.5px solid #d1d5db !important;
+    letter-spacing: 0.08em !important;
+}
+
+.inv-table td {
+    padding: 7px 10px !important;
+    border-bottom: 1px solid #f3f4f6 !important;
+    font-size: 13px !important;
+    color: #1e293b !important;
+}
+
+.inv-table tbody tr:last-child td {
+    border-bottom: none !important;
+}
+
+.inv-table tbody tr:nth-child(even) {
+    background: #f9fafb !important;
+}
+
+/* ── 6. BOTTOM SECTION: text-based, no card containers ── */
+.inv-bottom {
+    padding: 14px 16px 10px !important;
+    border-top: none !important;
+    gap: 0 !important;
+    display: block !important;
+}
+
+/* Remove card borders/shadows from Work Summary + footer grid */
+.inv-bottom .card {
+    border: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    background: transparent !important;
+    padding: 0 0 10px 0 !important;
+}
+
+.inv-work {
+    margin-bottom: 8px !important;
+}
+
+.inv-footer-grid {
+    border-top: 1px solid #e5e7eb !important;
+    padding: 10px 0 0 0 !important;
+    gap: 12px !important;
+}
+
+.sec-title {
+    font-size: 9.5px !important;
+    font-weight: 700 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.12em !important;
+    color: #6b7280 !important;
+    margin-bottom: 4px !important;
+}
+
+.sec-text {
+    font-size: 12.5px !important;
+    color: #374151 !important;
+    line-height: 1.45 !important;
+}
+
+.inv-thanks {
+    border-top: 1px solid #e5e7eb !important;
+    padding-top: 8px !important;
+    margin-top: 8px !important;
+    font-size: 11.5px !important;
+    color: #6b7280 !important;
+    text-align: center !important;
+}
+
+/* ── 7. IMPROVED PRINT STYLES ── */
+@media print {
+    /* Proper A4 margins for a formal document */
+    @page {
+        size: A4 portrait;
+        margin: 14mm 15mm 14mm 15mm;
+    }
+
+    html, body {
+        width: auto !important;
+        height: auto !important;
+        overflow: visible !important;
+        background: #fff !important;
+    }
+
+    .invoice-container {
+        padding: 0 !important;
+        background: #fff !important;
+    }
+
+    .invoice-sheet {
+        width: 100% !important;
+        height: auto !important;
+        min-height: 0 !important;
+        padding: 0 !important;
+        border: none !important;
+        box-shadow: none !important;
+        /* Allow content to flow onto multiple pages if needed */
+        display: block !important;
+        overflow: visible !important;
+    }
+
+    /* Section page-break control */
+    .inv-header,
+    .inv-meta,
+    .perf-grid,
+    .inv-lines,
+    .inv-bottom {
+        page-break-inside: avoid;
+        break-inside: avoid;
+    }
+
+    .inv-lines {
+        page-break-before: auto;
+        break-before: auto;
+    }
+
+    /* Formal document: INVOICE title stays dark on print */
+    .inv-title {
+        color: #0f172a !important;
+    }
+
+    /* Table header light on print */
+    .inv-table thead {
+        background: #f0f0f0 !important;
+        color: #000 !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+
+    .inv-table th {
+        color: #000 !important;
+        background: #f0f0f0 !important;
+    }
+
+    .inv-table tbody tr:nth-child(even) {
+        background: #f9f9f9 !important;
+    }
+
+    /* Remove total-box dark background on print */
+    .total-box {
+        background: transparent !important;
+        border: none !important;
+        border-bottom: 0.3mm solid #d1d5db !important;
+    }
+
+    .total-value {
+        color: #0f172a !important;
+    }
+
+    .summary-card {
+        background: #fff !important;
+        color: #0f172a !important;
+    }
+
+    .summary-line {
+        color: #374151 !important;
+    }
+
+    /* Orange brand accent on site link only */
+    .company-info .site,
+    .company-info .site a {
+        color: #f97316 !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+
+    /* perf-card borders on print */
+    .perf-card {
+        border-right: 0.3mm solid #d1d5db !important;
+        padding: 10px 12px !important;
+    }
+
+    .perf-card:last-child {
+        border-right: none !important;
+    }
+
+    .perf-card::before {
+        display: none !important;
+    }
+
+    /* Hide UI elements */
+    .controls-bar,
+    .edit-mode-overlay,
+    .loading-overlay,
+    .modal,
+    .modal-backdrop,
+    .no-print,
+    .print-hint,
+    #paymentStatusBadge,
+    .payment-status-badge {
         display: none !important;
     }
 }

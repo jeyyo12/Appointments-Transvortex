@@ -10,13 +10,13 @@
   "background_color": "#FFFFFF",
   "icons": [
     {
-      "src": "Logo/icon-192.png",
+      "src": "./Logo/icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "maskable any"
     },
     {
-      "src": "Logo/icon-512.png",
+      "src": "./Logo/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable any"

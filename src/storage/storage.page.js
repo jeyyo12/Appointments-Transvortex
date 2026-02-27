@@ -9,6 +9,7 @@ import { setupSearchAndFilterListeners, handleRefreshInvoicesClick, handleCleanu
 import { createLogger } from '../shared/logger.js';
 import { byId } from '../shared/dom.js';
 import { setState } from '../shared/state.js';
+import { checkIsAdmin } from '../firebase/firebase.js';
 
 const logger = createLogger('StoragePage');
 
@@ -22,10 +23,36 @@ function hasDataLayerInvoices() {
   return !!(store && store.invoicesById instanceof Map);
 }
 
+function bindStoreInvoicePipeline(initState) {
+  const store = getDataLayerStore();
+  if (!store || typeof store.subscribe !== 'function') return false;
+
+  if (typeof initState.storageInvoicesUnsub === 'function') return true;
+
+  if (store.dataReady || (store.invoicesById instanceof Map && store.invoicesById.size > 0)) {
+    setState('storageInvoicesLoaded', true);
+  }
+
+  initState.storageInvoicesUnsub = store.subscribe((event) => {
+    if (event.type !== 'invoiceChanged' && event.type !== 'dataReady') return;
+    if (event.type === 'dataReady' || store.dataReady || (store.invoicesById instanceof Map && store.invoicesById.size > 0)) {
+      setState('storageInvoicesLoaded', true);
+    }
+    filterInvoices();
+  });
+
+  filterInvoices();
+  return true;
+}
+
 /**
  * Initialize invoices storage page
  */
 export function initInvoicesStorage() {
+  if (typeof window !== 'undefined') {
+    window.__USE_MODULAR_STORAGE__ = true;
+  }
+
   const initState = typeof window !== 'undefined'
     ? (window.__tvInit = window.__tvInit || {})
     : {};
@@ -53,31 +80,38 @@ export function initInvoicesStorage() {
 
     // Setup cleanup duplicates button
     const cleanupBtn = byId('cleanupInvoicesBtn');
-    if (cleanupBtn && !cleanupBtn.dataset.tvBoundCleanup) {
-      cleanupBtn.addEventListener('click', handleCleanupDuplicatesClick);
-      cleanupBtn.dataset.tvBoundCleanup = '1';
+    if (cleanupBtn) {
+      if (!checkIsAdmin()) {
+        cleanupBtn.style.display = 'none';
+      } else if (!cleanupBtn.dataset.tvBoundCleanup) {
+        cleanupBtn.addEventListener('click', handleCleanupDuplicatesClick);
+        cleanupBtn.dataset.tvBoundCleanup = '1';
+      }
     }
 
-    // Single source of truth: use data-layer store when available
-    if (hasDataLayerInvoices()) {
-      const store = getDataLayerStore();
-      if ((store?.invoicesById instanceof Map) && store.invoicesById.size > 0) {
-        setState('storageInvoicesLoaded', true);
+    // Single source of truth: prefer data-layer store and avoid running both pipelines at once
+    if (hasDataLayerInvoices() && bindStoreInvoicePipeline(initState)) {
+      if (initState.storageFallbackActive) {
+        stopInvoicesListener();
+        initState.storageFallbackActive = false;
       }
-      if (store && typeof store.subscribe === 'function' && !initState.storageInvoicesUnsub) {
-        initState.storageInvoicesUnsub = store.subscribe((event) => {
-          if (event.type === 'invoiceChanged' || event.type === 'dataReady') {
-            if (event.type === 'dataReady') {
-              setState('storageInvoicesLoaded', true);
-            }
-            filterInvoices();
-          }
-        });
-      }
-      filterInvoices();
     } else {
-      // Fallback only when data-layer is unavailable
+      // Temporary fallback only until data-layer store is ready
       startInvoicesListener(filterInvoices);
+      initState.storageFallbackActive = true;
+
+      if (!initState.storagePipelineWatcher) {
+        initState.storagePipelineWatcher = setInterval(() => {
+          if (bindStoreInvoicePipeline(initState)) {
+            if (initState.storageFallbackActive) {
+              stopInvoicesListener();
+              initState.storageFallbackActive = false;
+            }
+            clearInterval(initState.storagePipelineWatcher);
+            initState.storagePipelineWatcher = null;
+          }
+        }, 500);
+      }
     }
     initState.storageInitDone = true;
 
@@ -108,6 +142,11 @@ export function cleanupInvoicesStorage() {
       initState.storageInvoicesUnsub();
       initState.storageInvoicesUnsub = null;
     }
+    if (initState.storagePipelineWatcher) {
+      clearInterval(initState.storagePipelineWatcher);
+      initState.storagePipelineWatcher = null;
+    }
+    initState.storageFallbackActive = false;
   }
   stopInvoicesListener();
 }

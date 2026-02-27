@@ -19,6 +19,7 @@
     <link rel="apple-touch-icon" sizes="192x192" href="Logo/apple-touch-icon.png">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <link rel="stylesheet" href="styles/tailwind-output.css">
     <link rel="stylesheet" href="styles.css">
     <link rel="stylesheet" href="styles/design-system.css">
     <link rel="stylesheet" href="styles/buttons.css">
@@ -27,10 +28,12 @@
     <link rel="stylesheet" href="styles/appointment-form.css">
     <link rel="stylesheet" href="styles/enterprise-dashboard.css">
     <link rel="stylesheet" href="styles/premium-ui.css">
+    <link rel="stylesheet" href="styles/premium-v2.css">
     <link rel="stylesheet" href="styles/automation.css">
     <link rel="stylesheet" href="styles/appointments-saas.css">
     <link rel="stylesheet" href="styles/appointments-toolbar.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="styles/tv-mobile.css">
     <style>
         /* HEADER STYLING CONSOLIDATED IN premium-ui.css */
 
@@ -1205,7 +1208,7 @@
         }
 
         .month-summary::before {
-            content: '▶';
+            content: 'â–¶';
             display: inline-block;
             margin-right: 8px;
             font-size: clamp(10px, 2vw, 11px);
@@ -1409,25 +1412,25 @@
             color: rgba(5, 115, 40, 0.95);
         }
         
-        .status-canceled {
+        .app-card__status-badge.status-canceled {
             background: rgba(239, 68, 68, 0.12);
             border-color: rgba(239, 68, 68, 0.35);
             color: rgba(127, 29, 29, 0.95);
         }
         
-        .status-overdue {
+        .app-card__status-badge.status-overdue {
             background: rgba(245, 158, 11, 0.14);
             border-color: rgba(245, 158, 11, 0.4);
             color: rgba(120, 53, 15, 0.95);
         }
         
-        .status-soon {
+        .app-card__status-badge.status-soon {
             background: rgba(249, 115, 22, 0.12);
             border-color: rgba(249, 115, 22, 0.35);
             color: rgba(124, 45, 18, 0.95);
         }
         
-        .status-scheduled {
+        .app-card__status-badge.status-scheduled {
             background: rgba(107, 114, 128, 0.1);
             border-color: rgba(107, 114, 128, 0.3);
             color: rgba(55, 65, 81, 0.95);
@@ -1448,6 +1451,7 @@
 
         .app-card.status-completed {
             border-left: 4px solid #10b981;
+            background: linear-gradient(180deg, rgba(16, 185, 129, 0.05) 0%, #ffffff 44%, #ffffff 100%);
         }
 
         .app-card.status-canceled {
@@ -1577,7 +1581,9 @@
         
         /* Vehicle info row: plate + make/model */
         .app-card__vehicle {
-            display: none;
+            display: flex;
+            align-items: center;
+            gap: 6px;
         }
         .app-card__plate {
             display: none;
@@ -1727,25 +1733,25 @@
             color: rgba(5, 150, 105, 0.95);
         }
         
-        .status-canceled {
+        .app-card__status-badge.status-canceled {
             background: rgba(239, 68, 68, 0.15);
             border: 1px solid rgba(239, 68, 68, 0.3);
             color: rgba(185, 28, 28, 0.95);
         }
         
-        .status-overdue {
+        .app-card__status-badge.status-overdue {
             background: rgba(245, 158, 11, 0.15);
             border: 1px solid rgba(245, 158, 11, 0.35);
             color: rgba(180, 83, 9, 0.95);
         }
         
-        .status-soon {
+        .app-card__status-badge.status-soon {
             background: rgba(59, 130, 246, 0.15);
             border: 1px solid rgba(59, 130, 246, 0.3);
             color: rgba(29, 78, 216, 0.95);
         }
         
-        .status-scheduled {
+        .app-card__status-badge.status-scheduled {
             background: rgba(107, 114, 128, 0.12);
             border: 1px solid rgba(107, 114, 128, 0.25);
             color: rgba(55, 65, 81, 0.95);
@@ -2415,7 +2421,7 @@
         }
 
         .collapsible > summary::before {
-            content: "▸";
+            content: "â–¸";
             margin-right: 6px;
             transition: transform 0.2s ease;
         }
@@ -3197,6 +3203,384 @@
                 grid-template-columns: repeat(5, minmax(0, 1fr));
             }
         }
+
+        /* ================================================= */
+        /* MOBILE SAAS DASHBOARD REFINEMENT (UI ONLY) */
+        /* ================================================= */
+
+        :root {
+            --saas-surface: #ffffff;
+            --saas-shadow-1: 0 8px 22px rgba(15, 23, 42, 0.08);
+            --saas-shadow-2: 0 12px 28px rgba(15, 23, 42, 0.12);
+            --saas-radius-card: 16px;
+            --saas-accent-scheduled: #3b82f6;
+            --saas-accent-confirmed: #10b981;
+            --saas-accent-onroute: #f59e0b;
+            --saas-accent-completed: #22c55e;
+            --saas-accent-overdue: #ef4444;
+            --saas-accent-cancelled: #9ca3af;
+        }
+
+        #tvWorkspacePanel .app-card {
+            position: relative;
+            border-radius: var(--saas-radius-card);
+            border: 1px solid rgba(15, 23, 42, 0.08);
+            background: var(--saas-surface) !important;
+            box-shadow: var(--saas-shadow-1);
+            transition: transform 0.18s ease, box-shadow 0.24s ease, border-color 0.2s ease;
+            overflow: hidden;
+        }
+
+        #tvWorkspacePanel .app-card::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 4px;
+            background: var(--saas-accent-scheduled);
+            opacity: 0.9;
+        }
+
+        #tvWorkspacePanel .app-card:hover {
+            transform: translateY(-1px);
+            box-shadow: var(--saas-shadow-2);
+        }
+
+        #tvWorkspacePanel .app-card:active {
+            transform: scale(0.98);
+        }
+
+        #tvWorkspacePanel .app-card.status-scheduled::before { background: var(--saas-accent-scheduled); }
+        #tvWorkspacePanel .app-card.status-confirmed::before { background: var(--saas-accent-confirmed); }
+        #tvWorkspacePanel .app-card.status-on-route::before,
+        #tvWorkspacePanel .app-card.status-onroute::before,
+        #tvWorkspacePanel .app-card.status-soon::before { background: var(--saas-accent-onroute); }
+        #tvWorkspacePanel .app-card.status-completed::before { background: #34d399; }
+        #tvWorkspacePanel .app-card.status-overdue::before { background: var(--saas-accent-overdue); }
+        #tvWorkspacePanel .app-card.status-cancelled::before,
+        #tvWorkspacePanel .app-card.status-canceled::before { background: var(--saas-accent-cancelled); }
+
+        #tvWorkspacePanel .app-card.status-completed {
+            background: #ffffff !important;
+            border-color: rgba(34, 197, 94, 0.26);
+        }
+
+        #tvWorkspacePanel .app-card__customer {
+            gap: 10px;
+            font-size: clamp(14px, 3.2vw, 16px);
+            font-weight: 700;
+            letter-spacing: 0.01em;
+        }
+
+        #tvWorkspacePanel .app-card__customer i {
+            width: 30px;
+            height: 30px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 999px;
+            background: linear-gradient(145deg, #eef2ff, #dbeafe);
+            color: #1d4ed8;
+        }
+
+        #tvWorkspacePanel .app-card__vehicle {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            border-radius: 999px;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            padding: 5px 10px;
+            font-size: clamp(11px, 2.6vw, 12px);
+            color: #334155;
+            max-width: 100%;
+        }
+
+        #tvWorkspacePanel .app-card__status-badge {
+            transition: background-color 0.25s ease, border-color 0.25s ease, color 0.25s ease;
+            min-height: 28px;
+            padding: 6px 11px;
+            font-weight: 700;
+        }
+
+        #tvWorkspacePanel .app-card__status-badge.status-scheduled {
+            background: rgba(59, 130, 246, 0.12);
+            border-color: rgba(59, 130, 246, 0.3);
+            color: #1e40af;
+        }
+
+        #tvWorkspacePanel .app-card__status-badge.status-confirmed {
+            background: rgba(16, 185, 129, 0.14);
+            border-color: rgba(16, 185, 129, 0.32);
+            color: #047857;
+        }
+
+        #tvWorkspacePanel .app-card__status-badge.status-on-route,
+        #tvWorkspacePanel .app-card__status-badge.status-onroute,
+        #tvWorkspacePanel .app-card__status-badge.status-soon {
+            background: rgba(245, 158, 11, 0.16);
+            border-color: rgba(245, 158, 11, 0.36);
+            color: #92400e;
+        }
+
+        #tvWorkspacePanel .app-card__status-badge.status-completed {
+            background: rgba(34, 197, 94, 0.11);
+            border-color: rgba(34, 197, 94, 0.28);
+            color: #166534;
+        }
+
+        #tvWorkspacePanel .app-card__status-badge.status-overdue {
+            background: rgba(239, 68, 68, 0.13);
+            border-color: rgba(239, 68, 68, 0.34);
+            color: #991b1b;
+        }
+
+        #tvWorkspacePanel .app-card__status-badge.status-cancelled,
+        #tvWorkspacePanel .app-card__status-badge.status-canceled {
+            background: rgba(148, 163, 184, 0.16);
+            border-color: rgba(148, 163, 184, 0.35);
+            color: #475569;
+        }
+
+        #tvWorkspacePanel .app-card__payment-summary {
+            border-radius: 12px;
+            border-left: 2px solid rgba(37, 99, 235, 0.22);
+            background: linear-gradient(145deg, #f8fbff, #f2f7ff);
+        }
+
+        #tvWorkspacePanel .app-card__actions {
+            gap: 10px;
+        }
+
+        #tvWorkspacePanel .action-group,
+        #tvWorkspacePanel .action-group--primary,
+        #tvWorkspacePanel .action-group--main,
+        #tvWorkspacePanel .action-group--secondary {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        #tvWorkspacePanel .action-btn {
+            min-height: 44px;
+            border-radius: 12px;
+            position: relative;
+            overflow: hidden;
+            transition: transform 0.16s ease, filter 0.18s ease, background-color 0.2s ease;
+        }
+
+        #tvWorkspacePanel .action-btn::after {
+            content: '';
+            position: absolute;
+            width: 120%;
+            height: 120%;
+            border-radius: 50%;
+            left: -10%;
+            top: -10%;
+            background: radial-gradient(circle, rgba(255, 255, 255, 0.32) 0%, rgba(255, 255, 255, 0) 60%);
+            transform: scale(0);
+            transition: transform 0.24s ease;
+            pointer-events: none;
+        }
+
+        #tvWorkspacePanel .action-btn:hover::after,
+        #tvWorkspacePanel .action-btn:focus-visible::after {
+            transform: scale(1);
+        }
+
+        #tvWorkspacePanel .action-btn:active {
+            transform: scale(0.98);
+        }
+
+        #tvWorkspacePanel .action-btn[disabled],
+        #tvWorkspacePanel .action-btn[aria-disabled="true"] {
+            display: none !important;
+        }
+
+        #workspaceToolbar .apts-search {
+            position: relative;
+            display: flex;
+            align-items: center;
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 14px;
+            min-height: 46px;
+            box-shadow: 0 1px 4px rgba(15, 23, 42, 0.06);
+            padding: 0 42px 0 42px;
+        }
+
+        #workspaceToolbar .apts-search__input {
+            width: 100%;
+            border: 0;
+            background: transparent;
+            outline: 0;
+            font-size: 14px;
+            line-height: 1.3;
+            color: #0f172a;
+        }
+
+        #workspaceToolbar .apts-search__icon {
+            position: absolute;
+            left: 14px;
+            color: #64748b;
+            pointer-events: none;
+            font-size: 14px;
+        }
+
+        #workspaceToolbar .apts-search::after {
+            content: '\00d7';
+            position: absolute;
+            right: 14px;
+            color: #94a3b8;
+            font-size: 16px;
+            line-height: 1;
+            opacity: 0.9;
+            pointer-events: none;
+        }
+
+        #authBar .tvHeaderKpis .indicator-badge,
+        #authBar .tvHeaderKpis .kpiChip {
+            border-radius: 16px !important;
+            min-height: 74px !important;
+            align-items: center !important;
+            justify-content: flex-start !important;
+            box-shadow: 0 6px 16px rgba(15, 23, 42, 0.09);
+            border: 1px solid rgba(15, 23, 42, 0.06) !important;
+            background: linear-gradient(155deg, #ffffff 0%, #f8fafc 100%) !important;
+            transition: transform 0.18s ease, box-shadow 0.2s ease;
+        }
+
+        #authBar .tvHeaderKpis .indicator-badge:hover,
+        #authBar .tvHeaderKpis .kpiChip:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 10px 24px rgba(15, 23, 42, 0.12);
+        }
+
+        #authBar .tvHeaderKpis .indicator-label {
+            font-size: clamp(11px, 2.4vw, 13px) !important;
+            color: #475569 !important;
+            font-weight: 600 !important;
+        }
+
+        #authBar .tvHeaderKpis .indicator-value {
+            font-size: clamp(18px, 4.4vw, 24px) !important;
+            color: #0f172a !important;
+            font-weight: 800 !important;
+            letter-spacing: -0.02em;
+        }
+
+
+        @media (max-width: 600px) {
+            .tab-navigation {
+                position: fixed;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                z-index: 80;
+                margin: 0;
+                padding: 8px max(10px, env(safe-area-inset-right)) calc(8px + env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-left));
+                border-bottom: 0;
+                border-top: 1px solid rgba(148, 163, 184, 0.32);
+                background: rgba(255, 255, 255, 0.92);
+                backdrop-filter: blur(14px);
+                display: grid;
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+                gap: 8px;
+                overflow: visible;
+            }
+
+            .tab-btn {
+                min-height: 52px;
+                border-radius: 12px;
+                padding: 8px 6px;
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+                gap: 4px;
+                text-align: center;
+                color: #64748b;
+                font-size: 11px;
+                font-weight: 600;
+            }
+
+            .tab-btn i {
+                font-size: 18px;
+                line-height: 1;
+            }
+
+            .tab-btn.active {
+                color: #FF7A18;
+                background: rgba(255, 122, 24, 0.12);
+            }
+
+            .tab-btn.active::after {
+                display: none;
+            }
+
+            main,
+            #appointmentsTab {
+                padding-bottom: calc(140px + env(safe-area-inset-bottom));
+            }
+
+            .tvDashboard--workspaceOptimized {
+                grid-template-columns: 1fr !important;
+                gap: 12px !important;
+            }
+
+            #tvStats {
+                grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+                gap: 10px !important;
+            }
+
+            #tvStats .tvStatCard {
+                min-height: 112px !important;
+                border-radius: 16px;
+                box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
+                background: linear-gradient(160deg, #ffffff 0%, #f8fafc 100%);
+            }
+
+            #tvWorkspacePanel .action-group,
+            #tvWorkspacePanel .action-group--primary,
+            #tvWorkspacePanel .action-group--main,
+            #tvWorkspacePanel .action-group--secondary {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+        }
+
+        /* Stable scaling lock for 100â€“600px: preserve one mobile structure */
+        @media (min-width: 100px) and (max-width: 600px) {
+            html {
+                font-size: clamp(14px, 3.8vw, 16px);
+            }
+
+            #tvWorkspacePanel .app-card,
+            #tvWorkspacePanel .action-btn,
+            #workspaceToolbar .apts-search,
+            .tab-btn {
+                border-radius: 14px;
+            }
+        }
+
+        /* Header lock: keep 1023 baseline structure through 1400 */
+        @media (min-width: 1023px) and (max-width: 1400px) {
+            #authBar,
+            #authBar.tvHeader,
+            #authBar.firebase-auth-bar.tvHeader {
+                grid-template-columns: minmax(0, 1fr);
+                grid-template-areas:
+                    "top"
+                    "kpis";
+            }
+
+            #authBar .tvHeaderTop {
+                grid-template-columns: auto 1fr auto !important;
+            }
+
+            #authBar .tvHeaderKpis,
+            #authBar .header-indicators,
+            #authBar .tvHeaderKpis .header-indicators {
+                grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+            }
+        }
     </style>
 </head>
 <body>
@@ -3225,6 +3609,12 @@
                 <span class="indicator-label onlineText">Online</span>
             </div>
 
+            <!-- Bell Notification Button -->
+            <button id="tvBellBtn" class="tv-bell-btn" onclick="toggleNotifDrawer()" aria-label="Notifications" title="Alerts">
+                <i class="fas fa-bell"></i>
+                <span id="tvBellBadge" class="tv-bell-badge" style="display:none;">0</span>
+            </button>
+
             <!-- RIGHT: Auth Button -->
             <div class="auth-right">
                 <button id="authButton" class="btn-auth-small hdrSignout signOutBtn topbarSignOut" onclick="handleAuthToggle()" aria-label="Sign Out">
@@ -3234,32 +3624,16 @@
         </div>
     </div>
 
-    <div class="headerKpis hdrKpis tvHeaderKpis" aria-label="Live KPI quick filters">
-        <div class="header-indicators">
-            <!-- Today Jobs (hidden if 0) - Clickable -->
-            <button class="indicator-badge indicator-badge--action kpiChip kpiToday" id="tvHeaderToday" style="display:none;">
-                <span class="indicator-label">Today</span>
-                <span class="indicator-value">0</span>
-            </button>
+</div>
 
-            <!-- Overdue (hidden if 0) - Clickable -->
-            <button class="indicator-badge indicator-badge--action indicator-badge--warning kpiChip kpiOverdue" id="tvHeaderOverdue" style="display:none;">
-                <span class="indicator-label">Overdue</span>
-                <span class="indicator-value">0</span>
-            </button>
-
-            <!-- Unpaid Invoices (hidden if 0) - Clickable -->
-            <button class="indicator-badge indicator-badge--action indicator-badge--unpaid kpiChip kpiUnpaid" id="tvHeaderUnpaid" style="display:none;">
-                <span class="indicator-label">Unpaid</span>
-                <span class="indicator-value">0</span>
-            </button>
-
-            <!-- Week Revenue (hidden if £0) - Clickable -->
-            <button class="indicator-badge indicator-badge--action indicator-badge--success kpiChip kpiWeek" id="tvHeaderWeekRevenue" style="display:none;">
-                <span class="indicator-label">Week Revenue</span>
-                <span class="indicator-value">£0.00</span>
-            </button>
-        </div>
+<!-- Notifications Drawer (bell popover) -->
+<div id="tvNotifDrawer" class="tv-notif-drawer" role="dialog" aria-modal="false" aria-label="Alerts">
+    <div class="tv-notif-drawer__header">
+        <span class="tv-notif-drawer__title"><i class="fas fa-bell"></i> Alerts</span>
+        <button class="tv-notif-drawer__close" data-notif-close aria-label="Close alerts">×</button>
+    </div>
+    <div id="tvNotifBody" class="tv-notif-drawer__body">
+        <div class="tv-notif-empty"><i class="fas fa-check-circle"></i><span>All clear</span></div>
     </div>
 </div>
 
@@ -3284,15 +3658,18 @@
                 <!-- Two-column layout: Form + List -->
                 <div class="tvDashboard tvDashboard--twocol tvDashboard--workspaceOptimized">
                     <!-- LEFT: Add Appointment Form -->
-                    <section id="addAppointmentSection" class="tvCard tvCard--compact tvCard--accent tvCard--sticky" data-admin-only>
+                    <section id="addAppointmentSection" class="tvCard tvCard--compact tvCard--accent tvCard--sticky tv-apt-drawer" data-admin-only>
                         <div class="tvCardHeader">
                             <div>
                                 <h2><i class="fas fa-calendar-plus"></i> <span data-i18n="Adauga Programare Noua">Add New Appointment</span></h2>
                                 <p data-i18n="formSubtitle">Fill out the form to schedule a new repair</p>
                             </div>
+                            <button class="tv-apt-drawer__close" onclick="tvAptDrawerClose()" aria-label="Close form" title="Close form">
+                                <i class="fas fa-times"></i>
+                            </button>
                         </div>
                         
-                        <form id="appointmentForm" class="appt-form tvMode tvMode--quick">
+                        <form id="appointmentForm" class="appt-form">
                             <!-- Edit Mode Banner -->
                             <div id="editModeBanner" class="edit-mode-banner" style="display: none;">
                                 <p><i class="fas fa-edit"></i> <span id="editingAppointmentText">Editing appointment</span></p>
@@ -3301,12 +3678,13 @@
                                 </button>
                             </div>
 
-                            <div class="tvModeToggle" role="group" aria-label="Entry mode">
-                                <button type="button" class="tvModeBtn tvModeBtn--active" data-mode="quick">Quick</button>
-                                <button type="button" class="tvModeBtn" data-mode="full">Full invoice</button>
+                            <div id="apptFormTabs" class="appt-form-tabs" role="tablist" aria-label="Add appointment tabs">
+                                <button type="button" class="appt-form-tab active" data-appt-tab="appointment" aria-selected="true">Appointment</button>
+                                <button type="button" class="appt-form-tab" data-appt-tab="invoice-ro" aria-selected="false">EU Company (RO)</button>
                             </div>
 
                             <!-- Grid Layout -->
+                            <div id="apptTabAppointment" class="appt-form-panel active" role="tabpanel">
                             <div class="appt-form__grid">
                                 <!-- Client Info Card -->
                                 <section class="card appt-card">
@@ -3362,7 +3740,7 @@
                                                     id="appointmentTime" 
                                                     type="text" 
                                                     readonly 
-                                                    placeholder="Selectează ora" 
+                                                    placeholder="SelecteazÄƒ ora" 
                                                     autocomplete="off" 
                                                     class="appt-input"
                                                 />
@@ -3402,7 +3780,7 @@
                                                 />
                                             </div>
                                         </div>
-                                        <div class="field-row two tvOptionalField">
+                                        <div class="field-row tvOptionalField">
                                             <div>
                                                 <label for="mileage" class="appt-label">Mileage (optional)</label>
                                                 <input 
@@ -3416,23 +3794,14 @@
                                                 />
                                                 <div class="field-hint" id="mileage-hint">Enter miles (numbers only)</div>
                                             </div>
-                                            <div>
-                                                <label for="vehicleTimeQuick" class="appt-label">Time (optional)</label>
-                                                <input 
-                                                    type="time" 
-                                                    id="vehicleTimeQuick" 
-                                                    name="vehicleTimeQuick" 
-                                                    class="appt-input"
-                                                    autocomplete="off"
-                                                />
-                                            </div>
                                         </div>
+                                        <!-- vehicleTimeQuick removed â€” canonical time is set via the "Ora" TimePicker above -->
                                     </div>
                                 </section>
 
                                 <!-- Location Card -->
                                 <section class="card appt-card">
-                                    <h3><i class="fas fa-map-marker-alt"></i> Locație</h3>
+                                    <h3><i class="fas fa-map-marker-alt"></i> LocaÈ›ie</h3>
                                     <div class="tvFormGrid">
                                         <div class="field-row two appt-location-row">
                                             <div>
@@ -3465,22 +3834,22 @@
 
                                         <!-- Client Address Collapsible -->
                                         <details id="clientAddressSection" class="collapsible tvOptionalBlock">
-                                            <summary>Adresă Client (opțional)</summary>
+                                            <summary>AdresÄƒ Client (opÈ›ional)</summary>
                                             <div class="collapsible-content">
                                                 <div class="field-row two">
                                                     <div>
-                                                        <label for="address" class="appt-label">Adresă</label>
+                                                        <label for="address" class="appt-label">AdresÄƒ</label>
                                                         <input 
                                                             type="text" 
                                                             id="address" 
                                                             name="address" 
-                                                            placeholder="ex: Str. Principală nr. 10, Birmingham" 
+                                                            placeholder="ex: Str. PrincipalÄƒ nr. 10, Birmingham" 
                                                             class="appt-input"
                                                             autocomplete="street-address"
                                                         />
                                                     </div>
                                                     <div>
-                                                        <label for="postcode" class="appt-label">Cod Poștal</label>
+                                                        <label for="postcode" class="appt-label">Cod PoÈ™tal</label>
                                                         <input 
                                                             type="text" 
                                                             id="postcode" 
@@ -3561,17 +3930,17 @@
                                         <div class="tLeft">
                                             <div class="tLine">
                                                 <span>Labour</span>
-                                                <b id="labourSubtotal">£0.00</b>
+                                                <b id="labourSubtotal">Â£0.00</b>
                                             </div>
                                             <div class="tLine">
                                                 <span>Parts</span>
-                                                <b id="partsSubtotal">£0.00</b>
+                                                <b id="partsSubtotal">Â£0.00</b>
                                             </div>
                                         </div>
                                         <div class="tRight">
                                             <div class="tGrand">
                                                 <span>Subtotal</span>
-                                                <b id="combinedSubtotal">£0.00</b>
+                                                <b id="combinedSubtotal">Â£0.00</b>
                                             </div>
                                         </div>
                                     </div>
@@ -3615,6 +3984,81 @@
                                     </details>
                                 </section>
                             </div>
+                            </div>
+
+                            <div id="apptTabInvoiceRO" class="appt-form-panel" role="tabpanel">
+                                <section class="card appt-card">
+                                    <h3><i class="fas fa-building"></i> Company Billing Details (EU)</h3>
+                                    <div class="tvFormGrid">
+                                        <div class="field-row">
+                                            <div>
+                                                <label for="euReverseCharge" class="appt-label">VAT Reverse Charge (B2B EU)</label>
+                                                <input type="checkbox" id="euReverseCharge" name="euReverseCharge" class="appt-input" style="width:1rem;height:1rem;min-height:auto;padding:0;" />
+                                                <div class="field-hint">If the customer provides a valid EU VAT number, invoice can be issued with 0% VAT under reverse charge rules.</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </section>
+
+                                <section class="card appt-card">
+                                    <h3><i class="fas fa-user-tie"></i> Buyer (customer company)</h3>
+                                    <div class="tvFormGrid">
+                                        <div class="field-row two">
+                                            <div>
+                                                <label for="euBuyerCompanyName" class="appt-label">Company Name</label>
+                                                <input type="text" id="euBuyerCompanyName" class="appt-input" autocomplete="organization" />
+                                            </div>
+                                            <div>
+                                                <label for="euBuyerVatNumber" class="appt-label">VAT Number (optional)</label>
+                                                <input type="text" id="euBuyerVatNumber" class="appt-input" autocomplete="off" placeholder="RO12345678" />
+                                                <div id="euVatRecommendedHint" class="field-hint" style="display:none;">Recommended when reverse charge is enabled.</div>
+                                            </div>
+                                        </div>
+                                        <div class="field-row">
+                                            <div>
+                                                <label for="euBuyerAddress" class="appt-label">Company Address</label>
+                                                <textarea id="euBuyerAddress" class="appt-textarea" rows="3" autocomplete="street-address"></textarea>
+                                            </div>
+                                        </div>
+                                        <div class="field-row two">
+                                            <div class="tvOptionalField">
+                                                <label for="euBuyerEmail" class="appt-label">Contact email</label>
+                                                <input type="email" id="euBuyerEmail" class="appt-input" autocomplete="email" />
+                                            </div>
+                                            <div class="tvOptionalField">
+                                                <label for="euBuyerPhone" class="appt-label">Contact phone</label>
+                                                <input type="tel" id="euBuyerPhone" class="appt-input" autocomplete="tel" />
+                                            </div>
+                                        </div>
+                                    </div>
+                                </section>
+
+                                <section class="card appt-card">
+                                    <h3><i class="fas fa-car"></i> Vehicle & Work (for invoice)</h3>
+                                    <div class="tvFormGrid">
+                                        <div class="field-row">
+                                            <div>
+                                                <label for="euVehicleReg" class="appt-label">Vehicle REG</label>
+                                                <input type="text" id="euVehicleReg" class="appt-input" placeholder="AB12 CDE" autocomplete="off" />
+                                                <div class="field-hint">Shown on the invoice for identification.</div>
+                                            </div>
+                                        </div>
+                                        <div class="field-row">
+                                            <div>
+                                                <label class="appt-label">Jobs/Services</label>
+                                                <div class="field-hint" id="euJobsSummaryPreview">Jobs/Services: <span id="euJobsCountPreview">0</span> â€¢ Total: <span id="euTotalPreview">Â£0.00</span></div>
+                                            </div>
+                                        </div>
+                                        <div class="field-row">
+                                            <div class="tvOptionalField">
+                                                <label for="euWorkSummary" class="appt-label">Work summary (optional)</label>
+                                                <textarea id="euWorkSummary" class="appt-textarea" rows="3" placeholder="Brake pads replaced, inspection, road test..."></textarea>
+                                                <div class="field-hint">If empty, invoice will fallback to existing jobs summary / notes.</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </section>
+                            </div>
 
                             <!-- Sticky Action Bar -->
                             <div class="appt-form__actions">
@@ -3626,87 +4070,55 @@
                     </section>
 
                     <div class="tvWorkspaceStack" id="tvWorkspaceStack">
-                        <!-- Dashboard Summary Strip (Sticky mobile dock) -->
-                        <div class="tvSummaryStrip tvSummaryStrip--dock" id="tvSummaryStrip" style="display:none;">
-                            <span class="tvSummary__item">
-                                <i class="fas fa-clock"></i> Today: <strong id="summaryToday">0</strong>
-                            </span>
-                            <span class="tvSummary__divider">•</span>
-                            <span class="tvSummary__item">
-                                <i class="fas fa-exclamation-circle"></i> Overdue: <strong id="summaryOverdue">0</strong>
-                            </span>
-                            <span class="tvSummary__divider">•</span>
-                            <span class="tvSummary__item">
-                                <i class="fas fa-file-invoice"></i> Pending: <strong id="summaryPending">£0</strong>
-                            </span>
-                            <span class="tvSummary__divider">•</span>
-                            <span class="tvSummary__item">
-                                <i class="fas fa-chart-line"></i> Week: <strong id="summaryWeek">£0</strong>
-                            </span>
+                        <!-- Status strip: compact single-line -->
+                        <div class="tvSummaryStrip tvSummaryStrip--compact" id="tvSummaryStrip" style="display:none;">
+                            <i class="fas fa-exclamation-circle"></i>
+                            <strong id="summaryOverdue">0</strong> overdue
+                            <span class="tvSummary__dot">â€¢</span>
+                            <strong id="summaryPending">Â£0</strong> pending
+                            <span hidden id="summaryToday"></span>
+                            <span hidden id="summaryWeek"></span>
                         </div>
 
-                        <!-- Dashboard Stats - Premium KPI Cards with Active Filter -->
+                        <!-- Workspace Filter Row (compact segmented control) -->
                         <div class="tvStats" id="tvStats" style="display:none;">
-                            <div class="tvStatCard tvStatCard--workspace" data-workspace-id="all" onclick="setActiveWorkspace('all')" role="button" tabindex="0">
-                                <i class="fas fa-calendar"></i>
-                                <div class="tvStatCard__content">
-                                    <h3 id="totalAppointments">0</h3>
-                                    <p>All Jobs</p>
-                                    <span class="tvStatCard__mini" id="totalMini">Active: 0 • Completed: 0</span>
-                                </div>
+                            <div class="tv-seg-filter" role="group" aria-label="Workspace filter">
+                                <button class="tv-seg-btn tv-seg-btn--active" data-workspace-id="all" onclick="setActiveWorkspace('all')">
+                                    <span class="tv-seg-count" id="totalAppointments">0</span>
+                                    <span class="tv-seg-label">All</span>
+                                </button>
+                                <button class="tv-seg-btn" data-workspace-id="today" onclick="setActiveWorkspace('today')">
+                                    <span class="tv-seg-count" id="todayAppointments">0</span>
+                                    <span class="tv-seg-label">Today</span>
+                                </button>
+                                <button class="tv-seg-btn" data-workspace-id="completed" onclick="setActiveWorkspace('completed')">
+                                    <span class="tv-seg-count" id="completedAppointments">0</span>
+                                    <span class="tv-seg-label">Done</span>
+                                </button>
+                                <button class="tv-seg-btn" data-workspace-id="planning" onclick="setActiveWorkspace('planning')">
+                                    <span class="tv-seg-count" id="planningAppointments">0</span>
+                                    <span class="tv-seg-label">Plan</span>
+                                </button>
                             </div>
-                            <div class="tvStatCard tvStatCard--workspace" data-workspace-id="today" onclick="setActiveWorkspace('today')" role="button" tabindex="0">
-                                <i class="fas fa-calendar-day"></i>
-                                <div class="tvStatCard__content">
-                                    <h3 id="todayAppointments">0</h3>
-                                    <p>Today Focus</p>
-                                    <span class="tvStatCard__mini" id="todayMini">Overdue: 0</span>
-                                </div>
-                            </div>
-                            <div class="tvStatCard tvStatCard--workspace" data-workspace-id="completed" onclick="setActiveWorkspace('completed')" role="button" tabindex="0">
-                                <i class="fas fa-check-circle"></i>
-                                <div class="tvStatCard__content">
-                                    <h3 id="completedAppointments">0</h3>
-                                    <p>Completed & Invoices</p>
-                                    <span class="tvStatCard__mini" id="completedMini">Unpaid: £0</span>
-                                </div>
-                            </div>
-                            <div class="tvStatCard tvStatCard--workspace" data-workspace-id="planning" onclick="setActiveWorkspace('planning')" role="button" tabindex="0">
-                                <i class="fas fa-calendar-week"></i>
-                                <div class="tvStatCard__content">
-                                    <h3 id="planningAppointments">0</h3>
-                                    <p>Planning</p>
-                                    <span class="tvStatCard__mini" id="planningMini">Next in: —</span>
-                                </div>
-                            </div>
-                            <div class="tvStatCard tvStatCard--workspace" data-workspace-id="revenue" id="quickAddAppointmentCard" role="button" tabindex="0">
-                                <i class="fas fa-calendar-plus"></i>
-                                <div class="tvStatCard__content tvStatCard__cta">
-                                    <h3>Add Appointment</h3>
-                                    <p>Quick create new booking</p>
-                                </div>
-                                <div class="tvStatCard__meta" aria-hidden="true">
-                                    <h3 id="revenueCount">0</h3>
-                                    <span class="tvStatCard__mini" id="revenueMini">Week: £0</span>
-                                </div>
-                            </div>
+                            <!-- Hidden stat elements preserved for JS compatibility -->
+                            <span hidden id="totalMini"></span>
+                            <span hidden id="todayMini"></span>
+                            <span hidden id="completedMini"></span>
+                            <span hidden id="planningMini"></span>
+                            <span hidden id="revenueCount"></span>
+                            <span hidden id="revenueMini"></span>
                         </div>
 
-                        <!-- WORKSPACE PANEL: Controlled by KPI Cards -->
-                        <section class="tvCard tvCard--compact" id="tvWorkspacePanel">
-                        <div class="tvCardHeader">
-                            <div style="flex: 1; display: flex; align-items: center; gap: 12px;">
-                                <h2 id="workspacePanelTitle"><i class="fas fa-list-ul"></i> Today Focus</h2>
-                                <span class="apts-count-badge" id="workspaceCountBadge" style="font-size: 0.85rem; background: #f3f4f6; padding: 4px 8px; border-radius: 4px; color: #6b7280;">0</span>
-                            </div>
-                        </div>
-
-                        <!-- Workspace toolbar (filters/search context-specific) -->
-                        <div class="apts-toolbar" id="workspaceToolbar" style="margin-bottom: var(--tv-gap-lg);">
-                            <!-- Search -->
-                            <div class="apts-search">
-                                <input type="text" id="workspaceSearch" placeholder="Search in workspace..." class="apts-search__input">
-                                <i class="fas fa-search apts-search__icon"></i>
+                        <!-- WORKSPACE PANEL -->
+                        <section id="tvWorkspacePanel">
+                        <div class="tv-ws-header">
+                            <h2 class="tv-ws-title" id="workspacePanelTitle"><i class="fas fa-list-ul"></i> Today Focus</h2>
+                            <span hidden id="workspaceCountBadge"></span>
+                            <span hidden id="workspaceSearch"></span>
+                            <div class="tv-ws-actions">
+                                <button id="tvDensityToggle" class="tv-density-btn" title="Toggle compact/comfortable" aria-label="Toggle card density" aria-pressed="true">
+                                    <i class="fas fa-th-list"></i>
+                                </button>
                             </div>
                         </div>
 
@@ -3724,72 +4136,7 @@
                     </div>
                 </div>
 
-                <!-- ===== INVOICES STORAGE SECTION ===== -->
-                <section class="tvCard tvCard--compact tvInvoicesStorage" style="margin-top: var(--tv-gap-lg);">
-                    <div class="tvCardHeader tvInvoicesStorage__header">
-                        <div class="tvInvoicesStorage__title" style="flex: 1;">
-                            <h2><i class="fas fa-file-invoice-dollar"></i> Invoices Storage</h2>
-                            <p style="font-size: 0.9rem; color: var(--tv-text-secondary); margin-top: 0.25rem;">View and manage all created invoices</p>
-                        </div>
-                        <button id="cleanupInvoicesBtn" class="tvBtn tvBtn--secondary tvBtn--sm tvInvoicesStorage__action" title="Cleanup duplicate invoices">
-                            <i class="fas fa-broom"></i> <span class="tvHideMobile">Cleanup Duplicates</span>
-                        </button>
-                        <button id="refreshInvoicesButton" class="tvBtn tvBtn--secondary tvBtn--sm tvInvoicesStorage__action" title="Refresh invoices list">
-                            <i class="fas fa-sync-alt"></i> <span class="tvHideMobile">Refresh</span>
-                        </button>
-                    </div>
-
-                    <!-- KPI Summary -->
-                    <div class="invoice-kpi" id="invoiceKPI" style="margin-bottom: var(--tv-gap-md);">
-                        <div class="kpi-item kpi-item--unpaid">
-                            <div class="kpi-icon"><i class="fas fa-clock"></i></div>
-                            <div class="kpi-content">
-                                <div class="kpi-label">Unpaid</div>
-                                <div class="kpi-value" id="kpiUnpaid">0</div>
-                            </div>
-                        </div>
-                        <div class="kpi-item kpi-item--paid">
-                            <div class="kpi-icon"><i class="fas fa-check-circle"></i></div>
-                            <div class="kpi-content">
-                                <div class="kpi-label">Paid</div>
-                                <div class="kpi-value" id="kpiPaid">0</div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Filters -->
-                    <div class="filters-wrapper tvInvoicesStorage__filters" style="margin-bottom: var(--tv-gap-lg);">
-                        <div class="filter-group tvInvoicesStorage__filter">
-                            <label for="filterInvoicePayment"><span data-i18n="filterLabel">Filter:</span></label>
-                            <select id="filterInvoicePayment">
-                                <option value="all" selected>All</option>
-                            </select>
-                        </div>
-                        <div class="filter-group tvInvoicesStorage__filter tvInvoicesStorage__filter--search">
-                            <label for="searchInvoices"><span data-i18n="searchLabel">Search:</span></label>
-                            <input type="text" id="searchInvoices" placeholder="Invoice,or plate...">
-                        </div>
-                    </div>
-
-                    <!-- Invoices List -->
-                    <div id="invoicesList">
-                        <!-- Invoice cards will be rendered here with storage-grid wrapper -->
-                    </div>
-
-                    <div id="emptyStateInvoices" class="empty-state tvInvoicesStorage__empty" aria-live="polite">
-                        <i class="fas fa-inbox"></i>
-                        <h3>No invoices yet</h3>
-                        <p>Create your first invoice from an appointment's action menu</p>
-                        <div class="tvInvoicesStorage__emptyTips" aria-hidden="true">
-                            <span>Clear search</span>
-                            <span>Switch to Paid</span>
-                            <span>Switch to Unpaid</span>
-                        </div>
-                    </div>
-                </section>
-            </div>
-
-            <div id="scannedInvoicesTab" class="tab-content" style="display: none;">
+<div id="scannedInvoicesTab" class="tab-content" style="display: none;">
                 <section class="scanCard">
                     <div class="tvCardHeader" style="margin-bottom: 12px;">
                         <div style="flex:1;">
@@ -3832,6 +4179,63 @@
                 </section>
             </div>
 
+                <!-- ===== INVOICES STORAGE SECTION ===== -->
+                <section class="tvCard tvCard--compact tvInvoicesStorage" style="margin-top: var(--tv-gap-lg);">
+                    <div class="tvCardHeader tvInvoicesStorage__header">
+                        <div class="tvInvoicesStorage__title" style="flex: 1;">
+                            <h2><i class="fas fa-file-invoice-dollar"></i> Invoices Storage</h2>
+                            <p style="font-size: 0.9rem; color: var(--tv-text-secondary); margin-top: 0.25rem;">View and manage all created invoices</p>
+                        </div>
+                        <button id="cleanupInvoicesBtn" class="tvBtn tvBtn--secondary tvBtn--sm tvInvoicesStorage__action" title="Cleanup duplicate invoices">
+                            <i class="fas fa-broom"></i> <span class="tvHideMobile">Cleanup Duplicates</span>
+                        </button>
+                        <button id="refreshInvoicesButton" class="tvBtn tvBtn--secondary tvBtn--sm tvInvoicesStorage__action" title="Refresh invoices list">
+                            <i class="fas fa-sync-alt"></i> <span class="tvHideMobile">Refresh</span>
+                        </button>
+                    </div>
+
+                    <!-- KPI inline strip -->
+                    <div class="inv-kpi-strip" id="invoiceKPI">
+                        <i class="fas fa-clock inv-kpi-strip__icon--due"></i>
+                        <strong id="kpiUnpaid">0</strong> unpaid
+                        <span class="inv-kpi-strip__sep">·</span>
+                        <i class="fas fa-check-circle inv-kpi-strip__icon--paid"></i>
+                        <strong id="kpiPaid">0</strong> paid
+                    </div>
+
+                    <!-- Filters -->
+                    <div class="filters-wrapper tvInvoicesStorage__filters" style="margin-bottom: var(--tv-gap-lg);">
+                        <div class="filter-group tvInvoicesStorage__filter">
+                            <label for="filterInvoicePayment"><span data-i18n="filterLabel">Filter:</span></label>
+                            <select id="filterInvoicePayment">
+                                <option value="all" selected>All</option>
+                            </select>
+                        </div>
+                        <div class="filter-group tvInvoicesStorage__filter tvInvoicesStorage__filter--search">
+                            <label for="searchInvoices"><span data-i18n="searchLabel">Search:</span></label>
+                            <input type="text" id="searchInvoices" placeholder="Invoice,or plate...">
+                        </div>
+                    </div>
+
+                    <!-- Invoices List -->
+                    <div id="invoicesList">
+                        <!-- Invoice cards will be rendered here with storage-grid wrapper -->
+                    </div>
+
+                    <div id="emptyStateInvoices" class="empty-state tvInvoicesStorage__empty" aria-live="polite">
+                        <i class="fas fa-inbox"></i>
+                        <h3>No invoices yet</h3>
+                        <p>Create your first invoice from an appointment's action menu</p>
+                        <div class="tvInvoicesStorage__emptyTips" aria-hidden="true">
+                            <span>Clear search</span>
+                            <span>Switch to Paid</span>
+                            <span>Switch to Unpaid</span>
+                        </div>
+                    </div>
+                </section>
+
+            </div>
+
             <div id="accountingTab" class="tab-content" style="display: none;">
                 <section class="accountingCard">
                     <div class="tvCardHeader" style="margin-bottom: 8px;">
@@ -3853,15 +4257,15 @@
                     <div class="accountingSummaryGrid">
                         <div class="accountingMetric">
                             <div class="accountingMetric__label">Total Spend</div>
-                            <div id="accWeekSpend" class="accountingMetric__value">£0.00</div>
+                            <div id="accWeekSpend" class="accountingMetric__value">Â£0.00</div>
                         </div>
                         <div class="accountingMetric">
                             <div class="accountingMetric__label">Goods Total</div>
-                            <div id="accWeekGoods" class="accountingMetric__value">£0.00</div>
+                            <div id="accWeekGoods" class="accountingMetric__value">Â£0.00</div>
                         </div>
                         <div class="accountingMetric">
                             <div class="accountingMetric__label">VAT Total</div>
-                            <div id="accWeekVat" class="accountingMetric__value">£0.00</div>
+                            <div id="accWeekVat" class="accountingMetric__value">Â£0.00</div>
                         </div>
                         <div class="accountingMetric">
                             <div class="accountingMetric__label">Invoice Count</div>
@@ -3885,15 +4289,15 @@
                     <div class="accountingSummaryGrid">
                         <div class="accountingMetric">
                             <div class="accountingMetric__label">Total Spend</div>
-                            <div id="accMonthSpend" class="accountingMetric__value">£0.00</div>
+                            <div id="accMonthSpend" class="accountingMetric__value">Â£0.00</div>
                         </div>
                         <div class="accountingMetric">
                             <div class="accountingMetric__label">Goods Total</div>
-                            <div id="accMonthGoods" class="accountingMetric__value">£0.00</div>
+                            <div id="accMonthGoods" class="accountingMetric__value">Â£0.00</div>
                         </div>
                         <div class="accountingMetric">
                             <div class="accountingMetric__label">VAT Paid</div>
-                            <div id="accMonthVat" class="accountingMetric__value">£0.00</div>
+                            <div id="accMonthVat" class="accountingMetric__value">Â£0.00</div>
                         </div>
                         <div class="accountingMetric">
                             <div class="accountingMetric__label">Invoice Count</div>
@@ -3912,7 +4316,7 @@
                 <div class="scanReviewModal__panel">
                     <div class="scanReviewModal__header">
                         <h3 class="scanReviewModal__title">Review Extracted Data</h3>
-                        <button type="button" id="scanReviewCloseBtn" class="scanReviewModal__close" aria-label="Close">✕</button>
+                        <button type="button" id="scanReviewCloseBtn" class="scanReviewModal__close" aria-label="Close">âœ•</button>
                     </div>
 
                     <div id="scanReviewModalBody" class="scanReviewModal__body">
@@ -3970,7 +4374,7 @@
                         </div>
 
                         <div id="scanReviewItemsWarning" class="scanReviewItemsWarning" style="display:none; background:#fff3cd; border:1px solid #ffecb5; border-radius:4px; padding:12px; margin-bottom:12px; color:#856404;">
-                            <p style="margin:0;">⚠️ Items not automatically detected. Totals saved. You can add items manually or use Parse Items From Description to re-extract from OCR text.</p>
+                            <p style="margin:0;">âš ï¸ Items not automatically detected. Totals saved. You can add items manually or use Parse Items From Description to re-extract from OCR text.</p>
                         </div>
 
                         <div class="scanReviewItemsHeader">
@@ -4005,15 +4409,15 @@
         <div class="modal-header">
           <div>
             <div id="appointmentsModalTitle" class="modal-title">Appointments</div>
-            <div id="appointmentsModalSubtitle" class="modal-subtitle">Lista completă</div>
+            <div id="appointmentsModalSubtitle" class="modal-subtitle">Lista completÄƒ</div>
           </div>
-          <button class="modal-close" id="appointmentsModalClose" aria-label="Close">✕</button>
+          <button class="modal-close" id="appointmentsModalClose" aria-label="Close">âœ•</button>
         </div>
 
         <div class="modal-controls">
           <div class="input-wrap">
             <span class="input-icon"><i class="fas fa-search"></i></span>
-            <input id="modalSearch" type="text" placeholder="Caută client / mașină / adresă..." />
+            <input id="modalSearch" type="text" placeholder="CautÄƒ client / maÈ™inÄƒ / adresÄƒ..." />
           </div>
 
           <div class="input-wrap">
@@ -4058,7 +4462,7 @@
                         autocomplete="off"
                     />
                     <div class="time-type-error" id="timeTypeError"></div>
-                    <div class="time-type-hint">Acceptă: 1430, 14:30, 14.30</div>
+                    <div class="time-type-hint">AcceptÄƒ: 1430, 14:30, 14.30</div>
                 </div>
             </div>
             
@@ -4081,7 +4485,7 @@
             <div class="time-picker-footer">
                 <button type="button" class="btn-time-now">Acum</button>
                 <div class="time-picker-actions">
-                    <button type="button" class="btn-time-cancel">Anulează</button>
+                    <button type="button" class="btn-time-cancel">AnuleazÄƒ</button>
                     <button type="button" class="btn-time-ok">OK</button>
                 </div>
             </div>
@@ -4096,74 +4500,82 @@
     <!-- Legacy code (appointments + other features) -->
     <script type="module" src="./script.js?v=2026-02-18-1415"></script>
 
-    <script>
-        (function initAppointmentModeToggle() {
-            window.__tvInitFlags = window.__tvInitFlags || {};
-            if (window.__tvInitFlags.appointmentModeToggle) return;
-            window.__tvInitFlags.appointmentModeToggle = true;
+    <script type="module">
+        const params = new URLSearchParams(window.location.search);
+        const useWizardV2 = params.get('ui') === 'v2';
+        window.__TVX_USE_WIZARD_V2 = useWizardV2;
 
-            const form = document.getElementById('appointmentForm');
-            if (!form) return;
-
-            const buttons = form.querySelectorAll('.tvModeBtn');
-            if (!buttons.length) return;
-
-            const setMode = (mode) => {
-                form.classList.toggle('tvMode--quick', mode === 'quick');
-                form.classList.toggle('tvMode--full', mode === 'full');
-
-                buttons.forEach((btn) => {
-                    const active = btn.getAttribute('data-mode') === mode;
-                    btn.classList.toggle('tvModeBtn--active', active);
-                    btn.setAttribute('aria-pressed', active ? 'true' : 'false');
+        if (useWizardV2) {
+            import('./src/ui/wizard-v2/appt-wizard.js')
+                .then(({ initWizardV2, openWizard }) => {
+                    initWizardV2();
+                    window.__openWizardV2 = () => {
+                        if (typeof window.switchTab === 'function') {
+                            window.switchTab('appointments');
+                        }
+                        openWizard();
+                    };
+                    console.log('[WizardV2] Enabled via ?ui=v2');
+                })
+                .catch((err) => {
+                    console.error('[WizardV2] Failed to initialize:', err);
+                    window.__TVX_USE_WIZARD_V2 = false;
                 });
-            };
-
-            buttons.forEach((btn) => {
-                btn.addEventListener('click', () => setMode(btn.getAttribute('data-mode')));
-            });
-
-            setMode(form.classList.contains('tvMode--full') ? 'full' : 'quick');
-        })();
+        }
     </script>
 
-    <script>
-        (function initQuickAddAppointmentCTA() {
-            window.__tvInitFlags = window.__tvInitFlags || {};
-            if (window.__tvInitFlags.quickAddAppointmentCTA) return;
-            window.__tvInitFlags.quickAddAppointmentCTA = true;
 
-            const cta = document.getElementById('quickAddAppointmentCard');
-            if (!cta) return;
-
-            const goToAppointments = () => {
-                if (typeof window.switchTab === 'function') {
-                    window.switchTab('appointments');
-                }
-                else {
-                    const tabBtn = document.querySelector('[data-tab="appointments"]');
-                    if (tabBtn) tabBtn.click();
-                }
-                
-                // Scroll to form after tab switch
-                setTimeout(() => {
-                    const formSection = document.getElementById('addAppointmentSection');
-                    if (formSection) {
-                        formSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                    }
-                }, 100);
-            };
-
-            cta.addEventListener('click', goToAppointments);
-            cta.addEventListener('keydown', (event) => {
-                if (event.key === 'Enter' || event.key === ' ') {
-                    event.preventDefault();
-                    goToAppointments();
-                }
-            });
-        })();
-    </script>
     
+    <!-- FAB: New Appointment (mobile-only, always visible on mobile) -->
+    <button class="mobile-fab-button" id="tvNewAptFab"
+            onclick="tvAptDrawerOpen()"
+            aria-label="New Appointment"
+            title="+ New Appointment">
+        <i class="fas fa-plus" style="font-size:22px;"></i>
+    </button>
+
+    <!-- Appointment form drawer (mobile open/close) -->
+    <script>
+        function tvAptDrawerOpen() {
+            var s = document.getElementById('addAppointmentSection');
+            if (!s) return;
+            var alreadyOpen = s.classList.contains('tv-apt-drawer--open');
+            s.classList.add('tv-apt-drawer--open');
+            document.body.classList.add('tv-apt-overlay-open');
+            // Push history state so the Back button closes the drawer
+            if (!alreadyOpen) {
+                history.pushState({ tvDrawer: 'appointment' }, '');
+            }
+        }
+        function tvAptDrawerClose() {
+            var s = document.getElementById('addAppointmentSection');
+            if (s) { s.classList.remove('tv-apt-drawer--open'); document.body.classList.remove('tv-apt-overlay-open'); }
+        }
+        // Close drawer on Escape key
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') tvAptDrawerClose();
+        });
+        // Close drawer on browser Back button
+        window.addEventListener('popstate', function(e) {
+            var s = document.getElementById('addAppointmentSection');
+            if (s && s.classList.contains('tv-apt-drawer--open')) {
+                tvAptDrawerClose();
+            }
+        });
+
+        // Dev-only FAB gate: hidden in production by default
+        (function initDevFabGate() {
+            try {
+                var params = new URLSearchParams(window.location.search || '');
+                var devByQuery = params.get('dev') === '1';
+                var devByStorage = localStorage.getItem('tvDevFab') === '1';
+                if (devByQuery || devByStorage) {
+                    document.body.classList.add('tv-dev-fab');
+                }
+            } catch (_) {}
+        })();
+    </script>
+
     <!-- PWA - Simple Service Worker Registration -->
     <script>
     if ('serviceWorker' in navigator) {
@@ -4205,10 +4617,6 @@
     }
     </script>
 
-    <!-- Mobile Floating Action Button -->
-    <button class="mobile-fab-button" onclick="switchTab('appointments')" title="Add Appointment" aria-label="Add new appointment">
-        <i class="fas fa-plus"></i>
-    </button>
 
     <!-- Premium UI Upgrade Script -->
     <script>
@@ -4224,7 +4632,7 @@
          * @param {string} filterId - 'total', 'today', 'upcoming', 'completed'
          */
         function applyKPIFilter(filterId) {
-            console.log('🎯 KPI Filter Applied:', filterId);
+            console.log('ðŸŽ¯ KPI Filter Applied:', filterId);
             
             // Remove active class from all cards
             document.querySelectorAll('.tvStatCard').forEach(card => {
@@ -4273,12 +4681,12 @@
                 );
             } else if (filterId === 'completed') {
                 filteredAppointments = filteredAppointments.filter(a => 
-                    a.status === 'Completă' || a.status === 'Completed'
+                    a.status === 'CompletÄƒ' || a.status === 'Completed'
                 );
             }
             // else: 'total' shows all
 
-            console.log(`📊 KPI Filter: ${filterId} → ${filteredAppointments.length} appointments`);
+            console.log(`ðŸ“Š KPI Filter: ${filterId} â†’ ${filteredAppointments.length} appointments`);
 
             // Show/hide appointment cards based on filter
             if (typeof filterAppointments === 'function') {
@@ -4314,7 +4722,7 @@
                 });
             });
 
-            console.log('✅ KPI Filter engine initialized');
+            console.log('âœ… KPI Filter engine initialized');
         }
 
         // Initialize KPI filters when DOM is ready
@@ -4370,5 +4778,22 @@
         window.addEventListener('online', updateLiveIndicators);
         window.addEventListener('offline', updateLiveIndicators);
     </script>
+    <script>
+    // Density toggle init (persists compact/comfortable in localStorage)
+    document.addEventListener('DOMContentLoaded', function() {
+        var panel = document.getElementById('tvWorkspacePanel');
+        var btn   = document.getElementById('tvDensityToggle');
+        if (!panel || !btn) return;
+        var isCompact = (localStorage.getItem('tv-card-density') || 'compact') === 'compact';
+        if (isCompact) panel.classList.add('tv-density-compact');
+        btn.setAttribute('aria-pressed', String(isCompact));
+        btn.addEventListener('click', function() {
+            isCompact = panel.classList.toggle('tv-density-compact');
+            localStorage.setItem('tv-card-density', isCompact ? 'compact' : 'comfortable');
+            btn.setAttribute('aria-pressed', String(isCompact));
+        });
+    });
+    </script>
+    <script src="src/ui/form-stepper.js"></script>
 </body>
 </html>

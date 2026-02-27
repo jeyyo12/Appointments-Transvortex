@@ -85,15 +85,52 @@ class DataActions {
     }
     
     try {
-      const { doc, updateDoc } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+      const { doc, getDoc, updateDoc } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
       
       const invoiceRef = doc(this.db, 'invoices', invoiceId);
-      await updateDoc(invoiceRef, {
-        paid: true,
-        amountPaid: amountPaid,
-        paidAt: new Date().toISOString(),
-        paidDate: new Date().toISOString().split('T')[0]
-      });
+      const invoiceSnap = await getDoc(invoiceRef);
+      if (!invoiceSnap.exists()) {
+        throw new Error('Invoice not found');
+      }
+
+      const invoice = invoiceSnap.data() || {};
+      const total = Number(invoice.total ?? invoice.totals?.total ?? 0) || 0;
+      const normalizedAmountPaid = Number(amountPaid);
+      const nextAmountPaid = Number.isFinite(normalizedAmountPaid) ? normalizedAmountPaid : total;
+      const balanceDue = Math.max(0, total - nextAmountPaid);
+      const paymentStatus = nextAmountPaid <= 0 ? 'unpaid' : (nextAmountPaid >= total ? 'paid' : 'partial');
+      const nowIso = new Date().toISOString();
+
+      const invoicePatch = {
+        paymentStatus,
+        total,
+        amountPaid: nextAmountPaid,
+        paidAmount: nextAmountPaid,
+        balanceDue,
+        updatedAt: nowIso,
+        paid: paymentStatus === 'paid',
+        paidAt: paymentStatus === 'paid' ? nowIso : null,
+        paidDate: paymentStatus === 'paid' ? nowIso.split('T')[0] : null
+      };
+
+      if (!invoice.createdAt) {
+        invoicePatch.createdAt = nowIso;
+      }
+
+      await updateDoc(invoiceRef, invoicePatch);
+
+      const linkedAppointmentId = invoice.appointmentId || null;
+      if (linkedAppointmentId) {
+        const appointmentRef = doc(this.db, 'appointments', linkedAppointmentId);
+        await updateDoc(appointmentRef, {
+          invoiceId,
+          paymentStatus,
+          amountPaid: nextAmountPaid,
+          paidAmount: nextAmountPaid,
+          balanceDue,
+          updatedAt: nowIso
+        });
+      }
       
       console.log('✅ Invoice marked as paid:', invoiceId);
       return true;
@@ -115,15 +152,48 @@ class DataActions {
     }
     
     try {
-      const { doc, updateDoc } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+      const { doc, getDoc, updateDoc } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
       
       const invoiceRef = doc(this.db, 'invoices', invoiceId);
-      await updateDoc(invoiceRef, {
-        paid: false,
+      const invoiceSnap = await getDoc(invoiceRef);
+      if (!invoiceSnap.exists()) {
+        throw new Error('Invoice not found');
+      }
+
+      const invoice = invoiceSnap.data() || {};
+      const total = Number(invoice.total ?? invoice.totals?.total ?? 0) || 0;
+      const nowIso = new Date().toISOString();
+
+      const invoicePatch = {
+        paymentStatus: 'unpaid',
+        total,
         amountPaid: 0,
+        paidAmount: 0,
+        balanceDue: Math.max(0, total),
+        updatedAt: nowIso,
+        paid: false,
         paidAt: null,
         paidDate: null
-      });
+      };
+
+      if (!invoice.createdAt) {
+        invoicePatch.createdAt = nowIso;
+      }
+
+      await updateDoc(invoiceRef, invoicePatch);
+
+      const linkedAppointmentId = invoice.appointmentId || null;
+      if (linkedAppointmentId) {
+        const appointmentRef = doc(this.db, 'appointments', linkedAppointmentId);
+        await updateDoc(appointmentRef, {
+          invoiceId,
+          paymentStatus: 'unpaid',
+          amountPaid: 0,
+          paidAmount: 0,
+          balanceDue: Math.max(0, total),
+          updatedAt: nowIso
+        });
+      }
       
       console.log('✅ Invoice marked as unpaid:', invoiceId);
       return true;

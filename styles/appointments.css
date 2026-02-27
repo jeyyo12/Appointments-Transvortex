@@ -641,8 +641,8 @@
     }
 }
 
-/* Larger phones/small tablets (481px-768px): 3 columns */
-@media (min-width: 481px) and (max-width: 768px) {
+/* Larger phones/tablets (601px-768px): 3 columns */
+@media (min-width: 601px) and (max-width: 768px) {
     .tvx-actions {
         grid-template-columns: repeat(3, minmax(0, 1fr));
         gap: 0.625rem;

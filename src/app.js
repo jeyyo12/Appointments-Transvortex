@@ -57,6 +57,9 @@ async function initApp() {
 
     // 6. Initialize feature modules
     logger.info('Step 6: Initialize feature modules');
+    if (typeof window !== 'undefined') {
+      window.__USE_MODULAR_STORAGE__ = true;
+    }
     initInvoicesStorage();
     // Note: Invoice creation from appointments is handled via appointment detail actions
 

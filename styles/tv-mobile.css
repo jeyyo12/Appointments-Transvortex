@@ -1,0 +1,2218 @@
+/**
+ * TRANSVORTEX — MOBILE-FIRST UI OVERRIDES
+ * Loaded last to override specifics without removing functionality.
+ * Uses Tailwind utility classes where possible; raw CSS for overrides.
+ *
+ * Sections:
+ *  1. Design tokens (mobile-tuned)
+ *  2. Header compact
+ *  3. Dashboard KPI grid
+ *  4. Appointment card actions (primary/secondary row)
+ *  5. Invoices Storage (storage-card)
+ *  6. FAB positioning
+ *  7. Bottom navigation
+ *  8. Form layout mobile
+ *  9. Form Stepper
+ * 10. General fluid utilities
+ */
+
+/* ═══════════════════════════════════════════
+   1. MOBILE DESIGN TOKENS
+   ═══════════════════════════════════════════ */
+:root {
+  --tv-mob-nav-h: calc(60px + env(safe-area-inset-bottom, 0px));
+  --tv-mob-fab-b: calc(60px + env(safe-area-inset-bottom, 0px) + 14px);
+}
+
+/* ═══════════════════════════════════════════
+   2. HEADER — compact, sticky, safe-area
+   ═══════════════════════════════════════════ */
+#authBar,
+#authBar.tvHeader,
+#authBar.firebase-auth-bar.tvHeader {
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 70 !important;
+  background: #ffffff !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08) !important;
+}
+
+@media (max-width: 600px) {
+  /* Tighten header top-row height */
+  #authBar .tvHeaderTop {
+    min-height: 52px !important;
+    padding-top: 6px !important;
+    padding-bottom: 6px !important;
+  }
+
+  /* Shrink brand assets */
+  #authBar #tvHeaderGif {
+    max-height: 36px !important;
+  }
+
+  #authBar #tvHeaderCompanyLogo {
+    max-height: 28px !important;
+  }
+
+  /* Online badge — icon only on tiny screens */
+  #authBar #tvHeaderOnline .onlineText {
+    display: none !important;
+  }
+
+  #authBar #tvHeaderOnline {
+    min-width: 0 !important;
+    padding: 0 8px !important;
+  }
+
+  /* Auth button — condensed */
+  #authBar #authButton {
+    padding: 0 12px !important;
+    height: 36px !important;
+    font-size: 12px !important;
+    border-radius: 10px !important;
+  }
+
+}
+
+/* ═══════════════════════════════════════════
+   3. DASHBOARD KPI CARDS
+   ═══════════════════════════════════════════ */
+
+/* 2-col grid is already in inline <style> at max-width:600px.
+   Further improvements below. */
+@media (max-width: 600px) {
+  #tvStats .tvStatCard {
+    padding: clamp(10px, 2.5vw, 14px) !important;
+    min-height: 90px !important;
+    gap: 4px !important;
+    border-radius: 14px !important;
+  }
+
+  #tvStats .tvStatCard i {
+    font-size: clamp(14px, 3.5vw, 18px) !important;
+  }
+
+  #tvStats .tvStatCard h3 {
+    font-size: clamp(20px, 5vw, 26px) !important;
+    line-height: 1 !important;
+  }
+
+  #tvStats .tvStatCard p {
+    font-size: clamp(10px, 2.2vw, 12px) !important;
+    white-space: normal !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
+  }
+
+  .tvStatCard__mini {
+    font-size: clamp(9px, 2vw, 11px) !important;
+  }
+}
+
+/* ═══════════════════════════════════════════
+   4. APPOINTMENT CARD — primary / secondary rows
+   ═══════════════════════════════════════════ */
+
+/* Raised touch target for ALL action buttons */
+.apts-action-btn {
+  min-height: 44px !important;
+  border-radius: 10px !important;
+  font-size: clamp(11px, 2.6vw, 13px) !important;
+  font-weight: 600 !important;
+  padding: 0 clamp(10px, 2vw, 14px) !important;
+  gap: 6px !important;
+  justify-content: center !important;
+  transition: all 0.15s ease !important;
+}
+
+/* Always show button text */
+.apts-action-btn span {
+  display: inline !important;
+}
+
+/* Primary actions row — 2 large buttons side by side */
+.apts-card__actions-primary {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  width: 100%;
+}
+
+.apts-card__actions-primary .apts-action-btn {
+  flex: 1;
+  min-height: 46px !important;
+}
+
+/* Secondary actions row — smaller, compact */
+.apts-card__actions-secondary {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+}
+
+.apts-card__actions-secondary .apts-action-btn {
+  flex: 1;
+  min-height: 38px !important;
+  font-size: clamp(11px, 2.4vw, 12px) !important;
+  border-radius: 8px !important;
+  background: #f8fafc !important;
+  color: #475569 !important;
+  border-color: #e2e8f0 !important;
+}
+
+.apts-card__actions-secondary .apts-action-btn:hover {
+  background: #f1f5f9 !important;
+}
+
+/* Invoice primary button — use brand orange */
+.apts-action-btn--invoice,
+.apts-action-btn--secondary.apts-action-btn--invoice {
+  background: #FF7A18 !important;
+  color: white !important;
+  border-color: #FF7A18 !important;
+}
+
+.apts-action-btn--invoice:hover {
+  background: #FF6B02 !important;
+  border-color: #FF6B02 !important;
+  box-shadow: 0 4px 8px rgba(255, 122, 24, 0.25) !important;
+}
+
+/* Card itself — better mobile padding */
+@media (max-width: 600px) {
+  .apts-card {
+    padding: 12px !important;
+    border-radius: 14px !important;
+    border: 1px solid #f1f5f9 !important;
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06) !important;
+  }
+
+  .apts-card__actions {
+    margin-top: 10px !important;
+    padding-top: 10px !important;
+    gap: 8px !important;
+  }
+
+  .apts-card__header {
+    align-items: flex-start !important;
+  }
+
+  .apts-card__customer strong {
+    font-size: clamp(13px, 3.4vw, 15px) !important;
+  }
+}
+
+/* ═══════════════════════════════════════════
+   5. INVOICES STORAGE — storage-card
+   ═══════════════════════════════════════════ */
+
+/* Grid wrapper added by renderInvoiceCard */
+.storage-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+  padding: 0;
+}
+
+@media (min-width: 640px) {
+  .storage-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 1024px) {
+  .storage-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+/* Invoice card */
+.storage-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: clamp(12px, 2.5vw, 16px);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.05);
+  transition: box-shadow 0.2s ease, transform 0.15s ease;
+}
+
+.storage-card:hover {
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.10);
+  transform: translateY(-1px);
+}
+
+.storage-card__top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.storage-card__id {
+  font-size: clamp(12px, 2.8vw, 14px);
+  font-weight: 700;
+  color: #0f172a;
+  font-family: monospace;
+  letter-spacing: 0.02em;
+}
+
+.storage-card__meta-date {
+  font-size: clamp(11px, 2.4vw, 12px);
+  color: #64748b;
+  margin-top: 2px;
+}
+
+.storage-card__badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.storage-card__line {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  font-size: clamp(12px, 2.6vw, 13px);
+  color: #374151;
+  line-height: 1.4;
+}
+
+/* Invoice action buttons */
+.storage-card__actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding-top: 8px;
+  border-top: 1px solid #f1f5f9;
+  margin-top: 4px;
+}
+
+.action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 40px;
+  padding: 0 clamp(10px, 2vw, 14px);
+  border-radius: 10px;
+  font-size: clamp(11px, 2.5vw, 13px);
+  font-weight: 600;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  flex: 1;
+  white-space: nowrap;
+  text-decoration: none;
+}
+
+.action-btn:active {
+  transform: scale(0.97);
+}
+
+.action-btn--primary {
+  background: #FF7A18;
+  color: #ffffff;
+  border-color: #FF7A18;
+}
+
+.action-btn--primary:hover {
+  background: #FF6B02;
+  box-shadow: 0 4px 8px rgba(255, 122, 24, 0.25);
+}
+
+.action-btn--success {
+  background: #10b981;
+  color: #ffffff;
+  border-color: #10b981;
+}
+
+.action-btn--success:hover {
+  background: #059669;
+  box-shadow: 0 4px 8px rgba(5, 150, 105, 0.20);
+}
+
+.action-btn--secondary {
+  background: #f8fafc;
+  color: #374151;
+  border-color: #e2e8f0;
+}
+
+.action-btn--secondary:hover {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+}
+
+.action-btn--danger {
+  background: #fef2f2;
+  color: #dc2626;
+  border-color: #fecaca;
+}
+
+.action-btn--danger:hover {
+  background: #fee2e2;
+  border-color: #fca5a5;
+  box-shadow: 0 2px 6px rgba(220, 38, 38, 0.15);
+}
+
+/* Status chips in invoice cards */
+.status-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: clamp(10px, 2.2vw, 11px);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+}
+
+.status-chip--paid {
+  background: #f0fdf4;
+  color: #16a34a;
+  border: 1px solid #86efac;
+}
+
+.status-chip--partial {
+  background: #fffbeb;
+  color: #92400e;
+  border: 1px solid #fcd34d;
+}
+
+.status-chip--due {
+  background: #fef2f2;
+  color: #dc2626;
+  border: 1px solid #fecaca;
+}
+
+/* Invoice KPI row */
+.invoice-kpi {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+.kpi-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: clamp(10px, 2vw, 14px);
+  background: #f8fafc;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+}
+
+.kpi-icon {
+  font-size: 20px;
+  opacity: 0.8;
+  flex-shrink: 0;
+}
+
+.kpi-item--unpaid .kpi-icon { color: #dc2626; }
+.kpi-item--paid .kpi-icon   { color: #16a34a; }
+
+.kpi-label {
+  font-size: 12px;
+  color: #64748b;
+  font-weight: 500;
+}
+
+.kpi-value {
+  font-size: clamp(18px, 4.5vw, 26px);
+  font-weight: 800;
+  color: #0f172a;
+  line-height: 1;
+}
+
+/* ═══════════════════════════════════════════
+   6. FAB (Floating Action Button)
+   ═══════════════════════════════════════════ */
+.mobile-fab-button {
+  position: fixed !important;
+  right: max(16px, env(safe-area-inset-right, 0px)) !important;
+  bottom: var(--tv-mob-fab-b) !important;
+  z-index: 90 !important;
+  width: 56px !important;
+  height: 56px !important;
+  border-radius: 999px !important;
+  background: linear-gradient(135deg, #FF7A18 0%, #ff9a42 100%) !important;
+  color: white !important;
+  border: none !important;
+  box-shadow: 0 8px 24px rgba(255, 122, 24, 0.38) !important;
+  display: none !important;
+  align-items: center !important;
+  justify-content: center !important;
+  pointer-events: none !important;
+  cursor: pointer !important;
+  transition: transform 0.15s ease, box-shadow 0.15s ease !important;
+}
+
+/* Show FAB on mobile by default; dev class also enables it on desktop for testing */
+@media (max-width: 767px) {
+  .mobile-fab-button {
+    display: flex !important;
+    pointer-events: auto !important;
+  }
+}
+body.tv-dev-fab .mobile-fab-button {
+  display: flex !important;
+  pointer-events: auto !important;
+}
+
+.mobile-fab-button:hover {
+  transform: scale(1.06) !important;
+  box-shadow: 0 12px 28px rgba(255, 122, 24, 0.45) !important;
+}
+
+.mobile-fab-button:active {
+  transform: scale(0.95) !important;
+}
+
+/* Hide FAB when modal is open — keep existing selectors, add new ones */
+body:has([aria-modal="true"]) .mobile-fab-button {
+  display: none !important;
+}
+
+/* ═══════════════════════════════════════════
+   7. BOTTOM NAVIGATION
+   ═══════════════════════════════════════════ */
+@media (max-width: 600px) {
+  .tab-navigation {
+    position: fixed !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    z-index: 80 !important;
+    height: auto !important;
+    min-height: 56px;
+    padding: 4px max(10px, env(safe-area-inset-right, 0px)) env(safe-area-inset-bottom, 0px) max(10px, env(safe-area-inset-left, 0px)) !important;
+    background: rgba(255, 255, 255, 0.96) !important;
+    backdrop-filter: blur(16px) !important;
+    -webkit-backdrop-filter: blur(16px) !important;
+    border-top: 1px solid rgba(226, 232, 240, 0.8) !important;
+    display: grid !important;
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 2px !important;
+    box-shadow: 0 -2px 12px rgba(15, 23, 42, 0.06) !important;
+  }
+
+  .tab-btn {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 2px !important;
+    min-height: 52px !important;
+    padding: 6px 4px !important;
+    font-size: 10px !important;
+    font-weight: 600 !important;
+    color: #94a3b8 !important;
+    background: transparent !important;
+    border: none !important;
+    border-radius: 10px !important;
+    cursor: pointer !important;
+    text-align: center !important;
+    transition: color 0.15s ease, background 0.15s ease !important;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .tab-btn i {
+    font-size: 18px !important;
+    line-height: 1 !important;
+    transition: transform 0.15s ease;
+  }
+
+  .tab-btn.active {
+    color: #FF7A18 !important;
+    background: rgba(255, 122, 24, 0.08) !important;
+  }
+
+  .tab-btn.active i {
+    transform: scale(1.1);
+  }
+
+  .tab-btn.active::after {
+    display: none !important;
+  }
+
+  /* Body padding so content isn't hidden behind nav */
+  main,
+  #appointmentsTab {
+    padding-bottom: calc(var(--tv-mob-nav-h) + env(safe-area-inset-bottom, 0px) + 16px) !important;
+  }
+}
+
+/* ═══════════════════════════════════════════
+   8. FORM LAYOUT — mobile improvements
+   ═══════════════════════════════════════════ */
+@media (max-width: 767px) {
+  /* Stack all form col-2 grids to 1-col */
+  .field-row.two {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Form card padding */
+  .appt-card {
+    padding: clamp(12px, 3vw, 16px) !important;
+    border-radius: 14px !important;
+  }
+
+  /* Input / select touch targets */
+  .appt-input,
+  .appt-select,
+  .appt-textarea {
+    min-height: 44px !important;
+    font-size: clamp(14px, 3.5vw, 16px) !important;
+    border-radius: 10px !important;
+    padding: 10px 12px !important;
+  }
+
+  /* Submit button */
+  .btn-primary-apt {
+    min-height: 50px !important;
+    font-size: clamp(14px, 3.5vw, 16px) !important;
+    border-radius: 12px !important;
+  }
+
+  /* Items panel tabs */
+  .tabBtn {
+    min-height: 40px !important;
+    font-size: 12px !important;
+  }
+}
+
+/* ═══════════════════════════════════════════
+   9. FORM STEPPER (3-step mobile wizard)
+   ═══════════════════════════════════════════ */
+
+/* Stepper is mobile-only (hidden on desktop) */
+.tv-stepper-header,
+.tv-stepper-footer {
+  display: none;
+}
+
+@media (max-width: 767px) {
+
+  /* ── Stepper header ── */
+  .tv-stepper-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 12px 16px 10px;
+    background: #f8fafc;
+    border-bottom: 1px solid #e2e8f0;
+    border-radius: 14px 14px 0 0;
+    user-select: none;
+  }
+
+  /* Progress dots + connectors */
+  .tv-stepper-progress {
+    display: flex;
+    align-items: center;
+    flex: 1;
+    gap: 4px;
+  }
+
+  .tv-stepper-dot {
+    width: 28px;
+    height: 28px;
+    border-radius: 999px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 700;
+    background: #e2e8f0;
+    color: #94a3b8;
+    transition: background 0.2s ease, color 0.2s ease;
+    flex-shrink: 0;
+  }
+
+  .tv-stepper-dot.active {
+    background: #FF7A18;
+    color: #ffffff;
+    box-shadow: 0 0 0 3px rgba(255, 122, 24, 0.18);
+  }
+
+  .tv-stepper-dot.done {
+    background: #10b981;
+    color: #ffffff;
+  }
+
+  .tv-step-connector {
+    flex: 1;
+    height: 2px;
+    background: #e2e8f0;
+    border-radius: 1px;
+    transition: background 0.3s ease;
+    min-width: 12px;
+  }
+
+  .tv-step-connector.done {
+    background: #10b981;
+  }
+
+  .tv-stepper-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: #475569;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  /* ── Stepper footer ── */
+  .tv-stepper-footer {
+    display: flex;
+    align-items: stretch;
+    gap: 10px;
+    padding: 12px 16px;
+    padding-bottom: max(12px, calc(env(safe-area-inset-bottom, 0px) + 8px));
+    background: #ffffff;
+    border-top: 1px solid #e2e8f0;
+    position: sticky;
+    bottom: 0;
+    z-index: 20;
+  }
+
+  .tv-step-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-height: 48px;
+    padding: 0 20px;
+    border-radius: 12px;
+    font-size: clamp(13px, 3.2vw, 14px);
+    font-weight: 700;
+    border: none;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .tv-step-btn:active {
+    transform: scale(0.97);
+  }
+
+  .tv-step-btn--prev {
+    background: #f1f5f9;
+    color: #475569;
+    flex-shrink: 0;
+  }
+
+  .tv-step-btn--prev:hover {
+    background: #e2e8f0;
+  }
+
+  .tv-step-btn--next,
+  .tv-step-btn--save {
+    background: #FF7A18;
+    color: #ffffff;
+    flex: 1;
+    box-shadow: 0 4px 12px rgba(255, 122, 24, 0.30);
+  }
+
+  .tv-step-btn--next:hover,
+  .tv-step-btn--save:hover {
+    background: #FF6B02;
+    box-shadow: 0 6px 16px rgba(255, 122, 24, 0.38);
+  }
+
+  .tv-step-btn--save {
+    background: #10b981;
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.28);
+  }
+
+  .tv-step-btn--save:hover {
+    background: #059669;
+  }
+
+  /* Step sections hide/show */
+  .tv-step--hidden {
+    display: none !important;
+  }
+
+  .tv-step--active {
+    display: block;
+  }
+
+  /* Hide original form actions bar on mobile (replaced by stepper footer) */
+  .appt-form__actions--stepper-replaced {
+    display: none !important;
+  }
+}
+
+/* ═══════════════════════════════════════════
+   10. GENERAL FLUID UTILITIES
+   ═══════════════════════════════════════════ */
+
+/* Prevent overflow on very small screens */
+@media (max-width: 400px) {
+  .tvCard,
+  .tvCard--compact {
+    border-radius: 12px !important;
+  }
+
+  .appt-form__grid {
+    gap: 10px !important;
+  }
+}
+
+/* Touch event optimisation */
+button,
+[role="button"],
+a,
+input,
+select,
+textarea {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+/* Smooth momentum scroll on iOS */
+.tvCarousel,
+.tvTrack,
+.apts-list {
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Prevent iOS zoom on focus */
+@media screen and (max-width: 767px) {
+  input[type="text"],
+  input[type="tel"],
+  input[type="email"],
+  input[type="date"],
+  input[type="number"],
+  select,
+  textarea {
+    font-size: max(16px, 1rem) !important;
+  }
+}
+
+/* ═══════════════════════════════════════════
+   11. FILTER CHIP (workspace active filter)
+   ═══════════════════════════════════════════ */
+
+.tv-filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #fff3e6;
+  border: 1px solid #FF7A18;
+  color: #c05500;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 10px 4px 8px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.tv-filter-chip strong { color: #FF7A18; }
+
+.tv-filter-chip__clear {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #FF7A18;
+  font-size: 15px;
+  line-height: 1;
+  padding: 0 2px;
+  margin-left: 2px;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* ═══════════════════════════════════════════
+   12. SUMMARY STRIP — compact scrollable on mobile
+   ═══════════════════════════════════════════ */
+
+@media (max-width: 600px) {
+  #tvSummaryStrip.tvSummaryStrip--dock {
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    padding: 6px 12px !important;
+    gap: 10px !important;
+    min-height: 0 !important;
+  }
+
+  #tvSummaryStrip.tvSummaryStrip--dock::-webkit-scrollbar { display: none; }
+
+  #tvSummaryStrip.tvSummaryStrip--dock .tvSummary__item {
+    flex: 0 0 auto !important;
+    min-height: 34px !important;
+    font-size: 12px !important;
+    padding: 0 !important;
+    white-space: nowrap;
+  }
+
+  #tvSummaryStrip.tvSummaryStrip--dock .tvSummary__divider {
+    display: none !important;
+  }
+}
+
+/* ═══════════════════════════════════════════
+   13. APPOINTMENT CARD — next-action hint
+   ═══════════════════════════════════════════ */
+
+.apts-card__hint {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #92400e;
+  background: #fef3c7;
+  border: 1px solid #fde68a;
+  border-radius: 8px;
+  padding: 5px 10px;
+  margin-bottom: 6px;
+}
+
+.apts-card__hint i {
+  color: #d97706;
+  flex-shrink: 0;
+}
+
+/* ═══════════════════════════════════════════
+   14. STEPPER — save status + disabled Back
+   ═══════════════════════════════════════════ */
+
+@media (max-width: 767px) {
+  .tv-step-btn--prev:disabled {
+    opacity: 0.38;
+    cursor: default;
+    pointer-events: none;
+  }
+
+  .tv-step-save-status {
+    flex: 1;
+    text-align: center;
+    font-size: 11px;
+    font-weight: 600;
+    color: #94a3b8;
+    padding: 0 4px;
+    align-self: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .tv-step-save-status--saved {
+    color: #10b981;
+  }
+}
+/* ═══════════════════════════════════════════
+   15. COMPACT APPOINTMENT CARDS (.app-card)
+   Mobile-always compact; extra tight in density-compact mode
+   ═══════════════════════════════════════════ */
+
+@media (max-width: 767px) {
+  /* Tighten all cards on mobile */
+  #tvWorkspacePanel .app-card {
+    padding: 10px 12px !important;
+    gap: 7px !important;
+    border-radius: 12px !important;
+  }
+
+  #tvWorkspacePanel .app-card__header {
+    margin: 0 0 4px 0 !important;
+  }
+
+  #tvWorkspacePanel .app-card__customer {
+    font-size: 13px !important;
+    margin-bottom: 0 !important;
+  }
+
+  #tvWorkspacePanel .app-card__vehicle {
+    font-size: 11px !important;
+    margin-bottom: 0 !important;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    display: block !important;
+    max-width: 100%;
+  }
+
+  #tvWorkspacePanel .date-badge {
+    padding: 5px 8px !important;
+    font-size: 10px !important;
+    border-radius: 7px !important;
+  }
+
+  #tvWorkspacePanel .time-badge {
+    padding: 5px 9px !important;
+    font-size: 11px !important;
+    border-radius: 7px !important;
+  }
+
+  #tvWorkspacePanel .app-card__status-badge {
+    padding: 4px 8px !important;
+    font-size: 0.65rem !important;
+    border-radius: 999px !important;
+  }
+
+  /* Compact actions rows */
+  #tvWorkspacePanel .action-group {
+    gap: 6px !important;
+  }
+
+  #tvWorkspacePanel .action-btn {
+    min-height: 36px !important;
+    padding: 0 10px !important;
+    font-size: 11px !important;
+    border-radius: 8px !important;
+  }
+}
+
+/* Extra compact mode — class lives ON #tvWorkspacePanel itself */
+#tvWorkspacePanel.tv-density-compact .app-card {
+  padding: 8px 10px !important;
+  gap: 5px !important;
+}
+
+#tvWorkspacePanel.tv-density-compact .app-card__payment-summary {
+  display: none !important;
+}
+
+#tvWorkspacePanel.tv-density-compact .app-card__vehicle {
+  font-size: 11px !important;
+}
+
+#tvWorkspacePanel.tv-density-compact .action-btn span {
+  display: none !important;
+}
+
+#tvWorkspacePanel.tv-density-compact .action-btn {
+  min-width: 32px !important;
+  padding: 0 8px !important;
+  justify-content: center;
+}
+
+/* ═══════════════════════════════════════════
+   16. COLLAPSIBLE GROUP HEADERS (.tv-group)
+   ═══════════════════════════════════════════ */
+
+.tv-group {
+  margin-bottom: 4px;
+}
+
+.tv-group__summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  gap: 8px;
+}
+
+.tv-group__summary::-webkit-details-marker { display: none; }
+
+.tv-group[open] .tv-group__summary {
+  border-radius: 10px 10px 0 0;
+  border-bottom-color: transparent;
+  background: #f1f5f9;
+}
+
+.tv-group__label {
+  font-size: 12px;
+  font-weight: 700;
+  color: #475569;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.tv-group__label::before {
+  content: '▶';
+  font-size: 9px;
+  color: #94a3b8;
+  transition: transform 0.2s;
+  display: inline-block;
+}
+
+.tv-group[open] .tv-group__label::before {
+  transform: rotate(90deg);
+}
+
+.tv-group__count {
+  background: #e2e8f0;
+  color: #475569;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 999px;
+  min-width: 24px;
+  text-align: center;
+}
+
+/* Overdue group accent */
+.tv-group[data-group="overdue"] .tv-group__summary {
+  background: #fef2f2;
+  border-color: #fecaca;
+}
+
+.tv-group[data-group="overdue"] .tv-group__label { color: #7f1d1d; }
+.tv-group[data-group="overdue"] .tv-group__count { background: #fee2e2; color: #991b1b; }
+
+/* Today group accent */
+.tv-group[data-group="today"] .tv-group__summary {
+  background: #f0fdf4;
+  border-color: #bbf7d0;
+}
+
+.tv-group[data-group="today"] .tv-group__label { color: #14532d; }
+.tv-group[data-group="today"] .tv-group__count { background: #dcfce7; color: #16a34a; }
+
+/* Completed group — muted */
+.tv-group[data-group="completed"] .tv-group__summary {
+  opacity: 0.8;
+}
+
+.tv-group__body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 6px 0 2px;
+}
+
+/* ═══════════════════════════════════════════
+   17. DENSITY TOGGLE BUTTON
+   ═══════════════════════════════════════════ */
+
+.tv-density-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #f8fafc;
+  color: #64748b;
+  cursor: pointer;
+  flex-shrink: 0;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.tv-density-btn[aria-pressed="true"],
+.tv-density-btn:hover {
+  background: #fff3e6;
+  color: #FF7A18;
+  border-color: #FF7A18;
+}
+
+/* Keep toolbar flex so button sits beside search */
+#workspaceToolbar .apts-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+#workspaceToolbar {
+  display: flex !important;
+  align-items: center;
+  gap: 8px;
+}
+
+#workspaceToolbar .apts-search {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* ═══════════════════════════════════════════
+   18. SCAN ROW COMPACT + LOAD MORE
+   ═══════════════════════════════════════════ */
+
+@media (max-width: 767px) {
+  .scanRow {
+    padding: 8px 10px !important;
+    gap: 8px !important;
+    border-radius: 8px !important;
+  }
+
+  .scanRow__thumb {
+    width: 44px !important;
+    height: 44px !important;
+    border-radius: 6px !important;
+    object-fit: cover;
+    flex-shrink: 0;
+  }
+
+  .scanRow__meta {
+    font-size: 12px !important;
+    gap: 4px !important;
+  }
+
+  .scanRow__date {
+    font-size: 11px !important;
+    color: #64748b;
+  }
+
+  .scanRow__actions {
+    flex-wrap: wrap;
+    gap: 6px !important;
+  }
+
+  .scanRow__btn {
+    padding: 5px 10px !important;
+    font-size: 11px !important;
+    min-height: 34px !important;
+    border-radius: 7px !important;
+  }
+}
+
+/* Load More button */
+.tv-scan-load-more {
+  display: block;
+  width: 100%;
+  margin-top: 8px;
+  padding: 10px;
+  background: #f8fafc;
+  border: 1px dashed #cbd5e1;
+  border-radius: 10px;
+  color: #475569;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: center;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.15s;
+}
+
+.tv-scan-load-more:hover {
+  background: #f1f5f9;
+  border-color: #94a3b8;
+}
+
+/* ============================================================
+   SECTION 21 — SEGMENTED WORKSPACE FILTER
+   Replaces the large KPI stat cards with a compact pill bar.
+   #tvStats wrapper visibility still controlled by JS (grid/none),
+   but the single .tv-seg-filter child handles its own layout.
+   ============================================================ */
+
+/* Outer wrapper override: when segmented filter is present,
+   treat the tvStats container as a simple block row */
+#tvStats:has(.tv-seg-filter) {
+  display: block !important;
+  padding: 0 0 4px;
+}
+
+.tv-seg-filter {
+  display: flex;
+  gap: 6px;
+  padding: 6px 0 8px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.tv-seg-filter::-webkit-scrollbar { display: none; }
+
+.tv-seg-btn {
+  flex: 1 1 0;
+  min-width: 60px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 8px 6px;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 10px;
+  background: #f8fafc;
+  color: #64748b;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+  white-space: nowrap;
+}
+
+.tv-seg-btn:active {
+  background: #f1f5f9;
+}
+
+.tv-seg-count {
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1;
+  color: inherit;
+  transition: color 0.15s;
+}
+
+.tv-seg-label {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: inherit;
+  transition: color 0.15s;
+}
+
+/* Active state */
+.tv-seg-btn--active {
+  background: #FF7A18;
+  border-color: #FF7A18;
+  color: #fff;
+  box-shadow: 0 3px 10px rgba(255, 122, 24, 0.28);
+}
+
+.tv-seg-btn--active .tv-seg-count,
+.tv-seg-btn--active .tv-seg-label {
+  color: #fff;
+}
+
+/* Responsive: on very small screens shrink font */
+@media (max-width: 360px) {
+  .tv-seg-count { font-size: 15px; }
+  .tv-seg-label { font-size: 9px; }
+  .tv-seg-btn   { padding: 7px 4px; border-radius: 8px; }
+}
+
+/* ============================================================
+   SECTION 23 — COMPACT WORKSPACE HEADER + INVOICE REDESIGN
+   - .tv-ws-header  : single-row workspace panel header
+   - .inv-row       : compact 4-row invoice card
+   - .inv-badge     : small pill badge
+   - .inv-btn       : icon-only action button
+   - .inv-kpi-strip : compact inline KPI
+   - Invoice Storage visibility (CSS tab control)
+   ============================================================ */
+
+/* ------ 23a. Compact workspace panel header ------ */
+#tvWorkspacePanel {
+  border: none !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  padding: 0 !important;
+  border-radius: 0 !important;
+}
+
+.tv-ws-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid #f1f5f9;
+  margin-bottom: 6px;
+}
+
+.tv-ws-title {
+  flex: 1;
+  font-size: 15px;
+  font-weight: 700;
+  color: #1e293b;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tv-ws-title i { color: #64748b; font-size: 14px; flex-shrink: 0; }
+
+.tv-ws-actions {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+  align-items: center;
+}
+
+/* Header cleanup: no duplicate summary + no workspace Add button */
+#tvSummaryStrip {
+  display: none !important;
+}
+
+.tv-ws-add-btn {
+  display: none !important;
+}
+
+/* Defensive: hide any legacy workspace search controls if present */
+#tvWorkspacePanel #workspaceSearch,
+#tvWorkspacePanel .apts-search,
+#tvWorkspacePanel .apts-search__input {
+  display: none !important;
+}
+
+.tv-ws-add-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background: #FF7A18;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.15s;
+}
+.tv-ws-add-btn:active { background: #e86d10; }
+
+/* Hide add-btn on desktop (form always visible) */
+@media (min-width: 1024px) {
+  .tv-ws-add-btn { display: none; }
+}
+
+/* ------ 23b. Invoice card: compact 4-row ------ */
+.inv-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.inv-row {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 7px 9px;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  box-shadow: none;
+  transition: border-color 0.15s;
+}
+.inv-row:active { border-color: #FF7A18; }
+
+.inv-row--missing { border-left: 3px solid #f97316; }
+
+/* Row 1: invoice number + badges */
+.inv-row__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.inv-row__num {
+  font-family: ui-monospace, monospace;
+  font-size: 11px;
+  font-weight: 700;
+  color: #1e293b;
+  letter-spacing: 0.03em;
+}
+
+.inv-row__chips {
+  display: flex;
+  gap: 3px;
+  flex-shrink: 0;
+}
+
+/* Row 2: client + date */
+.inv-row__info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.inv-row__client {
+  font-size: 12px;
+  color: #374151;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+  min-width: 0;
+}
+
+.inv-row__date {
+  font-size: 10px;
+  color: #9ca3af;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+/* Row 3: financial summary */
+.inv-row__fin {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 1px;
+}
+
+.inv-fin__total {
+  font-size: 14px;
+  font-weight: 700;
+  color: #1e293b;
+  letter-spacing: -0.01em;
+}
+
+.inv-fin__paid  { font-size: 11px; font-weight: 600; color: #16a34a; }
+.inv-fin__due   { font-size: 11px; font-weight: 600; color: #dc2626; }
+.inv-fin__partial { font-size: 11px; font-weight: 600; color: #d97706; }
+
+/* Row 4: icon-only actions */
+.inv-row__actions {
+  display: flex;
+  gap: 4px;
+  margin-top: 2px;
+}
+
+/* ------ 23c. Compact badges ------ */
+.inv-badge {
+  display: inline-block;
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  line-height: 1.6;
+  white-space: nowrap;
+}
+
+.inv-badge--paid    { background: #dcfce7; color: #15803d; }
+.inv-badge--due     { background: #fee2e2; color: #b91c1c; }
+.inv-badge--partial { background: #fef9c3; color: #854d0e; }
+.inv-badge--final   { background: #e0e7ff; color: #3730a3; }
+.inv-badge--draft   { background: #f1f5f9; color: #64748b; }
+.inv-badge--missing { background: #ffedd5; color: #9a3412; }
+
+/* ------ 23d. Icon-only action buttons ------ */
+.inv-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  background: #f9fafb;
+  color: #6b7280;
+  cursor: pointer;
+  font-size: 12px;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+  flex-shrink: 0;
+}
+.inv-btn:active { transform: scale(0.95); }
+
+.inv-btn--open  { color: #FF7A18; border-color: #fed7aa; background: #fff7ed; }
+.inv-btn--open:active { background: #ffedd5; }
+.inv-btn--pay   { color: #16a34a; border-color: #bbf7d0; background: #f0fdf4; }
+.inv-btn--pay:active { background: #dcfce7; }
+.inv-btn--unpay { color: #6b7280; border-color: #e5e7eb; background: #f9fafb; }
+.inv-btn--del   { color: #dc2626; border-color: #fecaca; background: #fef2f2; }
+.inv-btn--del:active { background: #fee2e2; }
+.inv-btn--pdf   { color: #3b82f6; border-color: #bfdbfe; background: #eff6ff; }
+
+/* ------ 23e. Load-more button ------ */
+.inv-load-more {
+  width: 100%;
+  margin-top: 6px;
+  padding: 9px;
+  background: #f8fafc;
+  border: 1.5px dashed #cbd5e1;
+  border-radius: 9px;
+  color: #64748b;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: center;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.15s;
+}
+.inv-load-more:hover { background: #f1f5f9; }
+
+/* ------ 23f. Compact KPI inline strip ------ */
+.inv-kpi-strip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: #64748b;
+  padding: 6px 0 8px;
+}
+.inv-kpi-strip strong          { color: #1e293b; font-weight: 700; }
+.inv-kpi-strip__sep            { color: #d1d5db; font-size: 10px; margin: 0 2px; }
+.inv-kpi-strip__icon--due      { color: #dc2626; }
+.inv-kpi-strip__icon--paid     { color: #16a34a; }
+
+/* ------ 23g. Invoice Storage section visibility ------ */
+/* Hidden by default — shown only when Scanned Invoices tab is active */
+.tvCard.tvInvoicesStorage,
+section.tvInvoicesStorage {
+  display: none;
+}
+#scannedInvoicesTab.active ~ .tvInvoicesStorage,
+#scannedInvoicesTab.active ~ .tvCard.tvInvoicesStorage {
+  display: block;
+  margin-top: 12px;
+}
+
+/* ------ 23h. Invoice filters: sticky + compact ------ */
+.tvInvoicesStorage__filters {
+  position: sticky;
+  top: 0;
+  background: #fff;
+  z-index: 10;
+  padding: 4px 0;
+  margin-bottom: 8px !important;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.tvInvoicesStorage__filter label { display: none; } /* hide label — select/input speak for themselves */
+
+#filterInvoicePayment,
+#searchInvoices {
+  min-height: 36px;
+  padding: 6px 10px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  font-size: 13px;
+  background: #f9fafb;
+  color: #374151;
+}
+#searchInvoices { flex: 1; min-width: 120px; }
+
+/* ------ 23i. Invoice Storage header: compact ------ */
+.tvInvoicesStorage { padding: 12px !important; }
+.tvInvoicesStorage .tvCardHeader { margin-bottom: 8px; }
+.tvInvoicesStorage .tvInvoicesStorage__title p { display: none; } /* hide subtitle */
+.tvInvoicesStorage .tvInvoicesStorage__title h2 { font-size: 15px; }
+
+/* Remove heavy card shadow on Invoice Storage */
+.tvInvoicesStorage {
+  box-shadow: 0 1px 4px rgba(15,23,42,0.06) !important;
+  border-radius: 12px !important;
+  border: 1px solid #e5e7eb !important;
+}
+
+/* ============================================================
+   SECTION 22 — HOME SCREEN HEIGHT OPTIMISATION
+   - .tv-apt-drawer   : form hidden on mobile, fullscreen on open
+   - .tv-add-job-btn  : compact Add Job trigger
+   - .tvSummaryStrip--compact : single-line status strip
+   - workspace panel  : borderless, flush layout on mobile
+   ============================================================ */
+
+/* ------ 22a. Appointment form drawer (mobile ≤1023px) ------ */
+@media (max-width: 1023px) {
+  /* Hide form by default; always-present in DOM for JS */
+  .tv-apt-drawer {
+    display: none !important;
+  }
+  .tv-apt-drawer.tv-apt-drawer--open {
+    display: block !important;
+    position: fixed;
+    inset: 0;
+    z-index: 400;
+    background: #fff;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: 16px 16px calc(80px + env(safe-area-inset-bottom));
+    overscroll-behavior: contain;
+  }
+  /* Dim backdrop */
+  body.tv-apt-overlay-open::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.45);
+    z-index: 399;
+    pointer-events: none;
+  }
+  /* Single-column layout: remove dead gap from hidden left col */
+  .tvDashboard--twocol {
+    grid-template-columns: 1fr !important;
+    gap: 0 !important;
+  }
+}
+
+/* Desktop: form always visible, no drawer + hide drawer controls */
+@media (min-width: 1024px) {
+  .tv-apt-drawer     { display: block !important; }
+  .tv-apt-drawer__close { display: none !important; }
+  .tv-add-job-btn    { display: none !important; }
+}
+
+/* Close button (shown only on mobile via drawer) */
+.tv-apt-drawer__close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: none;
+  border-radius: 8px;
+  background: #f1f5f9;
+  color: #475569;
+  cursor: pointer;
+  font-size: 16px;
+  flex-shrink: 0;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.15s;
+}
+.tv-apt-drawer__close:active { background: #e2e8f0; }
+
+/* ------ 22b. Add Job trigger button ------ */
+.tv-add-job-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 7px 11px;
+  background: #FF7A18;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.15s;
+}
+.tv-add-job-btn:active { background: #e86d10; }
+
+/* ------ 22c. Compact status strip ------ */
+.tvSummaryStrip--compact {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 13px;
+  color: #475569;
+  padding: 6px 10px;
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+  border-radius: 8px;
+  margin-bottom: 6px;
+}
+.tvSummaryStrip--compact strong {
+  color: #c2410c;
+  font-weight: 700;
+}
+.tvSummaryStrip--compact .tvSummary__dot {
+  color: #94a3b8;
+  margin: 0 2px;
+}
+
+/* ------ 22d. Workspace panel: flush / borderless on mobile ------ */
+@media (max-width: 1023px) {
+  #tvWorkspacePanel {
+    border: none !important;
+    box-shadow: none !important;
+    background: transparent !important;
+    padding: 0 !important;
+    border-radius: 0 !important;
+  }
+  #tvWorkspacePanel .tvCardHeader {
+    padding-bottom: 4px;
+    margin-bottom: 0;
+  }
+  /* Tighten gap between groups */
+  .tv-group {
+    margin-top: 4px !important;
+  }
+  .tv-group:first-child {
+    margin-top: 0 !important;
+  }
+  /* Reduce card gap inside groups */
+  .tv-group__body {
+    gap: 4px !important;
+    display: flex;
+    flex-direction: column;
+  }
+}
+
+/* ------ 22e. Search input: reduce vertical footprint ------ */
+@media (max-width: 1023px) {
+  .apts-search__input {
+    padding-top: 8px !important;
+    padding-bottom: 8px !important;
+    font-size: 14px !important;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   SECTION 24 — PREMIUM APPOINTMENT CARD (.apt-card)
+   Replaces .app-card. Icon-only actions, compact, no heavy shadow.
+   ═══════════════════════════════════════════════════════════ */
+
+/* ── Base card ── */
+.apt-card {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 10px;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(15,23,42,0.06);
+  position: relative;
+  margin-bottom: 4px;
+  overflow: hidden;
+}
+
+/* Status border accent — left only, overdue */
+.apt-card--overdue {
+  border-left: 3px solid #ef4444;
+}
+.apt-card--completed {
+  border-left: 3px solid #10b981;
+  opacity: 0.85;
+}
+.apt-card--canceled {
+  opacity: 0.6;
+}
+
+/* ── Head row: date·time left, badge right ── */
+.apt-card__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 1px;
+}
+
+.apt-head__dt {
+  font-size: 11px;
+  font-weight: 600;
+  color: #64748b;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+}
+
+/* ── Status badge pill ── */
+.apt-badge {
+  display: inline-block;
+  padding: 2px 7px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  line-height: 1.6;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.apt-badge--scheduled { background: #eff6ff; color: #1d4ed8; }
+.apt-badge--overdue   { background: #fee2e2; color: #b91c1c; }
+.apt-badge--completed { background: #dcfce7; color: #15803d; }
+.apt-badge--canceled  { background: #f1f5f9; color: #64748b; }
+.apt-badge--soon      { background: #fef9c3; color: #854d0e; }
+
+/* ── Client name ── */
+.apt-card__client {
+  font-size: 14px;
+  font-weight: 700;
+  color: #0f172a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.3;
+}
+
+/* ── Vehicle line ── */
+.apt-card__vehicle {
+  font-size: 11px;
+  color: #9ca3af;
+  font-weight: 400;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.3;
+}
+
+/* ── Financial strip ── */
+.apt-card__fin {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 1px;
+  font-size: 12px;
+}
+.apt-fin__amount {
+  font-weight: 700;
+  color: #1e293b;
+  letter-spacing: -0.01em;
+}
+.apt-fin__dot {
+  color: #d1d5db;
+  font-size: 10px;
+}
+.apt-fin__status {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.apt-fin--paid { color: #16a34a; }
+.apt-fin--due  { color: #dc2626; }
+
+/* ── Icon-only actions row ── */
+.apt-card__actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 3px;
+  flex-wrap: nowrap;
+}
+
+.apt-action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  background: #f9fafb;
+  color: #6b7280;
+  cursor: pointer;
+  font-size: 12px;
+  flex-shrink: 0;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+}
+.apt-action-btn:active { transform: scale(0.93); }
+
+.apt-action-btn--call    { color: #0284c7; border-color: #bae6fd; background: #f0f9ff; }
+.apt-action-btn--invoice { color: #FF7A18; border-color: #fed7aa; background: #fff7ed; }
+.apt-action-btn--pay     { color: #16a34a; border-color: #bbf7d0; background: #f0fdf4; }
+.apt-action-btn--edit    { color: #6366f1; border-color: #c7d2fe; background: #eef2ff; }
+.apt-action-btn--more    { color: #64748b; border-color: #e5e7eb; background: #f8fafc; }
+.apt-action-btn--danger  { color: #dc2626; border-color: #fecaca; background: #fef2f2; }
+.apt-action-btn--mechanic { color: #d97706; border-color: #fde68a; background: #fffbeb; }
+.apt-action-btn--visit   { color: #0891b2; border-color: #a5f3fc; background: #ecfeff; }
+
+/* ── Paid pill (replaces pay button when paid) ── */
+.apt-paid-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 6px;
+  background: #dcfce7;
+  color: #16a34a;
+  font-size: 13px;
+  flex-shrink: 0;
+  border: 1px solid #bbf7d0;
+}
+
+/* ── Secondary (more) menu ── */
+.apt-secondary-menu {
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+  padding-top: 5px;
+  border-top: 1px solid #f1f5f9;
+  align-items: center;
+}
+.apt-secondary-menu.collapsed {
+  display: none;
+}
+.apt-btn-lbl {
+  font-size: 11px;
+  font-weight: 600;
+  margin-left: 4px;
+  white-space: nowrap;
+}
+
+/* Secondary menu buttons slightly wider (have labels) */
+.apt-secondary-menu .apt-action-btn {
+  width: auto;
+  padding: 0 10px;
+  gap: 4px;
+}
+
+/* ── TIERED ACTIONS (PREMIUM SAAS LAYOUT) ── */
+
+/* Wrapper for tier 1 + tier 2 */
+.apt-card__actions-tier {
+  margin-top: 6px;
+}
+
+/* Primary row: CTA button + quick icon group */
+.apt-card__primary-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Quick icon group (Tier 2) */
+.apt-card__quick-btns {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+/* Tier 1 — Primary CTA button */
+.apt-primary-btn {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 44px;
+  min-height: 44px;
+  border-radius: 8px;
+  border: none;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 0 14px;
+  -webkit-tap-highlight-color: transparent;
+  transition: filter 0.12s, transform 0.1s;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.apt-primary-btn:active { transform: scale(0.97); filter: brightness(0.92); }
+.apt-primary-btn--start    { background: #3b82f6; color: white; }
+.apt-primary-btn--complete { background: #10b981; color: white; }
+.apt-primary-btn--pay      { background: #16a34a; color: white; }
+.apt-primary-btn--view     { background: #f8fafc; color: #1e293b; border: 1px solid #e5e7eb; }
+
+/* ── in-progress badge ── */
+.apt-badge--in-progress { background: #fff7ed; color: #c2410c; }
+/* ── in-progress card left accent ── */
+.apt-card--in-progress  { border-left: 3px solid #f97316; }
+
+/* ── Density compact: tighten even further ── */
+#tvWorkspacePanel.tv-density-compact .apt-card {
+  padding: 7px 10px;
+  gap: 2px;
+  margin-bottom: 4px;
+}
+#tvWorkspacePanel.tv-density-compact .apt-card__vehicle,
+#tvWorkspacePanel.tv-density-compact .apt-card__fin {
+  display: none;
+}
+#tvWorkspacePanel.tv-density-compact .apt-card__actions {
+  margin-top: 4px;
+}
+
+/* ═══════════════════════════════════════════════════════
+   SECTION 25 — BELL NOTIFICATION BUTTON + ALERTS DRAWER
+   ═══════════════════════════════════════════════════════ */
+
+/* Bell button in header */
+.tv-bell-btn {
+  position: relative;
+  /* 44px tap target via padding; visual ring stays 36px */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  /* Use padding to reach 44px without changing layout size */
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  color: #0f172a;
+  cursor: pointer;
+  flex-shrink: 0;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.12s;
+  overflow: visible;   /* allow badge to clip out of circular area */
+  margin: -4px;        /* compensate extra size so layout gap stays even */
+}
+.tv-bell-btn:hover { background: rgba(15,23,42,0.08); }
+.tv-bell-btn:active { background: rgba(15,23,42,0.14); }
+.tv-bell-btn i { font-size: 18px; }
+
+/* Red badge on bell */
+.tv-bell-badge {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 3px;
+  border-radius: 999px;
+  background: #ef4444;
+  color: white;
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  border: 1.5px solid white;
+  box-sizing: border-box;
+  z-index: 10;
+}
+
+/* Notifications drawer (popover) */
+.tv-notif-drawer {
+  position: fixed;
+  /* anchor below the header — use CSS var set by JS, fallback 64px */
+  top: var(--tv-header-bottom, 64px);
+  right: 8px;
+  width: min(320px, calc(100vw - 16px));
+  max-height: 70vh;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  box-shadow: 0 12px 32px rgba(15,23,42,0.14), 0 2px 6px rgba(15,23,42,0.06);
+  z-index: 1200;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  opacity: 0;
+  transform: translateY(-6px) scale(0.98);
+  pointer-events: none;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+.tv-notif-drawer--open {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  pointer-events: auto;
+}
+
+/* Drawer header */
+.tv-notif-drawer__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-bottom: 1px solid #f1f5f9;
+  flex-shrink: 0;
+}
+.tv-notif-drawer__title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #0f172a;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.tv-notif-drawer__title i { color: #FF7A18; }
+.tv-notif-drawer__close {
+  width: 26px;
+  height: 26px;
+  border: none;
+  background: transparent;
+  color: #9ca3af;
+  font-size: 18px;
+  cursor: pointer;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+.tv-notif-drawer__close:hover { background: #f1f5f9; color: #374151; }
+
+/* Drawer body */
+.tv-notif-drawer__body {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  flex: 1;
+  padding: 6px 0;
+}
+
+/* Empty state */
+.tv-notif-empty {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 16px 16px;
+  color: #16a34a;
+  font-size: 13px;
+  font-weight: 600;
+}
+.tv-notif-empty i { font-size: 16px; }
+
+/* Alert row */
+.tv-notif-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 14px;
+  border-bottom: 1px solid #f8fafc;
+  transition: background 0.08s;
+}
+.tv-notif-item:last-child { border-bottom: none; }
+.tv-notif-item:hover { background: #f8fafc; }
+
+.tv-notif-item__icon {
+  font-size: 16px;
+  flex-shrink: 0;
+  width: 20px;
+  text-align: center;
+}
+.tv-notif-item__content {
+  flex: 1;
+  min-width: 0;
+}
+.tv-notif-item__label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: #1e293b;
+}
+.tv-notif-item__count {
+  display: inline-block;
+  margin-top: 1px;
+  font-size: 11px;
+  color: #64748b;
+}
+.tv-notif-item__btns {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+/* View button */
+.tv-notif-view {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 9px;
+  border-radius: 5px;
+  border: 1px solid #e5e7eb;
+  background: #f8fafc;
+  color: #3b82f6;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.1s;
+}
+.tv-notif-view:hover { background: #eff6ff; border-color: #bfdbfe; }
+
+/* Dismiss ×  button */
+.tv-notif-dismiss {
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  border: none;
+  background: transparent;
+  color: #9ca3af;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.tv-notif-dismiss:hover { background: #f1f5f9; color: #374151; }

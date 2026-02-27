@@ -61,18 +61,17 @@ class FirestoreSync {
       const {
         collection,
         query,
-        orderBy,
         onSnapshot
       } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
       
       // Setup appointments listener
-      this.subscribeToAppointments(collection, query, orderBy, onSnapshot);
+      this.subscribeToAppointments(collection, query, onSnapshot);
       
       // Setup invoices listener
-      this.subscribeToInvoices(collection, query, orderBy, onSnapshot);
+      this.subscribeToInvoices(collection, query, onSnapshot);
       
       // Setup scanned invoices listener (if exists)
-      this.subscribeToScannedInvoices(collection, query, orderBy, onSnapshot);
+      this.subscribeToScannedInvoices(collection, query, onSnapshot);
       
       this.isInitialized = true;
       console.log('✅ Firestore sync initialized');
@@ -86,7 +85,7 @@ class FirestoreSync {
    * Subscribe to real-time appointments changes
    * @private
    */
-  subscribeToAppointments(collection, query, orderBy, onSnapshot) {
+  subscribeToAppointments(collection, query, onSnapshot) {
     // Unsubscribe from previous listener if it exists
     const prevUnsub = this.listeners.get('appointments');
     if (prevUnsub) {
@@ -94,7 +93,7 @@ class FirestoreSync {
     }
     
     try {
-      const q = query(collection(this.db, 'appointments'), orderBy('startAt', 'asc'));
+      const q = query(collection(this.db, 'appointments'));
       
       const unsubscribe = onSnapshot(
         q,
@@ -148,14 +147,14 @@ class FirestoreSync {
    * Subscribe to real-time invoices changes
    * @private
    */
-  subscribeToInvoices(collection, query, orderBy, onSnapshot) {
+  subscribeToInvoices(collection, query, onSnapshot) {
     const prevUnsub = this.listeners.get('invoices');
     if (prevUnsub) {
       prevUnsub();
     }
     
     try {
-      const q = query(collection(this.db, 'invoices'), orderBy('createdAt', 'desc'));
+      const q = query(collection(this.db, 'invoices'));
       
       const unsubscribe = onSnapshot(
         q,
@@ -205,14 +204,14 @@ class FirestoreSync {
    * Subscribe to real-time scanned invoices changes
    * @private
    */
-  subscribeToScannedInvoices(collection, query, orderBy, onSnapshot) {
+  subscribeToScannedInvoices(collection, query, onSnapshot) {
     const prevUnsub = this.listeners.get('scannedInvoices');
     if (prevUnsub) {
       prevUnsub();
     }
     
     try {
-      const q = query(collection(this.db, 'scannedInvoices'), orderBy('createdAt', 'desc'));
+      const q = query(collection(this.db, 'scannedInvoices'));
       
       const unsubscribe = onSnapshot(
         q,

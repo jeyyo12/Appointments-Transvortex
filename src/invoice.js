@@ -46,6 +46,7 @@ let isAdmin = false;
 let currentInvoiceData = null;
 let hasRenderedOnce = false; // Prevent double render
 let currentInvoiceId = null; // ID of invoice being viewed/edited (from invoices collection)
+let currentInvoiceEditMode = 'standard';
 
 let invoiceInitialized = false;
 let invoiceListenersBound = false;
@@ -193,24 +194,16 @@ function generatePIN() {
 }
 
 /**
- * Generate invoice number with timestamp + counter
- * Format: INV-[YYMMDDHHmm]-[counter]
+ * Generate invoice number \u2014 canonical format matching invoice-manager.js.
+ * Format: INV-{RANDOM}-{YYMMDD}
+ * Note: invoice.js is standalone (loaded by invoice.html) so it cannot
+ * import from invoice-manager. Keep in sync with the canonical format manually.
  */
 function generateInvoiceNumber() {
     const now = new Date();
-
-    const pad = (n, size = 2) => n.toString().padStart(size, '0');
-    
-    const yy = pad(now.getFullYear() % 100);
-    const mm = pad(now.getMonth() + 1);
-    const dd = pad(now.getDate());
-    const hh = pad(now.getHours());
-    const min = pad(now.getMinutes());
-    
-    // Simple counter (can be enhanced with localStorage)
-    const counter = pad(Math.floor(Math.random() * 100), 3);
-    
-    return `INV-${yy}${mm}${dd}${hh}${min}-${counter}`;
+    const dateStr = now.toISOString().slice(2, 8).replace(/-/g, ''); // YYMMDD
+    const random = Math.random().toString(36).substring(2, 7).toUpperCase();
+    return `INV-${random}-${dateStr}`;
 }
 
 /**
@@ -308,8 +301,126 @@ function renderPaymentTerms() {
     
     const termsElement = document.getElementById('paymentTermsText');
     if (termsElement) {
-        termsElement.textContent = data.paymentTerms || 'Due within 7 days';
+termsElement.textContent = data.paymentTerms || 'Due within 7 days';
     }
+}
+
+function isInvoiceROTabEnabled() {
+    try {
+        const params = new URLSearchParams(window.location.search || '');
+        const queryFlag = params.get('ui.invoiceROTab');
+        if (queryFlag === '0' || queryFlag === 'false') return false;
+        if (queryFlag === '1' || queryFlag === 'true') return true;
+
+        const localFlag = localStorage.getItem('ui.invoiceROTab');
+        if (localFlag === '0' || localFlag === 'false') return false;
+        if (localFlag === '1' || localFlag === 'true') return true;
+
+        if (typeof window.ui?.invoiceROTab === 'boolean') {
+            return window.ui.invoiceROTab;
+        }
+
+        return true;
+    } catch (error) {
+        return true;
+    }
+}
+
+function applyInvoiceEditMode(mode = 'standard') {
+    const form = document.getElementById('invoiceEditForm');
+    const tabs = document.getElementById('invoiceModeTabs');
+    const roSection = document.getElementById('legalProfileROSection');
+    if (!form || !tabs || !roSection) return;
+
+    const normalizedMode = mode === 'ro' ? 'ro' : 'standard';
+    currentInvoiceEditMode = normalizedMode;
+
+    tabs.querySelectorAll('.invoice-mode-tab').forEach(btn => {
+        const isActive = btn.dataset.invoiceMode === normalizedMode;
+        btn.classList.toggle('active', isActive);
+        btn.setAttribute('aria-selected', isActive ? 'true' : 'false');
+    });
+
+    const allSections = Array.from(form.querySelectorAll('.edit-section'));
+    const standardSections = allSections.filter(section => section.id !== 'legalProfileROSection');
+    const showRO = normalizedMode === 'ro';
+
+    standardSections.forEach(section => {
+        section.style.display = showRO ? 'none' : '';
+    });
+
+    roSection.style.display = showRO ? '' : 'none';
+}
+
+function initInvoiceModeTabs() {
+    const tabs = document.getElementById('invoiceModeTabs');
+    const roSection = document.getElementById('legalProfileROSection');
+    const form = document.getElementById('invoiceEditForm');
+    if (!tabs || !roSection || !form) return;
+
+    if (!isInvoiceROTabEnabled()) {
+        tabs.style.display = 'none';
+        form.querySelectorAll('.edit-section').forEach(section => {
+            section.style.display = '';
+        });
+        return;
+    }
+
+    tabs.style.display = 'inline-flex';
+
+    if (!tabs.dataset.bound) {
+        tabs.addEventListener('click', (event) => {
+            const btn = event.target.closest('.invoice-mode-tab');
+            if (!btn) return;
+            const mode = btn.dataset.invoiceMode || 'standard';
+            applyInvoiceEditMode(mode);
+        });
+        tabs.dataset.bound = 'true';
+    }
+
+    const initialMode = draftData?.legalProfile?.enabled ? 'ro' : 'standard';
+    applyInvoiceEditMode(initialMode);
+}
+
+function applyIssuerPreview(profile) {
+    const companyNameEl = document.querySelector('.company-name');
+    const companyInfoEl = document.querySelector('.company-info');
+    if (!companyNameEl || !companyInfoEl) return;
+
+    if (!companyNameEl.dataset.defaultText) {
+        companyNameEl.dataset.defaultText = companyNameEl.textContent || '';
+    }
+    if (!companyInfoEl.dataset.defaultHtml) {
+        companyInfoEl.dataset.defaultHtml = companyInfoEl.innerHTML || '';
+    }
+
+    if (profile?.type !== 'ro_company') {
+        companyNameEl.textContent = companyNameEl.dataset.defaultText;
+        companyInfoEl.innerHTML = companyInfoEl.dataset.defaultHtml;
+        return;
+    }
+
+    const issuer = profile.issuer || {};
+    const companyName = issuer.companyName || companyNameEl.dataset.defaultText;
+    companyNameEl.textContent = companyName;
+
+    const issuerLines = [
+        issuer.address,
+        issuer.cui ? `CUI: ${issuer.cui}` : '',
+        issuer.regCom ? `RegCom: ${issuer.regCom}` : '',
+        issuer.iban ? `IBAN: ${issuer.iban}` : '',
+        issuer.bank ? `Bank: ${issuer.bank}` : '',
+        issuer.vatStatusText || ''
+    ].filter(Boolean);
+
+    if (issuerLines.length === 0) {
+        companyInfoEl.innerHTML = companyInfoEl.dataset.defaultHtml;
+        return;
+    }
+
+    companyInfoEl.innerHTML = issuerLines
+        .map(line => `<span>${escapeHtml(line)}</span>`)
+        .join('');
 }
 
 /**
@@ -328,6 +439,42 @@ function renderNotes() {
         notesElement.textContent = 'Service carried out as agreed. Vehicle checked and tested. All work completed to manufacturer specifications.';
         // Show only if few items (handled by toggleWorkSummaryVisibility)
     }
+}
+
+function renderMechanicDetails(vm) {
+    const card = document.getElementById('mechanicDetailsCard');
+    if (!card) return;
+
+    const setBlock = (blockId, textId, value) => {
+        const block = document.getElementById(blockId);
+        const textEl = document.getElementById(textId);
+        if (!block || !textEl) return false;
+        const text = (value || '').toString().trim();
+        const hasText = text.length > 0;
+        block.style.display = hasText ? 'block' : 'none';
+        if (hasText) textEl.textContent = text;
+        return hasText;
+    };
+
+    if (vm?.templateType !== 'mechanic') {
+        card.style.display = 'none';
+        return;
+    }
+
+    const details = vm.mechanicDetails || {};
+    const termsText = [details.terms?.warrantyText, details.terms?.disclaimerText]
+        .map(value => (value || '').toString().trim())
+        .filter(Boolean)
+        .join(' | ');
+
+    const hasComplaint = setBlock('mechanicComplaintBlock', 'mechanicComplaintText', details.complaint);
+    const hasDiagnosis = setBlock('mechanicDiagnosisBlock', 'mechanicDiagnosisText', details.diagnosis);
+    const hasWork = setBlock('mechanicWorkBlock', 'mechanicWorkText', details.workPerformed);
+    const hasRecommendations = setBlock('mechanicRecommendationsBlock', 'mechanicRecommendationsText', details.recommendations);
+    const hasTerms = setBlock('mechanicTermsBlock', 'mechanicTermsText', termsText);
+
+    const hasAny = hasComplaint || hasDiagnosis || hasWork || hasRecommendations || hasTerms;
+    card.style.display = hasAny ? '' : 'none';
 }
 
 /**
@@ -376,6 +523,26 @@ function disableDownloadButton() {
     }
 }
 
+function requestPrintSafe() {
+    const logos = Array.from(document.querySelectorAll('.inv-logo'));
+    const decodePromises = logos
+        .filter(img => img && typeof img.decode === 'function')
+        .map(img => img.decode().catch(() => {}));
+
+    const settle = decodePromises.length
+        ? Promise.race([
+            Promise.all(decodePromises),
+            new Promise(resolve => setTimeout(resolve, 250))
+        ])
+        : Promise.resolve();
+
+    settle.finally(() => {
+        requestAnimationFrame(() => {
+            window.print();
+        });
+    });
+}
+
 /**
  * Handle PDF download (using window.print)
  */
@@ -384,7 +551,7 @@ function downloadPDF() {
         showValidationError(['No invoice data to print']);
         return;
     }
-    window.print();
+    requestPrintSafe();
 }
 
 /**
@@ -395,7 +562,7 @@ function handlePrint() {
         showValidationError(['No invoice data to print']);
         return;
     }
-    window.print();
+    requestPrintSafe();
 }
 
 /**
@@ -1137,6 +1304,33 @@ function toggleEditMode() {
             paymentMethod: currentInvoiceData.paymentMethod || '',
             paymentDate: currentInvoiceData.paymentDate || ''
         },
+        legalProfile: {
+            enabled: currentInvoiceData.legalProfile?.type === 'ro_company',
+            issuer: {
+                companyName: currentInvoiceData.legalProfile?.issuer?.companyName || '',
+                cui: currentInvoiceData.legalProfile?.issuer?.cui || '',
+                regCom: currentInvoiceData.legalProfile?.issuer?.regCom || '',
+                address: currentInvoiceData.legalProfile?.issuer?.address || '',
+                iban: currentInvoiceData.legalProfile?.issuer?.iban || '',
+                bank: currentInvoiceData.legalProfile?.issuer?.bank || '',
+                vatStatusText: currentInvoiceData.legalProfile?.issuer?.vatStatusText || ''
+            },
+            buyer: {
+                companyName: currentInvoiceData.legalProfile?.buyer?.companyName || '',
+                cui: currentInvoiceData.legalProfile?.buyer?.cui || '',
+                regCom: currentInvoiceData.legalProfile?.buyer?.regCom || '',
+                address: currentInvoiceData.legalProfile?.buyer?.address || '',
+                email: currentInvoiceData.legalProfile?.buyer?.email || '',
+                phone: currentInvoiceData.legalProfile?.buyer?.phone || ''
+            },
+            meta: {
+                series: currentInvoiceData.legalProfile?.meta?.series || '',
+                number: currentInvoiceData.legalProfile?.meta?.number || '',
+                issueDate: currentInvoiceData.legalProfile?.meta?.issueDate || '',
+                dueDate: currentInvoiceData.legalProfile?.meta?.dueDate || '',
+                notes: currentInvoiceData.legalProfile?.meta?.notes || ''
+            }
+        },
         total: currentInvoiceData.total || 0
     };
 
@@ -1165,6 +1359,7 @@ function toggleEditMode() {
     // Build and populate edit form
     buildEditForm();
     setupEditEventListeners();
+    initInvoiceModeTabs();
 
     console.log('✏️ [Invoice] Edit mode enabled');
 }
@@ -1190,6 +1385,9 @@ function buildEditForm() {
     
     // Populate payment fields
     populatePaymentFields();
+
+    // Populate optional legal profile fields
+    populateLegalProfileFields();
 }
 
 /**
@@ -1260,6 +1458,89 @@ function populatePaymentFields() {
     if (paymentDateInput) {
         paymentDateInput.value = draftData.payment?.paymentDate || '';
     }
+}
+
+function populateLegalProfileFields() {
+    const legalFields = {
+        'legalProfile.enabled': !!draftData.legalProfile?.enabled,
+        'legalProfile.issuer.companyName': draftData.legalProfile?.issuer?.companyName || '',
+        'legalProfile.issuer.cui': draftData.legalProfile?.issuer?.cui || '',
+        'legalProfile.issuer.regCom': draftData.legalProfile?.issuer?.regCom || '',
+        'legalProfile.issuer.address': draftData.legalProfile?.issuer?.address || '',
+        'legalProfile.issuer.iban': draftData.legalProfile?.issuer?.iban || '',
+        'legalProfile.issuer.bank': draftData.legalProfile?.issuer?.bank || '',
+        'legalProfile.issuer.vatStatusText': draftData.legalProfile?.issuer?.vatStatusText || '',
+        'legalProfile.buyer.companyName': draftData.legalProfile?.buyer?.companyName || '',
+        'legalProfile.buyer.cui': draftData.legalProfile?.buyer?.cui || '',
+        'legalProfile.buyer.regCom': draftData.legalProfile?.buyer?.regCom || '',
+        'legalProfile.buyer.address': draftData.legalProfile?.buyer?.address || '',
+        'legalProfile.buyer.email': draftData.legalProfile?.buyer?.email || '',
+        'legalProfile.buyer.phone': draftData.legalProfile?.buyer?.phone || '',
+        'legalProfile.meta.series': draftData.legalProfile?.meta?.series || '',
+        'legalProfile.meta.number': draftData.legalProfile?.meta?.number || '',
+        'legalProfile.meta.issueDate': draftData.legalProfile?.meta?.issueDate || '',
+        'legalProfile.meta.dueDate': draftData.legalProfile?.meta?.dueDate || '',
+        'legalProfile.meta.notes': draftData.legalProfile?.meta?.notes || ''
+    };
+
+    Object.entries(legalFields).forEach(([fieldName, value]) => {
+        const input = document.querySelector(`[data-field="${fieldName}"]`);
+        if (!input) return;
+        if (input.type === 'checkbox') {
+            input.checked = Boolean(value);
+        } else {
+            input.value = value;
+        }
+    });
+}
+
+function trimString(value) {
+    return typeof value === 'string' ? value.trim() : '';
+}
+
+function hasAnyLegalProfileValue(profile) {
+    if (!profile) return false;
+    const issuer = profile.issuer || {};
+    const buyer = profile.buyer || {};
+    const meta = profile.meta || {};
+    const values = [
+        issuer.companyName, issuer.cui, issuer.regCom, issuer.address, issuer.iban, issuer.bank, issuer.vatStatusText,
+        buyer.companyName, buyer.cui, buyer.regCom, buyer.address, buyer.email, buyer.phone,
+        meta.series, meta.number, meta.issueDate, meta.dueDate, meta.notes
+    ];
+    return values.some(value => trimString(value) !== '');
+}
+
+function buildLegalProfileForSave(profile) {
+    const source = profile || {};
+    const issuer = {
+        companyName: trimString(source.issuer?.companyName),
+        cui: trimString(source.issuer?.cui),
+        regCom: trimString(source.issuer?.regCom),
+        address: trimString(source.issuer?.address),
+        iban: trimString(source.issuer?.iban),
+        bank: trimString(source.issuer?.bank),
+        vatStatusText: trimString(source.issuer?.vatStatusText)
+    };
+    const buyer = {
+        companyName: trimString(source.buyer?.companyName),
+        cui: trimString(source.buyer?.cui),
+        regCom: trimString(source.buyer?.regCom),
+        address: trimString(source.buyer?.address),
+        email: trimString(source.buyer?.email),
+        phone: trimString(source.buyer?.phone)
+    };
+    const meta = {
+        series: trimString(source.meta?.series),
+        number: trimString(source.meta?.number),
+        issueDate: trimString(source.meta?.issueDate),
+        dueDate: trimString(source.meta?.dueDate),
+        notes: trimString(source.meta?.notes)
+    };
+
+    const normalized = { type: 'ro_company', issuer, buyer, meta };
+    const enabled = source.enabled === true || hasAnyLegalProfileValue(normalized);
+    return enabled ? normalized : null;
 }
 
 /**
@@ -1376,14 +1657,16 @@ function setupEditEventListeners() {
     // Input change listener for client fields
     form.addEventListener('change', (e) => {
         if (e.target.dataset.field) {
-            updateDraftData(e.target.dataset.field, e.target.value);
+            const fieldValue = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+            updateDraftData(e.target.dataset.field, fieldValue);
         }
     });
 
     // Input listener for real-time editing (without waiting for blur)
     form.addEventListener('input', (e) => {
         if (e.target.dataset.field) {
-            updateDraftData(e.target.dataset.field, e.target.value);
+            const fieldValue = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+            updateDraftData(e.target.dataset.field, fieldValue);
         }
 
         // Update services/parts from item inputs
@@ -1650,7 +1933,15 @@ async function saveInvoiceChanges(e) {
         });
 
         // Update Firestore (invoices or appointments collection)
-        const { doc, updateDoc, collection, addDoc, getDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+        const { doc, updateDoc, collection, addDoc, getDoc, serverTimestamp, deleteField } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+        const roModeActive = currentInvoiceEditMode === 'ro';
+        const legalProfileSource = {
+            ...(draftData.legalProfile || {}),
+            enabled: roModeActive
+        };
+        const legalProfileForSave = roModeActive ? buildLegalProfileForSave(legalProfileSource) : null;
+        const hadExistingLegalProfile = currentInvoiceData?.legalProfile?.type === 'ro_company';
+        const shouldClearLegalProfile = !roModeActive && (hadExistingLegalProfile || draftData.legalProfile?.enabled === true);
         
         if (currentInvoiceId) {
             // SCENARIO 1: Updating existing standalone invoice in invoices collection
@@ -1681,12 +1972,23 @@ async function saveInvoiceChanges(e) {
                 paymentDate: draftData.payment?.paymentDate || '',
                 updatedAt: serverTimestamp()
             };
+
+            if (legalProfileForSave) {
+                invoiceUpdateData.legalProfile = legalProfileForSave;
+            } else if (shouldClearLegalProfile) {
+                invoiceUpdateData.legalProfile = deleteField();
+            }
             
             await updateDoc(doc(db, 'invoices', currentInvoiceId), invoiceUpdateData);
             console.log('✅ [Invoice] Updated invoice in invoices collection:', currentInvoiceId);
             
         } else if (currentAptId) {
             // SCENARIO 2: Updating appointment in appointments collection
+            if (legalProfileForSave) {
+                updateData.legalProfile = legalProfileForSave;
+            } else if (shouldClearLegalProfile) {
+                updateData.legalProfile = deleteField();
+            }
             await updateDoc(doc(db, 'appointments', currentAptId), updateData);
             console.log('✅ [Invoice] Updated appointment:', currentAptId);
             
@@ -1737,6 +2039,9 @@ async function saveInvoiceChanges(e) {
                 
                 // Notes
                 notes: draftData.notes || '',
+
+                // Optional legal profile
+                ...(legalProfileForSave ? { legalProfile: legalProfileForSave } : {}),
                 
                 // User tracking
                 createdBy: currentUser.uid
@@ -1991,10 +2296,46 @@ function appendPostcodeToAddress(address, postcode) {
     return `${normalizedAddress}\n${normalizedPostcode}`;
 }
 
+function normalizeMechanicDetails(data = {}, appointment = {}) {
+    const source = data.mechanicDetails || {};
+    const vehicleSource = source.vehicle || {};
+    const termsSource = source.terms || {};
+
+    const toText = (value) => value === undefined || value === null ? '' : String(value).trim();
+
+    const vehicle = {};
+    const vehicleVin = toText(vehicleSource.vin || data.vin || appointment.vin || appointment.vehicle?.vin);
+    const vehicleMileage = toText(vehicleSource.mileage || data.mileage || appointment.mileage || appointment.vehicle?.mileage);
+    if (vehicleVin) vehicle.vin = vehicleVin;
+    if (vehicleMileage) vehicle.mileage = vehicleMileage;
+
+    const terms = {};
+    const warrantyText = toText(termsSource.warrantyText);
+    const disclaimerText = toText(termsSource.disclaimerText);
+    if (warrantyText) terms.warrantyText = warrantyText;
+    if (disclaimerText) terms.disclaimerText = disclaimerText;
+
+    const mechanicDetails = {};
+    const complaint = toText(source.complaint || data.notes || appointment.notes);
+    const diagnosis = toText(source.diagnosis);
+    const workPerformed = toText(source.workPerformed);
+    const recommendations = toText(source.recommendations);
+
+    if (complaint) mechanicDetails.complaint = complaint;
+    if (diagnosis) mechanicDetails.diagnosis = diagnosis;
+    if (workPerformed) mechanicDetails.workPerformed = workPerformed;
+    if (recommendations) mechanicDetails.recommendations = recommendations;
+    if (Object.keys(vehicle).length > 0) mechanicDetails.vehicle = vehicle;
+    if (Object.keys(terms).length > 0) mechanicDetails.terms = terms;
+
+    return mechanicDetails;
+}
+
 function normalizeInvoiceData(raw, invoiceId, appointmentFallback = null) {
     const data = raw || {};
     const appointment = appointmentFallback || {};
     const getFirst = (...values) => values.find(v => v !== undefined && v !== null && v !== '') || '';
+    const legalProfile = data.legalProfile?.type === 'ro_company' ? data.legalProfile : null;
 
     const invoiceDateISO = toISODateString(data.invoiceDate || data.createdAt || new Date());
     const dueDateISO = data.dueDate ? toISODateString(data.dueDate) : addDaysISO(invoiceDateISO, 7);
@@ -2025,6 +2366,7 @@ function normalizeInvoiceData(raw, invoiceId, appointmentFallback = null) {
     const paymentStatus = rawStatus || computePaymentStatus(total, amountPaid, remainingBalance);
 
     const customerName = getFirst(
+        legalProfile?.buyer?.companyName,
         data.customerName,
         data.customer?.name,
         data.name,
@@ -2034,6 +2376,7 @@ function normalizeInvoiceData(raw, invoiceId, appointmentFallback = null) {
     ) || '—';
 
     const customerAddress = getFirst(
+        legalProfile?.buyer?.address,
         data.customerAddress,
         data.address,
         data.customer?.address,
@@ -2048,12 +2391,20 @@ function normalizeInvoiceData(raw, invoiceId, appointmentFallback = null) {
     );
 
     const customerPhone = getFirst(
+        legalProfile?.buyer?.phone,
         data.phone,
         data.customerPhone,
         data.customer?.phone,
         appointment.phone,
         appointment.customerPhone
     );
+
+    const legalIssueDate = legalProfile?.meta?.issueDate ? toISODateString(legalProfile.meta.issueDate) : '';
+    const legalDueDate = legalProfile?.meta?.dueDate ? toISODateString(legalProfile.meta.dueDate) : '';
+    const templateType = data.templateType === 'mechanic' ? 'mechanic' : 'standard';
+    const mechanicDetails = templateType === 'mechanic'
+        ? normalizeMechanicDetails(data, appointment)
+        : null;
 
     const vehicleMakeModel = getFirst(
         data.vehicleMakeModel,
@@ -2081,8 +2432,8 @@ function normalizeInvoiceData(raw, invoiceId, appointmentFallback = null) {
         id: invoiceId || data.id || '',
         appointmentId: data.appointmentId || appointment.id || '',
         invoiceNumber: data.invoiceNumber || '—',
-        invoiceDate: invoiceDateISO,
-        dueDate: dueDateISO,
+        invoiceDate: legalIssueDate || invoiceDateISO,
+        dueDate: legalDueDate || dueDateISO,
         refPin: data.refPin || data.pin || '',
         paymentTerms: data.paymentTerms || 'Due within 7 days',
         notes: data.notes || '',
@@ -2100,7 +2451,10 @@ function normalizeInvoiceData(raw, invoiceId, appointmentFallback = null) {
         total,
         amountPaid,
         remainingBalance,
-        paymentStatus
+        paymentStatus,
+        legalProfile,
+        templateType,
+        mechanicDetails
     };
 }
 
@@ -2113,6 +2467,8 @@ function setTextById(id, value, fallback = '—') {
 
 function populatePreview(vm) {
     if (!vm) return;
+
+    applyIssuerPreview(vm.legalProfile);
 
     setTextById('invoiceNumber', vm.invoiceNumber);
     setTextById('invoiceDate', formatDateUK(vm.invoiceDate));
@@ -2269,6 +2625,7 @@ async function loadInvoicePreview(invoiceId) {
     renderTotalsOptimized(normalized);
     renderPaymentTerms();
     renderNotes();
+    renderMechanicDetails(normalized);
 
     if (!hasRenderedOnce) {
         hasRenderedOnce = true;
@@ -2788,6 +3145,7 @@ function renderInvoiceFromAppointment(normalizedData) {
     renderTotalsOptimized(normalizedData);
     renderPaymentTerms();
     renderNotes();
+    renderMechanicDetails(normalizedData);
 
     // Enable buttons
     enableDownloadButton();
@@ -2893,6 +3251,7 @@ async function renderInvoiceFromStandalone(invoiceData) {
     renderTotalsOptimized(normalized);
     renderPaymentTerms();
     renderNotes();
+    renderMechanicDetails(normalized);
 
     // Enable buttons
     enableDownloadButton();

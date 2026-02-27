@@ -1,0 +1,437 @@
+/* ====================================================
+   APPOINTMENT WIZARD V2 — MOBILE PREMIUM UI
+   Feature-flagged: activated via ?ui=v2
+   CSS-only design; zero impact on existing styles.
+   ==================================================== */
+
+/* ── Overlay backdrop ──────────────────────────────── */
+.wiz-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 1200;
+    background: rgba(15, 23, 42, 0.72);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: flex-end;          /* bottom-sheet on mobile */
+    justify-content: center;
+    padding: 0;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.28s ease;
+}
+.wiz-overlay.is-open {
+    opacity: 1;
+    pointer-events: all;
+}
+
+/* ── Sheet panel ──────────────────────────────────── */
+.wiz-panel {
+    width: 100%;
+    max-width: 540px;
+    max-height: 92dvh;
+    background: #fff;
+    border-radius: 20px 20px 0 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    transform: translateY(100%);
+    transition: transform 0.32s cubic-bezier(0.32, 0.72, 0, 1);
+    box-shadow: 0 -8px 40px rgba(0,0,0,0.18);
+}
+.wiz-overlay.is-open .wiz-panel {
+    transform: translateY(0);
+}
+
+/* Centered on desktop */
+@media (min-width: 600px) {
+    .wiz-overlay {
+        align-items: center;
+        padding: 16px;
+    }
+    .wiz-panel {
+        border-radius: 20px;
+        max-height: 88vh;
+        transform: translateY(20px) scale(0.97);
+    }
+    .wiz-overlay.is-open .wiz-panel {
+        transform: translateY(0) scale(1);
+    }
+}
+
+/* ── Drag handle ──────────────────────────────────── */
+.wiz-handle {
+    width: 36px;
+    height: 4px;
+    border-radius: 2px;
+    background: #CBD5E1;
+    margin: 10px auto 0;
+    flex-shrink: 0;
+}
+@media (min-width: 600px) { .wiz-handle { display: none; } }
+
+/* ── Header ───────────────────────────────────────── */
+.wiz-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 16px 12px;
+    border-bottom: 1px solid #F1F5F9;
+    flex-shrink: 0;
+    position: relative;
+}
+.wiz-title {
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: #0F172A;
+    flex: 1;
+}
+.wiz-close-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: none;
+    background: #F1F5F9;
+    color: #64748B;
+    font-size: 1.1rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s;
+    flex-shrink: 0;
+    line-height: 1;
+}
+.wiz-close-btn:hover { background: #E2E8F0; }
+
+/* ── Progress stepper ─────────────────────────────── */
+.wiz-stepper {
+    display: flex;
+    align-items: center;
+    padding: 0 16px 14px;
+    gap: 0;
+    flex-shrink: 0;
+}
+.wiz-step-dot {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: 2px solid #E2E8F0;
+    background: #fff;
+    color: #94A3B8;
+    font-size: 0.75rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: all 0.2s;
+    position: relative;
+    z-index: 1;
+}
+.wiz-step-dot.active {
+    border-color: #FF7A18;
+    background: #FF7A18;
+    color: #fff;
+    box-shadow: 0 0 0 4px rgba(255,122,24,0.15);
+}
+.wiz-step-dot.done {
+    border-color: #22C55E;
+    background: #22C55E;
+    color: #fff;
+}
+.wiz-step-line {
+    flex: 1;
+    height: 2px;
+    background: #E2E8F0;
+    transition: background 0.2s;
+}
+.wiz-step-line.done {
+    background: #22C55E;
+}
+
+/* ── Step labels (optional, hidden on xs) ─────────── */
+.wiz-step-labels {
+    display: none;
+    padding: 0 16px 8px;
+    gap: 4px;
+}
+@media (min-width: 380px) {
+    .wiz-step-labels {
+        display: flex;
+        justify-content: space-between;
+    }
+}
+.wiz-step-label {
+    font-size: 0.68rem;
+    color: #94A3B8;
+    font-weight: 500;
+    text-align: center;
+    flex: 1;
+    transition: color 0.2s;
+}
+.wiz-step-label.active { color: #FF7A18; font-weight: 700; }
+.wiz-step-label.done   { color: #22C55E; }
+
+/* ── Body (scrollable) ────────────────────────────── */
+.wiz-body {
+    flex: 1;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+/* ── Field group ──────────────────────────────────── */
+.wiz-field {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+.wiz-label {
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: #475569;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+}
+.wiz-label .badge-optional {
+    font-size: 0.68rem;
+    font-weight: 500;
+    color: #94A3B8;
+    text-transform: none;
+    letter-spacing: 0;
+    margin-left: 4px;
+}
+.wiz-input,
+.wiz-select,
+.wiz-textarea {
+    width: 100%;
+    padding: 11px 14px;
+    border: 1.5px solid #E2E8F0;
+    border-radius: 10px;
+    font-size: 0.95rem;
+    color: #0F172A;
+    background: #fff;
+    transition: border-color 0.15s, box-shadow 0.15s;
+    -webkit-appearance: none;
+    appearance: none;
+    outline: none;
+    box-sizing: border-box;
+}
+.wiz-input:focus,
+.wiz-select:focus,
+.wiz-textarea:focus {
+    border-color: #FF7A18;
+    box-shadow: 0 0 0 3px rgba(255,122,24,0.12);
+}
+.wiz-textarea { resize: vertical; min-height: 72px; }
+.wiz-select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%2364748B' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 14px center; padding-right: 36px; }
+
+/* Required field indicator */
+.wiz-input.required-empty,
+.wiz-select.required-empty {
+    border-color: #F87171;
+    box-shadow: 0 0 0 3px rgba(248,113,113,0.12);
+}
+
+/* ── Step section heading ─────────────────────────── */
+.wiz-section-title {
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: #0F172A;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 2px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.wiz-section-title::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: #F1F5F9;
+}
+
+/* ── Row grid ─────────────────────────────────────── */
+.wiz-row-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+}
+
+/* ── Time display field (read-only, opens TimePicker) */
+.wiz-time-field {
+    position: relative;
+}
+.wiz-time-display {
+    padding-right: 40px;
+    cursor: pointer;
+    background: #fff;
+}
+.wiz-time-field::after {
+    content: '🕐';
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 1.1rem;
+    pointer-events: none;
+}
+
+/* ── Jobs rows (Step 3) ───────────────────────────── */
+.wiz-jobs-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.wiz-job-row {
+    display: grid;
+    grid-template-columns: 1fr 60px 70px 28px;
+    gap: 6px;
+    align-items: center;
+}
+.wiz-job-row input {
+    font-size: 0.9rem;
+    padding: 8px 10px;
+}
+.wiz-btn-remove-job {
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    border: 1px solid #FEE2E2;
+    background: #FEF2F2;
+    color: #EF4444;
+    font-size: 1rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s;
+    flex-shrink: 0;
+}
+.wiz-btn-remove-job:hover { background: #FEE2E2; }
+.wiz-btn-add-job {
+    padding: 9px 14px;
+    border: 1.5px dashed #E2E8F0;
+    background: #F8FAFC;
+    border-radius: 10px;
+    font-size: 0.88rem;
+    color: #64748B;
+    cursor: pointer;
+    width: 100%;
+    text-align: center;
+    transition: border-color 0.15s, color 0.15s;
+}
+.wiz-btn-add-job:hover {
+    border-color: #FF7A18;
+    color: #FF7A18;
+}
+.wiz-jobs-header {
+    display: grid;
+    grid-template-columns: 1fr 60px 70px 28px;
+    gap: 6px;
+    padding: 0 2px 4px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: #94A3B8;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+/* ── Confirm step summary ─────────────────────────── */
+.wiz-summary {
+    background: #F8FAFC;
+    border: 1px solid #E2E8F0;
+    border-radius: 12px;
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+.wiz-summary-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 8px;
+    font-size: 0.88rem;
+    color: #475569;
+}
+.wiz-summary-row .key {
+    font-weight: 600;
+    color: #0F172A;
+    min-width: 90px;
+}
+.wiz-summary-total {
+    border-top: 1px solid #E2E8F0;
+    margin-top: 6px;
+    padding-top: 6px;
+    font-weight: 700;
+    color: #0F172A;
+    font-size: 0.95rem;
+}
+
+/* ── Footer ───────────────────────────────────────── */
+.wiz-footer {
+    display: flex;
+    gap: 10px;
+    padding: 12px 16px;
+    padding-bottom: max(12px, env(safe-area-inset-bottom));
+    border-top: 1px solid #F1F5F9;
+    flex-shrink: 0;
+    background: #fff;
+}
+.wiz-btn-back {
+    padding: 12px 18px;
+    border: 1.5px solid #E2E8F0;
+    border-radius: 10px;
+    background: #fff;
+    color: #475569;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s;
+    flex-shrink: 0;
+}
+.wiz-btn-back:hover { background: #F8FAFC; }
+.wiz-btn-next {
+    flex: 1;
+    padding: 12px 18px;
+    border: none;
+    border-radius: 10px;
+    background: linear-gradient(135deg, #FF7A18 0%, #FF6B02 100%);
+    color: #fff;
+    font-size: 0.95rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: opacity 0.15s, transform 0.1s;
+    letter-spacing: 0.01em;
+}
+.wiz-btn-next:hover { opacity: 0.9; }
+.wiz-btn-next:active { transform: scale(0.98); }
+.wiz-btn-next:disabled { opacity: 0.5; cursor: not-allowed; }
+.wiz-btn-next.save-mode {
+    background: linear-gradient(135deg, #22C55E 0%, #16A34A 100%);
+}
+
+/* ── Location address sub-fields ──────────────────── */
+.wiz-address-block {
+    display: none;
+    flex-direction: column;
+    gap: 10px;
+    padding: 10px;
+    background: #F8FAFC;
+    border-radius: 10px;
+    border: 1px solid #E2E8F0;
+}
+.wiz-address-block.visible { display: flex; }
+
+/* ── Inline notification (step validation) ─────────── */
+.wiz-inline-error {
+    font-size: 0.82rem;
+    color: #EF4444;
+    font-weight: 500;
+    margin-top: -4px;
+}

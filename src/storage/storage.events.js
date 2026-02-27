@@ -4,26 +4,21 @@
  */
 
 import { db, checkIsAdmin } from '../firebase/firebase.js';
-import { doc, deleteDoc, getDoc, setDoc, updateDoc, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+import { doc, deleteDoc, getDoc, setDoc, updateDoc, serverTimestamp, collection, query, where, limit, getDocs } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 import { createLogger } from '../shared/logger.js';
 import { showToast, confirm } from '../shared/ui.js';
 import { refreshInvoices } from './storage.service.js';
 import { filterInvoices, setActivePaymentFilter, toggleActivePaymentFilter } from './storage.ui.js';
-import { cleanupInvoiceDuplicatesAcrossAppointments, dedupeInvoicesForAppointment, getOrCreateInvoiceForAppointment } from '../invoices/invoice-manager.js';
+import { cleanupInvoiceDuplicatesAcrossAppointments, dedupeInvoicesForAppointment, getOrCreateInvoiceForAppointment, generateInvoiceNumber } from '../invoices/invoice-manager.js';
 
 const logger = createLogger('StorageEvents');
 let searchFilterListenersBound = false;
 
+// generateInvoiceNumber is imported from the canonical source: src/invoices/invoice-manager.js
+
 function toNumber(value) {
   const parsed = typeof value === 'number' ? value : parseFloat(value);
   return Number.isNaN(parsed) ? 0 : parsed;
-}
-
-function generateInvoiceNumber() {
-  const now = new Date();
-  const dateStr = now.toISOString().slice(2, 8).replace(/-/g, '');
-  const random = Math.random().toString(36).substring(2, 7).toUpperCase();
-  return `INV-${random}-${dateStr}`;
 }
 
 function sumLineItems(items) {
@@ -56,6 +51,66 @@ export function getInvoiceById(id) {
   return allInvoices.find(inv => inv.id === id) || null;
 }
 
+async function resolveInvoiceContext(invoiceId, appointmentId = null) {
+  let resolvedInvoice = getInvoiceById(invoiceId);
+  let resolvedAppointmentId = appointmentId || getInvoiceAppointmentId(resolvedInvoice);
+  let resolvedInvoiceId = resolvedInvoice?.id || invoiceId;
+
+  if (!resolvedAppointmentId && String(invoiceId || '').startsWith('missing-')) {
+    resolvedAppointmentId = String(invoiceId).replace(/^missing-/, '').trim() || null;
+  }
+
+  if (!resolvedAppointmentId && invoiceId) {
+    try {
+      const byInvoiceId = await getDocs(query(collection(db, 'appointments'), where('invoiceId', '==', invoiceId), limit(1)));
+      const linked = byInvoiceId.docs[0];
+      if (linked) {
+        resolvedAppointmentId = linked.id;
+      }
+    } catch (error) {
+      logger.warn('Could not resolve appointment by invoiceId query:', error);
+    }
+  }
+
+  if (resolvedAppointmentId) {
+    try {
+      const aptSnap = await getDoc(doc(db, 'appointments', resolvedAppointmentId));
+      if (aptSnap.exists()) {
+        const aptData = aptSnap.data() || {};
+        const canonicalInvoiceId = String(aptData.invoiceId || '').trim();
+        if (canonicalInvoiceId) {
+          resolvedInvoiceId = canonicalInvoiceId;
+          if (!resolvedInvoice || resolvedInvoice.id !== canonicalInvoiceId) {
+            const canonicalSnap = await getDoc(doc(db, 'invoices', canonicalInvoiceId));
+            if (canonicalSnap.exists()) {
+              resolvedInvoice = { id: canonicalSnap.id, ...canonicalSnap.data() };
+            }
+          }
+        }
+      }
+    } catch (error) {
+      logger.warn('Could not resolve canonical invoice from appointment:', error);
+    }
+  }
+
+  if (!resolvedInvoice && resolvedInvoiceId && resolvedInvoiceId !== invoiceId) {
+    try {
+      const fallbackSnap = await getDoc(doc(db, 'invoices', resolvedInvoiceId));
+      if (fallbackSnap.exists()) {
+        resolvedInvoice = { id: fallbackSnap.id, ...fallbackSnap.data() };
+      }
+    } catch (error) {
+      logger.warn('Could not fetch resolved invoice by ID:', error);
+    }
+  }
+
+  return {
+    invoice: resolvedInvoice,
+    invoiceId: resolvedInvoice?.id || resolvedInvoiceId || invoiceId,
+    appointmentId: resolvedAppointmentId || getInvoiceAppointmentId(resolvedInvoice) || null
+  };
+}
+
 function isInvoicePaid(invoice) {
   if (invoice?.paymentStatus) return String(invoice.paymentStatus).toLowerCase() === 'paid';
   if (typeof invoice?.paid === 'boolean') return invoice.paid;
@@ -67,46 +122,46 @@ function isInvoicePaid(invoice) {
  * Open invoice in editor
  * @param {string} invoiceId - Invoice ID
  */
-export function openInvoiceFile(invoiceId) {
-  const invoice = getInvoiceById(invoiceId);
+export async function openInvoiceFile(invoiceId, appointmentId = null) {
+  const resolved = await resolveInvoiceContext(invoiceId, appointmentId);
+  const invoice = resolved.invoice;
+  const targetInvoiceId = resolved.invoiceId || invoiceId;
 
   if (!invoice) {
-    logger.warn('Invoice not found in state, opening directly:', invoiceId);
-    window.open(`invoice.html?invoiceId=${invoiceId}&mode=view`, '_blank');
+    logger.warn('Invoice not found in state, opening resolved ID directly:', targetInvoiceId);
+    window.open(`invoice.html?invoiceId=${targetInvoiceId}&mode=view`, '_blank');
     return;
   }
 
-  const appointmentId = getInvoiceAppointmentId(invoice);
+  const resolvedAppointmentId = resolved.appointmentId || getInvoiceAppointmentId(invoice);
 
-  if (!appointmentId) {
-    logger.info('Opening invoice without appointmentId:', invoiceId);
-    window.open(`invoice.html?invoiceId=${invoiceId}&mode=view`, '_blank');
+  if (!resolvedAppointmentId) {
+    logger.info('Opening invoice without appointmentId:', targetInvoiceId);
+    window.open(`invoice.html?invoiceId=${targetInvoiceId}&mode=view`, '_blank');
     return;
   }
 
-  logger.info('Opening invoice via appointment link:', { invoiceId, appointmentId });
+  logger.info('Opening invoice via appointment link:', { invoiceId: targetInvoiceId, appointmentId: resolvedAppointmentId });
 
-  (async () => {
-    try {
-      const aptSnap = await getDoc(doc(db, 'appointments', appointmentId));
-      const aptData = aptSnap.exists() ? aptSnap.data() : null;
-      const canonicalInvoiceId = aptData?.invoiceId || invoiceId;
+  try {
+    const aptSnap = await getDoc(doc(db, 'appointments', resolvedAppointmentId));
+    const aptData = aptSnap.exists() ? aptSnap.data() : null;
+    const canonicalInvoiceId = aptData?.invoiceId || targetInvoiceId;
 
-      if (canonicalInvoiceId !== invoiceId) {
-        logger.warn('Detected non-canonical invoice, redirecting to canonical:', {
-          clicked: invoiceId,
-          canonical: canonicalInvoiceId
-        });
+    if (canonicalInvoiceId !== targetInvoiceId) {
+      logger.warn('Detected non-canonical invoice, redirecting to canonical:', {
+        clicked: targetInvoiceId,
+        canonical: canonicalInvoiceId
+      });
 
-        await dedupeInvoicesForAppointment(appointmentId, canonicalInvoiceId);
-      }
-
-      window.open(`invoice.html?invoiceId=${canonicalInvoiceId}&mode=view`, '_blank');
-    } catch (error) {
-      logger.error('Error resolving canonical invoice, opening clicked invoice:', error);
-      window.open(`invoice.html?invoiceId=${invoiceId}&mode=view`, '_blank');
+      await dedupeInvoicesForAppointment(resolvedAppointmentId, canonicalInvoiceId);
     }
-  })();
+
+    window.open(`invoice.html?invoiceId=${canonicalInvoiceId}&mode=view`, '_blank');
+  } catch (error) {
+    logger.error('Error resolving canonical invoice, opening resolved invoice:', error);
+    window.open(`invoice.html?invoiceId=${targetInvoiceId}&mode=view`, '_blank');
+  }
 }
 
 /**
@@ -213,14 +268,13 @@ export async function rebuildInvoiceFromAppointment(appointmentId, invoiceId = n
     const labourTotal = sumLineItems(normalizedJobs);
     const partsTotal = sumLineItems(normalizedParts);
     const subtotal = labourTotal + partsTotal;
-    const paidAmount = toNumber(apt.paidAmount || 0);
-    const balanceDue = Math.max(0, subtotal - paidAmount);
-    const paymentStatus = (paidAmount > 0 && paidAmount >= subtotal) ? 'PAID' : 'UNPAID';
+    const amountPaid = toNumber(apt.amountPaid ?? apt.paidAmount ?? 0);
+    const balanceDue = Math.max(0, subtotal - amountPaid);
+    const paymentStatus = amountPaid <= 0 ? 'unpaid' : (amountPaid >= subtotal ? 'paid' : 'partial');
 
     const payload = {
       invoiceNumber: apt.invoiceNumber || generateInvoiceNumber(),
       status: 'draft',
-      createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
       appointmentId: appointmentId,
       customerName: apt.customerName || apt.clientName || '',
@@ -231,13 +285,15 @@ export async function rebuildInvoiceFromAppointment(appointmentId, invoiceId = n
       mileage: apt.mileage || '',
       jobs: normalizedJobs,
       parts: normalizedParts,
+      total: subtotal,
       totals: {
         labour: labourTotal,
         parts: partsTotal,
         subtotal,
         total: subtotal
       },
-      paidAmount,
+      amountPaid,
+      paidAmount: amountPaid,
       balanceDue,
       paymentStatus,
       notes: apt.notes || '',
@@ -253,7 +309,19 @@ export async function rebuildInvoiceFromAppointment(appointmentId, invoiceId = n
       targetId = await getOrCreateInvoiceForAppointment(appointmentId, apt);
     }
 
-    await setDoc(doc(db, 'invoices', targetId), payload, { merge: true });
+    const targetRef = doc(db, 'invoices', targetId);
+    const targetSnap = await getDoc(targetRef);
+    if (!targetSnap.exists() || !targetSnap.data()?.createdAt) {
+      payload.createdAt = serverTimestamp();
+    }
+
+    await setDoc(targetRef, payload, { merge: true });
+
+    await updateDoc(doc(db, 'appointments', appointmentId), {
+      invoiceId: targetId,
+      updatedAt: serverTimestamp()
+    });
+
     showToast('Invoice rebuilt successfully', 'success');
 
     await refreshInvoices(filterInvoices);
@@ -343,10 +411,12 @@ export function setupSearchAndFilterListeners() {
 function toggleInvoicePaidStatus(invoiceId, appointmentId) {
   (async () => {
     try {
-      const invoice = getInvoiceById(invoiceId);
+      const resolved = await resolveInvoiceContext(invoiceId, appointmentId);
+      const invoice = resolved.invoice;
+      const resolvedInvoiceId = resolved.invoiceId || invoiceId;
       if (!invoice) {
         const hasStore = !!getStoreInvoicesMap();
-        logger.warn('Invoice not found for toggle', { invoiceId, hasStore, allInvoicesLength: Array.isArray(window.allInvoices) ? window.allInvoices.length : 0 });
+        logger.warn('Invoice not found for toggle', { invoiceId: resolvedInvoiceId, hasStore, allInvoicesLength: Array.isArray(window.allInvoices) ? window.allInvoices.length : 0 });
         showToast('Invoice not found', 'warning');
         return;
       }
@@ -359,12 +429,18 @@ function toggleInvoicePaidStatus(invoiceId, appointmentId) {
 
       const invoiceUpdate = {
         paymentStatus: nextStatus,
+        total,
         amountPaid: newPaidAmount,
         paidAmount: newPaidAmount,
         balanceDue: newBalance,
         paid: nextPaid,
         updatedAt: serverTimestamp()
       };
+
+      const linkedAppointmentId = resolved.appointmentId || appointmentId || getInvoiceAppointmentId(invoice);
+      if (linkedAppointmentId) {
+        invoiceUpdate.appointmentId = linkedAppointmentId;
+      }
 
       if (!invoice.createdAt) {
         invoiceUpdate.createdAt = serverTimestamp();
@@ -376,11 +452,11 @@ function toggleInvoicePaidStatus(invoiceId, appointmentId) {
         invoiceUpdate.paidAt = null;
       }
 
-      await updateDoc(doc(db, 'invoices', invoiceId), invoiceUpdate);
+      await updateDoc(doc(db, 'invoices', resolvedInvoiceId), invoiceUpdate);
 
-      const linkedAppointmentId = appointmentId || getInvoiceAppointmentId(invoice);
       if (linkedAppointmentId) {
         await updateDoc(doc(db, 'appointments', linkedAppointmentId), {
+          invoiceId: resolvedInvoiceId,
           paymentStatus: nextStatus,
           amountPaid: newPaidAmount,
           paidAmount: newPaidAmount,

@@ -19,12 +19,13 @@ import { setActiveWorkspace } from './src/workspace/workspace-controller.js';
 // These are placeholders that exist on window IMMEDIATELY when the module starts loading
 // They get overridden by the real implementations defined later in this file
 // This prevents "function not defined" errors if inline onclick handlers execute early
-window.handleAuthToggle = window.handleAuthToggle || (() => {});
-window.switchTab = window.switchTab || (() => {});
-window.handleRefreshAppointments = window.handleRefreshAppointments || (() => {});
-window.handleAppointmentFilter = window.handleAppointmentFilter || (() => {});
-window.handleAppointmentSearch = window.handleAppointmentSearch || (() => {});
-window.exportAppointmentsCSV = window.exportAppointmentsCSV || (() => {});
+// NOTE: stubs log a console.error if fired before module fully loads — silent noops masked real bugs.
+window.handleAuthToggle = window.handleAuthToggle || ((...args) => console.error('[Wiring] handleAuthToggle called before module loaded', args));
+window.switchTab = window.switchTab || ((...args) => console.error('[Wiring] switchTab called before module loaded', args));
+window.handleRefreshAppointments = window.handleRefreshAppointments || ((...args) => console.error('[Wiring] handleRefreshAppointments called before module loaded', args));
+window.handleAppointmentFilter = window.handleAppointmentFilter || ((...args) => console.error('[Wiring] handleAppointmentFilter called before module loaded', args));
+window.handleAppointmentSearch = window.handleAppointmentSearch || ((...args) => console.error('[Wiring] handleAppointmentSearch called before module loaded', args));
+window.exportAppointmentsCSV = window.exportAppointmentsCSV || ((...args) => console.error('[Wiring] exportAppointmentsCSV called before module loaded', args));
 
 // ==========================================
 // FIREBASE CONFIGURATION - SINGLE SOURCE
@@ -116,6 +117,21 @@ window.__tvInitFlags = window.__tvInitFlags || {
 };
 window.__tvInit = window.__tvInit || {};
 // ==========================================================================
+
+function isUiV2Enabled() {
+    try {
+        const params = new URLSearchParams(window.location.search || '');
+        const queryValue = params.get('ui');
+        if (queryValue === 'v2') return true;
+
+        const storedValue = localStorage.getItem('ui');
+        return storedValue === 'v2';
+    } catch (error) {
+        return false;
+    }
+}
+
+window.isUiV2Enabled = isUiV2Enabled;
 
 // Helper function to safely retrieve an appointment from either data-layer or legacy array
 function getAppointmentById(aptId) {
@@ -715,6 +731,127 @@ function collectTotalsFromUI(jobs = [], parts = []) {
     };
 }
 
+function setAddAppointmentTab(tabKey = 'appointment') {
+    const tabsRoot = document.getElementById('apptFormTabs');
+    const appointmentPanel = document.getElementById('apptTabAppointment');
+    const roPanel = document.getElementById('apptTabInvoiceRO');
+    if (!tabsRoot || !appointmentPanel || !roPanel) return;
+
+    const isRO = tabKey === 'invoice-ro';
+    tabsRoot.querySelectorAll('.appt-form-tab').forEach(btn => {
+        const isActive = btn.dataset.apptTab === (isRO ? 'invoice-ro' : 'appointment');
+        btn.classList.toggle('active', isActive);
+        btn.setAttribute('aria-selected', isActive ? 'true' : 'false');
+    });
+
+    appointmentPanel.classList.toggle('active', !isRO);
+    roPanel.classList.toggle('active', isRO);
+    appointmentPanel.style.display = isRO ? 'none' : 'block';
+    roPanel.style.display = isRO ? 'block' : 'none';
+}
+
+function initAddAppointmentTabs() {
+    const tabsRoot = document.getElementById('apptFormTabs');
+    if (!tabsRoot) return;
+
+    if (!tabsRoot.dataset.bound) {
+        tabsRoot.addEventListener('click', (event) => {
+            const btn = event.target.closest('.appt-form-tab');
+            if (!btn) return;
+            setAddAppointmentTab(btn.dataset.apptTab || 'appointment');
+        });
+        tabsRoot.dataset.bound = 'true';
+    }
+
+    const reverseChargeToggle = document.getElementById('euReverseCharge');
+    if (reverseChargeToggle && !reverseChargeToggle.dataset.bound) {
+        reverseChargeToggle.addEventListener('change', updateEUReverseChargeUiState);
+        reverseChargeToggle.dataset.bound = 'true';
+    }
+
+    updateEUReverseChargeUiState();
+    setAddAppointmentTab('appointment');
+}
+
+function getTrimmedInputValue(id) {
+    const el = document.getElementById(id);
+    return el && typeof el.value === 'string' ? el.value.trim() : '';
+}
+
+function updateEUReverseChargeUiState() {
+    const reverseChargeEnabled = document.getElementById('euReverseCharge')?.checked === true;
+    const vatHint = document.getElementById('euVatRecommendedHint');
+    if (vatHint) vatHint.style.display = reverseChargeEnabled ? 'block' : 'none';
+}
+function buildInvoiceLegalProfileFromForm() {
+    const reverseCharge = document.getElementById('euReverseCharge')?.checked === true;
+    const vehicleReg = getTrimmedInputValue('euVehicleReg');
+    const workSummary = getTrimmedInputValue('euWorkSummary');
+
+    const buyer = {
+        companyName: getTrimmedInputValue('euBuyerCompanyName'),
+        address: getTrimmedInputValue('euBuyerAddress'),
+        vatNumber: getTrimmedInputValue('euBuyerVatNumber'),
+        email: getTrimmedInputValue('euBuyerEmail'),
+        phone: getTrimmedInputValue('euBuyerPhone')
+    };
+
+    const hasAnyBuyerValue = [buyer.companyName, buyer.address, buyer.vatNumber, buyer.email, buyer.phone].some(Boolean);
+    if (!reverseCharge && !hasAnyBuyerValue) return null;
+
+    return {
+        type: 'eu_company',
+        buyer,
+        vat: {
+            reverseCharge
+        },
+        ...(vehicleReg ? { vehicle: { reg: vehicleReg } } : {}),
+        ...(workSummary ? { work: { summary: workSummary } } : {})
+    };
+}
+
+function resetInvoiceROFormState() {
+    const euIds = [
+        'euBuyerCompanyName', 'euBuyerAddress', 'euBuyerVatNumber', 'euBuyerEmail', 'euBuyerPhone',
+        'euVehicleReg', 'euWorkSummary'
+    ];
+
+    const enabledEl = document.getElementById('euReverseCharge');
+    if (enabledEl) enabledEl.checked = false;
+
+    euIds.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = '';
+    });
+
+    updateEUReverseChargeUiState();
+    setAddAppointmentTab('appointment');
+}
+
+function populateInvoiceROFromAppointment(appointment) {
+    const profile = appointment?.invoiceLegalProfile;
+    const isEU = profile?.type === 'eu_company';
+
+    const enabledEl = document.getElementById('euReverseCharge');
+    if (enabledEl) enabledEl.checked = isEU && profile?.vat?.reverseCharge === true;
+
+    const setValue = (id, value) => {
+        const el = document.getElementById(id);
+        if (el) el.value = value || '';
+    };
+
+    setValue('euBuyerCompanyName', profile?.buyer?.companyName);
+    setValue('euBuyerAddress', profile?.buyer?.address);
+    setValue('euBuyerVatNumber', profile?.buyer?.vatNumber);
+    setValue('euBuyerEmail', profile?.buyer?.email);
+    setValue('euBuyerPhone', profile?.buyer?.phone);
+    setValue('euVehicleReg', profile?.vehicle?.reg || appointment?.registrationPlate || appointment?.regNumber);
+    setValue('euWorkSummary', profile?.work?.summary || appointment?.jobsSummary || '');
+
+    updateEUReverseChargeUiState();
+    setAddAppointmentTab(isEU ? 'invoice-ro' : 'appointment');
+}
+
 function updateAppointmentTotals() {
     const jobs = collectJobsFromUI();
     const parts = collectPartsFromUI();
@@ -728,6 +865,11 @@ function updateAppointmentTotals() {
     if (labourEl) labourEl.textContent = formatCurrencyGBP(labourSubtotal);
     if (partsEl) partsEl.textContent = formatCurrencyGBP(partsSubtotal);
     if (combinedEl) combinedEl.textContent = formatCurrencyGBP(combined);
+
+    const euJobsCountPreviewEl = document.getElementById('euJobsCountPreview');
+    const euTotalPreviewEl = document.getElementById('euTotalPreview');
+    if (euJobsCountPreviewEl) euJobsCountPreviewEl.textContent = String(jobs.length || 0);
+    if (euTotalPreviewEl) euTotalPreviewEl.textContent = formatCurrencyGBP(combined || 0);
 }
 
 function bindLineItemEvents(container, onTotalsUpdated) {
@@ -2242,16 +2384,37 @@ function applyScannedInvoicesCategoryFilter() {
     const emptyState = document.getElementById('scannedInvoicesEmpty');
     if (!list || !emptyState) return;
 
+    // Remove previous load-more button if present
+    list.querySelector('.tv-scan-load-more')?.remove();
+
     const visibleIds = new Set(getVisibleScannedInvoices().map((scan) => scan.id));
     const rows = list.querySelectorAll('.scanRow[data-scan-id]');
+    const pageSize = window.tvScanPageSize || 15;
     let visibleCount = 0;
 
     rows.forEach((row) => {
         const scanId = row.dataset.scanId;
-        const isVisible = visibleIds.has(scanId);
-        row.style.display = isVisible ? '' : 'none';
-        if (isVisible) visibleCount += 1;
+        const isInFilter = visibleIds.has(scanId);
+        if (isInFilter) {
+            visibleCount += 1;
+            row.style.display = visibleCount <= pageSize ? '' : 'none';
+        } else {
+            row.style.display = 'none';
+        }
     });
+
+    const hiddenCount = Math.max(0, visibleCount - pageSize);
+    if (hiddenCount > 0) {
+        const loadMore = document.createElement('button');
+        loadMore.className = 'tv-scan-load-more';
+        loadMore.textContent = `Load ${Math.min(hiddenCount, 15)} more`;
+        loadMore.type = 'button';
+        loadMore.onclick = function() {
+            window.tvScanPageSize = (window.tvScanPageSize || 15) + 15;
+            applyScannedInvoicesCategoryFilter();
+        };
+        list.appendChild(loadMore);
+    }
 
     emptyState.style.display = visibleCount === 0 ? 'block' : 'none';
 }
@@ -4036,6 +4199,191 @@ function showNotification(message, type = 'info') {
 }
 
 // ==========================================
+// SMART NOTIFICATION SYSTEM (bell + alerts drawer)
+// Computed from appointments data; persists dismissals in localStorage.
+// ==========================================
+const TV_NOTIF_DISMISS_KEY = 'tv_notif_dismiss_v1';
+const TV_NOTIF_DISMISS_TTL = 6 * 60 * 60 * 1000; // 6 hours
+
+function _notifGetDismissMap() {
+    try { return JSON.parse(localStorage.getItem(TV_NOTIF_DISMISS_KEY) || '{}'); } catch { return {}; }
+}
+function _notifSetDismissMap(map) {
+    try { localStorage.setItem(TV_NOTIF_DISMISS_KEY, JSON.stringify(map)); } catch {}
+}
+
+/** Compute alert buckets from the global appointments array */
+function computeAlerts(apts) {
+    if (!Array.isArray(apts) || apts.length === 0) return [];
+    const now = new Date();
+    const twoHours = 2 * 60 * 60 * 1000;
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
+    const todayEnd   = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+
+    const buckets = { overdue: [], soon: [], today_unpaid: [], unpaid: [], in_progress: [] };
+    apts.forEach(apt => {
+        const status    = getAppointmentJobStatus(apt);
+        const payStatus = (apt.paymentStatus || '').toLowerCase();
+        const isPaid    = payStatus === 'paid' || apt.paid === true;
+        const aptDate   = getScheduledDate(apt);
+        if (!aptDate) return;
+        const diff   = aptDate - now;
+        const isToday = aptDate >= todayStart && aptDate <= todayEnd;
+        const isActive = status === 'scheduled';
+
+        if (status === 'in_progress') {
+            buckets.in_progress.push(apt);
+        } else if (isActive && diff < 0) {
+            buckets.overdue.push(apt);
+        } else if (isActive && diff > 0 && diff <= twoHours) {
+            buckets.soon.push(apt);
+        }
+        if (status === 'completed' && !isPaid) {
+            if (isToday) buckets.today_unpaid.push(apt);
+            else         buckets.unpaid.push(apt);
+        }
+    });
+
+    const dismiss  = _notifGetDismissMap();
+    const now_ts   = Date.now();
+    const alerts   = [];
+
+    const addAlert = (key, icon, label, items, filter, color) => {
+        if (items.length === 0) return;
+        const dismissedAt    = dismiss[key] || 0;
+        const dismissedCount = dismiss[key + '_count'] || 0;
+        if ((now_ts - dismissedAt) < TV_NOTIF_DISMISS_TTL && items.length <= dismissedCount) return;
+        alerts.push({ key, icon, label, count: items.length, filter, color });
+    };
+
+    addAlert('overdue',     'fa-exclamation-circle', 'Overdue',          buckets.overdue,      'overdue',    '#ef4444');
+    addAlert('in_progress', 'fa-spinner',            'In Progress',      buckets.in_progress,  'all',        '#f97316');
+    addAlert('soon',        'fa-clock',              'Starting soon',    buckets.soon,         'today',      '#eab308');
+    addAlert('today_unpaid','fa-pound-sign',          'Today unpaid',    buckets.today_unpaid, 'today',      '#dc2626');
+    addAlert('unpaid',      'fa-circle-dot',         'Unpaid completed', buckets.unpaid,       'completed',  '#f97316');
+    return alerts;
+}
+
+/** Update the bell badge count */
+function refreshBellBadge() {
+    const apts   = window.appointments || appointments || [];
+    const alerts = computeAlerts(apts);
+    const total  = alerts.reduce((s, a) => s + a.count, 0);
+    const badge  = document.getElementById('tvBellBadge');
+    const btn    = document.getElementById('tvBellBtn');
+    if (!badge || !btn) return;
+    if (total > 0) {
+        badge.textContent = total > 99 ? '99+' : String(total);
+        badge.style.display = 'flex';
+        btn.setAttribute('aria-label', `${total} alert${total === 1 ? '' : 's'}`);
+    } else {
+        badge.style.display = 'none';
+        btn.setAttribute('aria-label', 'No alerts');
+    }
+    // Refresh drawer body live if open
+    const drawer = document.getElementById('tvNotifDrawer');
+    if (drawer?.classList.contains('tv-notif-drawer--open')) {
+        _renderNotifBody(alerts);
+    }
+}
+
+/** Render alert items into the drawer body */
+function _renderNotifBody(alerts) {
+    const body = document.getElementById('tvNotifBody');
+    if (!body) return;
+    if (alerts.length === 0) {
+        body.innerHTML = `<div class="tv-notif-empty"><i class="fas fa-check-circle"></i><span>All clear</span></div>`;
+        return;
+    }
+    body.innerHTML = alerts.map(a => `
+        <div class="tv-notif-item">
+            <span class="tv-notif-item__icon" style="color:${a.color}"><i class="fas ${a.icon}"></i></span>
+            <div class="tv-notif-item__content">
+                <span class="tv-notif-item__label">${a.label}</span>
+                <span class="tv-notif-item__count">${a.count}</span>
+            </div>
+            <div class="tv-notif-item__btns">
+                <button class="tv-notif-view" data-notif-filter="${a.filter}" aria-label="View ${a.label}">View</button>
+                <button class="tv-notif-dismiss" data-notif-key="${a.key}" data-notif-count="${a.count}" aria-label="Dismiss">×</button>
+            </div>
+        </div>
+    `).join('');
+}
+
+/** Toggle the bell drawer open/closed */
+function toggleNotifDrawer() {
+    const drawer = document.getElementById('tvNotifDrawer');
+    if (!drawer) return;
+    const isOpen = drawer.classList.contains('tv-notif-drawer--open');
+    if (isOpen) {
+        drawer.classList.remove('tv-notif-drawer--open');
+    } else {
+        // Anchor drawer below the header by measuring it at open-time
+        const header = document.getElementById('authBar');
+        if (header) {
+            const rect = header.getBoundingClientRect();
+            document.documentElement.style.setProperty('--tv-header-bottom', `${rect.bottom + 4}px`);
+        }
+        _renderNotifBody(computeAlerts(window.appointments || appointments || []));
+        drawer.classList.add('tv-notif-drawer--open');
+    }
+}
+
+/** Bind notification drawer events (called once) */
+function bindNotifDrawer() {
+    const drawer = document.getElementById('tvNotifDrawer');
+    if (!drawer || drawer.dataset.notifBound) return;
+    drawer.dataset.notifBound = '1';
+
+    drawer.addEventListener('click', (e) => {
+        // View
+        const viewBtn = e.target.closest('.tv-notif-view');
+        if (viewBtn) {
+            const filter = viewBtn.dataset.notifFilter;
+            drawer.classList.remove('tv-notif-drawer--open');
+            const filterBtn = document.querySelector(`.apts-filter-btn[data-filter="${filter}"]`);
+            if (filterBtn) {
+                filterBtn.click();
+            }
+            // Scroll to first card without jump
+            setTimeout(() => {
+                const firstCard = document.querySelector('.apt-card');
+                if (firstCard) firstCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }, 120);
+            return;
+        }
+        // Dismiss
+        const dismissBtn = e.target.closest('.tv-notif-dismiss');
+        if (dismissBtn) {
+            const key   = dismissBtn.dataset.notifKey;
+            const count = parseInt(dismissBtn.dataset.notifCount || '0', 10);
+            const map   = _notifGetDismissMap();
+            map[key]             = Date.now();
+            map[key + '_count']  = count;
+            _notifSetDismissMap(map);
+            _renderNotifBody(computeAlerts(window.appointments || appointments || []));
+            refreshBellBadge();
+            return;
+        }
+        // Close
+        if (e.target.closest('[data-notif-close]')) {
+            drawer.classList.remove('tv-notif-drawer--open');
+        }
+    });
+
+    // Click-outside to close
+    document.addEventListener('click', (ev) => {
+        const dr  = document.getElementById('tvNotifDrawer');
+        const btn = document.getElementById('tvBellBtn');
+        if (!dr?.classList.contains('tv-notif-drawer--open')) return;
+        if (!dr.contains(ev.target) && !btn?.contains(ev.target)) {
+            dr.classList.remove('tv-notif-drawer--open');
+        }
+    }, { passive: true, capture: false });
+}
+window.toggleNotifDrawer = toggleNotifDrawer;
+window.refreshBellBadge  = refreshBellBadge;
+// ==========================================
 // TOAST NOTIFICATION SYSTEM (Design System)
 // ==========================================
 function showToast(message, type = 'success') {
@@ -4307,6 +4655,10 @@ window.getAppointmentAmountGBP = getAppointmentAmountGBP;
 window.callUsedOnce = window.callUsedOnce || {};
 
 document.addEventListener('DOMContentLoaded', () => {
+    const uiV2Enabled = isUiV2Enabled();
+    document.body.classList.toggle('uiV2', uiV2Enabled);
+    window.__TVX_UI_V2 = uiV2Enabled;
+
     const initState = window.__tvInit = window.__tvInit || {};
     if (initState.scriptBootstrapDone || initState.scriptBootstrapRunning) {
         return;
@@ -4502,8 +4854,11 @@ const TimePicker = {
             if (mode === 'type') typeContent.classList.add('active');
         }
         if (pickerContent) {
-            pickerContent.classList.remove('active', 'hidden');
-            if (mode === 'picker') pickerContent.classList.remove('hidden');
+            if (mode === 'picker') {
+                pickerContent.classList.remove('hidden');
+            } else {
+                pickerContent.classList.add('hidden');
+            }
         }
         
         // Clear previous error
@@ -4708,6 +5063,7 @@ const TimePicker = {
         if (selected) {
             selected.scrollIntoView({ block: 'center', behavior: 'smooth' });
         }
+        this.updateSelectedTime(this.selectedHour, this.selectedMinute);
     },
     
     selectMinute(minute) {
@@ -4721,6 +5077,14 @@ const TimePicker = {
         if (selected) {
             selected.scrollIntoView({ block: 'center', behavior: 'smooth' });
         }
+        this.updateSelectedTime(this.selectedHour, this.selectedMinute);
+    },
+
+    // Update the visible time input to reflect the current wheel selection
+    updateSelectedTime(h, m) {
+        if (h === null || m === null || h === undefined || m === undefined) return;
+        const timeStr = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+        if (this.input) this.input.value = timeStr;
     },
     
     open() {
@@ -5029,7 +5393,10 @@ function switchTab(tabName) {
     if (tabName === 'accounting') {
         renderAccountingView();
     }
-    
+
+    // Update FAB for current tab
+    window.__tvUpdateFab?.(tabName);
+
     console.log(`📑 Switched to tab: ${tabName}`);
 }
 
@@ -5088,6 +5455,10 @@ async function handleAddAppointment(e) {
     const parts = collectPartsFromUI();
     const notes = collectNotesFromUI();
     const totals = collectTotalsFromUI(jobs, parts);
+    const euVehicleReg = getTrimmedInputValue('euVehicleReg');
+    const euWorkSummary = getTrimmedInputValue('euWorkSummary');
+    const reverseChargeEnabled = document.getElementById('euReverseCharge')?.checked === true;
+    const euProfileForSave = buildInvoiceLegalProfileFromForm();
     const services = jobs.map(item => ({
         description: item.description,
         qty: item.qty,
@@ -5106,18 +5477,15 @@ async function handleAddAppointment(e) {
     console.log('[SAVE] notes', notes);
     console.log('[SAVE] totals', totals);
     
-    // Detect current mode (Quick or Full)
-    const isQuickMode = document.getElementById('appointmentForm').classList.contains('tvMode--quick');
-    
     // Soft warnings for missing important fields (NON-BLOCKING)
     const missingFields = [];
     if (!customerName) missingFields.push('Name');
-    if (!isQuickMode && !customerPhone) missingFields.push('Phone');
-    if (!isQuickMode && !registrationPlate) missingFields.push('Registration Plate');
+    if (!customerPhone) missingFields.push('Phone');
+    if (!registrationPlate && !euVehicleReg) missingFields.push('Registration Plate');
     if (!dateStr) missingFields.push('Date');
     if (!time) missingFields.push('Time');
-    if (!isQuickMode && !serviceLocation) missingFields.push('Service Location');
-    if (!isQuickMode && !contactPref) missingFields.push('Contact Preference');
+    if (!serviceLocation) missingFields.push('Service Location');
+    if (!contactPref) missingFields.push('Contact Preference');
     
     if (missingFields.length > 0 || (jobs.length === 0 && parts.length === 0)) {
         let warningMsg = '⚠️ Some details are missing. You can still save and edit later.';
@@ -5155,7 +5523,7 @@ async function handleAddAppointment(e) {
     }
     
     try {
-        const { collection, addDoc, serverTimestamp, Timestamp, doc, updateDoc } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+        const { collection, addDoc, serverTimestamp, Timestamp, doc, updateDoc, deleteField } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
         
         console.log('🔐 [Firestore] User ready for operation:', currentUser?.uid, 'Firestore db ready:', !!db);
         
@@ -5231,6 +5599,7 @@ async function handleAddAppointment(e) {
             balanceDue,
             paymentStatus,
             status,
+            jobStatus: getAppointmentJobStatus({ status }),
             
             // Legacy compatibility fields
             jobsSummary,
@@ -5251,6 +5620,20 @@ async function handleAddAppointment(e) {
             basePayload.vehicle = vehicleMakeModel + ' • ' + registrationPlate; // Compatibility field
             basePayload.car = vehicleMakeModel + ', ' + registrationPlate; // Legacy
         }
+
+        if (euVehicleReg) {
+            basePayload.registrationPlate = euVehicleReg;
+            basePayload.regNumber = euVehicleReg;
+            if (vehicleMakeModel) {
+                basePayload.vehicle = vehicleMakeModel + ' • ' + euVehicleReg;
+                basePayload.car = vehicleMakeModel + ', ' + euVehicleReg;
+            }
+        }
+
+        if (euWorkSummary) {
+            basePayload.jobsSummary = euWorkSummary;
+            basePayload.problemDescription = euWorkSummary;
+        }
         
         if (editingAppointmentId) {
             basePayload.address = address;
@@ -5263,6 +5646,12 @@ async function handleAddAppointment(e) {
             if (postcode) {
                 basePayload.postcode = postcode;
             }
+        }
+
+        if (euProfileForSave) {
+            basePayload.invoiceLegalProfile = euProfileForSave;
+        } else if (editingAppointmentId && reverseChargeEnabled === false && existingAppointment?.invoiceLegalProfile?.type === 'eu_company') {
+            basePayload.invoiceLegalProfile = deleteField();
         }
 
         // Add mileage if provided (safe default: null)
@@ -5278,6 +5667,7 @@ async function handleAddAppointment(e) {
             console.log('📝 Creating new appointment...');
             
             basePayload.status = 'scheduled';
+            basePayload.jobStatus = 'scheduled';
             basePayload.originalDateTime = scheduledTimestamp;
             basePayload.createdAt = serverTimestamp();
             basePayload.createdBy = currentUser.uid;
@@ -5372,6 +5762,7 @@ async function handleAddAppointment(e) {
             
             addJobRow();
             updateAppointmentTotals();
+            resetInvoiceROFormState();
             
             // Reset edit mode
             exitEditMode();
@@ -5435,7 +5826,7 @@ function calculateSubtotal(jobs = [], parts = []) {
  * STEP 5: When appointment is edited, update linked invoice with new jobs/parts/totals
  * Only updates jobs/parts and related fields, preserves payment info
  */
-async function syncInvoiceWithAppointment(invoiceId, appointmentData, appointmentId = null) {
+async function syncInvoiceWithAppointment(invoiceId, appointmentData, appointmentId = null, syncOptions = {}) {
     try {
         const { doc, getDoc, updateDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
         
@@ -5447,11 +5838,34 @@ async function syncInvoiceWithAppointment(invoiceId, appointmentData, appointmen
             return;
         }
 
-        const invoice = snap.data();
-        
-        // Use new schema: jobs[] and parts[] from appointmentData
-        const jobs = appointmentData.jobs || [];
-        const parts = appointmentData.parts || [];
+        const invoice = snap.data() || {};
+        const hasField = (obj, key) => Object.prototype.hasOwnProperty.call(obj || {}, key);
+        const hasAnyField = (obj, keys = []) => keys.some(key => hasField(obj, key));
+        const toTrimmed = (value) => typeof value === 'string' ? value.trim() : value;
+        const firstNonEmpty = (...values) => {
+            for (const value of values) {
+                if (value === undefined || value === null) continue;
+                if (typeof value === 'string') {
+                    const trimmed = value.trim();
+                    if (trimmed !== '') return trimmed;
+                } else {
+                    return value;
+                }
+            }
+            return '';
+        };
+        const firstDefined = (...values) => values.find(v => v !== undefined);
+        const explicitNonEmptyString = (key, fallback = '') => {
+            if (!hasField(appointmentData, key)) return fallback;
+            const value = toTrimmed(appointmentData[key]);
+            if (value === undefined || value === null) return fallback;
+            if (typeof value === 'string' && value === '') return fallback;
+            return value;
+        };
+
+        // Use appointment jobs/parts only when explicitly present; otherwise preserve invoice values
+        const jobs = hasField(appointmentData, 'jobs') ? (appointmentData.jobs || []) : (Array.isArray(invoice.jobs) ? invoice.jobs : []);
+        const parts = hasField(appointmentData, 'parts') ? (appointmentData.parts || []) : (Array.isArray(invoice.parts) ? invoice.parts : []);
 
         const normalizeItems = (items) => items.map(item => {
             const name = (item.name || item.description || '').trim();
@@ -5464,52 +5878,91 @@ async function syncInvoiceWithAppointment(invoiceId, appointmentData, appointmen
         const normalizedJobs = normalizeItems(jobs);
         const normalizedParts = normalizeItems(parts);
         
-        // Recalculate totals from new schema (name, qty, price)
+        // Recalculate totals from effective schema (name, qty, price)
         const labourTotal = normalizedJobs.reduce((sum, item) => sum + (item.total || (item.qty * item.unitPrice)), 0);
         const partsTotal = normalizedParts.reduce((sum, item) => sum + (item.total || (item.qty * item.unitPrice)), 0);
         const newSubtotal = labourTotal + partsTotal;
         const newTotal = newSubtotal; // VAT logic would go here if needed
-        
-        const amountPaid = toNumber(appointmentData.paidAmount ?? invoice.paidAmount ?? invoice.totals?.paidAmount ?? 0);
-        const newBalance = Math.max(0, newTotal - amountPaid);
-        const paymentStatus = (amountPaid > 0 && amountPaid >= newTotal) ? 'PAID' : 'UNPAID';
-        const hasField = (obj, key) => Object.prototype.hasOwnProperty.call(obj || {}, key);
-        const resolvedAddress = hasField(appointmentData, 'address') ? (appointmentData.address || '') : (invoice.address || '');
-        const resolvedPostcode = hasField(appointmentData, 'postcode') ? (appointmentData.postcode || '') : (invoice.postcode || '');
-        const resolvedServiceLocation = hasField(appointmentData, 'serviceLocation') ? (appointmentData.serviceLocation || '') : (invoice.serviceLocation || '');
-        const resolvedContactPref = hasField(appointmentData, 'contactPref') ? (appointmentData.contactPref || '') : (invoice.contactPref || '');
+
+        // Canonical non-destructive vehicle mapping
+        const resolvedVehicleMakeModel = firstNonEmpty(
+            appointmentData?.vehicleMakeModel,
+            appointmentData?.makeModel,
+            invoice.vehicleMakeModel,
+            invoice.makeModel
+        );
+        const resolvedRegistrationPlate = firstNonEmpty(
+            appointmentData?.registrationPlate,
+            appointmentData?.regNumber,
+            appointmentData?.regPlate,
+            invoice.registrationPlate,
+            invoice.regPlate
+        );
+        const resolvedMileage = firstDefined(appointmentData?.mileage, invoice.mileage);
+
+        // Non-destructive location mapping (explicit requirement)
+        const resolvedAddress = appointmentData?.address ?? invoice.address;
+        const resolvedPostcode = appointmentData?.postcode ?? invoice.postcode;
+
+        const resolvedServiceLocation = explicitNonEmptyString('serviceLocation', invoice.serviceLocation || '');
+        const resolvedContactPref = explicitNonEmptyString('contactPref', invoice.contactPref || '');
+        const resolvedCustomerName = explicitNonEmptyString('customerName', invoice.customerName || '');
+        const resolvedCustomerPhone = firstNonEmpty(
+            hasField(appointmentData, 'customerPhone') ? appointmentData.customerPhone : undefined,
+            hasField(appointmentData, 'phone') ? appointmentData.phone : undefined,
+            invoice.phone,
+            invoice.customerPhone
+        );
+
+        const hasExplicitPaidAmount = syncOptions.hasExplicitPaidAmount === true || hasField(appointmentData, 'paidAmount') || hasField(appointmentData, 'amountPaid');
+        const hasExplicitBalance = syncOptions.hasExplicitBalance === true || hasField(appointmentData, 'balanceDue');
+        const hasExplicitPaymentStatus = syncOptions.hasExplicitPaymentStatus === true || hasField(appointmentData, 'paymentStatus');
+
+        const hasVehicleMakeInput = appointmentData?.vehicleMakeModel !== undefined || appointmentData?.makeModel !== undefined || appointmentData?.carMakeModel !== undefined;
+        const hasVehiclePlateInput = appointmentData?.registrationPlate !== undefined || appointmentData?.regNumber !== undefined || appointmentData?.regPlate !== undefined;
+        const hasMileageInput = appointmentData?.mileage !== undefined;
+        const hasAddressInput = appointmentData?.address !== undefined;
+        const hasPostcodeInput = appointmentData?.postcode !== undefined;
+        const hasCustomerNameInput = appointmentData?.customerName !== undefined;
+        const hasCustomerPhoneInput = appointmentData?.customerPhone !== undefined || appointmentData?.phone !== undefined;
+        const hasServiceLocationInput = appointmentData?.serviceLocation !== undefined;
+        const hasContactPrefInput = appointmentData?.contactPref !== undefined;
+        const hasNotesInput = appointmentData?.notes !== undefined;
+        const hasJobsSummaryInput = appointmentData?.jobsSummary !== undefined || appointmentData?.problemDescription !== undefined;
+
+        const currentPaidAmount = toNumber(invoice.paidAmount ?? invoice.amountPaid ?? invoice.totals?.paidAmount ?? 0);
+        const currentBalance = toNumber(invoice.balanceDue ?? Math.max(0, (toNumber(invoice.totals?.total ?? invoice.total ?? newTotal) - currentPaidAmount)));
+        const currentPaymentStatus = invoice.paymentStatus || ((currentPaidAmount > 0 && currentPaidAmount >= toNumber(invoice.totals?.total ?? invoice.total ?? newTotal)) ? 'PAID' : 'UNPAID');
+
+        const nextPaidAmount = hasExplicitPaidAmount
+            ? toNumber(appointmentData.paidAmount ?? appointmentData.amountPaid ?? 0)
+            : currentPaidAmount;
+        const nextBalance = hasExplicitBalance
+            ? Math.max(0, toNumber(appointmentData.balanceDue ?? 0))
+            : currentBalance;
+        const nextPaymentStatus = hasExplicitPaymentStatus
+            ? (appointmentData.paymentStatus || currentPaymentStatus)
+            : currentPaymentStatus;
 
         if (typeof DEBUG !== 'undefined' && DEBUG) {
             console.log('[DEBUG][InvoiceSyncBeforeUpdate]', {
-                invoiceId,
                 appointmentId: appointmentId || invoice.appointmentId || null,
+                invoiceId,
+                vehicleMakeModel: resolvedVehicleMakeModel,
+                registrationPlate: resolvedRegistrationPlate,
+                mileage: resolvedMileage,
+                address: resolvedAddress,
                 postcode: resolvedPostcode
             });
         }
         
         // Update invoice with appointment changes
         // Preserve: amountPaid, paymentStatus, paidAt, invoiceNumber
-        await updateDoc(invoiceRef, {
+        const updatePayload = {
             appointmentId: appointmentId || invoice.appointmentId || null,
             // Store jobs/parts in new schema for invoice
             jobs: normalizedJobs,
             parts: normalizedParts,
-            // Vehicle info
-            makeModel: appointmentData.makeModel || appointmentData.vehicleMakeModel || '',
-            vehicleMakeModel: appointmentData.makeModel || appointmentData.vehicleMakeModel || '',
-            registrationPlate: appointmentData.registrationPlate || '',
-            regPlate: appointmentData.registrationPlate || '',
-            mileage: appointmentData.mileage || null,
-            // Customer info
-            customerName: appointmentData.customerName || '',
-            phone: appointmentData.customerPhone || '',
-            address: resolvedAddress,
-            postcode: resolvedPostcode,
-            serviceLocation: resolvedServiceLocation,
-            contactPref: resolvedContactPref,
-            // Notes
-            notes: appointmentData.notes || '',
-            jobsSummary: appointmentData.jobsSummary || appointmentData.problemDescription || '',
             // Totals
             totals: {
                 labour: labourTotal,
@@ -5517,11 +5970,79 @@ async function syncInvoiceWithAppointment(invoiceId, appointmentData, appointmen
                 subtotal: newSubtotal,
                 total: newTotal
             },
-            paidAmount: amountPaid,
-            balanceDue: newBalance,
-            paymentStatus,
             updatedAt: serverTimestamp()
-        });
+        };
+
+        // Vehicle fields: update only when present in canonical appointment source
+        if (hasVehicleMakeInput) {
+            updatePayload.makeModel = resolvedVehicleMakeModel;
+            updatePayload.vehicleMakeModel = resolvedVehicleMakeModel;
+        }
+        if (hasVehiclePlateInput) {
+            updatePayload.registrationPlate = resolvedRegistrationPlate;
+            updatePayload.regPlate = resolvedRegistrationPlate;
+        }
+        if (hasMileageInput) {
+            updatePayload.mileage = resolvedMileage;
+        }
+
+        // Customer/location fields: update only when present in canonical appointment source
+        if (hasCustomerNameInput) {
+            updatePayload.customerName = resolvedCustomerName;
+        }
+        if (hasCustomerPhoneInput) {
+            updatePayload.phone = resolvedCustomerPhone;
+        }
+        if (hasAddressInput) {
+            updatePayload.address = resolvedAddress;
+        }
+        if (hasPostcodeInput) {
+            updatePayload.postcode = resolvedPostcode;
+        }
+        if (hasServiceLocationInput) {
+            updatePayload.serviceLocation = resolvedServiceLocation;
+        }
+        if (hasContactPrefInput) {
+            updatePayload.contactPref = resolvedContactPref;
+        }
+
+        // Notes fields: update only when present in canonical appointment source
+        if (hasNotesInput) {
+            updatePayload.notes = explicitNonEmptyString('notes', invoice.notes || '');
+        }
+        if (hasJobsSummaryInput) {
+            updatePayload.jobsSummary = firstNonEmpty(
+                hasField(appointmentData, 'jobsSummary') ? appointmentData.jobsSummary : undefined,
+                hasField(appointmentData, 'problemDescription') ? appointmentData.problemDescription : undefined,
+                invoice.jobsSummary
+            );
+        }
+
+        // Payment fields are updated only when explicitly provided by appointmentData
+        if (hasExplicitPaidAmount) {
+            updatePayload.paidAmount = nextPaidAmount;
+            updatePayload.amountPaid = nextPaidAmount;
+        }
+        if (hasExplicitBalance) {
+            updatePayload.balanceDue = nextBalance;
+        }
+        if (hasExplicitPaymentStatus) {
+            updatePayload.paymentStatus = nextPaymentStatus;
+        }
+
+        if (typeof DEBUG !== 'undefined' && DEBUG) {
+            console.log('[DEBUG][InvoiceSyncUpdatePayload]', {
+                appointmentId: appointmentId || invoice.appointmentId || null,
+                invoiceId,
+                vehicleMakeModel: updatePayload.vehicleMakeModel,
+                registrationPlate: updatePayload.registrationPlate,
+                mileage: updatePayload.mileage,
+                address: updatePayload.address,
+                postcode: updatePayload.postcode
+            });
+        }
+
+        await updateDoc(invoiceRef, updatePayload);
         
         console.log('[InvoiceSync] ✅ Invoice updated:', invoiceId, '| New total:', newTotal, '| Jobs:', normalizedJobs.length, '| Parts:', normalizedParts.length);
     } catch (error) {
@@ -5535,6 +6056,62 @@ async function syncInvoiceFromAppointmentPayload(appointmentId, appointmentData)
 
     try {
         const { collection, query, where, getDocs, doc, getDoc } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+
+        const hasField = (obj, key) => Object.prototype.hasOwnProperty.call(obj || {}, key);
+        const firstNonEmpty = (...values) => {
+            for (const value of values) {
+                if (value === undefined || value === null) continue;
+                if (typeof value === 'string') {
+                    const trimmed = value.trim();
+                    if (trimmed !== '') return trimmed;
+                } else {
+                    return value;
+                }
+            }
+            return '';
+        };
+
+        // Build canonical source: Firestore appointment doc + explicit payload overrides
+        const aptRef = doc(db, 'appointments', appointmentId);
+        const aptSnap = await getDoc(aptRef);
+        const firestoreAppointment = aptSnap.exists() ? (aptSnap.data() || {}) : {};
+
+        const mergedAppointment = { ...firestoreAppointment };
+        Object.keys(appointmentData || {}).forEach((key) => {
+            if (hasField(appointmentData, key)) {
+                mergedAppointment[key] = appointmentData[key];
+            }
+        });
+
+        // Canonical aliases for downstream sync mapping
+        mergedAppointment.vehicleMakeModel = firstNonEmpty(
+            mergedAppointment.vehicleMakeModel,
+            mergedAppointment.makeModel,
+            mergedAppointment.carMakeModel
+        );
+        mergedAppointment.registrationPlate = firstNonEmpty(
+            mergedAppointment.registrationPlate,
+            mergedAppointment.regNumber,
+            mergedAppointment.regPlate
+        );
+
+        const syncOptions = {
+            hasExplicitPaidAmount: hasField(appointmentData, 'paidAmount') || hasField(appointmentData, 'amountPaid'),
+            hasExplicitBalance: hasField(appointmentData, 'balanceDue'),
+            hasExplicitPaymentStatus: hasField(appointmentData, 'paymentStatus')
+        };
+
+        if (typeof DEBUG !== 'undefined' && DEBUG) {
+            console.log('[DEBUG][InvoiceSyncCanonicalSource]', {
+                appointmentId,
+                invoiceId: mergedAppointment.invoiceId || null,
+                vehicleMakeModel: mergedAppointment.vehicleMakeModel || '',
+                registrationPlate: mergedAppointment.registrationPlate || '',
+                mileage: mergedAppointment.mileage,
+                address: mergedAppointment.address,
+                postcode: mergedAppointment.postcode
+            });
+        }
 
         const invoicesQuery = query(
             collection(db, 'invoices'),
@@ -5552,35 +6129,28 @@ async function syncInvoiceFromAppointmentPayload(appointmentId, appointmentData)
                 const bTime = b.createdAt?.toMillis?.() || new Date(b.createdAt || 0).getTime();
                 return bTime - aTime;
             })[0];
-            await syncInvoiceWithAppointment(newest.id, appointmentData, appointmentId);
+            await syncInvoiceWithAppointment(newest.id, mergedAppointment, appointmentId, syncOptions);
             await dedupeInvoicesForAppointment(appointmentId, newest.id);
             console.log('Found invoice:', newest.id);
             return newest.id;
         }
 
-        let fallbackInvoiceId = appointmentData?.invoiceId || '';
-        if (!fallbackInvoiceId) {
-            const aptRef = doc(db, 'appointments', appointmentId);
-            const aptSnap = await getDoc(aptRef);
-            if (aptSnap.exists()) {
-                fallbackInvoiceId = aptSnap.data()?.invoiceId || '';
-            }
-        }
+        let fallbackInvoiceId = mergedAppointment?.invoiceId || '';
 
         if (fallbackInvoiceId) {
             const fallbackRef = doc(db, 'invoices', fallbackInvoiceId);
             const fallbackSnap = await getDoc(fallbackRef);
             if (fallbackSnap.exists()) {
-                await syncInvoiceWithAppointment(fallbackInvoiceId, appointmentData, appointmentId);
+                await syncInvoiceWithAppointment(fallbackInvoiceId, mergedAppointment, appointmentId, syncOptions);
                 await dedupeInvoicesForAppointment(appointmentId, fallbackInvoiceId);
                 console.log('Found invoice:', fallbackInvoiceId);
                 return fallbackInvoiceId;
             }
         }
 
-        if (appointmentData.status === 'finalized') {
-            const invoiceId = await getOrCreateInvoiceForAppointment(appointmentId, appointmentData);
-            await syncInvoiceWithAppointment(invoiceId, appointmentData, appointmentId);
+        if (mergedAppointment.status === 'finalized') {
+            const invoiceId = await getOrCreateInvoiceForAppointment(appointmentId, mergedAppointment);
+            await syncInvoiceWithAppointment(invoiceId, mergedAppointment, appointmentId, syncOptions);
             console.log('Found invoice:', invoiceId);
             return invoiceId;
         }
@@ -5671,12 +6241,6 @@ function populateFormFromAppointment(appointment) {
     document.getElementById('appointmentTimeValue').value = timeValue;
     document.getElementById('appointmentTime').value = timeValue; // Display field
     
-    // Populate Quick mode time field if exists
-    const vehicleTimeQuick = document.getElementById('vehicleTimeQuick');
-    if (vehicleTimeQuick) {
-        vehicleTimeQuick.value = timeValue;
-    }
-    
     const serviceLocationEl = document.getElementById('serviceLocation');
     if (serviceLocationEl) serviceLocationEl.value = appointment.serviceLocation || '';
     
@@ -5741,6 +6305,9 @@ function populateFormFromAppointment(appointment) {
     
     // Notes
     document.getElementById('notes').value = appointment.notes || '';
+
+    // Invoice RO (optional)
+    populateInvoiceROFromAppointment(appointment);
     
     console.log('[EDIT] Form population complete. Updating totals...');
     // Note: updateAppointmentTotals will be called by populateChipsFromData
@@ -5902,6 +6469,14 @@ function getOriginalDate(apt) {
     return null;
 }
 
+function getAppointmentJobStatus(apt) {
+    const raw = String(apt?.jobStatus || apt?.status || 'scheduled').toLowerCase().trim();
+    if (raw === 'in_progress' || raw === 'in-progress' || raw === 'inprogress') return 'in_progress';
+    if (raw === 'completed' || raw === 'done') return 'completed';
+    if (raw === 'canceled' || raw === 'cancelled') return 'canceled';
+    return 'scheduled';
+}
+
 function formatISODate(date) {
     return date ? date.toISOString().split('T')[0] : '';
 }
@@ -5995,7 +6570,9 @@ function normalizeAppointment(apt) {
     const customerPhone = ((apt.customerPhone || apt.phone || '').trim());
     const dateStr = (apt.dateStr || apt.date || '').trim();
     const time = (apt.time || '').trim();
-    const address = (apt.address || '').trim();
+    const address = ((apt.address || '').trim()) || ((apt.serviceLocation || '').toLowerCase() === 'garage'
+        ? 'TransvortexLTD Mobile Mechanic, 81 Foley Rd, Birmingham B8 2JT'
+        : '');
     const serviceLocation = (apt.serviceLocation || '').trim();
     const contactPref = (apt.contactPref || '').trim();
     let services = Array.isArray(apt.services) ? apt.services : [];
@@ -6009,7 +6586,8 @@ function normalizeAppointment(apt) {
     const notes = (apt.notes || '').replace(/\s+/g, ' ').trim();
     const registrationPlateNorm = registrationPlate.toUpperCase().trim();
     const vehicleMakeModelNorm = vehicleMakeModel.replace(/\s+/g, ' ').trim();
-    const status = apt.status || 'scheduled';
+    const canonicalJobStatus = getAppointmentJobStatus(apt);
+    const status = canonicalJobStatus === 'in_progress' ? 'in-progress' : canonicalJobStatus;
     
     return {
         customerName,
@@ -6026,7 +6604,8 @@ function normalizeAppointment(apt) {
         parts,
         jobsSummary,
         notes,
-        status
+        status,
+        jobStatus: canonicalJobStatus
     };
 }
 
@@ -6126,9 +6705,9 @@ function filterAppointments() {
                 if (!aptDate) return false;
                 const aptDateNorm = new Date(aptDate);
                 aptDateNorm.setHours(0, 0, 0, 0);
+                const status = getAppointmentJobStatus(apt);
                 return aptDateNorm.getTime() === now.getTime() && 
-                       (apt.status || '').toLowerCase() !== 'cancelled' &&
-                       (apt.status || '').toLowerCase() !== 'cancelled';
+                       status !== 'canceled';
             });
             break;
         }
@@ -6138,15 +6717,15 @@ function filterAppointments() {
             result = result.filter(apt => {
                 const aptDate = getScheduledDate(apt);
                 if (!aptDate) return false;
-                const status = (apt.status || '').toLowerCase();
-                return aptDate > tomorrow && status !== 'completed' && status !== 'cancelled';
+                const status = getAppointmentJobStatus(apt);
+                return aptDate > tomorrow && status !== 'completed' && status !== 'canceled';
             });
             break;
         }
         case 'completed': {
             result = result.filter(apt => {
-                const status = (apt.status || 'upcoming').toLowerCase();
-                return status === 'completed' || status === 'completă' || status === 'done';
+                const status = getAppointmentJobStatus(apt);
+                return status === 'completed';
             });
             break;
         }
@@ -6156,8 +6735,8 @@ function filterAppointments() {
                 if (!aptDate) return false;
                 const aptDateNorm = new Date(aptDate);
                 aptDateNorm.setHours(0, 0, 0, 0);
-                const status = (apt.status || '').toLowerCase();
-                return aptDateNorm < now && status !== 'completed' && status !== 'cancelled';
+                const status = getAppointmentJobStatus(apt);
+                return aptDateNorm < now && status !== 'completed' && status !== 'canceled';
             });
             break;
         }
@@ -6171,14 +6750,14 @@ function filterAppointments() {
                 else if (apt.dateStr) aptDate = new Date(apt.dateStr);
                 else return false;
                 
-                const status = (apt.status || '').toLowerCase();
-                return aptDate < new Date() && status !== 'completed' && status !== 'cancelled';
+                const status = getAppointmentJobStatus(apt);
+                return aptDate < new Date() && status !== 'completed' && status !== 'canceled';
             });
             break;
         }
         case 'all':
         default: {
-            result = result.filter(apt => (apt.status || '').toLowerCase() !== 'cancelled');
+            result = result.filter(apt => getAppointmentJobStatus(apt) !== 'canceled');
             break;
         }
     }
@@ -6200,9 +6779,12 @@ function filterAppointments() {
     
     // Store filtered result
     filteredAppointments = result;
-    
+
     // Trigger render
     renderAppointments();
+
+    // Refresh bell badge after every filter update
+    if (typeof refreshBellBadge === 'function') refreshBellBadge();
 }
 
 /**
@@ -6450,7 +7032,7 @@ function createAppointmentCard(apt) {
     // Vehicle info
     const regPlate = normalized.registrationPlate || normalized.regNumber || '';
     const makeModel = normalized.vehicleMakeModel || normalized.makeModel || '';
-    const vehicleDisplay = regPlate ? regPlate : makeModel;
+    const vehicleDisplay = makeModel && regPlate ? `${makeModel} • ${regPlate}` : (regPlate || makeModel);
     
     // Format date and time
     const dateStr = aptDate.toLocaleDateString('en-GB', { weekday: 'short', month: 'short', day: 'numeric' });
@@ -6458,164 +7040,110 @@ function createAppointmentCard(apt) {
     const dateShort = formatDateShort(aptDate);
     const timeShort = formatTimeShort(aptDate);
     
-    // Determine status badge
-    let statusClass = '';
-    let statusText = '';
-    let timeStatusClass = '';
-    
-    if (normalized.status === 'completed' || normalized.status === 'done') {
-        statusClass = 'status-completed';
-        statusText = 'Completed';
-        timeStatusClass = 'time-badge--completed';
-    } else if (normalized.status === 'canceled') {
-        statusClass = 'status-canceled';
-        statusText = 'Canceled';
-        timeStatusClass = 'time-badge--canceled';
-    } else if (isOverdue && !isPaid) {
-        // Only show Overdue if unpaid AND overdue
-        statusClass = 'status-overdue';
-        statusText = 'Overdue';
-        timeStatusClass = 'time-badge--overdue';
-    } else if (minutesDiff < 60 && minutesDiff >= 0) {
-        statusClass = 'status-soon';
+    // Status badge
+    let statusMod = 'scheduled';
+    let statusText = 'Scheduled';
+
+    if (normalized.jobStatus === 'completed') {
+        statusMod = 'completed';
+        statusText = 'Done';
+    } else if (normalized.jobStatus === 'in_progress') {
+        statusMod = 'in-progress';
         statusText = 'In Progress';
-        timeStatusClass = 'time-badge--active';
-    } else {
-        statusClass = 'status-scheduled';
-        statusText = 'Scheduled';
-        timeStatusClass = 'time-badge--scheduled';
+    } else if (normalized.jobStatus === 'canceled') {
+        statusMod = 'canceled';
+        statusText = 'Canceled';
+    } else if (isOverdue && !isPaid) {
+        statusMod = 'overdue';
+        statusText = 'Overdue';
+    } else if (minutesDiff < 60 && minutesDiff >= 0) {
+        statusMod = 'soon';
+        statusText = 'Soon';
     }
-    
-    const displayAmount = amountInfo?.formatted || '£—';
-    const hasInvoiceAmount = !!amountInfo;
-    
-    // Payment section - show amount from invoice if available, otherwise from appointment
-    let paymentSection = '';
-    if (hasInvoiceAmount) {
-        const paidLabel = amountInfo.status === 'paid' ? 'Paid ✓' : 'Unpaid';
-        paymentSection = `
-            <div class="app-card__payment-summary">
-                <div class="payment-item">
-                    <span class="payment-label">Amount:</span>
-                    <span class="payment-value">${displayAmount} (${paidLabel})</span>
-                </div>
-            </div>
-        `;
-    } else if (total > 0) {
-        const paidLabel = isPaid ? 'Paid ✓' : 'Unpaid';
-        paymentSection = `
-            <div class="app-card__payment-summary">
-                <div class="payment-item">
-                    <span class="payment-label">Amount:</span>
-                    <span class="payment-value">${formatCurrencyGBP(total)} (${paidLabel})</span>
-                </div>
-            </div>
-        `;
+
+    const displayAmount = amountInfo?.formatted || (total > 0 ? formatCurrencyGBP(total) : '');
+    const finStatusText = isPaid ? 'PAID' : (displayAmount ? 'DUE' : '');
+    const finStatusMod  = isPaid ? 'paid' : 'due';
+
+    // ── Actions: status-aware tiered layout ──
+    const canShowActions = normalized.jobStatus !== 'canceled';
+    const hasAddress = !!(normalized.address || normalized.clientAddress || normalized.serviceLocation === 'garage');
+    const customerPhone = normalized.customerPhone || apt.phone || '';
+    const hasPhone = Boolean(customerPhone && customerPhone.length >= 6);
+    const isCompleted = normalized.jobStatus === 'completed';
+    const isInProgress = normalized.jobStatus === 'in_progress';
+
+    // Tier 1 — primary CTA (context-aware, 44px height)
+    let primaryBtn = '';
+    if (canShowActions) {
+        if (isCompleted && isPaid) {
+            primaryBtn = `<button class="apt-primary-btn apt-primary-btn--view" data-action="invoice" data-id="${apt.id}" aria-label="View Invoice"><i class="fas fa-file-invoice"></i> View Invoice</button>`;
+        } else if (isCompleted && !isPaid) {
+            primaryBtn = `<button class="apt-primary-btn apt-primary-btn--pay" data-action="toggle-paid" data-id="${apt.id}" aria-label="Mark as Paid"><i class="fas fa-check-circle"></i> Mark Paid</button>`;
+        } else if (isInProgress) {
+            primaryBtn = `<button class="apt-primary-btn apt-primary-btn--complete" data-action="complete-job" data-id="${apt.id}" aria-label="Complete Job"><i class="fas fa-flag-checkered"></i> Complete Job</button>`;
+        } else {
+            primaryBtn = `<button class="apt-primary-btn apt-primary-btn--start" data-action="start-job" data-id="${apt.id}" aria-label="Start Job"><i class="fas fa-play"></i> Start Job</button>`;
+        }
     }
-    
-    // Vehicle & client info
-    const clientInfo = `
-        <div class="app-card__info">
-            <div class="info-row">
-                <span class="info-label">Vehicle:</span>
-                <span class="info-value">${vehicleDisplay || '—'}</span>
-            </div>
-            <div class="info-row">
-                <span class="info-label">Client:</span>
-                <span class="info-value">${normalized.customerName}</span>
-            </div>
-            <div class="info-row">
-                <span class="info-label">Date:</span>
-                <span class="info-value">${dateStr} at ${timeStr}</span>
+
+    // Tier 2 — quick icon buttons: Call (if phone), Navigate (if address, non-completed)
+    const callQuickBtn = (hasPhone && canShowActions)
+        ? `<button class="apt-action-btn apt-action-btn--call" data-action="call" data-id="${apt.id}" title="Call ${customerPhone}" aria-label="Call customer"><i class="fas fa-phone"></i></button>`
+        : '';
+    const navigateBtn = (hasAddress && canShowActions && !isCompleted)
+        ? `<button class="apt-action-btn apt-action-btn--visit" data-action="visit" data-id="${apt.id}" title="Navigate" aria-label="Navigate to address"><i class="fas fa-map-marker-alt"></i></button>`
+        : '';
+
+    // Tier 3 toggle — More button
+    const moreBtn = canShowActions
+        ? `<button class="apt-action-btn apt-action-btn--more" data-action="toggle-secondary" data-id="${apt.id}" title="More options" aria-label="More options" aria-expanded="false"><i class="fas fa-ellipsis-h"></i></button>`
+        : '';
+
+    // Tier 3 — secondary menu items (status-aware, minimal clutter)
+    const editBtn    = `<button class="apt-action-btn apt-action-btn--edit" data-action="edit" data-id="${apt.id}" aria-label="Edit appointment"><i class="fas fa-edit"></i> <span class="apt-btn-lbl">Edit</span></button>`;
+    const invBtn     = `<button class="apt-action-btn apt-action-btn--invoice" data-action="invoice" data-id="${apt.id}" aria-label="Open invoice"><i class="fas fa-file-invoice"></i> <span class="apt-btn-lbl">Invoice</span></button>`;
+    const paidToggle = isPaid
+        ? `<button class="apt-action-btn apt-action-btn--pay" data-action="toggle-paid" data-id="${apt.id}" aria-label="Mark as unpaid"><i class="fas fa-undo"></i> <span class="apt-btn-lbl">Unpaid</span></button>`
+        : `<button class="apt-action-btn apt-action-btn--pay" data-action="toggle-paid" data-id="${apt.id}" aria-label="Mark as paid"><i class="fas fa-pound-sign"></i> <span class="apt-btn-lbl">Mark Paid</span></button>`;
+    const deleteBtn  = `<button class="apt-action-btn apt-action-btn--danger" data-action="delete" data-id="${apt.id}" aria-label="Delete appointment"><i class="fas fa-trash-alt"></i> <span class="apt-btn-lbl">Delete</span></button>`;
+
+    let secondaryItems = '';
+    if (canShowActions) {
+        if (isCompleted && isPaid) {
+            // Completed + paid: minimal — just unpaid toggle and delete
+            secondaryItems = `${invBtn}${paidToggle}${deleteBtn}`;
+        } else {
+            secondaryItems = `${editBtn}${invBtn}${paidToggle}${deleteBtn}`;
+        }
+    }
+
+    const actionsHTML = canShowActions ? `
+        <div class="apt-card__actions-tier">
+            <div class="apt-card__primary-row">
+                ${primaryBtn}
+                <div class="apt-card__quick-btns">
+                    ${callQuickBtn}${navigateBtn}${moreBtn}
+                </div>
             </div>
         </div>
-    `;
-    
-    // Actions
-    const canShowActions = normalized.status !== 'canceled';
-    const hasAddress = normalized.address || normalized.clientAddress;
-    
-    // Smart swap logic: Call replaces Mark Paid for timed appointments until used once
-    const hasTime = Boolean(normalized.time && normalized.time.trim());
-    const customerPhone = normalized.customerPhone || '';
-    const hasPhone = Boolean(customerPhone && customerPhone.length >= 6);
-    const showCallInPrimary = hasTime && hasPhone && !callUsedOnce[apt.id];
-    
-    const actionsHTML = canShowActions ? `
-        <div class="app-card__actions">
-            <!-- Row 1: Primary Actions (Invoice | Call or Mark Paid) -->
-            <div class="action-group action-group--primary">
-                <button class="action-btn action-btn--invoice" data-action="invoice" data-id="${apt.id}" aria-label="Invoice">
-                    <i class="fas fa-file-invoice"></i><span>Invoice</span>
-                </button>
-                ${showCallInPrimary ? 
-                    `<button class="action-btn action-btn--call" data-action="call" data-id="${apt.id}" aria-label="Call">
-                        <i class="fas fa-phone"></i><span>Call</span>
-                    </button>` :
-                    `<button class="action-btn action-btn--payment ${isPaid ? 'paid' : 'unpaid'}" 
-                            data-id="${apt.id}" 
-                            data-action="toggle-paid"
-                            title="${isPaid ? 'Click to mark as Unpaid' : 'Click to mark as Paid'}"
-                            aria-label="Toggle payment status">
-                        ${isPaid ? '<i class="fas fa-check-circle"></i><span>Paid</span>' : '<i class="fas fa-circle"></i><span>Mark Paid</span>'}
-                    </button>`
-                }
-            </div>
-            
-            <!-- Row 2: Edit Always Visible + Toggle for secondary actions -->
-            <div class="action-group action-group--main">
-                <button class="action-btn action-btn--edit" data-action="edit" data-id="${apt.id}" aria-label="Edit">
-                    <i class="fas fa-edit"></i><span>Edit</span>
-                </button>
-                <button class="action-btn action-btn--expand-triggers" data-action="toggle-secondary" data-id="${apt.id}" aria-label="More options" aria-expanded="false">
-                    <i class="fas fa-ellipsis-h"></i><span>More</span>
-                </button>
-            </div>
-            
-            <!-- Row 3: Secondary Actions (Collapsible on mobile) -->
-            <div class="action-group action-group--secondary collapsed" data-secondary-menu="${apt.id}">
-                ${hasAddress ? `<button class="action-btn action-btn--visit" data-action="visit" data-id="${apt.id}" aria-label="Visit">
-                    <i class="fas fa-map-marker-alt"></i><span>Visit</span>
-                </button>` : ''}
-                ${(hasPhone && !showCallInPrimary) ? `<button class="action-btn action-btn--call" data-action="call" data-id="${apt.id}" aria-label="Call">
-                    <i class="fas fa-phone"></i><span>Call</span>
-                </button>` : ''}
-                <button class="action-btn action-btn--delete" data-action="delete" data-id="${apt.id}" aria-label="Delete">
-                    <i class="fas fa-trash-alt"></i><span>Delete</span>
-                </button>
-            </div>
+        <div class="apt-secondary-menu collapsed" data-secondary-menu="${apt.id}">
+            ${secondaryItems}
         </div>
     ` : '';
-    
+
     return `
-        <div class="app-card ${statusClass}" data-apt-id="${apt.id}">
-            <!-- Header: Date, Time, Status Badge -->
-            <div class="app-card__header">
-                <div class="app-card__datetime">
-                    <div class="date-badge">${dateShort}</div>
-                    <div class="time-badge ${timeStatusClass}">
-                        <i class="fas fa-clock"></i> ${timeShort}
-                    </div>
-                </div>
-                <div class="app-card__status-badge ${statusClass}">
-                    ${statusText}
-                </div>
+        <div class="apt-card apt-card--${statusMod}" data-apt-id="${apt.id}" data-id="${apt.id}">
+            <div class="apt-card__head">
+                <span class="apt-head__dt">${dateShort} · ${timeShort}</span>
+                <span class="apt-badge apt-badge--${statusMod}">${statusText}</span>
             </div>
-            
-            <!-- Customer Name (prominent) -->
-            <div class="app-card__customer">
-                <i class="fas fa-user-circle"></i> ${normalized.customerName}
-            </div>
-            
-            <!-- Vehicle Info -->
-            ${vehicleDisplay ? `<div class="app-card__vehicle">
-                <i class="fas fa-car"></i> ${vehicleDisplay}
+            <div class="apt-card__client">${normalized.customerName}</div>
+            ${vehicleDisplay ? `<div class="apt-card__vehicle">${vehicleDisplay}</div>` : ''}
+            ${displayAmount ? `<div class="apt-card__fin">
+                <span class="apt-fin__amount">${displayAmount}</span>
+                ${finStatusText ? `<span class="apt-fin__dot">·</span><span class="apt-fin__status apt-fin--${finStatusMod}">${finStatusText}</span>` : ''}
             </div>` : ''}
-            
-            <!-- Payment Summary (if has invoice) -->
-            ${paymentSection}
-            
-            <!-- Actions -->
             ${actionsHTML}
         </div>
     `;
@@ -6624,6 +7152,36 @@ function createAppointmentCard(apt) {
         console.error('Stack:', error.stack);
         return null;
     }
+}
+
+/**
+ * Optimistically swap a single appointment card in-place.
+ * Updates the local data object + replaces the DOM node,
+ * preserving scroll position (no full list re-render).
+ */
+function _swapCardOptimistic(aptId, patch) {
+    // 1. Update local in-memory object
+    const aptArrays = [window.appointments, typeof appointments !== 'undefined' ? appointments : null];
+    let localApt = null;
+    for (const arr of aptArrays) {
+        if (!Array.isArray(arr)) continue;
+        const idx = arr.findIndex(a => a && a.id === aptId);
+        if (idx !== -1) { Object.assign(arr[idx], patch); localApt = arr[idx]; break; }
+    }
+    if (!localApt) return;
+
+    // 2. Re-render only this card
+    const card = document.querySelector(`[data-apt-id="${aptId}"]`);
+    if (!card) return;
+    const newHtml = createAppointmentCard(localApt);
+    if (!newHtml) return;
+    const tmp = document.createElement('div');
+    tmp.innerHTML = newHtml.trim();
+    const newCard = tmp.firstElementChild;
+    if (newCard) card.parentNode.replaceChild(newCard, card);
+
+    // 3. Refresh bell badge without full re-render
+    if (typeof refreshBellBadge === 'function') refreshBellBadge();
 }
 
 // Bind appointment action buttons using event delegation
@@ -6691,7 +7249,7 @@ function bindAppointmentsClickDelegation() {
                         showNotification('Nu s-a putut deschide factura', 'error');
                     }
                     break;
-                
+
                 case 'call':
                     // Call the customer
                     const phone = (appointment?.customerPhone || appointment?.phone || '').trim();
@@ -6711,6 +7269,48 @@ function bindAppointmentsClickDelegation() {
 
                 case 'delete':
                     await handleDeleteAction(aptId, appointment, confirmModal);
+                    break;
+
+                case 'start-job':
+                    // State transition: scheduled → in_progress + statusHistory audit
+                    try {
+                        const { doc: _sDoc, updateDoc: _sUpd, serverTimestamp: _sST, arrayUnion: _sAU, Timestamp: _sTSP } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+                        await _sUpd(_sDoc(db, 'appointments', aptId), {
+                            jobStatus: 'in_progress',
+                            jobStartedAt: _sST(),
+                            status: 'in-progress',
+                            startedAt: _sST(),
+                            updatedAt: _sST(),
+                            statusHistory: _sAU({ at: _sTSP.now(), byUid: currentUser?.uid || 'unknown', action: 'start_job' })
+                        });
+                        // Optimistic in-place card swap — no scroll jump
+                        _swapCardOptimistic(aptId, { status: 'in-progress', jobStatus: 'in_progress' });
+                        showNotification('▶️ Job started', 'success');
+                    } catch (err) {
+                        console.error('[Start Job]', err);
+                        showNotification('❌ Could not start job: ' + err.message, 'error');
+                    }
+                    break;
+
+                case 'complete-job':
+                    // State transition: in_progress → completed + statusHistory audit
+                    try {
+                        const { doc: _cDoc, updateDoc: _cUpd, serverTimestamp: _cST, arrayUnion: _cAU, Timestamp: _cTSP } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+                        await _cUpd(_cDoc(db, 'appointments', aptId), {
+                            jobStatus: 'completed',
+                            jobCompletedAt: _cST(),
+                            status: 'completed',
+                            completedAt: _cST(),
+                            updatedAt: _cST(),
+                            statusHistory: _cAU({ at: _cTSP.now(), byUid: currentUser?.uid || 'unknown', action: 'complete_job' })
+                        });
+                        // Optimistic in-place card swap — no scroll jump
+                        _swapCardOptimistic(aptId, { status: 'completed', jobStatus: 'completed' });
+                        showNotification('✅ Job completed', 'success');
+                    } catch (err) {
+                        console.error('[Complete Job]', err);
+                        showNotification('❌ Could not complete job: ' + err.message, 'error');
+                    }
                     break;
                     
                 default:
@@ -6817,6 +7417,7 @@ async function toggleAppointmentPaidStatus(appointmentId) {
         // This ensures metrics engine will count it as "completed"
         const appointmentUpdate = {
             paymentStatus: newPaymentStatus,
+            amountPaid: newPaidAmount,
             paidAmount: newPaidAmount,
             balanceDue: newBalance,
             status: newAppointmentStatus,  // ✅ Update primary status field
@@ -6838,23 +7439,6 @@ async function toggleAppointmentPaidStatus(appointmentId) {
                 .filter(Boolean)
         );
 
-        // If no invoice exists, create/reuse exactly one (idempotent)
-        let ensuredInvoiceId = null;
-        if (linkedInvoiceIds.size === 0 && typeof getOrCreateInvoiceForAppointment === 'function') {
-            ensuredInvoiceId = await getOrCreateInvoiceForAppointment(appointmentId, appointment || {});
-            if (ensuredInvoiceId) {
-                linkedInvoiceIds.add(ensuredInvoiceId);
-            }
-        }
-
-        // Update appointment with ensured invoiceId when created from paid action
-        if (ensuredInvoiceId && !appointment.invoiceId) {
-            await updateDoc(appointmentRef, {
-                invoiceId: ensuredInvoiceId,
-                updatedAt: serverTimestamp()
-            });
-        }
-
         // Fallback query by appointmentId for legacy docs not yet synced in window.allInvoices
         if (linkedInvoiceIds.size === 0) {
             const invoicesQuery = query(
@@ -6868,18 +7452,35 @@ async function toggleAppointmentPaidStatus(appointmentId) {
         // Update all linked invoices
         if (linkedInvoiceIds.size > 0) {
             await Promise.all(
-                Array.from(linkedInvoiceIds).map(invoiceId => {
+                Array.from(linkedInvoiceIds).map(async (invoiceId) => {
                     const invoiceRef = doc(db, 'invoices', invoiceId);
-                    return updateDoc(invoiceRef, {
+                    const invoiceSnap = await getDoc(invoiceRef);
+                    const existingInvoice = invoiceSnap.exists() ? (invoiceSnap.data() || {}) : {};
+
+                    const patch = {
                         paymentStatus: newPaymentStatus,
+                        total,
                         paidAmount: newPaidAmount,
                         balanceDue: newBalance,
                         amountPaid: newPaidAmount,
                         appointmentId,
                         updatedAt: serverTimestamp()
-                    });
+                    };
+
+                    if (!existingInvoice.createdAt) {
+                        patch.createdAt = serverTimestamp();
+                    }
+
+                    return updateDoc(invoiceRef, patch);
                 })
             );
+
+            if (linkedInvoiceIds.size === 1 && appointment.invoiceId !== Array.from(linkedInvoiceIds)[0]) {
+                await updateDoc(appointmentRef, {
+                    invoiceId: Array.from(linkedInvoiceIds)[0],
+                    updatedAt: serverTimestamp()
+                });
+            }
         }
 
         // Re-enable button
@@ -6896,6 +7497,9 @@ async function toggleAppointmentPaidStatus(appointmentId) {
         if (typeof window.renderWorkspace === 'function' && window.__workspaceState?.activeWorkspace) {
             window.renderWorkspace(window.__workspaceState.activeWorkspace);
         }
+
+        // Refresh bell badge after payment status change
+        if (typeof refreshBellBadge === 'function') refreshBellBadge();
 
         // Show notification with new status
         const statusLabel = newPaymentStatus === 'paid' 
@@ -7818,16 +8422,16 @@ async function handleEditAction(id, appointment, openCustomModal) {
     enterEditMode(appointment);
     populateFormFromAppointment(appointment);
     
-    // Scroll to the appointment form
-    const appointmentForm = document.getElementById('appointmentForm');
-    if (appointmentForm) {
-        appointmentForm.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        // Focus on the first field
-        setTimeout(() => {
-            const firstInput = appointmentForm.querySelector('input[type="text"], input[type="tel"]');
-            if (firstInput) firstInput.focus();
-        }, 100);
+    // Open the drawer on mobile (no-op on desktop where the form is always visible)
+    if (typeof tvAptDrawerOpen === 'function') {
+        tvAptDrawerOpen();
     }
+    // Focus first editable field after drawer opens
+    setTimeout(() => {
+        const firstInput = document.getElementById('appointmentForm')
+            ?.querySelector('input[type="text"], input[type="tel"]');
+        if (firstInput) firstInput.focus();
+    }, 150);
 }
 
 // Export appointments to CSV
@@ -7877,6 +8481,7 @@ function setupEventListeners() {
     setupScannedInvoicesUI();
     setupAccountingUI();
     applyAccountantModeUi();
+    bindNotifDrawer();
 
     const appointmentForm = document.getElementById('appointmentForm');
     if (appointmentForm && !appointmentForm.dataset.bound) {
@@ -7890,6 +8495,8 @@ function setupEventListeners() {
 
 // Modern appointment form logic
 function setupAppointmentFormLogic() {
+    initAddAppointmentTabs();
+
     // 0. Setup cancel edit button
     const cancelEditBtn = document.getElementById('cancelEditBtn');
     if (cancelEditBtn) {
@@ -7914,6 +8521,7 @@ function setupAppointmentFormLogic() {
                 renderPartRows([]);
                 updateAppointmentTotals();
                 addJobRow();
+                resetInvoiceROFormState();
             }
             exitEditMode();
             showNotification('✅ Edit mode cancelled', 'info');
@@ -8693,7 +9301,21 @@ async function createInvoiceFromAppointment(appointmentId, prefillData) {
 /**
  * Start invoices storage listener
  */
+function isModularStorageActive() {
+    return typeof window !== 'undefined' && window.__USE_MODULAR_STORAGE__ === true;
+}
+
 async function startInvoicesListener() {
+    if (window.__tvInitFlags?.invoicesListenerDisabled) {
+        console.log('⏭️ [Invoices] Legacy listener hard-disabled by init flags');
+        return;
+    }
+
+    if (isModularStorageActive()) {
+        console.log('⏭️ [Invoices] Legacy listener disabled (modular storage active)');
+        return;
+    }
+
     if (window._dataLayer?.store?.invoicesById instanceof Map || window.Store?.invoicesById instanceof Map) {
         console.log('⏭️ [Invoices] Skipping legacy listener (data-layer store is active)');
         return;
@@ -8709,11 +9331,10 @@ async function startInvoicesListener() {
             return;
         }
         
-        const { collection, query, orderBy, onSnapshot } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+        const { collection, query, onSnapshot } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
         
         const invoicesQuery = query(
-            collection(db, 'invoices'),
-            orderBy('createdAt', 'desc')
+            collection(db, 'invoices')
         );
         
         invoicesUnsubscribe = onSnapshot(
@@ -8778,6 +9399,10 @@ function isInvoicePaid(inv) {
  * Filter and search invoices
  */
 function filterInvoices() {
+    if (isModularStorageActive()) {
+        return;
+    }
+
     const searchInput = document.getElementById('searchInvoices');
     const paymentFilter = document.getElementById('filterInvoicePayment');
     
@@ -8830,6 +9455,10 @@ function filterInvoices() {
  * Update KPI summary (Unpaid vs Paid counts)
  */
 function updateInvoiceKPI() {
+    if (isModularStorageActive()) {
+        return;
+    }
+
     const kpiUnpaid = document.getElementById('kpiUnpaid');
     const kpiPaid = document.getElementById('kpiPaid');
     
@@ -8855,138 +9484,118 @@ function updateInvoiceKPI() {
  * Render invoices storage grid
  */
 function renderInvoicesStorage() {
+    if (isModularStorageActive()) {
+        return;
+    }
+
     console.log('🎨 [Invoices] renderInvoicesStorage() called - filteredInvoices.length:', filteredInvoices.length);
     const container = document.getElementById('invoicesList');
     const emptyState = document.getElementById('emptyStateInvoices');
-    
+
     if (!container) return;
-    
+
     if (filteredInvoices.length === 0) {
         container.innerHTML = '';
         if (emptyState) emptyState.style.display = 'flex';
         return;
     }
-    
+
     if (emptyState) emptyState.style.display = 'none';
-    
-    // Wrap cards in premium grid layout
-    container.innerHTML = `
-        <div class="storage-grid">
-            ${filteredInvoices.map(invoice => createInvoiceCard(invoice)).join('')}
-        </div>
-    `;
+
+    const INV_PAGE = 10;
+    const cards = filteredInvoices.map((invoice, i) => {
+        const card = createInvoiceCard(invoice);
+        return i < INV_PAGE ? card : `<div class="inv-hidden" style="display:none">${card}</div>`;
+    });
+    const remaining = filteredInvoices.length - INV_PAGE;
+    const loadMore = remaining > 0
+        ? `<button class="inv-load-more" onclick="tvInvLoadMore(this)">Load ${Math.min(INV_PAGE, remaining)} more</button>`
+        : '';
+
+    container.innerHTML = `<div class="inv-list">${cards.join('')}</div>${loadMore}`;
 }
 
 /**
- * Create HTML for invoice card - PREMIUM SAAS COMPACT
+ * Compact invoice card — 4-row layout, icon-only actions
  */
 function createInvoiceCard(invoice) {
     const customerName = invoice.customerName || 'Unknown';
-    const phone = invoice.phone || '';
     const regPlate = invoice.regPlate || '';
+    const vehicleMakeModel = invoice.vehicleMakeModel || invoice.makeModel || '';
     const invoiceNumber = invoice.invoiceNumber || invoice.id?.slice(0, 8) || 'DRAFT';
     const total = invoice.total || 0;
     const amountPaid = invoice.amountPaid || invoice.totals?.amountPaid || 0;
     const balanceDue = Math.max(0, total - amountPaid);
     const status = invoice.status || 'draft';
     const createdAt = invoice.createdAt;
-    
-    // Determine payment status with normalized logic
+
     const isPaid = isInvoicePaid(invoice);
     const isPartial = amountPaid > 0 && balanceDue > 0 && !isPaid;
-    
-    // Premium status chips
-    let paymentChip = '';
-    if (isPaid) {
-        paymentChip = '<span class="status-chip status-chip--paid"><i class="fas fa-check-circle"></i> PAID</span>';
-    } else if (isPartial) {
-        paymentChip = '<span class="status-chip status-chip--partial"><i class="fas fa-exclamation-circle"></i> PARTIAL</span>';
-    } else {
-        paymentChip = '<span class="status-chip status-chip--due"><i class="fas fa-clock"></i> DUE</span>';
-    }
-    
-    // Format date
-    let dateStr = 'N/A';
+
+    // Payment badge
+    const payBadge = isPaid
+        ? '<span class="inv-badge inv-badge--paid">PAID</span>'
+        : isPartial
+            ? '<span class="inv-badge inv-badge--partial">PARTIAL</span>'
+            : '<span class="inv-badge inv-badge--due">DUE</span>';
+    const statusBadge = status === 'final'
+        ? '<span class="inv-badge inv-badge--final">FINAL</span>'
+        : '<span class="inv-badge inv-badge--draft">DRAFT</span>';
+
+    // Date
+    let dateStr = '';
     if (createdAt) {
         try {
-            const date = createdAt.toDate ? createdAt.toDate() : new Date(createdAt);
-            dateStr = date.toLocaleDateString('en-GB', { 
-                day: '2-digit', 
-                month: 'short', 
-                year: 'numeric' 
-            });
-        } catch (e) {
-            dateStr = 'N/A';
-        }
+            const d = createdAt.toDate ? createdAt.toDate() : new Date(createdAt);
+            dateStr = d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' });
+        } catch (e) {}
     }
-    
-    const statusBadgeClass = status === 'final' ? 'badge badge--done' : 'badge';
-    
-    return `
-        <div class="storage-card" data-invoice-id="${invoice.id}">
-            <div class="storage-card__top">
-                <div>
-                    <div class="storage-card__id">${invoiceNumber}</div>
-                    <div class="storage-card__meta-date">${dateStr}</div>
-                </div>
-                <div class="storage-card__badges">
-                    ${paymentChip}
-                </div>
-            </div>
-            
-            <div class="storage-card__line">
-                <strong>${customerName}</strong>
-                ${regPlate ? `<span class="app-card__meta-sep">•</span><span>${regPlate}</span>` : ''}
-            </div>
-            
-            <div class="storage-card__line">
-                <span>Total: <strong>£${total.toFixed(2)}</strong></span>
-                ${amountPaid > 0 ? `<span class="app-card__meta-sep">•</span><span style="color: #16a34a; font-weight: 600;">Paid: £${amountPaid.toFixed(2)}</span>` : ''}
-                ${balanceDue > 0 ? `<span class="app-card__meta-sep">•</span><span style="color: #dc2626; font-weight: 600;">Due: £${balanceDue.toFixed(2)}</span>` : ''}
-            </div>
-            
-            <div class="storage-card__actions">
-                ${invoice.pdfUrl ? `
-                    <button 
-                        class="action-btn action-btn--success" 
-                        onclick="openPDF('${invoice.pdfUrl}')"
-                        aria-label="Open PDF"
-                        title="Download or view saved PDF"
-                    >
-                        <i class="fas fa-file-pdf"></i>
-                        <span>PDF</span>
-                    </button>
-                ` : `
-                    <button 
-                        class="action-btn action-btn--secondary" 
-                        onclick="generateAndSaveInvoicePDF('${invoice.id}')"
-                        aria-label="Generate and save PDF"
-                        title="Generate PDF and save to storage"
-                    >
-                        <i class="fas fa-save"></i>
-                        <span>Save PDF</span>
-                    </button>
-                `}
-                <button 
-                    class="action-btn action-btn--primary" 
-                    onclick="openInvoiceFile('${invoice.id}')"
-                    aria-label="Open invoice"
-                >
-                    <i class="fas fa-external-link-alt"></i>
-                    <span>Open</span>
-                </button>
-                <button 
-                    class="action-btn action-btn--danger" 
-                    onclick="deleteInvoiceConfirm('${invoice.id}')"
-                    aria-label="Delete invoice"
-                >
-                    <i class="fas fa-trash"></i>
-                    <span>Delete</span>
-                </button>
-            </div>
-        </div>
-    `;
+
+    // Client + vehicle line
+    const vehicleStr = [regPlate, vehicleMakeModel].filter(Boolean).join(' · ');
+    const clientLine = vehicleStr ? `${customerName} — ${vehicleStr}` : customerName;
+
+    // Financial row
+    let finRow;
+    if (isPaid) {
+        finRow = `<strong class="inv-fin__total">£${total.toFixed(2)}</strong><span class="inv-fin__paid">✓ Paid</span>`;
+    } else if (isPartial) {
+        finRow = `<strong class="inv-fin__total">£${total.toFixed(2)}</strong><span class="inv-fin__partial">Paid £${amountPaid.toFixed(2)}</span><span class="inv-fin__due">Due £${balanceDue.toFixed(2)}</span>`;
+    } else {
+        finRow = `<strong class="inv-fin__total">£${total.toFixed(2)}</strong><span class="inv-fin__due">£${balanceDue.toFixed(2)} due</span>`;
+    }
+
+    // PDF button
+    const pdfBtn = invoice.pdfUrl
+        ? `<button class="inv-btn inv-btn--pdf" onclick="openPDF('${invoice.pdfUrl}')" title="View PDF" aria-label="View PDF"><i class="fas fa-file-pdf"></i></button>`
+        : `<button class="inv-btn inv-btn--pdf" onclick="generateAndSaveInvoicePDF('${invoice.id}')" title="Generate PDF" aria-label="Generate PDF"><i class="fas fa-save"></i></button>`;
+
+    // Mark paid button (legacy path: window.markInvoicePaid)
+    const payBtn = !isPaid
+        ? `<button class="inv-btn inv-btn--pay" onclick="window.markInvoicePaid && window.markInvoicePaid('${invoice.id}')" title="Mark Paid" aria-label="Mark paid"><i class="fas fa-check"></i></button>`
+        : '';
+
+    return `<div class="inv-row" data-invoice-id="${invoice.id}">
+  <div class="inv-row__head"><span class="inv-row__num">${invoiceNumber}</span><div class="inv-row__chips">${payBadge}${statusBadge}</div></div>
+  <div class="inv-row__info"><span class="inv-row__client">${clientLine}</span><span class="inv-row__date">${dateStr}</span></div>
+  <div class="inv-row__fin">${finRow}</div>
+  <div class="inv-row__actions">${pdfBtn}<button class="inv-btn inv-btn--open" onclick="openInvoiceFile('${invoice.id}')" title="Open" aria-label="Open invoice"><i class="fas fa-external-link-alt"></i></button>${payBtn}<button class="inv-btn inv-btn--del" onclick="deleteInvoiceConfirm('${invoice.id}')" title="Delete" aria-label="Delete"><i class="fas fa-trash"></i></button></div>
+</div>`;
 }
+
+/**
+ * Load next 10 hidden invoice cards
+ */
+window.tvInvLoadMore = function(btn) {
+    const list = btn.previousElementSibling;
+    if (!list) return;
+    const hidden = Array.from(list.querySelectorAll('.inv-hidden'));
+    const INV_PAGE = 10;
+    hidden.slice(0, INV_PAGE).forEach(el => { el.style.display = ''; el.classList.remove('inv-hidden'); });
+    const stillHidden = list.querySelectorAll('.inv-hidden').length;
+    if (stillHidden === 0) { btn.remove(); }
+    else { btn.textContent = `Load ${Math.min(INV_PAGE, stillHidden)} more`; }
+};
 
 /**
  * Open invoice in editor
@@ -9045,6 +9654,11 @@ async function deleteInvoiceConfirm(invoiceId) {
  * Refresh invoices list
  */
 function handleRefreshInvoices() {
+    if (isModularStorageActive()) {
+        console.log('⏭️ [Invoices] Legacy refresh disabled (modular storage active)');
+        return;
+    }
+
     console.log('🔄 [Invoices] Manual refresh requested');
     stopInvoicesListener();
     startInvoicesListener();
@@ -9075,7 +9689,10 @@ function handleRefreshInvoices() {
 // Keeping these here as fallback for compatibility
 window.openInvoiceFile = window.openInvoiceFile || openInvoiceFile;
 window.deleteInvoiceConfirm = window.deleteInvoiceConfirm || deleteInvoiceConfirm;
-if (!(window._dataLayer?.store?.invoicesById instanceof Map || window.Store?.invoicesById instanceof Map)) {
+// Storage card action buttons call these via onclick in a module context — must be on window
+window.openPDF = openPDF;
+window.generateAndSaveInvoicePDF = generateAndSaveInvoicePDF;
+if (!window.__tvInitFlags?.invoicesListenerDisabled && !isModularStorageActive() && !(window._dataLayer?.store?.invoicesById instanceof Map || window.Store?.invoicesById instanceof Map)) {
     window.handleRefreshInvoices = window.handleRefreshInvoices || handleRefreshInvoices;
     window.filterInvoices = window.filterInvoices || filterInvoices;
 }
@@ -9084,8 +9701,86 @@ if (!(window._dataLayer?.store?.invoicesById instanceof Map || window.Store?.inv
 window.toggleAppointmentPaidStatus = window.toggleAppointmentPaidStatus || toggleAppointmentPaidStatus;
 window.toggleAppointmentDropdown = window.toggleAppointmentDropdown || toggleAppointmentDropdown;
 
+/*
+ ====================================================
+  TWILIO INTEGRATION STUB
+  ---------------------
+  SMS reminders and notifications via Twilio can be
+  added here. Do NOT activate real calls until
+  Twilio credentials exist in Firebase Remote Config
+  or environment variables.
+
+  TODO (when Twilio is configured):
+  1. Add "Send SMS" button in each appointment card
+     ONLY when `window.__tvConfig?.twilioEnabled === true`
+  2. Call a Firebase Cloud Function (not direct API)
+     that sends the SMS: functions/sendSmsReminder.js
+  3. Suggested action: `data-action="send-sms"`
+     Handler: case 'send-sms': await callSmsFunction(aptId)
+  4. Log SMS sent in statusHistory: action = 'sms_sent'
+
+  UI placeholder is suppressed by default:
+  `window.__tvConfig?.twilioEnabled` must be `true`
+  before any SMS UI renders.
+ ====================================================
+*/
+
 // ✅ Script parsing completed successfully
 console.log('[script.js] ✅ Parsed successfully to end - no syntax errors');
+
+/*
+ ==========================================================
+  APPOINTMENT CARD — MANUAL TEST CHECKLIST
+  Run through these scenarios after any card template change
+ ==========================================================
+
+  1. SCHEDULED card:
+     [ ] Shows "Start Job" primary button
+     [ ] Call quick btn visible ONLY if phone exists
+     [ ] Navigate quick btn visible if address exists
+     [ ] Tapping "More" reveals: Edit, Invoice, Mark Paid, Delete
+     [ ] Tapping "Start Job" → card flips to in-progress status
+
+  2. IN-PROGRESS card:
+     [ ] Shows "Complete Job" primary button
+     [ ] Call quick btn visible only if phone exists
+     [ ] Secondary menu: Edit, Invoice, Mark Paid, Delete
+     [ ] Tapping "Complete Job" → card becomes completed + unpaid
+
+  3. COMPLETED + UNPAID card:
+     [ ] Shows "Mark Paid" primary button (green)
+     [ ] Call quick btn visible only if phone exists
+     [ ] Secondary menu: Edit, Invoice, Mark Paid, Delete
+     [ ] Tapping "Mark Paid" → triggers toggleAppointmentPaidStatus
+     [ ] Card re-renders showing PAID status
+
+  4. COMPLETED + PAID card:
+     [ ] Shows "View Invoice" primary button (outlined)
+     [ ] No Navigate quick btn (correct — job done)
+     [ ] Secondary menu: Invoice, Mark Unpaid, Delete (minimal — no Edit clutter)
+     [ ] Tapping "View Invoice" opens invoice page
+
+  5. CALL BUTTON:
+     [ ] Create appointment WITHOUT phone → Call button ABSENT everywhere
+     [ ] Create appointment WITH phone → Call btn visible in quick row
+     [ ] tel: link triggered on tap, no page scroll
+
+  6. SCROLL / NAVIGATION:
+     [ ] No scroll-jump when tapping any card button
+     [ ] Edit button opens drawer (tvAptDrawerOpen), NOT scrollIntoView
+     [ ] Browser Back closes drawer if open
+
+  7. FAB:
+     [ ] "+ New Appointment" FAB visible on mobile (≤ 767px)
+     [ ] FAB hidden on desktop (> 767px)
+     [ ] Tapping FAB calls tvAptDrawerOpen()
+     [ ] FAB hidden when a modal is open
+
+  8. No dead buttons:
+     [ ] No button in card template lacks a data-action
+     [ ] All data-action values have a matching case in the delegation switch
+ ==========================================================
+*/
 
 
 

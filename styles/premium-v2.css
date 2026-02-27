@@ -1,0 +1,46 @@
+/* =====================================================
+   Premium V2 UI Layer (Reversible)
+   Active only when .uiV2 is present on <body>
+   ===================================================== */
+
+.uiV2 #appointmentsTab .tvDashboard--workspaceOptimized {
+  max-width: 1320px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+@media (min-width: 980px) {
+  .uiV2 #appointmentsTab .tvDashboard--workspaceOptimized {
+    grid-template-columns: minmax(420px, 560px) minmax(0, 1fr);
+    align-items: start;
+    column-gap: clamp(14px, 2vw, 24px);
+  }
+
+  .uiV2 #appointmentsTab #addAppointmentSection {
+    min-width: 420px;
+    width: 100%;
+  }
+
+  .uiV2 #addAppointmentSection #appointmentForm .appt-form__grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: clamp(12px, 1.5vw, 18px);
+  }
+
+  .uiV2 #addAppointmentSection #appointmentForm .appt-form__grid > .itemsPanel,
+  .uiV2 #addAppointmentSection #appointmentForm .appt-form__grid > .premium-notes-card {
+    grid-column: 1 / -1;
+  }
+
+  .uiV2 #addAppointmentSection,
+  .uiV2 #addAppointmentSection .tvCardHeader h2,
+  .uiV2 #addAppointmentSection .tvCardHeader p,
+  .uiV2 #addAppointmentSection .appt-label,
+  .uiV2 #addAppointmentSection .field-hint,
+  .uiV2 #addAppointmentSection .collapsible > summary,
+  .uiV2 #addAppointmentSection .summary-title,
+  .uiV2 #addAppointmentSection .summary-preview {
+    word-break: normal;
+    overflow-wrap: break-word;
+    white-space: normal;
+  }
+}

@@ -1,0 +1,516 @@
+/* ================================================
+   TRANSVORTEX — TAILWIND CSS ENTRY POINT
+   Build: npx tailwindcss -i ./src/styles/tailwind.css \
+                          -o ./styles/tailwind-output.css \
+                          --minify
+   Watch: npm run watch:css
+   ================================================ */
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ──────────────────────────────────────────────
+   LAYER: base — safe-area & html-level defaults
+   These are additive; preflight is disabled so
+   existing CSS resets are not disturbed.
+   ────────────────────────────────────────────── */
+@layer base {
+  :root {
+    /* Safe-area convenience vars for utility use */
+    --safe-top:    env(safe-area-inset-top, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+    --safe-left:   env(safe-area-inset-left, 0px);
+    --safe-right:  env(safe-area-inset-right, 0px);
+  }
+
+  /* Smooth scrolling on iOS */
+  html {
+    -webkit-tap-highlight-color: transparent;
+    scroll-behavior: smooth;
+  }
+
+  /* Ensure touch targets meet 44px minimum */
+  button, [role="button"], a, input, select, textarea {
+    touch-action: manipulation;
+  }
+}
+
+/* ──────────────────────────────────────────────
+   LAYER: components — reusable mobile-first
+   component patterns built with @apply
+   ────────────────────────────────────────────── */
+@layer components {
+
+  /* ────────────────────────────
+     MOBILE-FIRST HEADER
+     ──────────────────────────── */
+  .tv-header {
+    @apply sticky top-0 z-[70] w-full;
+    @apply bg-white border-b border-slate-200/60;
+    @apply shadow-[0_1px_4px_rgba(0,0,0,0.08)];
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+
+  .tv-header__inner {
+    @apply flex items-center justify-between;
+    @apply px-3 h-14 max-w-[1280px] mx-auto;
+    @apply gap-2;
+  }
+
+  .tv-header__brand {
+    @apply flex items-center gap-2 shrink-0;
+  }
+
+  .tv-header__brand-gif {
+    @apply w-8 h-8 rounded-full object-cover;
+  }
+
+  .tv-header__brand-logo {
+    @apply h-6 w-auto;
+  }
+
+  /* ────────────────────────────
+     STATUS CHIP (online/offline)
+     ──────────────────────────── */
+  .tv-status-chip {
+    @apply inline-flex items-center gap-1.5;
+    @apply px-3 h-8 rounded-pill text-xs font-medium;
+    @apply bg-slate-100 border border-slate-200 text-slate-700;
+    @apply whitespace-nowrap;
+  }
+
+  .tv-status-chip--online {
+    @apply bg-emerald-50 border-emerald-200 text-emerald-800;
+  }
+
+  .tv-status-chip__dot {
+    @apply w-1.5 h-1.5 rounded-full bg-emerald-500;
+    animation: tv-pulse 2s ease-in-out infinite;
+  }
+
+  @keyframes tv-pulse {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0.45; }
+  }
+
+  /* ────────────────────────────
+     KPI CHIP ROW (header bar)
+     ──────────────────────────── */
+  .tv-kpi-row {
+    @apply flex items-center gap-2 overflow-x-auto;
+    @apply px-3 pb-2;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .tv-kpi-row::-webkit-scrollbar {
+    display: none;
+  }
+
+  .tv-kpi-chip {
+    @apply inline-flex items-center gap-1.5 justify-center;
+    @apply shrink-0 px-3 h-8 rounded-pill;
+    @apply text-fluid-xs font-semibold whitespace-nowrap;
+    @apply border cursor-pointer select-none;
+    @apply transition-all duration-150;
+    @apply min-h-touch;
+  }
+
+  .tv-kpi-chip--orange {
+    @apply bg-orange-50 border-orange-200/60 text-orange-900;
+  }
+  .tv-kpi-chip--orange:active { @apply bg-orange-100; }
+
+  .tv-kpi-chip--red {
+    @apply bg-red-50 border-red-200/60 text-red-900;
+  }
+  .tv-kpi-chip--red:active { @apply bg-red-100; }
+
+  .tv-kpi-chip--green {
+    @apply bg-emerald-50 border-emerald-200/60 text-emerald-900;
+  }
+  .tv-kpi-chip--green:active { @apply bg-emerald-100; }
+
+  .tv-kpi-chip--yellow {
+    @apply bg-amber-50 border-amber-200/60 text-amber-900;
+  }
+  .tv-kpi-chip--yellow:active { @apply bg-amber-100; }
+
+  .tv-kpi-chip__val {
+    @apply font-bold tabular-nums;
+  }
+
+  /* ────────────────────────────
+     SIGN OUT / AUTH BUTTON
+     ──────────────────────────── */
+  .tv-btn-auth {
+    @apply inline-flex items-center gap-1.5;
+    @apply h-9 px-4 rounded-pill;
+    @apply bg-gradient-to-br from-primary to-primary-light;
+    @apply text-white text-fluid-xs font-semibold;
+    @apply border-0 cursor-pointer shadow-sm;
+    @apply transition-all duration-150;
+    @apply min-h-touch;
+  }
+
+  .tv-btn-auth:hover  { @apply brightness-105 shadow; }
+  .tv-btn-auth:active { @apply brightness-95 scale-95; }
+
+  /* ────────────────────────────
+     APPOINTMENT CARD
+     ──────────────────────────── */
+  .apts-card {
+    @apply bg-white rounded-fluid-md border border-slate-100;
+    @apply shadow-card p-3 flex flex-col gap-2;
+    @apply w-full min-w-0;
+  }
+
+  .apts-card__header {
+    @apply flex items-start justify-between gap-2;
+  }
+
+  .apts-card__customer {
+    @apply flex flex-wrap items-center gap-1.5 min-w-0;
+  }
+
+  .apts-card__customer strong {
+    @apply text-fluid-base font-semibold text-slate-800 truncate;
+  }
+
+  .apts-card__badges {
+    @apply flex flex-wrap gap-1 shrink-0;
+  }
+
+  .apts-card__meta {
+    @apply flex flex-wrap items-center gap-x-3 gap-y-1 text-fluid-xs text-slate-500;
+  }
+
+  .apts-meta__item {
+    @apply inline-flex items-center gap-1;
+  }
+
+  .apts-card__phone {
+    @apply text-fluid-xs text-slate-500 inline-flex items-center gap-1;
+  }
+
+  /* ────────────────────────────
+     CARD ACTION BUTTONS
+     Primary + Secondary rows
+     ──────────────────────────── */
+  .apts-card__actions {
+    @apply grid gap-2 pt-1;
+    @apply grid-cols-2;
+  }
+
+  .apts-card__actions--primary {
+    @apply contents;
+  }
+
+  .apts-card__actions--secondary {
+    @apply col-span-2 flex gap-2;
+  }
+
+  /* Base action button */
+  .apts-action-btn {
+    @apply inline-flex items-center justify-center gap-1.5;
+    @apply h-11 px-3 rounded-fluid-sm;
+    @apply text-fluid-xs font-semibold;
+    @apply border-0 cursor-pointer;
+    @apply transition-all duration-150 active:scale-95;
+    @apply min-h-touch w-full;
+  }
+
+  /* Primary — invoice/view */
+  .apts-action-btn--primary {
+    @apply bg-primary text-white shadow-sm;
+  }
+  .apts-action-btn--primary:hover { @apply brightness-105; }
+
+  /* Success — complete */
+  .apts-action-btn--success {
+    @apply bg-emerald-500 text-white;
+  }
+  .apts-action-btn--success:hover { @apply bg-emerald-600; }
+
+  /* Secondary — edit/more */
+  .apts-action-btn--secondary {
+    @apply bg-slate-100 text-slate-700 border border-slate-200;
+  }
+  .apts-action-btn--secondary:hover { @apply bg-slate-200; }
+
+  /* Call */
+  .apts-action-btn--call {
+    @apply bg-blue-50 text-blue-700 border border-blue-200;
+  }
+  .apts-action-btn--call:hover { @apply bg-blue-100; }
+
+  /* Ghost/outline */
+  .apts-action-btn--ghost {
+    @apply bg-transparent text-slate-500 border border-slate-200;
+  }
+
+  /* ────────────────────────────
+     STATUS PILLS
+     ──────────────────────────── */
+  .apts-pill {
+    @apply inline-flex items-center px-2 py-0.5 rounded-pill;
+    @apply text-fluid-xs font-semibold whitespace-nowrap;
+  }
+  .apts-pill--today     { @apply bg-blue-100 text-blue-800; }
+  .apts-pill--upcoming  { @apply bg-slate-100 text-slate-600; }
+  .apts-pill--overdue   { @apply bg-red-100 text-red-700; }
+  .apts-pill--completed { @apply bg-emerald-100 text-emerald-800; }
+
+  /* ────────────────────────────
+     AUTOMATION BADGES
+     ──────────────────────────── */
+  .apts-badge {
+    @apply inline-flex items-center gap-1 px-2 py-0.5 rounded-pill;
+    @apply text-[0.68rem] font-semibold whitespace-nowrap;
+  }
+  .apts-badge--overdue { @apply bg-red-50 text-red-600 border border-red-200; }
+  .apts-badge--warning { @apply bg-amber-50 text-amber-700 border border-amber-200; }
+
+  /* ────────────────────────────
+     FAB (Floating Action Button)
+     ──────────────────────────── */
+  .mobile-fab-button {
+    @apply fixed z-[90];
+    @apply w-14 h-14 rounded-pill;
+    @apply bg-gradient-to-br from-primary to-primary-light;
+    @apply text-white border-0 cursor-pointer;
+    @apply shadow-fab;
+    @apply flex items-center justify-center;
+    @apply transition-transform duration-150 active:scale-95;
+    right:  max(16px, env(safe-area-inset-right));
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 72px + 16px);
+  }
+
+  .mobile-fab-button:hover { @apply brightness-105 shadow-lg; }
+
+  /* ────────────────────────────
+     BOTTOM NAV (tab-navigation)
+     ──────────────────────────── */
+  @media (max-width: 600px) {
+    .tab-navigation {
+      @apply fixed left-0 right-0 bottom-0 z-[80];
+      @apply bg-white/90 backdrop-blur-sm;
+      @apply border-t border-slate-200/50;
+      @apply grid;
+      padding-bottom: env(safe-area-inset-bottom, 0px);
+    }
+
+    .tab-btn {
+      @apply flex flex-col items-center justify-center gap-0.5;
+      @apply py-2 px-1 text-[0.65rem] font-medium text-slate-500;
+      @apply min-h-[52px] border-0 bg-transparent cursor-pointer;
+      @apply transition-colors duration-150;
+    }
+
+    .tab-btn i {
+      @apply text-base mb-0.5;
+    }
+
+    .tab-btn.active {
+      @apply text-primary font-semibold;
+    }
+
+    .tab-btn.active i {
+      @apply text-primary;
+    }
+  }
+
+  /* ────────────────────────────
+     STEPPER FORM
+     ──────────────────────────── */
+  .tv-stepper {
+    @apply flex flex-col;
+  }
+
+  .tv-stepper__header {
+    @apply flex items-center justify-between px-4 py-3;
+    @apply bg-slate-50 border-b border-slate-200;
+    @apply sticky top-0 z-10;
+  }
+
+  .tv-stepper__progress {
+    @apply flex items-center gap-1.5 flex-1;
+  }
+
+  .tv-stepper__step-dot {
+    @apply w-7 h-7 rounded-full flex items-center justify-center;
+    @apply text-xs font-bold;
+    @apply bg-slate-200 text-slate-500;
+    @apply transition-all duration-200;
+    @apply shrink-0;
+  }
+
+  .tv-stepper__step-dot.active {
+    @apply bg-primary text-white shadow-sm;
+  }
+
+  .tv-stepper__step-dot.done {
+    @apply bg-emerald-500 text-white;
+  }
+
+  .tv-stepper__connector {
+    @apply flex-1 h-0.5 bg-slate-200 rounded-full mx-1;
+    @apply transition-all duration-300;
+  }
+
+  .tv-stepper__connector.done {
+    @apply bg-emerald-400;
+  }
+
+  .tv-stepper__label {
+    @apply text-fluid-xs font-semibold text-slate-600 ml-2 shrink-0;
+  }
+
+  .tv-stepper__body {
+    @apply flex-1 overflow-hidden relative;
+  }
+
+  .tv-stepper__panel {
+    @apply p-4 flex flex-col gap-4;
+    @apply hidden;
+    @apply animate-none;
+  }
+
+  .tv-stepper__panel.active {
+    @apply block;
+  }
+
+  .tv-stepper__footer {
+    @apply sticky bottom-0 z-10;
+    @apply bg-white border-t border-slate-200;
+    @apply flex items-center justify-between gap-3;
+    @apply px-4 py-3;
+    padding-bottom: max(0.75rem, calc(env(safe-area-inset-bottom, 0px) + 0.5rem));
+  }
+
+  .tv-stepper__nav-btn {
+    @apply inline-flex items-center gap-1.5 h-11 px-5 rounded-fluid-sm;
+    @apply text-fluid-sm font-semibold;
+    @apply transition-all duration-150 active:scale-95;
+    @apply border-0 cursor-pointer;
+    @apply min-h-touch;
+  }
+
+  .tv-stepper__nav-btn--prev {
+    @apply bg-slate-100 text-slate-700;
+  }
+  .tv-stepper__nav-btn--prev:hover { @apply bg-slate-200; }
+
+  .tv-stepper__nav-btn--next {
+    @apply bg-primary text-white shadow-sm flex-1;
+  }
+  .tv-stepper__nav-btn--next:hover { @apply brightness-105; }
+
+  .tv-stepper__nav-btn--save {
+    @apply bg-emerald-500 text-white shadow-sm flex-1;
+  }
+  .tv-stepper__nav-btn--save:hover { @apply bg-emerald-600; }
+
+  /* ────────────────────────────
+     DASHBOARD KPI CARDS
+     Mobile: 2-col, desktop: 4-col
+     ──────────────────────────── */
+  .tv-kpi-grid {
+    @apply grid gap-3 px-3 py-3;
+    @apply grid-cols-2;
+  }
+
+  @media (min-width: 640px) {
+    .tv-kpi-grid {
+      @apply grid-cols-4;
+    }
+  }
+
+  .tv-kpi-card {
+    @apply bg-white rounded-fluid-md border-l-4 border border-slate-100;
+    @apply p-3 flex flex-col gap-1;
+    @apply shadow-card cursor-pointer;
+    @apply transition-all duration-200 active:scale-[0.98];
+    @apply min-h-[90px];
+  }
+
+  .tv-kpi-card:hover {
+    @apply shadow-card-lg -translate-y-0.5;
+    @apply border-primary;
+  }
+
+  .tv-kpi-card__icon {
+    @apply text-primary/70 text-base mb-0.5;
+  }
+
+  .tv-kpi-card__value {
+    @apply text-fluid-2xl font-bold text-slate-800 leading-none tabular-nums;
+  }
+
+  .tv-kpi-card__label {
+    @apply text-fluid-xs text-slate-500 font-medium truncate;
+  }
+
+  /* ────────────────────────────
+     INVOICE LIST CARD
+     ──────────────────────────── */
+  .tv-invoice-card {
+    @apply bg-white rounded-fluid-md border border-slate-100 shadow-card;
+    @apply p-3 flex flex-col gap-2;
+  }
+
+  .tv-invoice-card__header {
+    @apply flex items-start justify-between gap-2;
+  }
+
+  .tv-invoice-card__title {
+    @apply text-fluid-sm font-semibold text-slate-800 min-w-0 truncate;
+  }
+
+  .tv-invoice-card__meta {
+    @apply text-fluid-xs text-slate-500;
+  }
+
+  .tv-invoice-card__actions {
+    @apply flex gap-2 flex-wrap;
+  }
+
+  /* ────────────────────────────
+     FORM FIELD OVERRIDES
+     (mobile touch targets)
+     ──────────────────────────── */
+  .appt-input, .appt-select {
+    @apply min-h-touch;
+  }
+}
+
+/* ──────────────────────────────────────────────
+   LAYER: utilities — one-off helpers
+   ────────────────────────────────────────────── */
+@layer utilities {
+  .safe-pb {
+    padding-bottom: max(0.75rem, env(safe-area-inset-bottom, 0.75rem));
+  }
+
+  .safe-pt {
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+
+  .pb-nav {
+    padding-bottom: max(4.5rem, calc(env(safe-area-inset-bottom, 0px) + 4rem));
+  }
+
+  .scrollbar-none {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
+  }
+
+  .text-balance {
+    text-wrap: balance;
+  }
+}

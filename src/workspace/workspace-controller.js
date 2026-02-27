@@ -43,6 +43,19 @@ const setActiveWorkspace = function(workspace) {
   // Update KPI card styling
   updateWorkspaceCardSelection(workspace);
 
+  // Update filter chip
+  const _chip = document.getElementById('tvFilterChip');
+  const _chipLabel = document.getElementById('tvFilterChipLabel');
+  const _filterLabels = { all: '', today: 'Today Focus', completed: 'Completed', planning: 'Planning', revenue: 'Revenue Inbox' };
+  if (_chip && _chipLabel) {
+    if (workspace === 'all') {
+      _chip.style.display = 'none';
+    } else {
+      _chipLabel.textContent = _filterLabels[workspace] || workspace;
+      _chip.style.display = '';
+    }
+  }
+
   // Render the workspace
   renderWorkspace(workspace);
 };
@@ -54,11 +67,22 @@ window.setActiveWorkspace = setActiveWorkspace;
  * Update visual selection of KPI cards
  */
 function updateWorkspaceCardSelection(workspaceId) {
+  // Segmented filter buttons
+  document.querySelectorAll('.tv-seg-btn[data-workspace-id]').forEach(btn => {
+    btn.classList.remove('tv-seg-btn--active');
+    btn.removeAttribute('aria-pressed');
+  });
+  const activeBtn = document.querySelector(`.tv-seg-btn[data-workspace-id="${workspaceId}"]`);
+  if (activeBtn) {
+    activeBtn.classList.add('tv-seg-btn--active');
+    activeBtn.setAttribute('aria-pressed', 'true');
+  }
+
+  // Legacy KPI cards (kept for any residual markup)
   document.querySelectorAll('.tvStatCard--workspace').forEach(card => {
     card.classList.remove('tvStatCard--active', 'tvStatCard--glow');
   });
-
-  const activeCard = document.querySelector(`[data-workspace-id="${workspaceId}"]`);
+  const activeCard = document.querySelector(`.tvStatCard--workspace[data-workspace-id="${workspaceId}"]`);
   if (activeCard) {
     activeCard.classList.add('tvStatCard--active', 'tvStatCard--glow');
   }
@@ -67,6 +91,84 @@ function updateWorkspaceCardSelection(workspaceId) {
 // ==========================================
 // WORKSPACE RENDERER
 // ==========================================
+
+/**
+ * Render appointments grouped by status (Overdue / Today / Upcoming / Completed)
+ * Uses native <details> for collapsible groups — no extra JS required.
+ * @param {HTMLElement} container
+ * @param {Array} data
+ * @returns {number} total item count
+ */
+const TV_GROUP_PAGE = 10;
+
+function renderGroupedWorkspace(container, data) {
+  const todayStr = new Date().toISOString().split('T')[0];
+  const groups = [
+    { id: 'overdue',   label: 'Overdue',   open: true,  items: [] },
+    { id: 'today',     label: 'Today',     open: true,  items: [] },
+    { id: 'upcoming',  label: 'Upcoming',  open: false, items: [] },
+    { id: 'completed', label: 'Completed', open: false, items: [] },
+  ];
+
+  for (const apt of data) {
+    const status = (apt.status || '').toLowerCase();
+    if (['completed', 'done', 'finalized'].includes(status)) {
+      groups[3].items.push(apt);
+      continue;
+    }
+    const d = window.getScheduledDate?.(apt);
+    const dateStr = (d && !isNaN(d.getTime()))
+      ? d.toISOString().split('T')[0]
+      : (apt.dateStr || null);
+    if (dateStr && dateStr < todayStr)    groups[0].items.push(apt);
+    else if (dateStr === todayStr)        groups[1].items.push(apt);
+    else                                  groups[2].items.push(apt);
+  }
+
+  const html = groups
+    .filter(g => g.items.length > 0)
+    .map(g => {
+      const cards = g.items.map(window.createAppointmentCard).filter(Boolean);
+      const visible = cards.slice(0, TV_GROUP_PAGE).join('');
+      const hidden  = cards.slice(TV_GROUP_PAGE)
+        .map(c => `<div class="tv-card-hidden" style="display:none">${c}</div>`)
+        .join('');
+      const remaining = g.items.length - TV_GROUP_PAGE;
+      const loadMore  = remaining > 0
+        ? `<button class="tv-scan-load-more" onclick="tvGroupLoadMore(this)">Load ${Math.min(TV_GROUP_PAGE, remaining)} more</button>`
+        : '';
+      return `<details class="tv-group" ${g.open ? 'open' : ''} data-group="${g.id}">
+        <summary class="tv-group__summary">
+          <span class="tv-group__label">${g.label}</span>
+          <span class="tv-group__count">${g.items.length}</span>
+        </summary>
+        <div class="tv-group__body">${visible}${hidden}${loadMore}</div>
+      </details>`;
+    }).join('');
+
+  container.innerHTML = html;
+  return data.length;
+}
+
+/**
+ * Unhide the next TV_GROUP_PAGE hidden cards inside a group.
+ * Called from the load-more button's onclick — no full re-render.
+ */
+window.tvGroupLoadMore = function(btn) {
+  const body = btn.closest('.tv-group__body');
+  if (!body) return;
+  const hidden = Array.from(body.querySelectorAll('.tv-card-hidden'));
+  hidden.slice(0, TV_GROUP_PAGE).forEach(el => {
+    el.style.display = '';
+    el.classList.remove('tv-card-hidden');
+  });
+  const stillHidden = body.querySelectorAll('.tv-card-hidden').length;
+  if (stillHidden === 0) {
+    btn.remove();
+  } else {
+    btn.textContent = `Load ${Math.min(TV_GROUP_PAGE, stillHidden)} more`;
+  }
+};
 
 /**
  * Render active workspace content
@@ -114,9 +216,13 @@ function renderWorkspace(workspace) {
   // Hide empty state
   if (emptyState) emptyState.style.display = 'none';
 
-  // Single render path for all workspace modes
-  container.innerHTML = data.map(window.createAppointmentCard).join('');
-  count = data.length;
+  // 'all' workspace: grouped by status; others: flat list
+  if (workspace === 'all') {
+    count = renderGroupedWorkspace(container, data);
+  } else {
+    container.innerHTML = data.map(window.createAppointmentCard).filter(Boolean).join('');
+    count = data.length;
+  }
   if (badge) badge.textContent = String(count);
 
   // Unified one-line pipeline diagnostic (debounced in metrics module)
@@ -326,8 +432,7 @@ async function handleWorkspaceAction(action, appointmentId, buttonElement) {
           await window.handleEditAction(appointmentId, apt, openCustomModal);
         } else if (typeof window.enterEditMode === 'function') {
           window.enterEditMode(apt);
-          const form = document.getElementById('appointmentForm');
-          if (form) form.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          if (typeof tvAptDrawerOpen === 'function') tvAptDrawerOpen();
         }
         break;
 
@@ -339,8 +444,15 @@ async function handleWorkspaceAction(action, appointmentId, buttonElement) {
         }
         break;
 
+      // ===== START JOB ACTION =====
+      case 'start-job':
+      case 'start':
+        await startAppointmentWorkspace(appointmentId, apt);
+        break;
+
       // ===== COMPLETE ACTION =====
       case 'complete':
+      case 'complete-job':
         await completeAppointmentWorkspace(appointmentId);
         break;
 
@@ -428,17 +540,105 @@ async function handleWorkspaceAction(action, appointmentId, buttonElement) {
 }
 
 /**
+ * Start appointment job from workspace
+ */
+async function startAppointmentWorkspace(appointmentId, apt) {
+  if (!appointmentId || !window.db) return;
+
+  try {
+    const {
+      doc,
+      updateDoc,
+      serverTimestamp,
+      arrayUnion,
+      Timestamp
+    } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+
+    const ref = doc(window.db, 'appointments', appointmentId);
+    const startPayload = {
+      jobStatus: 'in_progress',
+      jobStartedAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+      status: 'in_progress',
+      startedAt: serverTimestamp(),
+      jobEvents: arrayUnion({ type: 'job_started', at: serverTimestamp(), source: 'workspace' })
+    };
+
+    try {
+      await updateDoc(ref, startPayload);
+    } catch {
+      await updateDoc(ref, {
+        ...startPayload,
+        jobEvents: arrayUnion({ type: 'job_started', at: Timestamp.now(), source: 'workspace' })
+      });
+    }
+
+    renderWorkspace(activeWorkspace);
+    window.updateDashboardMetrics?.();
+
+    const address = String(apt?.address || '').trim();
+    if (!address) {
+      window.showNotification?.('No address saved. Add it in Edit.', 'info');
+      return;
+    }
+
+    let shouldNavigate = false;
+    const { confirmModal } = await import('../shared/modal.js').catch(() => ({ confirmModal: null }));
+    if (typeof confirmModal === 'function') {
+      shouldNavigate = await confirmModal({
+        title: 'Open navigation',
+        message: 'Open navigation now?',
+        confirmText: 'Open Maps',
+        cancelText: 'Later',
+        variant: 'primary'
+      });
+    } else {
+      shouldNavigate = window.confirm('Open navigation now?');
+    }
+
+    if (shouldNavigate) {
+      window.open(`https://maps.google.com/?q=${encodeURIComponent(address)}`, '_blank');
+    }
+  } catch (error) {
+    console.error('❌ Error starting job:', error);
+    window.showNotification?.('Could not start job', 'error');
+  }
+}
+
+/**
  * Mark appointment as completed
  */
 async function completeAppointmentWorkspace(appointmentId) {
   if (!appointmentId || !window.db) return;
 
   try {
-    const { doc, updateDoc } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+    const {
+      doc,
+      updateDoc,
+      serverTimestamp,
+      arrayUnion,
+      Timestamp
+    } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
 
-    await updateDoc(doc(window.db, 'appointments', appointmentId), {
-      status: 'completed'
-    });
+    const ref = doc(window.db, 'appointments', appointmentId);
+    const completePayload = {
+      jobStatus: 'completed',
+      jobCompletedAt: serverTimestamp(),
+      completedAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+      status: 'completed',
+      jobEvents: arrayUnion({ type: 'job_completed', at: serverTimestamp(), source: 'workspace' })
+    };
+
+    try {
+      await updateDoc(ref, completePayload);
+    } catch {
+      await updateDoc(ref, {
+        ...completePayload,
+        jobEvents: arrayUnion({ type: 'job_completed', at: Timestamp.now(), source: 'workspace' })
+      });
+    }
+
     renderWorkspace(activeWorkspace); // Refresh workspace
     window.updateDashboardMetrics?.();
   } catch (error) {

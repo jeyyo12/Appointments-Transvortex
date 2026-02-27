@@ -4,7 +4,7 @@
  */
 
 import { db } from '../firebase/firebase.js';
-import { collection, query, orderBy, onSnapshot, getDocs, where, doc, updateDoc } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+import { collection, query, onSnapshot, getDocs, where, doc, updateDoc } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 import { createLogger } from '../shared/logger.js';
 import { getState, setState } from '../shared/state.js';
 
@@ -52,6 +52,10 @@ function isCompletedStatus(status) {
   return normalized === 'completed' || normalized === 'finalized';
 }
 
+function getInvoiceAppointmentId(invoice) {
+  return invoice?.appointmentId || invoice?.aptId || invoice?.appointmentRef || invoice?.meta?.appointmentId || null;
+}
+
 /**
  * Start invoices storage listener
  * Listens to /invoices collection and updates state
@@ -71,11 +75,10 @@ export async function startInvoicesListener(callback) {
       return;
     }
     
-    logger.info('Setting up query: collection(db, "invoices") with orderBy("createdAt", "desc")');
+    logger.info('Setting up query: collection(db, "invoices")');
     
     const invoicesQuery = query(
-      collection(db, 'invoices'),
-      orderBy('createdAt', 'desc')
+      collection(db, 'invoices')
     );
     
     const unsubscribe = onSnapshot(
@@ -171,13 +174,23 @@ async function reconcileInvoicesWithAppointments(invoices) {
 
     const snapshot = await getDocs(appointmentsQuery);
     const appointments = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-    const appointmentIds = new Set(appointments.map(apt => apt.id));
+    const appointmentIds = new Set(
+      appointments
+        .map(apt => String(apt?.id || '').trim())
+        .filter(Boolean)
+    );
 
     const byAppointment = new Map();
+    const byInvoiceId = new Map();
     const merged = [];
 
     invoices.forEach(invoice => {
-      const appointmentId = invoice.appointmentId || null;
+      const invoiceId = String(invoice?.id || '').trim();
+      if (invoiceId) {
+        byInvoiceId.set(invoiceId, invoice);
+      }
+
+      const appointmentId = String(getInvoiceAppointmentId(invoice) || '').trim() || null;
       if (!appointmentId) {
         merged.push(invoice);
         return;
@@ -192,8 +205,9 @@ async function reconcileInvoicesWithAppointments(invoices) {
       }
 
       const existing = byAppointment.get(appointmentId);
-      if (!existing || scoreInvoice(invoice) >= scoreInvoice(existing)) {
-        byAppointment.set(appointmentId, invoice);
+      const normalizedInvoice = { ...invoice, appointmentId };
+      if (!existing || scoreInvoice(normalizedInvoice) >= scoreInvoice(existing)) {
+        byAppointment.set(appointmentId, normalizedInvoice);
       }
     });
 
@@ -201,11 +215,23 @@ async function reconcileInvoicesWithAppointments(invoices) {
 
     appointments.forEach(apt => {
       if (!isCompletedStatus(apt.status)) return;
-      if (byAppointment.has(apt.id)) return;
+      const normalizedAppointmentId = String(apt?.id || '').trim();
+      if (!normalizedAppointmentId) return;
+      if (byAppointment.has(normalizedAppointmentId)) return;
+
+      const linkedInvoiceId = String(apt?.invoiceId || '').trim();
+      if (linkedInvoiceId && byInvoiceId.has(linkedInvoiceId)) {
+        const linkedInvoice = byInvoiceId.get(linkedInvoiceId);
+        byAppointment.set(normalizedAppointmentId, {
+          ...linkedInvoice,
+          appointmentId: normalizedAppointmentId
+        });
+        return;
+      }
 
       merged.push({
-        id: apt.invoiceId || `missing-${apt.id}`,
-        appointmentId: apt.id,
+        id: apt.invoiceId || `missing-${normalizedAppointmentId}`,
+        appointmentId: normalizedAppointmentId,
         customerName: apt.customerName || apt.clientName || 'Unknown',
         phone: apt.customerPhone || apt.phone || '',
         regPlate: apt.registrationPlate || apt.regNumber || '',

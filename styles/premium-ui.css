@@ -445,7 +445,7 @@
 }
 
 #tvStats {
-    grid-template-columns: repeat(auto-fit, minmax(clamp(140px, 45vw, 220px), 1fr)) !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
     gap: clamp(8px, 1.8vw, 12px);
     margin-bottom: 0;
     min-width: 0;
@@ -613,6 +613,45 @@
     }
 }
 
+@media (min-width: 980px) {
+    #appointmentsTab .tvDashboard--workspaceOptimized {
+        max-width: 1320px;
+        margin-left: auto;
+        margin-right: auto;
+        grid-template-columns: minmax(420px, 560px) minmax(0, 1fr);
+        align-items: start;
+        column-gap: clamp(14px, 2vw, 24px);
+    }
+
+    #appointmentsTab #addAppointmentSection {
+        min-width: 420px;
+        width: 100%;
+    }
+
+    #addAppointmentSection #appointmentForm .appt-form__grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        gap: clamp(12px, 1.5vw, 18px);
+    }
+
+    #addAppointmentSection #appointmentForm .appt-form__grid > .itemsPanel,
+    #addAppointmentSection #appointmentForm .appt-form__grid > .premium-notes-card {
+        grid-column: 1 / -1;
+    }
+
+    #addAppointmentSection,
+    #addAppointmentSection .tvCardHeader h2,
+    #addAppointmentSection .tvCardHeader p,
+    #addAppointmentSection .appt-label,
+    #addAppointmentSection .field-hint,
+    #addAppointmentSection .collapsible > summary,
+    #addAppointmentSection .summary-title,
+    #addAppointmentSection .summary-preview {
+        word-break: normal !important;
+        overflow-wrap: break-word;
+        white-space: normal;
+    }
+}
+
 /* ================================================= */
 /* === TRANSVORTEX HEADER - SINGLE SOURCE OF TRUTH === */
 /* Consolidated header CSS - responsive across all devices */
@@ -702,6 +741,8 @@
     white-space: nowrap;
     flex: 0 0 auto;
     justify-self: end;
+    /* Bell badge must not be clipped by authBar overflow-x:hidden */
+    overflow: visible !important;
 }
 
 #authBar #tvHeaderOnline {
@@ -1146,7 +1187,7 @@
 #authBar .header-indicators,
 #authBar .tvHeaderKpis .header-indicators {
     display: grid !important;
-    grid-template-columns: repeat(auto-fit, minmax(clamp(140px, 45vw, 220px), 1fr)) !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
     gap: clamp(6px, 1.6vw, 12px) !important;
     width: 100% !important;
     max-width: 100% !important;
@@ -1376,7 +1417,7 @@
     #authBar .tvHeaderKpis,
     #authBar .header-indicators,
     #authBar .tvHeaderKpis .header-indicators {
-        grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+        grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
     }
 
     #tvStats {
@@ -1476,6 +1517,64 @@
     border-color: rgba(255, 138, 61, 0.4);
     color: #ff7a18;
     box-shadow: 0 6px 16px rgba(255, 138, 61, 0.18);
+}
+
+#appointmentForm .appt-form-tabs {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: rgba(15, 23, 42, 0.05);
+    border: 1px solid rgba(15, 23, 42, 0.1);
+    border-radius: 10px;
+    padding: 4px;
+    width: fit-content;
+    max-width: 100%;
+}
+
+#appointmentForm .appt-form-tab {
+    border: 1px solid transparent;
+    background: transparent;
+    color: rgba(15, 23, 42, 0.7);
+    border-radius: 8px;
+    padding: 8px 12px;
+    min-height: 40px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+#appointmentForm .appt-form-tab.active {
+    background: #ffffff;
+    color: #ff7a18;
+    border-color: rgba(255, 138, 61, 0.3);
+}
+
+#appointmentForm .appt-form-panel {
+    display: none;
+    min-width: 0;
+}
+
+#appointmentForm .appt-form-panel.active {
+    display: block;
+}
+
+#appointmentForm #apptTabInvoiceRO .appt-card {
+    margin-bottom: clamp(10px, 1.6vw, 14px);
+}
+
+#appointmentForm #apptTabInvoiceRO .appt-label,
+#appointmentForm #apptTabInvoiceRO h3,
+#appointmentForm #apptTabInvoiceRO input,
+#appointmentForm #apptTabInvoiceRO textarea {
+    word-break: normal;
+    overflow-wrap: break-word;
+    white-space: normal;
+}
+
+@media (min-width: 980px) {
+    #appointmentForm #apptTabInvoiceRO {
+        max-width: 100%;
+    }
 }
 
 .appt-form__grid {
@@ -1944,7 +2043,7 @@
 #authBar .tvHeaderKpis,
 #authBar .tvHeaderKpis .header-indicators {
     display: grid !important;
-    grid-template-columns: repeat(auto-fit, minmax(clamp(160px, 20vw, 240px), 1fr)) !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
     gap: clamp(10px, 2vw, 14px) !important;
     align-items: stretch !important;
     min-width: 0 !important;
@@ -2147,15 +2246,92 @@
 }
 
 .tvInvoicesStorage .tvInvoicesStorage__filter--search input {
-    padding-left: clamp(10px, 2.2vw, 14px);
+    padding-left: clamp(36px, 5.8vw, 42px);
+    font-family: inherit;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%239CA3AF' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='m20 20-3.5-3.5'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-size: 16px 16px;
+    background-position: left 12px center;
 }
 
-.tvInvoicesStorage .tvInvoicesStorage__filter--search::before {
-    content: none;
+.tvInvoicesStorage .tvInvoicesStorage__filter--search::before,
+.tvInvoicesStorage .tvInvoicesStorage__filter--search::after {
+    content: none !important;
+    display: none !important;
+}
+
+.tvInvoicesStorage .tvInvoicesStorage__filter--search .input-icon,
+.tvInvoicesStorage .tvInvoicesStorage__filter--search .apts-search__icon,
+.tvInvoicesStorage .tvInvoicesStorage__filter--search i[class*="fa-search"] {
+    display: none !important;
+}
+
+@media (max-width: 600px) {
+    #authBar .headerKpis,
+    #authBar .hdrKpis,
+    #authBar .tvHeaderKpis,
+    #authBar .header-indicators,
+    #authBar .tvHeaderKpis .header-indicators,
+    .tvStats,
+    #tvStats {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    }
+
+    #tvStats .tvStatCard[data-workspace-id="revenue"] {
+        grid-column: 1 / -1;
+        display: grid !important;
+        grid-template-columns: auto minmax(0, 1fr);
+    }
+}
+
+@media (min-width: 601px) and (max-width: 723px) {
+    #authBar .headerKpis,
+    #authBar .hdrKpis,
+    #authBar .tvHeaderKpis,
+    #authBar .header-indicators,
+    #authBar .tvHeaderKpis .header-indicators,
+    #tvStats {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    }
+
+    #tvStats .tvStatCard[data-workspace-id="revenue"] {
+        grid-column: 1 / -1;
+        display: grid !important;
+        grid-template-columns: auto minmax(0, 1fr);
+    }
+}
+
+@media (min-width: 1023px) and (max-width: 1400px) {
+    #authBar .headerKpis,
+    #authBar .hdrKpis,
+    #authBar .tvHeaderKpis,
+    #authBar .header-indicators,
+    #authBar .tvHeaderKpis .header-indicators {
+        grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+        gap: clamp(8px, 1.4vw, 12px) !important;
+    }
+
+    #authBar .tvHeaderKpis .indicator-badge,
+    #authBar .tvHeaderKpis .kpiChip {
+        min-height: clamp(40px, 4.2vw, 50px) !important;
+        font-size: clamp(12px, 1vw, 14px) !important;
+    }
+}
+
+@media (min-width: 1401px) {
+    #authBar .headerKpis,
+    #authBar .hdrKpis,
+    #authBar .tvHeaderKpis,
+    #authBar .header-indicators,
+    #authBar .tvHeaderKpis .header-indicators {
+        grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    }
 }
 
 .tvInvoicesStorage .tvInvoicesStorage__filter input::placeholder {
     color: #9ca3af;
+    opacity: 1;
+    text-indent: 0;
 }
 
 .tvInvoicesStorage .tvInvoicesStorage__empty {

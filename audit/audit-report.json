@@ -1,0 +1,2783 @@
+{
+  "generatedAt": "2026-02-27T12:31:57.940Z",
+  "totalFilesScanned": 85,
+  "summary": {
+    "realBrokenCandidates": 2,
+    "likelyFalsePositives": 22,
+    "unmappedActions": 0,
+    "invoiceViolations": 0,
+    "highRiskDuplicates": 2,
+    "wiringCompletenessEstimate": "~97%"
+  },
+  "onclickHandlers": {
+    "total": 44,
+    "items": [
+      {
+        "file": "FIRESTORE_DIAGNOSTIC.html",
+        "line": 66,
+        "expression": "testFirebaseInit()"
+      },
+      {
+        "file": "FIRESTORE_DIAGNOSTIC.html",
+        "line": 67,
+        "expression": "testFirestoreConnection()"
+      },
+      {
+        "file": "FIRESTORE_DIAGNOSTIC.html",
+        "line": 68,
+        "expression": "testInvoicesQuery()"
+      },
+      {
+        "file": "FIRESTORE_DIAGNOSTIC.html",
+        "line": 69,
+        "expression": "testCreateSampleInvoice()"
+      },
+      {
+        "file": "FIRESTORE_DIAGNOSTIC.html",
+        "line": 70,
+        "expression": "testListAllCollections()"
+      },
+      {
+        "file": "FIRESTORE_DIAGNOSTIC.html",
+        "line": 76,
+        "expression": "fixFirestoreRules()"
+      },
+      {
+        "file": "FIRESTORE_DIAGNOSTIC.html",
+        "line": 77,
+        "expression": "createInvoicesCollection()"
+      },
+      {
+        "file": "FIRESTORE_DIAGNOSTIC.html",
+        "line": 78,
+        "expression": "clearLogs()"
+      },
+      {
+        "file": "index.html",
+        "line": 3613,
+        "expression": "toggleNotifDrawer()"
+      },
+      {
+        "file": "index.html",
+        "line": 3620,
+        "expression": "handleAuthToggle()"
+      },
+      {
+        "file": "index.html",
+        "line": 3642,
+        "expression": "switchTab("
+      },
+      {
+        "file": "index.html",
+        "line": 3645,
+        "expression": "switchTab("
+      },
+      {
+        "file": "index.html",
+        "line": 3648,
+        "expression": "switchTab("
+      },
+      {
+        "file": "index.html",
+        "line": 3667,
+        "expression": "tvAptDrawerClose()"
+      },
+      {
+        "file": "index.html",
+        "line": 4086,
+        "expression": "setActiveWorkspace("
+      },
+      {
+        "file": "index.html",
+        "line": 4090,
+        "expression": "setActiveWorkspace("
+      },
+      {
+        "file": "index.html",
+        "line": 4094,
+        "expression": "setActiveWorkspace("
+      },
+      {
+        "file": "index.html",
+        "line": 4098,
+        "expression": "setActiveWorkspace("
+      },
+      {
+        "file": "index.html",
+        "line": 4531,
+        "expression": "tvAptDrawerOpen()"
+      },
+      {
+        "file": "offline.html",
+        "line": 147,
+        "expression": "location.reload()"
+      },
+      {
+        "file": "offline.html",
+        "line": 150,
+        "expression": "goHome()"
+      },
+      {
+        "file": "pwa-init.js",
+        "line": 187,
+        "expression": "this.parentElement.remove()"
+      },
+      {
+        "file": "script.js",
+        "line": 9512,
+        "expression": "tvInvLoadMore(this)"
+      },
+      {
+        "file": "script.js",
+        "line": 9570,
+        "expression": "openPDF("
+      },
+      {
+        "file": "script.js",
+        "line": 9571,
+        "expression": "generateAndSaveInvoicePDF("
+      },
+      {
+        "file": "script.js",
+        "line": 9575,
+        "expression": "window.markInvoicePaid && window.markInvoicePaid("
+      },
+      {
+        "file": "script.js",
+        "line": 9582,
+        "expression": "openInvoiceFile("
+      },
+      {
+        "file": "script.js",
+        "line": 9582,
+        "expression": "deleteInvoiceConfirm("
+      },
+      {
+        "file": "src/data-layer/appointments-ui.js",
+        "line": 219,
+        "expression": "window._dataLayer?.executeQuickAction?.("
+      },
+      {
+        "file": "src/data-layer/appointments-ui.js",
+        "line": 224,
+        "expression": "window._dataLayer?.executeQuickAction?.("
+      },
+      {
+        "file": "src/data-layer/appointments-ui.js",
+        "line": 232,
+        "expression": "window._dataLayer?.executeQuickAction?.("
+      },
+      {
+        "file": "src/data-layer/appointments-ui.js",
+        "line": 241,
+        "expression": "window._dataLayer?.editAppointment?.("
+      },
+      {
+        "file": "src/data-layer/appointments-ui.js",
+        "line": 247,
+        "expression": "window.location.href="
+      },
+      {
+        "file": "src/dev/runWiringAudit.js",
+        "line": 161,
+        "expression": "${expression.slice(0, 80)}"
+      },
+      {
+        "file": "src/dev/runWiringAudit.js",
+        "line": 169,
+        "expression": "${expression.slice(0, 80)}"
+      },
+      {
+        "file": "src/dev/runWiringAudit.js",
+        "line": 178,
+        "expression": "${href.slice(0, 100)}"
+      },
+      {
+        "file": "src/dev/runWiringAudit.js",
+        "line": 186,
+        "expression": "${(el.getAttribute("
+      },
+      {
+        "file": "src/storage/storage.ui.js",
+        "line": 311,
+        "expression": "window.tvInvLoadMore(this)"
+      },
+      {
+        "file": "src/storage/storage.ui.js",
+        "line": 327,
+        "expression": "window.rebuildInvoiceFromAppointment("
+      },
+      {
+        "file": "src/storage/storage.ui.js",
+        "line": 372,
+        "expression": "window.toggleInvoicePaidStatus("
+      },
+      {
+        "file": "src/storage/storage.ui.js",
+        "line": 373,
+        "expression": "window.toggleInvoicePaidStatus("
+      },
+      {
+        "file": "src/storage/storage.ui.js",
+        "line": 379,
+        "expression": "window.openInvoiceFile("
+      },
+      {
+        "file": "src/storage/storage.ui.js",
+        "line": 379,
+        "expression": "window.deleteInvoiceConfirm("
+      },
+      {
+        "file": "src/workspace/workspace-controller.js",
+        "line": 138,
+        "expression": "tvGroupLoadMore(this)"
+      }
+    ]
+  },
+  "dataAction": {
+    "uniqueActions": 20,
+    "counts": {
+      "add-job": 1,
+      "add-part": 2,
+      "add-service": 1,
+      "mark-paid": 1,
+      "clear-payment": 1,
+      "save-draft": 1,
+      "cancel-edit": 1,
+      "invoice": 2,
+      "toggle-paid": 3,
+      "complete-job": 1,
+      "start-job": 1,
+      "call": 1,
+      "visit": 1,
+      "toggle-secondary": 1,
+      "edit": 1,
+      "delete": 1,
+      "close": 5,
+      "cancel": 5,
+      "save": 1,
+      "confirm": 3
+    },
+    "realMissingDataId": {
+      "total": 0,
+      "items": []
+    },
+    "fpMissingDataId": {
+      "total": 22,
+      "items": [
+        {
+          "file": "index.html",
+          "action": "add-job",
+          "isItemScoped": false,
+          "hasDataId": false,
+          "snippet": "<button type=\"button\" class=\"chipAddBtn\" data-action=\"add-job\">",
+          "isExempt": false
+        },
+        {
+          "file": "index.html",
+          "action": "add-part",
+          "isItemScoped": false,
+          "hasDataId": false,
+          "snippet": "<button type=\"button\" class=\"chipAddBtn\" data-action=\"add-part\">",
+          "isExempt": false
+        },
+        {
+          "file": "invoice.html",
+          "action": "add-service",
+          "isItemScoped": false,
+          "hasDataId": false,
+          "snippet": "<button type=\"button\" class=\"btn-add-item\" id=\"addServiceBtn\" data-action=\"add-service\">",
+          "isExempt": true
+        },
+        {
+          "file": "invoice.html",
+          "action": "add-part",
+          "isItemScoped": false,
+          "hasDataId": false,
+          "snippet": "<button type=\"button\" class=\"btn-add-item\" id=\"addPartBtn\" data-action=\"add-part\">",
+          "isExempt": true
+        },
+        {
+          "file": "invoice.html",
+          "action": "mark-paid",
+          "isItemScoped": true,
+          "hasDataId": false,
+          "snippet": "<button type=\"button\" class=\"btn-add-item\" id=\"markAsPaidBtn\" data-action=\"mark-paid\" style=\"flex: 1;\">",
+          "isExempt": true
+        },
+        {
+          "file": "invoice.html",
+          "action": "clear-payment",
+          "isItemScoped": false,
+          "hasDataId": false,
+          "snippet": "<button type=\"button\" class=\"btn-add-item\" id=\"clearPaymentBtn\" data-action=\"clear-payment\" style=\"flex: 1; border-color: #EF4444; color: #EF4444;\">",
+          "isExempt": true
+        },
+        {
+          "file": "invoice.html",
+          "action": "save-draft",
+          "isItemScoped": false,
+          "hasDataId": false,
+          "snippet": "<button id=\"editSaveBtn\" class=\"btn-primary btn-wide\" data-action=\"save-draft\">",
+          "isExempt": true
+        },
+        {
+          "file": "invoice.html",
+          "action": "cancel-edit",
+          "isItemScoped": false,
+          "hasDataId": false,
+          "snippet": "<button id=\"editCancelBtn\" class=\"btn-secondary btn-wide\" data-action=\"cancel-edit\">",
+          "isExempt": true
+        },
+        {
+          "file": "script.js",
+          "action": "close",
+          "isItemScoped": false,
+          "hasDataId": false,
+          "snippet": "<button class=\"tvDelayModal__close\" data-action=\"close\" aria-label=\"Închide\">",
+          "isExempt": false
+        },
+        {
+          "file": "script.js",
+          "action": "cancel",
+          "isItemScoped": false,
+          "hasDataId": false,
+          "snippet": "<button class=\"tvDelay__btn tvDelay__btn-secondary\" data-action=\"cancel\">",
+          "isExempt": false
+        },
+        {
+          "file": "script.js",
+          "action": "save",
+          "isItemScoped": false,
+          "hasDataId": false,
+          "snippet": "<button class=\"tvDelay__btn tvDelay__btn-primary\" data-action=\"save\">",
+          "isExempt": false
+        },
+        {
+          "file": "script.js",
+          "action": "close",
+          "isItemScoped": false,
+          "hasDataId": false,
+          "snippet": "<button type=\"button\" class=\"modern-modal-btn modern-modal-btn-cancel\" data-action=\"close\">",
+          "isExempt": false
+        },
+        {
+          "file": "src/modal.js",
+          "action": "cancel",
+          "isItemScoped": false,
+          "hasDataId": false,
+          "snippet": "<button type=\"button\" class=\"modern-modal-btn modern-modal-btn-cancel\" data-action=\"cancel\">",
+          "isExempt": true
+        },
+        {
+          "file": "src/modal.js",
+          "action": "confirm",
+          "isItemScoped": false,
+          "hasDataId": false,
+          "snippet": "<button type=\"button\" class=\"modern-modal-btn modern-modal-btn-confirm\" data-action=\"confirm\">",
+          "isExempt": true
+        },
+        {
+          "file": "src/shared/modal.js",
+          "action": "cancel",
+          "isItemScoped": false,
+          "hasDataId": false,
+          "snippet": "<button type=\"button\" class=\"modern-modal-btn modern-modal-btn-cancel\" data-action=\"cancel\">",
+          "isExempt": true
+        },
+        {
+          "file": "src/shared/modal.js",
+          "action": "confirm",
+          "isItemScoped": false,
+          "hasDataId": false,
+          "snippet": "<button type=\"button\" class=\"modern-modal-btn modern-modal-btn-confirm\" data-action=\"confirm\">",
+          "isExempt": true
+        },
+        {
+          "file": "src/ui/components/details-modal.js",
+          "action": "close",
+          "isItemScoped": false,
+          "hasDataId": false,
+          "snippet": "<button type=\"button\" class=\"tvDetailsModal__close\" data-action=\"close\" aria-label=\"Închide\">",
+          "isExempt": false
+        },
+        {
+          "file": "src/ui/components/details-modal.js",
+          "action": "close",
+          "isItemScoped": false,
+          "hasDataId": false,
+          "snippet": "<button type=\"button\" class=\"tvBtn tvBtn--secondary\" data-action=\"close\">",
+          "isExempt": false
+        },
+        {
+          "file": "src/ui/components/finalize-modal.js",
+          "action": "close",
+          "isItemScoped": false,
+          "hasDataId": false,
+          "snippet": "<button type=\"button\" class=\"tvQuickFinalizeModal__close\" data-action=\"close\" aria-label=\"Închide\">",
+          "isExempt": false
+        },
+        {
+          "file": "src/ui/components/finalize-modal.js",
+          "action": "cancel",
+          "isItemScoped": false,
+          "hasDataId": false,
+          "snippet": "<button type=\"button\" class=\"tvBtn tvBtn--secondary\" data-action=\"cancel\">",
+          "isExempt": false
+        },
+        {
+          "file": "src/utils/notifications.js",
+          "action": "cancel",
+          "isItemScoped": false,
+          "hasDataId": false,
+          "snippet": "<button class=\"tvBtn tvBtn--secondary\" data-action=\"cancel\">",
+          "isExempt": true
+        },
+        {
+          "file": "src/utils/notifications.js",
+          "action": "confirm",
+          "isItemScoped": false,
+          "hasDataId": false,
+          "snippet": "<button class=\"tvBtn tvBtn--primary\" data-action=\"confirm\">",
+          "isExempt": true
+        }
+      ]
+    },
+    "unmappedToHandler": []
+  },
+  "eventWiring": {
+    "addEventListenerClickCount": 109,
+    "closestDelegationCount": 7,
+    "closestDelegations": [
+      {
+        "file": "script.js",
+        "line": 7956,
+        "snippet": "const btn = e.target.closest('button[data-action]');"
+      },
+      {
+        "file": "src/core/events.js",
+        "line": 9,
+        "snippet": "const target = event.target.closest('[data-action][data-id]');"
+      },
+      {
+        "file": "src/core/events.js",
+        "line": 12,
+        "snippet": "const noId = event.target.closest('[data-action]:not([data-id])');"
+      },
+      {
+        "file": "src/invoice.js",
+        "line": 1694,
+        "snippet": "const actionEl = e.target.closest('[data-action]');"
+      },
+      {
+        "file": "src/utils/notifications.js",
+        "line": 212,
+        "snippet": "const action = e.target.closest('[data-action]')?.dataset.action;"
+      },
+      {
+        "file": "src/workspace/workspace-controller.js",
+        "line": 387,
+        "snippet": "const button = e.target.closest('[data-action]');"
+      },
+      {
+        "file": "tools/audit-wiring.mjs",
+        "line": 614,
+        "snippet": "p('**Why it breaks:** `bindActionDelegation` (src/core/events.js) uses `closest(\"[data-action][data-id]\")` — missing `da"
+      }
+    ]
+  },
+  "windowExports": {
+    "total": 110,
+    "stubFunctions": [
+      "fn"
+    ],
+    "all": {
+      "testFirebaseInit": [
+        {
+          "file": "FIRESTORE_DIAGNOSTIC.html",
+          "line": 113,
+          "isStub": false,
+          "isNoop": false
+        }
+      ],
+      "testFirestoreConnection": [
+        {
+          "file": "FIRESTORE_DIAGNOSTIC.html",
+          "line": 137,
+          "isStub": false,
+          "isNoop": false
+        }
+      ],
+      "testInvoicesQuery": [
+        {
+          "file": "FIRESTORE_DIAGNOSTIC.html",
+          "line": 155,
+          "isStub": false,
+          "isNoop": false
+        }
+      ],
+      "testCreateSampleInvoice": [
+        {
+          "file": "FIRESTORE_DIAGNOSTIC.html",
+          "line": 192,
+          "isStub": false,
+          "isNoop": false
+        }
+      ],
+      "testListAllCollections": [
+        {
+          "file": "FIRESTORE_DIAGNOSTIC.html",
+          "line": 221,
+          "isStub": false,
+          "isNoop": false
+        }
+      ],
+      "fixFirestoreRules": [
+        {
+          "file": "FIRESTORE_DIAGNOSTIC.html",
+          "line": 245,
+          "isStub": false,
+          "isNoop": false
+        }
+      ],
+      "createInvoicesCollection": [
+        {
+          "file": "FIRESTORE_DIAGNOSTIC.html",
+          "line": 268,
+          "isStub": false,
+          "isNoop": false
+        }
+      ],
+      "clearLogs": [
+        {
+          "file": "FIRESTORE_DIAGNOSTIC.html",
+          "line": 301,
+          "isStub": false,
+          "isNoop": false
+        }
+      ],
+      "__TVX_USE_WIZARD_V2": [
+        {
+          "file": "index.html",
+          "line": 4506,
+          "isStub": false,
+          "isNoop": false
+        },
+        {
+          "file": "index.html",
+          "line": 4522,
+          "isStub": false,
+          "isNoop": false
+        }
+      ],
+      "__openWizardV2": [
+        {
+          "file": "index.html",
+          "line": 4512,
+          "isStub": false,
+          "isNoop": false
+        }
+      ],
+      "switchTab": [
+        {
+          "file": "index.html",
+          "line": 4513,
+          "isStub": false,
+          "isNoop": false
+        },
+        {
+          "file": "script.js",
+          "line": 24,
+          "isStub": false,
+          "isNoop": false
+        },
+        {
+          "file": "script.js",
+          "line": 4624,
+          "isStub": false,
+          "isNoop": false
+        },
+        {
+          "file": "src/app.js",
+          "line": 238,
+          "isStub": false,
+          "isNoop": false
+        }
+      ],
+      "filteredAppointments": [
+        {
+          "file": "index.html",
+          "line": 4694,
+          "isStub": false,
+          "isNoop": false
+        },
+        {
+          "file": "src/header/header-search.js",
+          "line": 47,
+          "isStub": false,
+          "isNoop": false
+        },
+        {
+          "file": "src/header/header-search.js",
+          "line": 95,
+          "isStub": false,
+          "isNoop": false
+        },
+        {
+          "file": "src/header/header-search.js",
+          "line": 145,
+          "isStub": false,
+          "isNoop": false
+        }
+      ],
+      "__tvInitFlags": [
+        {
+          "file": "index.html",
+          "line": 4705,
+          "isStub": false,
+          "isNoop": false
+        },
+        {
+          "file": "index.html",
+          "line": 4743,
+          "isStub": false,
+          "isNoop": false
+        },
+        {
+          "file": "script.js",
+          "line": 104,
+          "isStub": false,
+          "isNoop": false
+        },
+        {
+          "file": "src/data-layer/index.js",
+          "line": 236,
+          "isStub": false,
+          "isNoop": false
+        },
+        {
+          "file": "src/data-layer/index.js",
+          "line": 326,
+          "isStub": false,
+          "isNoop": false
+        }
+      ],
+      "updateLiveIndicators": [
+        {
+          "file": "index.html",
+          "line": 4769,
+          "isStub": false,
+          "isNoop": false
+        }
+      ],
+      "goHome": [
+        {
+          "file": "offline.html",
+          "line": 161,
+          "isStub": false,
+          "isNoop": false
+        }
+      ],
+      "PWA": [
+        {
+          "file": "pwa-init.js",
+          "line": 417,
+          "isStub": false,
+          "isNoop": false
+        },
+        {
+          "file": "pwa.js",
+          "line": 183,
+          "isStub": false,
+          "isNoop": false
+        }
+      ],
+      "initPWA": [
+        {
+          "file": "pwa.js",
+          "line": 162,
+          "isStub": false,
+          "isNoop": false
+        },
+        {
+          "file": "script.js",
+          "line": 4758,
+          "isStub": false,
+          "isNoop": false
+        }
+      ],
+      "handleAuthToggle": [
+        {
+          "file": "script.js",
+          "line": 23,
+          "isStub": false,
+          "isNoop": false
+        },
+        {
+          "file": "script.js",
+          "line": 4623,
+          "isStub": false,
+          "isNoop": false
+        }
+      ],
+      "handleRefreshAppointments": [
+        {
+          "file": "script.js",
+          "line": 25,
+          "isStub": false,
+          "isNoop": false
+        },
+        {
+          "file": "script.js",
+          "line": 4625,
+          "isStub": false,
+          "isNoop": false
+        },
+        {
+          "file": "src/data-layer/index.js",
+          "line": 318,
+          "isStub": false,
+          "isNoop": false
+        }
+      ],
+      "handleAppointmentFilter": [
+        {
+          "file": "script.js",
+          "line": 26,
+          "isStub": false,
+          "isNoop": false
+        },
+        {
+          "file": "script.js",
+          "line": 4626,
+          "isStub": false,
+          "isNoop": false
+        },
+        {
+          "file": "src/data-layer/index.js",
+          "line": 293,
+          "isStub": false,
+          "isNoop": false
+        }
+      ],
+      "handleAppointmentSearch": [
+        {
+          "file": "script.js",
+          "line": 27,
+          "isStub": false,
+          "isNoop": false
+        },
+        {
+          "file": "script.js",
+          "line": 4627,
+          "isStub": false,
+          "isNoop": false
+        },
+        {
+          "file": "src/data-layer/index.js",
+          "line": 308,
+          "isStub": false,
+          "isNoop": false
+        }
+      ],
+      "exportAppointmentsCSV": [
+        {
+          "file": "script.js",
+          "line": 28,
+          "isStub": false,
+          "isNoop": false
+        },
+        {
+          "file": "script.js",
+          "line": 4628,
+          "isStub": false,
+          "isNoop": false
+        }
+      ],
+      "__tvInit": [
+        {
+          "file": "script.js",
+          "line": 118,
+          "isStub": false,
+          "isNoop": false
+        },
+        {
+          "file": "script.js",
+          "line": 4662,
+          "isStub": false,
+          "isNoop": false
+        },
+        {
+          "file": "src/app.js",
+          "line": 20,
+          "isStub": false,
+          "isNoop": false
+        },
+        {
+          "file": "src/storage/storage.page.js",
+          "line": 57,
+          "isStub": false,
+          "isNoop": false
+        },
+        {
+          "file": "src/workspace/workspace-controller.js",
+          "line": 694,
+          "isStub": false,
+          "isNoop": false
+        }
+      ],
+      "isUiV2Enabled": [
+        {
+          "file": "script.js",
+          "line": 134,
+          "isStub": false,
+          "isNoop": false
+        }
+      ],
+      "updateDashboardMetrics": [
+        {
+          "file": "script.js",
+          "line": 168,
+          "isStub": false,
+          "isNoop": false
+        },
+        {
+          "file": "script.js",
+          "line": 7492,
+          "isStub": false,
+          "isNoop": false
+        },
+        {
+          "file": "verify-kpi-dashboard.js",
+          "line": 32,
+          "isStub": false,
+          "isNoop": false
+        }
+      ],
+      "updateHeaderMetrics": [
+        {
+          "file": "script.js",
+          "line": 175,
+          "isStub": false,
+          "isNoop": false
+        }
+      ],
+      "__tvRenderGate": [
+        {
+          "file": "script.js",
+          "line": 178,
+          "isStub": false,
+          "isNoop": false
+        }
+      ],
+      "renderWorkspace": [
+        {
+          "file": "script.js",
+          "line": 223,
+          "isStub": false,
+          "isNoop": false
+        },
+        {
+          "file": "script.js",
+          "line": 7497,
+          "isStub": false,
+          "isNoop": false
+        },
+        {
+          "file": "src/workspace/workspace-controller.js",
+          "line": 470,
+          "isStub": false,
+          "isNoop": false
+        },
+        {
+          "file": "src/workspace/workspace-controller.js",
+          "line": 724,
+          "isStub": false,
+          "isNoop": false
+        }
+      ],
+      "tryRenderAll": [
+        {
+          "file": "script.js",
+          "line": 229,
+          "isStub": false,
+          "isNoop": false
+        },
+        {
+          "file": "src/data-layer/firestore-sync.js",
+          "line": 128,
+          "isStub": false,
+          "isNoop": false
+        },
+        {
+          "file": "src/data-layer/firestore-sync.js",
+          "line": 185,
+          "isStub": false,
+          "isNoop": false
+        },
+        {
+          "file": "src/data-layer/index.js",
+          "line": 91,
+          "isStub": false,
+          "isNoop": false
+        },
+        {
+          "file": "src/data-layer/index.js",
+          "line": 101,
+          "isStub": false,
+          "isNoop": false
+        }
+      ],
+      "toggleWriteTrace": [
+        {
+          "file": "script.js",
+          "line": 283,
+          "isStub": false,
+          "isNoop": false
+        },
+        {
+          "file": "src/invoice.js",
+          "line": 87,
+          "isStub": false,
+          "isNoop": false
+        }
+      ],
+      "getWriteTraces": [
+        {
+          "file": "script.js",
+          "line": 287,
+          "isStub": false,
+          "isNoop": false
+        },
+        {
+          "file": "src/invoice.js",
+          "line": 91,
+          "isStub": false,
+          "isNoop": false
+        }
+      ],
+      "showLastWrite": [
+        {
+          "file": "script.js",
+          "line": 288,
+          "isStub": false,
+          "isNoop": false
+        },
+        {
+          "file": "src/invoice.js",
+          "line": 92,
+          "isStub": false,
+          "isNoop": false
+        }
+      ],
+      "debugTvSplash": [
+        {
+          "file": "script.js",
+          "line": 1249,
+          "isStub": false,
+          "isNoop": false
+        }
+      ],
+      "tvScanPageSize": [
+        {
+          "file": "script.js",
+          "line": 2413,
+          "isStub": false,
+          "isNoop": false
+        }
+      ],
+      "Chart": [
+        {
+          "file": "script.js",
+          "line": 2691,
+          "isStub": false,
+          "isNoop": false
+        },
+        {
+          "file": "script.js",
+          "line": 2737,
+          "isStub": false,
+          "isNoop": false
+        }
+      ],
+      "toggleNotifDrawer": [
+        {
+          "file": "script.js",
+          "line": 4384,
+          "isStub": false,
+          "isNoop": false
+        }
+      ],
+      "refreshBellBadge": [
+        {
+          "file": "script.js",
+          "line": 4385,
+          "isStub": false,
+          "isNoop": false
+        }
+      ],
+      "createAppointmentCard": [
+        {
+          "file": "script.js",
+          "line": 4631,
+          "isStub": false,
+          "isNoop": false
+        }
+      ],
+      "getScheduledDate": [
+        {
+          "file": "script.js",
+          "line": 4632,
+          "isStub": false,
+          "isNoop": false
+        }
+      ],
+      "normalizeAppointment": [
+        {
+          "file": "script.js",
+          "line": 4633,
+          "isStub": false,
+          "isNoop": false
+        }
+      ],
+      "formatCurrencyGBP": [
+        {
+          "file": "script.js",
+          "line": 4634,
+          "isStub": false,
+          "isNoop": false
+        }
+      ],
+      "formatDateShort": [
+        {
+          "file": "script.js",
+          "line": 4635,
+          "isStub": false,
+          "isNoop": false
+        }
+      ],
+      "formatTimeShort": [
+        {
+          "file": "script.js",
+          "line": 4636,
+          "isStub": false,
+          "isNoop": false
+        }
+      ],
+      "toNumber": [
+        {
+          "file": "script.js",
+          "line": 4637,
+          "isStub": false,
+          "isNoop": false
+        }
+      ],
+      "handleEditAction": [
+        {
+          "file": "script.js",
+          "line": 4640,
+          "isStub": false,
+          "isNoop": false
+        },
+        {
+          "file": "src/workspace/workspace-controller.js",
+          "line": 430,
+          "isStub": false,
+          "isNoop": false
+        }
+      ],
+      "handleDeleteAction": [
+        {
+          "file": "script.js",
+          "line": 4641,
+          "isStub": false,
+          "isNoop": false
+        },
+        {
+          "file": "src/workspace/workspace-controller.js",
+          "line": 509,
+          "isStub": false,
+          "isNoop": false
+        }
+      ],
+      "handleVisitAction": [
+        {
+          "file": "script.js",
+          "line": 4642,
+          "isStub": false,
+          "isNoop": false
+        },
+        {
+          "file": "src/workspace/workspace-controller.js",
+          "line": 480,
+          "isStub": false,
+          "isNoop": false
+        }
+      ],
+      "toggleAppointmentPaidStatus": [
+        {
+          "file": "script.js",
+          "line": 4643,
+          "isStub": false,
+          "isNoop": false
+        },
+        {
+          "file": "script.js",
+          "line": 9701,
+          "isStub": false,
+          "isNoop": false
+        },
+        {
+          "file": "src/workspace/workspace-controller.js",
+          "line": 442,
+          "isStub": false,
+          "isNoop": false
+        }
+      ],
+      "toggleSecondaryActions": [
+        {
+          "file": "script.js",
+          "line": 4644,
+          "isStub": false,
+          "isNoop": false
+        },
+        {
+          "file": "src/workspace/workspace-controller.js",
+          "line": 517,
+          "isStub": false,
+          "isNoop": false
+        }
+      ],
+      "renderAppointments": [
+        {
+          "file": "script.js",
+          "line": 4645,
+          "isStub": false,
+          "isNoop": false
+        },
+        {
+          "file": "src/enterprise-dashboard.js",
+          "line": 453,
+          "isStub": false,
+          "isNoop": false
+        },
+        {
+          "file": "src/header/header-search.js",
+          "line": 48,
+          "isStub": false,
+          "isNoop": false
+        },
+        {
+          "file": "src/header/header-search.js",
+          "line": 98,
+          "isStub": false,
+          "isNoop": false
+        },
+        {
+          "file": "src/header/header-search.js",
+          "line": 146,
+          "isStub": false,
+          "isNoop": false
+        }
+      ],
+      "enterEditMode": [
+        {
+          "file": "script.js",
+          "line": 4646,
+          "isStub": false,
+          "isNoop": false
+        },
+        {
+          "file": "src/workspace/workspace-controller.js",
+          "line": 433,
+          "isStub": false,
+          "isNoop": false
+        }
+      ],
+      "showNotification": [
+        {
+          "file": "script.js",
+          "line": 4647,
+          "isStub": false,
+          "isNoop": false
+        },
+        {
+          "file": "src/workspace/workspace-controller.js",
+          "line": 536,
+          "isStub": false,
+          "isNoop": false
+        }
+      ],
+      "getOrCreateInvoiceForAppointment": [
+        {
+          "file": "script.js",
+          "line": 4648,
+          "isStub": false,
+          "isNoop": false
+        },
+        {
+          "file": "src/workspace/workspace-controller.js",
+          "line": 491,
+          "isStub": false,
+          "isNoop": false
+        }
+      ],
+      "openInvoice": [
+        {
+          "file": "script.js",
+          "line": 4649,
+          "isStub": false,
+          "isNoop": false
+        }
+      ],
+      "getAppointmentAmountGBP": [
+        {
+          "file": "script.js",
+          "line": 4652,
+          "isStub": false,
+          "isNoop": false
+        }
+      ],
+      "callUsedOnce": [
+        {
+          "file": "script.js",
+          "line": 4655,
+          "isStub": false,
+          "isNoop": false
+        },
+        {
+          "file": "src/workspace/workspace-controller.js",
+          "line": 464,
+          "isStub": false,
+          "isNoop": false
+        }
+      ],
+      "__TVX_UI_V2": [
+        {
+          "file": "script.js",
+          "line": 4660,
+          "isStub": false,
+          "isNoop": false
+        }
+      ],
+      "initEnterpriseHeaderControls": [
+        {
+          "file": "script.js",
+          "line": 4683,
+          "isStub": false,
+          "isNoop": false
+        }
+      ],
+      "initWorkspacePanel": [
+        {
+          "file": "script.js",
+          "line": 4763,
+          "isStub": false,
+          "isNoop": false
+        },
+        {
+          "file": "src/workspace/workspace-controller.js",
+          "line": 693,
+          "isStub": false,
+          "isNoop": false
+        }
+      ],
+      "__tvFilterAptsInitialized": [
+        {
+          "file": "script.js",
+          "line": 6683,
+          "isStub": false,
+          "isNoop": false
+        }
+      ],
+      "__tvRenderAptsInitialized": [
+        {
+          "file": "script.js",
+          "line": 6798,
+          "isStub": false,
+          "isNoop": false
+        }
+      ],
+      "updateAppointmentStats": [
+        {
+          "file": "script.js",
+          "line": 8826,
+          "isStub": false,
+          "isNoop": false
+        }
+      ],
+      "openInvoiceForAppointment": [
+        {
+          "file": "script.js",
+          "line": 9133,
+          "isStub": false,
+          "isNoop": false
+        }
+      ],
+      "__USE_MODULAR_STORAGE__": [
+        {
+          "file": "script.js",
+          "line": 9305,
+          "isStub": false,
+          "isNoop": false
+        },
+        {
+          "file": "src/app.js",
+          "line": 61,
+          "isStub": false,
+          "isNoop": false
+        },
+        {
+          "file": "src/storage/storage.page.js",
+          "line": 53,
+          "isStub": false,
+          "isNoop": false
+        }
+      ],
+      "tvInvLoadMore": [
+        {
+          "file": "script.js",
+          "line": 9589,
+          "isStub": false,
+          "isNoop": false
+        }
+      ],
+      "openInvoiceFile": [
+        {
+          "file": "script.js",
+          "line": 9690,
+          "isStub": false,
+          "isNoop": false
+        },
+        {
+          "file": "src/storage/storage.events.js",
+          "line": 478,
+          "isStub": false,
+          "isNoop": false
+        }
+      ],
+      "deleteInvoiceConfirm": [
+        {
+          "file": "script.js",
+          "line": 9691,
+          "isStub": false,
+          "isNoop": false
+        },
+        {
+          "file": "src/storage/storage.events.js",
+          "line": 479,
+          "isStub": false,
+          "isNoop": false
+        }
+      ],
+      "openPDF": [
+        {
+          "file": "script.js",
+          "line": 9693,
+          "isStub": false,
+          "isNoop": false
+        }
+      ],
+      "generateAndSaveInvoicePDF": [
+        {
+          "file": "script.js",
+          "line": 9694,
+          "isStub": false,
+          "isNoop": false
+        }
+      ],
+      "handleRefreshInvoices": [
+        {
+          "file": "script.js",
+          "line": 9696,
+          "isStub": false,
+          "isNoop": false
+        },
+        {
+          "file": "src/storage/storage.page.js",
+          "line": 156,
+          "isStub": false,
+          "isNoop": false
+        }
+      ],
+      "filterInvoices": [
+        {
+          "file": "script.js",
+          "line": 9697,
+          "isStub": false,
+          "isNoop": false
+        }
+      ],
+      "toggleAppointmentDropdown": [
+        {
+          "file": "script.js",
+          "line": 9702,
+          "isStub": false,
+          "isNoop": false
+        }
+      ],
+      "handleSignIn": [
+        {
+          "file": "src/app.js",
+          "line": 236,
+          "isStub": false,
+          "isNoop": false
+        }
+      ],
+      "handleSignOut": [
+        {
+          "file": "src/app.js",
+          "line": 237,
+          "isStub": false,
+          "isNoop": false
+        }
+      ],
+      "__tvFirebase": [
+        {
+          "file": "src/config/firebase.js",
+          "line": 33,
+          "isStub": false,
+          "isNoop": false
+        },
+        {
+          "file": "src/firebase/firebase.js",
+          "line": 96,
+          "isStub": false,
+          "isNoop": false
+        }
+      ],
+      "services": [
+        {
+          "file": "src/core/app.js",
+          "line": 100,
+          "isStub": false,
+          "isNoop": false
+        }
+      ],
+      "modalManager": [
+        {
+          "file": "src/core/app.js",
+          "line": 109,
+          "isStub": false,
+          "isNoop": false
+        }
+      ],
+      "appState": [
+        {
+          "file": "src/core/app.js",
+          "line": 113,
+          "isStub": false,
+          "isNoop": false
+        }
+      ],
+      "eventBus": [
+        {
+          "file": "src/core/app.js",
+          "line": 114,
+          "isStub": false,
+          "isNoop": false
+        }
+      ],
+      "__tvDebug": [
+        {
+          "file": "src/core/events.js",
+          "line": 26,
+          "isStub": false,
+          "isNoop": false
+        }
+      ],
+      "AppointmentsManager": [
+        {
+          "file": "src/data-layer/appointments-manager.js",
+          "line": 253,
+          "isStub": false,
+          "isNoop": false
+        }
+      ],
+      "appointmentsManager": [
+        {
+          "file": "src/data-layer/appointments-manager.js",
+          "line": 254,
+          "isStub": false,
+          "isNoop": false
+        }
+      ],
+      "AppointmentsUIRenderer": [
+        {
+          "file": "src/data-layer/appointments-ui.js",
+          "line": 370,
+          "isStub": false,
+          "isNoop": false
+        }
+      ],
+      "__DEBUG_DIAGNOSTICS": [
+        {
+          "file": "src/data-layer/index.js",
+          "line": 72,
+          "isStub": false,
+          "isNoop": false
+        },
+        {
+          "file": "src/data-layer/ui-updater.js",
+          "line": 323,
+          "isStub": false,
+          "isNoop": false
+        }
+      ],
+      "appointments": [
+        {
+          "file": "src/data-layer/index.js",
+          "line": 90,
+          "isStub": false,
+          "isNoop": false
+        },
+        {
+          "file": "src/enterprise-dashboard.js",
+          "line": 436,
+          "isStub": false,
+          "isNoop": false
+        },
+        {
+          "file": "src/enterprise-dashboard.js",
+          "line": 441,
+          "isStub": false,
+          "isNoop": false
+        }
+      ],
+      "allInvoices": [
+        {
+          "file": "src/data-layer/index.js",
+          "line": 97,
+          "isStub": false,
+          "isNoop": false
+        }
+      ],
+      "filterAppointments": [
+        {
+          "file": "src/data-layer/index.js",
+          "line": 133,
+          "isStub": false,
+          "isNoop": false
+        },
+        {
+          "file": "src/data-layer/index.js",
+          "line": 180,
+          "isStub": false,
+          "isNoop": false
+        },
+        {
+          "file": "src/data-layer/index.js",
+          "line": 295,
+          "isStub": false,
+          "isNoop": false
+        },
+        {
+          "file": "src/data-layer/index.js",
+          "line": 320,
+          "isStub": false,
+          "isNoop": false
+        }
+      ],
+      "__tvCleanupFns": [
+        {
+          "file": "src/data-layer/index.js",
+          "line": 262,
+          "isStub": false,
+          "isNoop": false
+        }
+      ],
+      "appointmentsDebounceTimer": [
+        {
+          "file": "src/data-layer/index.js",
+          "line": 313,
+          "isStub": false,
+          "isNoop": false
+        }
+      ],
+      "Store": [
+        {
+          "file": "src/data-layer/index.js",
+          "line": 340,
+          "isStub": false,
+          "isNoop": false
+        }
+      ],
+      "_dataLayer": [
+        {
+          "file": "src/data-layer/index.js",
+          "line": 341,
+          "isStub": false,
+          "isNoop": false
+        }
+      ],
+      "_headerMetrics": [
+        {
+          "file": "src/data-layer/index.js",
+          "line": 582,
+          "isStub": false,
+          "isNoop": false
+        }
+      ],
+      "runWiringAudit": [
+        {
+          "file": "src/dev/runWiringAudit.js",
+          "line": 215,
+          "isStub": false,
+          "isNoop": false
+        }
+      ],
+      "enterpriseDashboard": [
+        {
+          "file": "src/enterprise-dashboard.js",
+          "line": 19,
+          "isStub": false,
+          "isNoop": false
+        }
+      ],
+      "__tvEmitPipelineDiag": [
+        {
+          "file": "src/header/header-metrics.js",
+          "line": 94,
+          "isStub": false,
+          "isNoop": false
+        },
+        {
+          "file": "src/metrics/dashboard-metrics.js",
+          "line": 384,
+          "isStub": false,
+          "isNoop": false
+        },
+        {
+          "file": "src/workspace/workspace-controller.js",
+          "line": 229,
+          "isStub": false,
+          "isNoop": false
+        }
+      ],
+      "debugInvoice": [
+        {
+          "file": "src/invoice.js",
+          "line": 107,
+          "isStub": false,
+          "isNoop": false
+        }
+      ],
+      "__tvDiagState": [
+        {
+          "file": "src/metrics/dashboard-metrics.js",
+          "line": 360,
+          "isStub": false,
+          "isNoop": false
+        }
+      ],
+      "__tvKpiDebugState": [
+        {
+          "file": "src/metrics/dashboard-metrics.js",
+          "line": 470,
+          "isStub": false,
+          "isNoop": false
+        }
+      ],
+      "__TV_DEBUG_KPI": [
+        {
+          "file": "src/metrics/dashboard-metrics.js",
+          "line": 471,
+          "isStub": false,
+          "isNoop": false
+        }
+      ],
+      "__tvLastDashboardMetrics": [
+        {
+          "file": "src/metrics/dashboard-metrics.js",
+          "line": 578,
+          "isStub": false,
+          "isNoop": false
+        }
+      ],
+      "getAppState": [
+        {
+          "file": "src/shared/state.js",
+          "line": 118,
+          "isStub": false,
+          "isNoop": false
+        }
+      ],
+      "rebuildInvoiceFromAppointment": [
+        {
+          "file": "src/storage/storage.events.js",
+          "line": 480,
+          "isStub": false,
+          "isNoop": false
+        }
+      ],
+      "toggleInvoicePaidStatus": [
+        {
+          "file": "src/storage/storage.events.js",
+          "line": 481,
+          "isStub": false,
+          "isNoop": false
+        }
+      ],
+      "__workspaceState": [
+        {
+          "file": "src/workspace/workspace-controller.js",
+          "line": 20,
+          "isStub": false,
+          "isNoop": false
+        }
+      ],
+      "setActiveWorkspace": [
+        {
+          "file": "src/workspace/workspace-controller.js",
+          "line": 64,
+          "isStub": false,
+          "isNoop": false
+        }
+      ],
+      "tvGroupLoadMore": [
+        {
+          "file": "src/workspace/workspace-controller.js",
+          "line": 157,
+          "isStub": false,
+          "isNoop": false
+        }
+      ],
+      "markInvoicePaid": [
+        {
+          "file": "src/workspace/workspace-controller.js",
+          "line": 652,
+          "isStub": false,
+          "isNoop": false
+        }
+      ],
+      "fn": [
+        {
+          "file": "tools/audit-wiring.mjs",
+          "line": 137,
+          "isStub": true,
+          "isNoop": false
+        }
+      ],
+      "computeDashboardMetrics": [
+        {
+          "file": "verify-kpi-dashboard.js",
+          "line": 24,
+          "isStub": false,
+          "isNoop": false
+        },
+        {
+          "file": "verify-kpi-dashboard.js",
+          "line": 112,
+          "isStub": false,
+          "isNoop": false
+        },
+        {
+          "file": "verify-kpi-dashboard.js",
+          "line": 217,
+          "isStub": false,
+          "isNoop": false
+        }
+      ],
+      "renderDashboardMetrics": [
+        {
+          "file": "verify-kpi-dashboard.js",
+          "line": 40,
+          "isStub": false,
+          "isNoop": false
+        },
+        {
+          "file": "verify-kpi-dashboard.js",
+          "line": 141,
+          "isStub": false,
+          "isNoop": false
+        }
+      ]
+    }
+  },
+  "onclickWindowCalls": {
+    "total": 33,
+    "callsToStubs": [],
+    "callsToUndefined": [
+      {
+        "file": "index.html",
+        "line": 3667,
+        "caller": "tvAptDrawerClose()",
+        "callee": "tvAptDrawerClose",
+        "bare": true
+      },
+      {
+        "file": "index.html",
+        "line": 4531,
+        "caller": "tvAptDrawerOpen()",
+        "callee": "tvAptDrawerOpen",
+        "bare": true
+      }
+    ]
+  },
+  "invoiceFlows": {
+    "directOpens": [
+      {
+        "file": "script.js",
+        "line": 9290,
+        "url": "invoice.html?invoiceId=${invoiceId}&mode=edit",
+        "params": {
+          "invoiceId": "${invoiceId}",
+          "mode": "edit"
+        },
+        "via": "js"
+      },
+      {
+        "file": "script.js",
+        "line": 9604,
+        "url": "invoice.html?invoiceId=${invoiceId}&mode=view",
+        "params": {
+          "invoiceId": "${invoiceId}",
+          "mode": "view"
+        },
+        "via": "js"
+      },
+      {
+        "file": "script.js",
+        "line": 9623,
+        "url": "invoice.html?invoiceId=${invoiceId}&mode=edit",
+        "params": {
+          "invoiceId": "${invoiceId}",
+          "mode": "edit"
+        },
+        "via": "js"
+      },
+      {
+        "file": "src/invoices/invoice-manager.js",
+        "line": 636,
+        "url": "invoice.html?invoiceId=${invoiceId}&mode=${mode}",
+        "params": {
+          "invoiceId": "${invoiceId}",
+          "mode": "${mode}"
+        },
+        "via": "js"
+      },
+      {
+        "file": "src/storage/storage.events.js",
+        "line": 132,
+        "url": "invoice.html?invoiceId=${targetInvoiceId}&mode=view",
+        "params": {
+          "invoiceId": "${targetInvoiceId}",
+          "mode": "view"
+        },
+        "via": "js"
+      },
+      {
+        "file": "src/storage/storage.events.js",
+        "line": 140,
+        "url": "invoice.html?invoiceId=${targetInvoiceId}&mode=view",
+        "params": {
+          "invoiceId": "${targetInvoiceId}",
+          "mode": "view"
+        },
+        "via": "js"
+      },
+      {
+        "file": "src/storage/storage.events.js",
+        "line": 160,
+        "url": "invoice.html?invoiceId=${canonicalInvoiceId}&mode=view",
+        "params": {
+          "invoiceId": "${canonicalInvoiceId}",
+          "mode": "view"
+        },
+        "via": "js"
+      },
+      {
+        "file": "src/storage/storage.events.js",
+        "line": 163,
+        "url": "invoice.html?invoiceId=${targetInvoiceId}&mode=view",
+        "params": {
+          "invoiceId": "${targetInvoiceId}",
+          "mode": "view"
+        },
+        "via": "js"
+      }
+    ],
+    "violations": [],
+    "functionCalls": [
+      {
+        "file": "script.js",
+        "line": 9112,
+        "fnName": "openInvoiceForAppointment"
+      },
+      {
+        "file": "script.js",
+        "line": 9117,
+        "fnName": "openInvoice"
+      },
+      {
+        "file": "script.js",
+        "line": 9162,
+        "fnName": "openInvoiceFromAppointment"
+      },
+      {
+        "file": "script.js",
+        "line": 9168,
+        "fnName": "openInvoice"
+      },
+      {
+        "file": "script.js",
+        "line": 9189,
+        "fnName": "openInvoice"
+      },
+      {
+        "file": "script.js",
+        "line": 9582,
+        "fnName": "openInvoiceFile"
+      },
+      {
+        "file": "script.js",
+        "line": 9603,
+        "fnName": "openInvoiceFile"
+      },
+      {
+        "file": "src/invoice-create/invoiceCreate.flow.js",
+        "line": 48,
+        "fnName": "openInvoice"
+      },
+      {
+        "file": "src/invoice-create/invoiceCreate.flow.js",
+        "line": 150,
+        "fnName": "openInvoice"
+      },
+      {
+        "file": "src/invoices/invoice-manager.js",
+        "line": 631,
+        "fnName": "openInvoicePage"
+      },
+      {
+        "file": "src/invoices/invoice-manager.js",
+        "line": 639,
+        "fnName": "openInvoice"
+      },
+      {
+        "file": "src/storage/storage.events.js",
+        "line": 125,
+        "fnName": "openInvoiceFile"
+      },
+      {
+        "file": "src/storage/storage.ui.js",
+        "line": 379,
+        "fnName": "openInvoiceFile"
+      },
+      {
+        "file": "tools/audit-wiring.mjs",
+        "line": 688,
+        "fnName": "openInvoicePage"
+      },
+      {
+        "file": "tools/audit-wiring.mjs",
+        "line": 694,
+        "fnName": "openInvoicePage"
+      },
+      {
+        "file": "tools/audit-wiring.mjs",
+        "line": 694,
+        "fnName": "openInvoice"
+      },
+      {
+        "file": "tools/audit-wiring.mjs",
+        "line": 710,
+        "fnName": "openInvoicePage"
+      }
+    ],
+    "invoiceNumberGenerators": [
+      {
+        "file": "script.js",
+        "line": 9080,
+        "fnName": "generateInvoiceNumberStable"
+      },
+      {
+        "file": "script.js",
+        "line": 9148,
+        "fnName": "generateInvoiceNumber"
+      },
+      {
+        "file": "src/invoice.js",
+        "line": 202,
+        "fnName": "generateInvoiceNumber"
+      },
+      {
+        "file": "src/invoices/invoice-manager.js",
+        "line": 18,
+        "fnName": "generateInvoiceNumber"
+      }
+    ],
+    "uniqueParamSets": [
+      "invoiceId,mode"
+    ],
+    "canonicalContract": "invoice.html?invoiceId=<firestoreDocId>&mode=<view|edit>"
+  },
+  "duplicateFunctions": {
+    "highRisk": [
+      {
+        "fn": "generateInvoiceNumber",
+        "locs": [
+          {
+            "file": "script.js",
+            "line": 9147
+          },
+          {
+            "file": "src/invoice.js",
+            "line": 201
+          },
+          {
+            "file": "src/invoices/invoice-manager.js",
+            "line": 18
+          }
+        ]
+      },
+      {
+        "fn": "openInvoiceFile",
+        "locs": [
+          {
+            "file": "script.js",
+            "line": 9602
+          },
+          {
+            "file": "src/storage/storage.events.js",
+            "line": 125
+          }
+        ]
+      }
+    ],
+    "all": [
+      {
+        "fn": "createInvoiceFromAppointment",
+        "locs": [
+          {
+            "file": "CHIPS_MODE_INTEGRATION.js",
+            "line": 193
+          },
+          {
+            "file": "script.js",
+            "line": 9178
+          },
+          {
+            "file": "src/invoice-create/invoiceCreate.flow.js",
+            "line": 35
+          }
+        ]
+      },
+      {
+        "fn": "updateLiveIndicators",
+        "locs": [
+          {
+            "file": "index.html",
+            "line": 4741
+          },
+          {
+            "file": "src/enterprise-dashboard.js",
+            "line": 260
+          }
+        ]
+      },
+      {
+        "fn": "registerServiceWorker",
+        "locs": [
+          {
+            "file": "pwa-init.js",
+            "line": 46
+          },
+          {
+            "file": "pwa.js",
+            "line": 9
+          }
+        ]
+      },
+      {
+        "fn": "showUpdateNotification",
+        "locs": [
+          {
+            "file": "pwa-init.js",
+            "line": 151
+          },
+          {
+            "file": "sw-update.js",
+            "line": 82
+          }
+        ]
+      },
+      {
+        "fn": "setupInstallPrompt",
+        "locs": [
+          {
+            "file": "pwa-init.js",
+            "line": 202
+          },
+          {
+            "file": "pwa.js",
+            "line": 116
+          }
+        ]
+      },
+      {
+        "fn": "setupAppStateTracking",
+        "locs": [
+          {
+            "file": "pwa-init.js",
+            "line": 228
+          },
+          {
+            "file": "pwa.js",
+            "line": 147
+          }
+        ]
+      },
+      {
+        "fn": "isInstalledAsPWA",
+        "locs": [
+          {
+            "file": "pwa-init.js",
+            "line": 243
+          },
+          {
+            "file": "pwa.js",
+            "line": 67
+          }
+        ]
+      },
+      {
+        "fn": "getPWAInstallState",
+        "locs": [
+          {
+            "file": "pwa-init.js",
+            "line": 265
+          },
+          {
+            "file": "pwa.js",
+            "line": 89
+          }
+        ]
+      },
+      {
+        "fn": "getPlatform",
+        "locs": [
+          {
+            "file": "pwa-init.js",
+            "line": 277
+          },
+          {
+            "file": "pwa.js",
+            "line": 101
+          }
+        ]
+      },
+      {
+        "fn": "checkForUpdates",
+        "locs": [
+          {
+            "file": "pwa-init.js",
+            "line": 293
+          },
+          {
+            "file": "sw-update.js",
+            "line": 98
+          }
+        ]
+      },
+      {
+        "fn": "unregisterServiceWorker",
+        "locs": [
+          {
+            "file": "pwa-init.js",
+            "line": 315
+          },
+          {
+            "file": "sw-update.js",
+            "line": 121
+          }
+        ]
+      },
+      {
+        "fn": "renderScannedInvoiceReviewItems",
+        "locs": [
+          {
+            "file": "render_items_update.js",
+            "line": 1
+          },
+          {
+            "file": "script.js",
+            "line": 3496
+          }
+        ]
+      },
+      {
+        "fn": "tracedUpdateDoc",
+        "locs": [
+          {
+            "file": "script.js",
+            "line": 235
+          },
+          {
+            "file": "src/invoice.js",
+            "line": 63
+          }
+        ]
+      },
+      {
+        "fn": "formatCurrencyGBP",
+        "locs": [
+          {
+            "file": "script.js",
+            "line": 320
+          },
+          {
+            "file": "src/core/chips-mode.js",
+            "line": 644
+          },
+          {
+            "file": "src/shared/format.js",
+            "line": 11
+          }
+        ]
+      },
+      {
+        "fn": "toNumber",
+        "locs": [
+          {
+            "file": "script.js",
+            "line": 330
+          },
+          {
+            "file": "src/data-layer/formatters.js",
+            "line": 41
+          },
+          {
+            "file": "src/invoice-create/invoiceCreate.ui.js",
+            "line": 11
+          },
+          {
+            "file": "src/invoices/invoice-manager.js",
+            "line": 24
+          },
+          {
+            "file": "src/metrics/dashboard-metrics.js",
+            "line": 329
+          },
+          {
+            "file": "src/shared/format.js",
+            "line": 21
+          },
+          {
+            "file": "src/storage/storage.events.js",
+            "line": 18
+          },
+          {
+            "file": "src/storage/storage.service.js",
+            "line": 12
+          },
+          {
+            "file": "src/storage/storage.ui.js",
+            "line": 12
+          }
+        ]
+      },
+      {
+        "fn": "computePaymentStatus",
+        "locs": [
+          {
+            "file": "script.js",
+            "line": 342
+          },
+          {
+            "file": "src/invoice.js",
+            "line": 1590
+          }
+        ]
+      },
+      {
+        "fn": "escapeHtml",
+        "locs": [
+          {
+            "file": "script.js",
+            "line": 592
+          },
+          {
+            "file": "src/core/chips-mode.js",
+            "line": 622
+          },
+          {
+            "file": "src/invoice.js",
+            "line": 1824
+          }
+        ]
+      },
+      {
+        "fn": "collectJobsPartsFromForm",
+        "locs": [
+          {
+            "file": "script.js",
+            "line": 663
+          },
+          {
+            "file": "src/invoice-create/invoiceCreate.ui.js",
+            "line": 31
+          }
+        ]
+      },
+      {
+        "fn": "buildJobsSummary",
+        "locs": [
+          {
+            "file": "script.js",
+            "line": 938
+          },
+          {
+            "file": "src/invoice-create/invoiceCreate.ui.js",
+            "line": 37
+          }
+        ]
+      },
+      {
+        "fn": "initializeFirebase",
+        "locs": [
+          {
+            "file": "script.js",
+            "line": 986
+          },
+          {
+            "file": "src/core/app.js",
+            "line": 22
+          },
+          {
+            "file": "src/invoice.js",
+            "line": 1044
+          }
+        ]
+      },
+      {
+        "fn": "updateAuthUI",
+        "locs": [
+          {
+            "file": "script.js",
+            "line": 1122
+          },
+          {
+            "file": "src/app.js",
+            "line": 110
+          }
+        ]
+      },
+      {
+        "fn": "handleRefreshAppointments",
+        "locs": [
+          {
+            "file": "script.js",
+            "line": 4141
+          },
+          {
+            "file": "src/appointments-init.js",
+            "line": 90
+          }
+        ]
+      },
+      {
+        "fn": "showNotification",
+        "locs": [
+          {
+            "file": "script.js",
+            "line": 4172
+          },
+          {
+            "file": "src/shared/ui.js",
+            "line": 75
+          },
+          {
+            "file": "src/utils/notifications.js",
+            "line": 14
+          }
+        ]
+      },
+      {
+        "fn": "showToast",
+        "locs": [
+          {
+            "file": "script.js",
+            "line": 4388
+          },
+          {
+            "file": "src/shared/ui.js",
+            "line": 14
+          },
+          {
+            "file": "src/utils/notifications.js",
+            "line": 47
+          }
+        ]
+      },
+      {
+        "fn": "highlightAndScrollToAppointment",
+        "locs": [
+          {
+            "file": "script.js",
+            "line": 4442
+          },
+          {
+            "file": "src/utils/notifications.js",
+            "line": 159
+          }
+        ]
+      },
+      {
+        "fn": "handleAppointmentFilter",
+        "locs": [
+          {
+            "file": "script.js",
+            "line": 4590
+          },
+          {
+            "file": "src/appointments-init.js",
+            "line": 46
+          }
+        ]
+      },
+      {
+        "fn": "handleAppointmentSearch",
+        "locs": [
+          {
+            "file": "script.js",
+            "line": 4610
+          },
+          {
+            "file": "src/appointments-init.js",
+            "line": 70
+          }
+        ]
+      },
+      {
+        "fn": "switchTab",
+        "locs": [
+          {
+            "file": "script.js",
+            "line": 5359
+          },
+          {
+            "file": "src/app.js",
+            "line": 189
+          }
+        ]
+      },
+      {
+        "fn": "validateField",
+        "locs": [
+          {
+            "file": "script.js",
+            "line": 6351
+          },
+          {
+            "file": "src/utils/validators.js",
+            "line": 71
+          }
+        ]
+      },
+      {
+        "fn": "getScheduledTimestamp",
+        "locs": [
+          {
+            "file": "script.js",
+            "line": 6453
+          },
+          {
+            "file": "src/utils/normalizers.js",
+            "line": 171
+          }
+        ]
+      }
+    ]
+  },
+  "uiUxBugs": {
+    "deadButtons": {
+      "total": 40,
+      "items": [
+        {
+          "file": "index.html",
+          "tagSnippet": "<button class=\"tv-notif-drawer__close\" data-notif-close aria-label=\"Close alerts\">"
+        },
+        {
+          "file": "index.html",
+          "tagSnippet": "<button type=\"button\" id=\"cancelEditBtn\" class=\"btn-ghost\" style=\"min-height: 36px; padding: 8px 12px;\">"
+        },
+        {
+          "file": "index.html",
+          "tagSnippet": "<button type=\"button\" class=\"appt-form-tab active\" data-appt-tab=\"appointment\" aria-selected=\"true\">"
+        },
+        {
+          "file": "index.html",
+          "tagSnippet": "<button type=\"button\" class=\"appt-form-tab\" data-appt-tab=\"invoice-ro\" aria-selected=\"false\">"
+        },
+        {
+          "file": "index.html",
+          "tagSnippet": "<button type=\"button\" class=\"tabBtn active\" data-tab=\"jobs\">"
+        },
+        {
+          "file": "index.html",
+          "tagSnippet": "<button type=\"button\" class=\"tabBtn\" data-tab=\"parts\">"
+        },
+        {
+          "file": "index.html",
+          "tagSnippet": "<button type=\"button\" class=\"tag-btn active\" data-tag=\"internal\">"
+        },
+        {
+          "file": "index.html",
+          "tagSnippet": "<button type=\"button\" class=\"tag-btn\" data-tag=\"customer\">"
+        },
+        {
+          "file": "index.html",
+          "tagSnippet": "<button id=\"tvDensityToggle\" class=\"tv-density-btn\" title=\"Toggle compact/comfortable\" aria-label=\"Toggle card density\" aria-pressed=\"true\">"
+        },
+        {
+          "file": "index.html",
+          "tagSnippet": "<button type=\"button\" id=\"scanInvoiceCameraBtn\" class=\"scanBtn scanBtn--primary\">"
+        },
+        {
+          "file": "index.html",
+          "tagSnippet": "<button type=\"button\" id=\"scanInvoiceUploadBtn\" class=\"scanBtn scanBtn--secondary\">"
+        },
+        {
+          "file": "index.html",
+          "tagSnippet": "<button type=\"button\" id=\"scanInvoiceUploadConfirmBtn\" class=\"scanBtn scanBtn--primary\" style=\"min-height: 40px;\">"
+        },
+        {
+          "file": "index.html",
+          "tagSnippet": "<button id=\"cleanupInvoicesBtn\" class=\"tvBtn tvBtn--secondary tvBtn--sm tvInvoicesStorage__action\" title=\"Cleanup duplicate invoices\">"
+        },
+        {
+          "file": "index.html",
+          "tagSnippet": "<button id=\"refreshInvoicesButton\" class=\"tvBtn tvBtn--secondary tvBtn--sm tvInvoicesStorage__action\" title=\"Refresh invoices list\">"
+        },
+        {
+          "file": "index.html",
+          "tagSnippet": "<button type=\"button\" id=\"scanReviewGsfParseBtn\" class=\"scanReviewAction\" style=\"font-size:0.75rem;\" title=\"Re-run GSF table parser on OCR text\">"
+        },
+        {
+          "file": "index.html",
+          "tagSnippet": "<button type=\"button\" id=\"scanReviewParseItemsBtn\" class=\"scanReviewAction\" style=\"margin-left:auto; font-size:0.75rem;\" title=\"Re-parse items from OCR text using advanced description-zone logic\">"
+        },
+        {
+          "file": "index.html",
+          "tagSnippet": "<button type=\"button\" id=\"scanReviewDeleteBtn\" class=\"scanReviewAction scanReviewAction--danger\" style=\"display:none;\">"
+        },
+        {
+          "file": "index.html",
+          "tagSnippet": "<button type=\"button\" id=\"scanReviewSaveBtn\" class=\"scanReviewAction scanReviewAction--primary\">"
+        },
+        {
+          "file": "index.html",
+          "tagSnippet": "<button type=\"button\" id=\"scanReviewRetryBtn\" class=\"scanReviewAction\">"
+        },
+        {
+          "file": "index.html",
+          "tagSnippet": "<button type=\"button\" id=\"scanReviewRecalculateBtn\" class=\"scanReviewAction\">"
+        },
+        {
+          "file": "index.html",
+          "tagSnippet": "<button type=\"button\" id=\"scanReviewCancelBtn\" class=\"scanReviewAction\">"
+        },
+        {
+          "file": "index.html",
+          "tagSnippet": "<button type=\"button\" class=\"time-mode-btn time-mode-btn--type\" data-mode=\"type\" title=\"Type time\">"
+        },
+        {
+          "file": "index.html",
+          "tagSnippet": "<button type=\"button\" class=\"time-mode-btn time-mode-btn--picker\" data-mode=\"picker\" title=\"Select from wheels\">"
+        },
+        {
+          "file": "index.html",
+          "tagSnippet": "<button type=\"button\" class=\"btn-time-now\">"
+        },
+        {
+          "file": "index.html",
+          "tagSnippet": "<button type=\"button\" class=\"btn-time-cancel\">"
+        },
+        {
+          "file": "index.html",
+          "tagSnippet": "<button type=\"button\" class=\"btn-time-ok\">"
+        },
+        {
+          "file": "invoice.html",
+          "tagSnippet": "<button id=\"editBtn\" class=\"btn-primary\">"
+        },
+        {
+          "file": "invoice.html",
+          "tagSnippet": "<button id=\"printBtn\" class=\"btn-primary\">"
+        },
+        {
+          "file": "invoice.html",
+          "tagSnippet": "<button id=\"sendBtn\" class=\"btn-primary\">"
+        },
+        {
+          "file": "invoice.html",
+          "tagSnippet": "<button id=\"downloadPdfBtn\" class=\"btn-primary\" style=\"display:none;\">"
+        },
+        {
+          "file": "invoice.html",
+          "tagSnippet": "<button id=\"savePdfBtn\" class=\"btn-primary\">"
+        },
+        {
+          "file": "invoice.html",
+          "tagSnippet": "<button id=\"saveInvoiceBtn\" class=\"btn-success\" style=\"display:none;\">"
+        },
+        {
+          "file": "invoice.html",
+          "tagSnippet": "<button id=\"cancelEditBtn\" class=\"btn-secondary\" style=\"display:none;\">"
+        },
+        {
+          "file": "invoice.html",
+          "tagSnippet": "<button id=\"backBtn\" class=\"btn-secondary\">"
+        },
+        {
+          "file": "invoice.html",
+          "tagSnippet": "<button class=\"btn-send-option\" id=\"sendEmailBtn\">"
+        },
+        {
+          "file": "invoice.html",
+          "tagSnippet": "<button class=\"btn-send-option\" id=\"sendWhatsAppBtn\">"
+        },
+        {
+          "file": "invoice.html",
+          "tagSnippet": "<button class=\"btn-send-option\" id=\"copyLinkBtn\">"
+        },
+        {
+          "file": "invoice.html",
+          "tagSnippet": "<button class=\"btn-secondary\" id=\"closeSendModalFooter\">"
+        },
+        {
+          "file": "invoice.html",
+          "tagSnippet": "<button type=\"button\" class=\"invoice-mode-tab active\" data-invoice-mode=\"standard\" aria-selected=\"true\">"
+        },
+        {
+          "file": "invoice.html",
+          "tagSnippet": "<button type=\"button\" class=\"invoice-mode-tab\" data-invoice-mode=\"ro\" aria-selected=\"false\">"
+        }
+      ]
+    },
+    "scrollJumps": {
+      "total": 19,
+      "items": [
+        {
+          "file": "FIRESTORE_DIAGNOSTIC.html",
+          "line": 95,
+          "kind": "scroll-to",
+          "snippet": "LOG.scrollTop = LOG.scrollHeight;"
+        },
+        {
+          "file": "FIRESTORE_DIAGNOSTIC.html",
+          "line": 102,
+          "kind": "scroll-to",
+          "snippet": "CONFIG_LOG.scrollTop = CONFIG_LOG.scrollHeight;"
+        },
+        {
+          "file": "script.js",
+          "line": 4351,
+          "kind": "scroll-into-view",
+          "snippet": "if (firstCard) firstCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });"
+        },
+        {
+          "file": "script.js",
+          "line": 4455,
+          "kind": "scroll-into-view",
+          "snippet": "aptRow.scrollIntoView({"
+        },
+        {
+          "file": "script.js",
+          "line": 4749,
+          "kind": "scroll-into-view",
+          "snippet": "activeTabBtn.scrollIntoView({"
+        },
+        {
+          "file": "script.js",
+          "line": 5010,
+          "kind": "scroll-to",
+          "snippet": "window.scrollTo(0, this.scrollLockY);"
+        },
+        {
+          "file": "script.js",
+          "line": 5064,
+          "kind": "scroll-into-view",
+          "snippet": "selected.scrollIntoView({ block: 'center', behavior: 'smooth' });"
+        },
+        {
+          "file": "script.js",
+          "line": 5078,
+          "kind": "scroll-into-view",
+          "snippet": "selected.scrollIntoView({ block: 'center', behavior: 'smooth' });"
+        },
+        {
+          "file": "script.js",
+          "line": 5373,
+          "kind": "scroll-into-view",
+          "snippet": "activeTabBtn.scrollIntoView({"
+        },
+        {
+          "file": "script.js",
+          "line": 8722,
+          "kind": "location-hash",
+          "snippet": "if (!fromPopState && location.hash === '#appointments') {"
+        },
+        {
+          "file": "src/data-layer/invoice-renderer.js",
+          "line": 143,
+          "kind": "scroll-to",
+          "snippet": "const scrollTop = viewport.scrollTop;"
+        },
+        {
+          "file": "src/enterprise-dashboard.js",
+          "line": 389,
+          "kind": "scroll-into-view",
+          "snippet": "firstApt.scrollIntoView({ behavior: 'smooth', block: 'nearest' });"
+        },
+        {
+          "file": "src/header/header-search.js",
+          "line": 153,
+          "kind": "scroll-into-view",
+          "snippet": "appointmentsTab.scrollIntoView({ behavior: 'smooth' });"
+        },
+        {
+          "file": "src/ui/form-stepper.js",
+          "line": 266,
+          "kind": "scroll-into-view",
+          "snippet": "stepperHeader?.scrollIntoView({ behavior: 'smooth', block: 'start' });"
+        },
+        {
+          "file": "src/ui/wizard-v2/appt-wizard.js",
+          "line": 217,
+          "kind": "scroll-to",
+          "snippet": "if (bodyEl) bodyEl.scrollTop = 0;"
+        },
+        {
+          "file": "src/ui/wizard-v2/appt-wizard.js",
+          "line": 226,
+          "kind": "scroll-to",
+          "snippet": "if (bodyEl) bodyEl.scrollTop = 0;"
+        },
+        {
+          "file": "src/utils/notifications.js",
+          "line": 171,
+          "kind": "scroll-into-view",
+          "snippet": "aptRow.scrollIntoView({"
+        },
+        {
+          "file": "tools/audit-wiring.mjs",
+          "line": 821,
+          "kind": "href-hash",
+          "snippet": "p('Patterns that may trigger unexpected jump/scroll behavior (`href=\"#...\"`, `location.hash=`, `scrollIntoView`, `scrollTo`).');"
+        },
+        {
+          "file": "tools/audit-wiring.mjs",
+          "line": 821,
+          "kind": "location-hash",
+          "snippet": "p('Patterns that may trigger unexpected jump/scroll behavior (`href=\"#...\"`, `location.hash=`, `scrollIntoView`, `scrollTo`).');"
+        }
+      ]
+    },
+    "suspiciousNavigation": {
+      "total": 0,
+      "items": []
+    }
+  }
+}

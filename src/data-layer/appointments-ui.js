@@ -102,6 +102,9 @@ class AppointmentsUIRenderer {
     // Quick actions
     const actions = this.getQuickActions(apt, status);
 
+    // Next-action hint
+    const hint = this.getNextActionHint(apt, status, aptDate);
+
     return `
       <div class="apts-card" data-apt-id="${apt.id}">
         <div class="apts-card__header">
@@ -126,6 +129,8 @@ class AppointmentsUIRenderer {
         </div>
 
         ${phone ? `<div class="apts-card__phone"><i class="fas fa-phone"></i> ${this.escapeHtml(phone)}</div>` : ''}
+
+        ${hint ? `<div class="apts-card__hint">${hint}</div>` : ''}
 
         <div class="apts-card__actions">
           ${actions}
@@ -189,39 +194,99 @@ class AppointmentsUIRenderer {
   }
 
   /**
-   * Get quick actions HTML
+   * Get quick actions HTML with primary + secondary action rows
+   * Primary:   Invoice (orange) | Mark Complete / Mark Paid (green)
+   * Secondary: View/Edit (ghost) | Call (if phone present)
    * @private
    */
   getQuickActions(apt, status) {
-    let actions = '';
+    const isCompleted  = status === 'completed';
+    const isCancelled  = status === 'cancelled';
+    const phone        = apt.customerPhone || apt.phone || '';
 
-    // View / Edit
-    actions += `<button class="apts-action-btn apts-action-btn--primary" onclick="window._dataLayer?.editAppointment?.('${apt.id}')" title="View/Edit">
-      <i class="fas fa-eye"></i> <span>View</span>
-    </button>`;
+    // Resolve payment state — only usable when invoice exists
+    const invoiceId = apt.invoiceId || null;
+    const storedPaid = (apt.paymentStatus || '').toLowerCase() === 'paid';
+    const computedPaid = Number(apt.amountPaid || 0) > 0 &&
+                         Number(apt.amountPaid || 0) >= Number(apt.total || apt.estimatedCost || 0);
+    const isPaid = storedPaid || computedPaid;
 
-    // Complete (if not already completed)
-    if (status !== 'completed' && status !== 'cancelled') {
-      actions += `<button class="apts-action-btn apts-action-btn--success" onclick="window._dataLayer?.executeQuickAction?.('mark-complete', '${apt.id}')" title="Mark as completed">
-        <i class="fas fa-check"></i> <span>Complete</span>
-      </button>`;
-    }
+    // ── Primary row ──
+    let primary = '';
 
-    // Invoice (if completed)
-    if (status === 'completed') {
-      actions += `<button class="apts-action-btn apts-action-btn--secondary" onclick="window._dataLayer?.executeQuickAction?.('generate-invoice', '${apt.id}')" title="Generate Invoice">
+    if (isCompleted) {
+      // Invoice button (orange) — always present for completed appointments
+      primary += `<button class="apts-action-btn apts-action-btn--invoice" onclick="window._dataLayer?.executeQuickAction?.('generate-invoice','${apt.id}')" title="Open / generate invoice">
         <i class="fas fa-file-invoice"></i> <span>Invoice</span>
       </button>`;
+      // Mark Paid — only if an invoiceId is known AND not already paid
+      if (invoiceId && !isPaid) {
+        primary += `<button class="apts-action-btn apts-action-btn--success" onclick="window._dataLayer?.executeQuickAction?.('mark-paid','${invoiceId}')" title="Mark invoice as paid">
+          <i class="fas fa-pound-sign"></i> <span>Mark Paid</span>
+        </button>`;
+      } else if (isPaid) {
+        primary += `<span class="apts-pill apts-pill--paid" title="Invoice paid"><i class="fas fa-check-circle"></i> Paid</span>`;
+      }
+    } else if (!isCancelled) {
+      // Mark Complete (green) — spans both columns if no other primary button
+      primary += `<button class="apts-action-btn apts-action-btn--success apts-action-btn--full" onclick="window._dataLayer?.executeQuickAction?.('mark-complete','${apt.id}')" title="Mark appointment as complete">
+        <i class="fas fa-check"></i> <span>Mark Complete</span>
+      </button>`;
     }
 
-    // Call (if phone exists)
-    if (apt.customerPhone || apt.phone) {
-      actions += `<button class="apts-action-btn apts-action-btn--call" onclick="window.location.href='tel:${apt.customerPhone || apt.phone}'" title="Call customer">
+    // ── Secondary row ──
+    let secondary = '';
+
+    // Edit / View
+    secondary += `<button class="apts-action-btn" onclick="window._dataLayer?.editAppointment?.('${apt.id}')" title="View or edit appointment">
+      <i class="fas fa-pen"></i> <span>Edit</span>
+    </button>`;
+
+    // Call (if phone)
+    if (phone) {
+      secondary += `<button class="apts-action-btn apts-action-btn--call" onclick="window.location.href='tel:${phone}'" title="Call ${phone}">
         <i class="fas fa-phone"></i> <span>Call</span>
       </button>`;
     }
 
-    return actions;
+    return `
+      <div class="apts-card__actions-primary">${primary}</div>
+      <div class="apts-card__actions-secondary">${secondary}</div>
+    `;
+  }
+
+  /**
+   * Get a short next-action hint for this appointment
+   * Returns HTML string or null (nothing rendered).
+   * @private
+   */
+  getNextActionHint(apt, status, aptDate) {
+    if (status === 'completed') {
+      const hasInvoice = !!(apt.invoiceId ||
+        (Array.isArray(window.allInvoices) && window.allInvoices.find(inv =>
+          inv.appointmentId === apt.id || inv.aptId === apt.id
+        )));
+      if (!hasInvoice) {
+        return '<i class="fas fa-file-invoice" aria-hidden="true"></i> Invoice not created yet &mdash; tap Invoice';
+      }
+      const paid = (apt.paymentStatus || '').toLowerCase();
+      if (paid !== 'paid') {
+        return '<i class="fas fa-pound-sign" aria-hidden="true"></i> Invoice unpaid &mdash; tap Mark Paid';
+      }
+      return null;
+    }
+
+    if (aptDate && status !== 'completed') {
+      const now = new Date();
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const aptDay = new Date(aptDate.getFullYear(), aptDate.getMonth(), aptDate.getDate());
+      const phone = apt.customerPhone || apt.phone || '';
+      if (aptDay < today && phone) {
+        return '<i class="fas fa-phone" aria-hidden="true"></i> Overdue &mdash; call or reschedule';
+      }
+    }
+
+    return null;
   }
 
   /**

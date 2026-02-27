@@ -17,7 +17,7 @@
     <link rel="apple-touch-icon" sizes="192x192" href="Logo/apple-touch-icon.png">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
-    <link rel="stylesheet" href="./styles/invoice.css?v=2026-02-12-05">
+    <link rel="stylesheet" href="./styles/invoice.css?v=2026-02-27-01">
 </head>
 <body>
     <!-- Loading Overlay (shown until invoice data is ready) -->
@@ -100,6 +100,11 @@
     <div id="editModeOverlay" class="edit-mode-overlay" style="display:none;">
         <div class="edit-form-container">
             <form id="invoiceEditForm" class="edit-form">
+                <div id="invoiceModeTabs" class="invoice-mode-tabs" style="display:none;" role="tablist" aria-label="Invoice mode">
+                    <button type="button" class="invoice-mode-tab active" data-invoice-mode="standard" aria-selected="true">Standard</button>
+                    <button type="button" class="invoice-mode-tab" data-invoice-mode="ro" aria-selected="false">Companie (RO)</button>
+                </div>
+
                 <!-- Client Section -->
                 <details class="edit-section" open>
                     <summary class="edit-section-title">👤 Client Details</summary>
@@ -195,6 +200,103 @@
                         </div>
                     </div>
                 </details>
+
+                <!-- Companie RO Section (Optional, feature-flagged/toggle-driven) -->
+                <details class="edit-section" id="legalProfileROSection">
+                    <summary class="edit-section-title">Romanian Legal Details</summary>
+                    <div class="edit-fields">
+                        <div class="edit-field">
+                            <label style="display:flex;align-items:center;gap:0.5rem;font-weight:600;">
+                                <input type="checkbox" data-field="legalProfile.enabled" class="edit-input" style="width:1rem;height:1rem;min-height:auto;padding:0;">
+                                Enable Invoice RO
+                            </label>
+                        </div>
+
+                        <div class="edit-field" style="margin-top:0.5rem;">
+                            <label style="font-weight:700;">Emitent</label>
+                        </div>
+                        <div class="edit-field">
+                            <label>Company Name:</label>
+                            <input type="text" data-field="legalProfile.issuer.companyName" class="edit-input" placeholder="Emitent company name">
+                        </div>
+                        <div class="edit-field">
+                            <label>CUI:</label>
+                            <input type="text" data-field="legalProfile.issuer.cui" class="edit-input" placeholder="RO12345678">
+                        </div>
+                        <div class="edit-field">
+                            <label>RegCom:</label>
+                            <input type="text" data-field="legalProfile.issuer.regCom" class="edit-input" placeholder="J00/0000/0000">
+                        </div>
+                        <div class="edit-field">
+                            <label>Address:</label>
+                            <textarea data-field="legalProfile.issuer.address" class="edit-input edit-textarea" placeholder="Issuer address" rows="3"></textarea>
+                        </div>
+                        <div class="edit-field">
+                            <label>IBAN:</label>
+                            <input type="text" data-field="legalProfile.issuer.iban" class="edit-input" placeholder="RO00AAAA0000000000000000">
+                        </div>
+                        <div class="edit-field">
+                            <label>Bank:</label>
+                            <input type="text" data-field="legalProfile.issuer.bank" class="edit-input" placeholder="Bank name">
+                        </div>
+                        <div class="edit-field">
+                            <label>VAT Status Text:</label>
+                            <input type="text" data-field="legalProfile.issuer.vatStatusText" class="edit-input" placeholder="e.g., Neplătitor de TVA">
+                        </div>
+
+                        <div class="edit-field" style="margin-top:0.5rem;">
+                            <label style="font-weight:700;">Cumpărător</label>
+                        </div>
+                        <div class="edit-field">
+                            <label>Company Name:</label>
+                            <input type="text" data-field="legalProfile.buyer.companyName" class="edit-input" placeholder="Buyer company name">
+                        </div>
+                        <div class="edit-field">
+                            <label>CUI:</label>
+                            <input type="text" data-field="legalProfile.buyer.cui" class="edit-input" placeholder="RO12345678">
+                        </div>
+                        <div class="edit-field">
+                            <label>RegCom (optional):</label>
+                            <input type="text" data-field="legalProfile.buyer.regCom" class="edit-input" placeholder="J00/0000/0000">
+                        </div>
+                        <div class="edit-field">
+                            <label>Address:</label>
+                            <textarea data-field="legalProfile.buyer.address" class="edit-input edit-textarea" placeholder="Buyer address" rows="3"></textarea>
+                        </div>
+                        <div class="edit-field">
+                            <label>Email (optional):</label>
+                            <input type="email" data-field="legalProfile.buyer.email" class="edit-input" placeholder="office@company.ro">
+                        </div>
+                        <div class="edit-field">
+                            <label>Phone (optional):</label>
+                            <input type="tel" data-field="legalProfile.buyer.phone" class="edit-input" placeholder="+40...">
+                        </div>
+
+                        <div class="edit-field" style="margin-top:0.5rem;">
+                            <label style="font-weight:700;">Meta</label>
+                        </div>
+                        <div class="edit-field">
+                            <label>Series (optional):</label>
+                            <input type="text" data-field="legalProfile.meta.series" class="edit-input" placeholder="Series">
+                        </div>
+                        <div class="edit-field">
+                            <label>Number (optional):</label>
+                            <input type="text" data-field="legalProfile.meta.number" class="edit-input" placeholder="Number">
+                        </div>
+                        <div class="edit-field">
+                            <label>Issue Date (optional):</label>
+                            <input type="date" data-field="legalProfile.meta.issueDate" class="edit-input">
+                        </div>
+                        <div class="edit-field">
+                            <label>Due Date (optional):</label>
+                            <input type="date" data-field="legalProfile.meta.dueDate" class="edit-input">
+                        </div>
+                        <div class="edit-field">
+                            <label>Notes (optional):</label>
+                            <textarea data-field="legalProfile.meta.notes" class="edit-input edit-textarea" placeholder="Legal notes" rows="3"></textarea>
+                        </div>
+                    </div>
+                </details>
             </form>
 
             <!-- Sticky Actions (Bottom on Mobile) -->
@@ -221,8 +323,8 @@
                     </div>
                 </div>
                 <div class="inv-right">
-                    <img src="./assets/images/Logo.png" alt="Transvortex Logo" class="inv-logo inv-logo-desktop print-only-logo">
-                    <img src="./assets/images/Logo.png" alt="Transvortex Logo" class="inv-logo inv-logo-mobile print-only-logo">
+                    <img src="./assets/images/Logo.png" alt="Transvortex Logo" class="inv-logo inv-logo-desktop print-only-logo" width="220" height="64" decoding="async" fetchpriority="low">
+                    <img src="./assets/images/Logo.png" alt="Transvortex Logo" class="inv-logo inv-logo-mobile print-only-logo" width="220" height="64" decoding="async" fetchpriority="low">
                     <div class="inv-title">INVOICE</div>
                 </div>
             </header>
@@ -310,6 +412,30 @@
                     <div class="sec-title">Work Summary</div>
                     <div class="sec-text" id="notesText" style="display: none;">
                         Service carried out as agreed. Vehicle checked and tested. All work completed to manufacturer specifications.
+                    </div>
+                </div>
+
+                <div class="card inv-work" id="mechanicDetailsCard" style="display: none;">
+                    <div class="sec-title">Mechanic Repair Details</div>
+                    <div id="mechanicComplaintBlock" style="display:none; margin-bottom: 10px;">
+                        <div class="sec-title" style="font-size: 0.8rem;">Complaint / Symptoms</div>
+                        <div class="sec-text" id="mechanicComplaintText"></div>
+                    </div>
+                    <div id="mechanicDiagnosisBlock" style="display:none; margin-bottom: 10px;">
+                        <div class="sec-title" style="font-size: 0.8rem;">Diagnosis</div>
+                        <div class="sec-text" id="mechanicDiagnosisText"></div>
+                    </div>
+                    <div id="mechanicWorkBlock" style="display:none; margin-bottom: 10px;">
+                        <div class="sec-title" style="font-size: 0.8rem;">Work Performed</div>
+                        <div class="sec-text" id="mechanicWorkText"></div>
+                    </div>
+                    <div id="mechanicRecommendationsBlock" style="display:none; margin-bottom: 10px;">
+                        <div class="sec-title" style="font-size: 0.8rem;">Recommendations</div>
+                        <div class="sec-text" id="mechanicRecommendationsText"></div>
+                    </div>
+                    <div id="mechanicTermsBlock" style="display:none;">
+                        <div class="sec-title" style="font-size: 0.8rem;">Warranty / Disclaimer</div>
+                        <div class="sec-text" id="mechanicTermsText"></div>
                     </div>
                 </div>
 
