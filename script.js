@@ -8881,7 +8881,13 @@ function setupAppointmentFormLogic() {
         const makeModelEl = document.getElementById('makeModel');
         const regNumberEl = document.getElementById('regNumber');
 
-        if (!lookupInput || !lookupBtn || !lookupStatus || !summaryWrap) return;
+        if (!lookupInput || !lookupBtn || !lookupStatus) {
+            console.warn('[DVSA] Lookup UI not initialized (missing required elements).');
+            return;
+        }
+
+        if (lookupBtn.dataset.dvsaBound === '1') return;
+        lookupBtn.dataset.dvsaBound = '1';
 
         let isLookupLoading = false;
 
@@ -8909,6 +8915,7 @@ function setupAppointmentFormLogic() {
         }
 
         function renderSkeleton() {
+            if (!summaryWrap) return;
             summaryWrap.classList.add('is-visible');
             summaryWrap.innerHTML = `
                 <div class="vehicle-summary-skeleton" aria-hidden="true">
@@ -8921,6 +8928,7 @@ function setupAppointmentFormLogic() {
         }
 
         function renderSummary(vehicle) {
+            if (!summaryWrap) return;
             summaryWrap.classList.add('is-visible');
             const make = String(vehicle?.make || '').trim();
             const model = String(vehicle?.model || '').trim();
@@ -8942,6 +8950,7 @@ function setupAppointmentFormLogic() {
         }
 
         function clearSummary() {
+            if (!summaryWrap) return;
             summaryWrap.classList.remove('is-visible');
             summaryWrap.innerHTML = '';
         }
@@ -8958,35 +8967,21 @@ function setupAppointmentFormLogic() {
             return String(base || '').trim().replace(/\/+$/, '');
         }
 
-        function getDvsaEndpoints(vrm) {
-            const encodedVrm = encodeURIComponent(vrm);
+        function getDvsaEndpoint() {
             const projectId = app?.options?.projectId || db?.app?.options?.projectId || 'appointments-transvortex';
             const overrideBase = window.TVX_DVSA_ENDPOINT || localStorage.getItem('tvx_dvsa_endpoint') || '';
-            const host = window.location.hostname;
-            const isLocalDev = host === '127.0.0.1' || host === 'localhost';
+            const host = String(window.location.hostname || '').toLowerCase();
 
-            const candidates = [];
             if (overrideBase) {
                 const normalizedOverride = normalizeEndpointBase(overrideBase);
-                if (normalizedOverride.includes('?')) {
-                    candidates.push(normalizedOverride);
-                } else {
-                    candidates.push(`${normalizedOverride}?vrm=${encodedVrm}`);
-                }
+                return normalizedOverride;
             }
 
-            // Primary endpoint (Hosting rewrite target)
-            candidates.push(`/api/dvsa?vrm=${encodedVrm}`);
-
-            // Fallback direct Cloud Function URL
-            candidates.push(`https://europe-west2-${projectId}.cloudfunctions.net/dvsa?vrm=${encodedVrm}`);
-
-            // In local dev, only keep explicit override + direct cloud URL
-            if (isLocalDev) {
-                return Array.from(new Set(candidates));
+            if (host.endsWith('github.io')) {
+                return `https://europe-west2-${projectId}.cloudfunctions.net/dvsa`;
             }
 
-            return Array.from(new Set(candidates));
+            return '/api/dvsa';
         }
 
         async function runLookup() {
@@ -9002,61 +8997,41 @@ function setupAppointmentFormLogic() {
             }
 
             setLoading(true);
-            setStatus('info', 'Checking DVSA data…');
+            setStatus('info', 'Checking DVSA…');
             renderSkeleton();
 
             try {
-                const endpoints = getDvsaEndpoints(vrm);
-                let response = null;
-                let lastStatus = 0;
-                let hadNetworkError = false;
+                const endpoint = getDvsaEndpoint();
+                const response = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({ vrm })
+                });
 
-                for (const endpoint of endpoints) {
-                    try {
-                        response = await fetch(endpoint, {
-                            method: 'GET',
-                            headers: { 'Accept': 'application/json' }
-                        });
-
-                        if (response.ok) {
-                            break;
-                        }
-
-                        lastStatus = response.status;
-
-                        // 400 means endpoint works, VRM format/validation failed → don't retry others
-                        if (response.status === 400) {
-                            break;
-                        }
-
-                        // 404 can be wrong endpoint OR vehicle not found depending on backend implementation
-                        // Try next candidate if available before deciding.
-                    } catch (err) {
-                        hadNetworkError = true;
-                        console.warn('[DVSA] Endpoint attempt failed:', endpoint, err);
-                        response = null;
-                    }
-                }
-
-                if (!response || !response.ok) {
+                if (!response.ok) {
                     clearSummary();
+                    const contentType = response.headers.get('content-type') || '';
+                    let payload = null;
+                    if (contentType.includes('application/json')) {
+                        payload = await response.json().catch(() => null);
+                    }
+                    const backendMsg = payload?.error || payload?.message || '';
 
-                    if (lastStatus === 400) {
-                        setStatus('error', 'Registration format is invalid.');
-                    } else if (lastStatus === 404) {
-                        setStatus('error', 'DVSA endpoint not found (404). Check that functions:dvsa is deployed in the active Firebase project/region.');
-                    } else if (lastStatus === 502 || lastStatus === 503) {
-                        setStatus('error', 'DVSA service is temporarily unavailable. You can continue manually.');
-                    } else if (hadNetworkError) {
-                        const host = window.location.hostname;
-                        const isLocalDev = host === '127.0.0.1' || host === 'localhost';
-                        if (isLocalDev) {
-                            setStatus('error', 'Local preview cannot reach DVSA endpoint (CORS or missing deploy). Use Firebase Hosting or set localStorage["tvx_dvsa_endpoint"].');
+                    if (response.status === 400) {
+                        setStatus('error', backendMsg || 'Registration format is invalid.');
+                    } else if (response.status === 404) {
+                        if (String(backendMsg).toLowerCase().includes('vehicle not found')) {
+                            setStatus('error', 'Vehicle not found in DVSA records. Check the registration and try again.');
                         } else {
-                            setStatus('error', 'Could not reach DVSA endpoint (network/CORS). You can continue manually.');
+                            setStatus('error', 'DVSA function endpoint not found / not deployed.');
                         }
+                    } else if (response.status === 502 || response.status === 503) {
+                        setStatus('error', backendMsg || 'DVSA service is temporarily unavailable. You can continue manually.');
                     } else {
-                        setStatus('error', 'Lookup failed. You can continue manually.');
+                        setStatus('error', backendMsg || 'Lookup failed. You can continue manually.');
                     }
                     return;
                 }
@@ -9074,7 +9049,13 @@ function setupAppointmentFormLogic() {
             } catch (error) {
                 clearSummary();
                 console.warn('[DVSA] Lookup error:', error);
-                setStatus('error', 'Lookup service unavailable right now. You can continue manually.');
+                const host = String(window.location.hostname || '').toLowerCase();
+                const isLocalDev = host === '127.0.0.1' || host === 'localhost';
+                if (isLocalDev) {
+                    setStatus('error', 'DVSA unavailable on local preview. Use Firebase Hosting or set localStorage["tvx_dvsa_endpoint"].');
+                } else {
+                    setStatus('error', 'DVSA unavailable on this host. Use Firebase Hosting or configure endpoint.');
+                }
             } finally {
                 setLoading(false);
             }

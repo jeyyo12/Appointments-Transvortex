@@ -7,28 +7,46 @@ const DVSA_API_KEY = defineSecret("DVSA_API_KEY");
 const ALLOWED_ORIGINS = [
   "https://appointments-transvortex.web.app",
   "https://appointments-transvortex.firebaseapp.com",
+  "https://jeyyo12.github.io",
   "http://127.0.0.1:5500",
   "http://localhost:5500"
 ];
 
+function applyCors(req, res) {
+  const origin = req.get("origin") || "";
+  if (origin && ALLOWED_ORIGINS.includes(origin)) {
+    res.set("Access-Control-Allow-Origin", origin);
+    res.set("Vary", "Origin");
+  }
+  res.set("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+  res.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  res.set("Access-Control-Max-Age", "3600");
+}
+
 exports.dvsa = onRequest(
   {
     region: "europe-west2",
-    secrets: [DVSA_API_KEY],
-    cors: ALLOWED_ORIGINS
+    secrets: [DVSA_API_KEY]
   },
   async (req, res) => {
-    if (req.method !== "GET") {
+    applyCors(req, res);
+
+    if (req.method === "OPTIONS") {
+      return res.status(204).send("");
+    }
+
+    if (req.method !== "GET" && req.method !== "POST") {
       return res.status(405).json({ error: "Method not allowed" });
     }
 
-    const vrm = String(req.query.vrm || "")
+    const vrmFromBody = req.body && typeof req.body === "object" ? req.body.vrm : "";
+    const vrm = String(req.query.vrm || vrmFromBody || "")
       .trim()
       .toUpperCase()
       .replace(/\s+/g, "");
 
     if (!vrm) {
-      return res.status(400).json({ error: "Missing vrm query parameter" });
+      return res.status(400).json({ error: "Missing vrm" });
     }
 
     try {
