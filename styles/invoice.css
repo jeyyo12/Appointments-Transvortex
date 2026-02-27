@@ -3681,3 +3681,249 @@ body {
         display: none !important;
     }
 }
+
+/* ============================================================
+   2026-02 Minimal professional A4 alignment refinements
+   (layout-only, no JS/data changes)
+   ============================================================ */
+
+/* STEP A — META ROW GRID: INV | DATE | DUE | REG | REF */
+.inv-meta {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.2fr);
+    gap: 8px 12px;
+    padding: 10px 16px 9px;
+    align-items: end;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.inv-meta > div {
+    min-width: 0;
+    display: grid;
+    gap: 3px;
+}
+
+.inv-meta strong {
+    margin-right: 0;
+    font-size: 10px;
+    line-height: 1;
+    letter-spacing: 0.11em;
+    text-transform: uppercase;
+    color: #6b7280;
+}
+
+.inv-meta span {
+    display: block;
+    min-width: 0;
+    font-size: 13px;
+    line-height: 1.25;
+    font-weight: 800;
+    color: #111827;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+#invoiceRef {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* STEP B — TOP 3 PANELS ALIGNMENT */
+.perf-grid {
+    grid-template-columns: minmax(0, 1.18fr) minmax(0, 1fr) minmax(0, 0.98fr);
+    gap: 12px;
+    margin-top: 10px;
+}
+
+.perf-card {
+    padding: 12px 12px;
+    border-radius: 9px;
+    border: 1px solid #dfe4ea;
+    background: #fff;
+}
+
+.perf-card::before {
+    width: 2px;
+    border-radius: 9px 0 0 9px;
+    opacity: 0.72;
+}
+
+.bill-card h4,
+.vehicle-card h4 {
+    margin: 0 0 7px 0;
+    font-size: 11px;
+    letter-spacing: 0.12em;
+}
+
+/* STEP C — VEHICLE DETAILS CHIPS */
+.vehicle-card-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 7px;
+}
+
+.vehicle-chip {
+    min-height: 54px;
+    padding: 7px 8px;
+    display: grid;
+    grid-template-rows: auto 1fr;
+    align-content: start;
+    gap: 3px;
+    border-radius: 7px;
+    border: 1px solid #e5e7eb;
+    background: #fbfcfd;
+}
+
+.vehicle-chip-label {
+    font-size: 10px;
+    line-height: 1;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: #6b7280;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.vehicle-chip-value {
+    font-size: 12.5px;
+    line-height: 1.25;
+    font-weight: 800;
+    color: #111827;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* MOT chip: compact dual-value appearance (date + status inline) */
+#vehicleMotExpiryWrap .vehicle-chip-value {
+    display: block;
+    font-size: 12px;
+    letter-spacing: 0.01em;
+}
+
+/* DVSA compact verified block */
+.vehicle-dvsa-meta {
+    margin-top: 6px;
+    display: grid;
+    gap: 3px;
+    align-items: start;
+}
+
+.vehicle-dvsa-badge {
+    display: inline-flex;
+    align-items: center;
+    width: fit-content;
+    font-size: 10px;
+    line-height: 1;
+    padding: 3px 8px;
+    border-radius: 999px;
+    color: #374151;
+    background: #f3f4f6;
+    border: 1px solid #d1d5db;
+}
+
+.vehicle-dvsa-checked {
+    font-size: 10.5px;
+    line-height: 1.2;
+    color: #6b7280;
+    font-weight: 600;
+}
+
+/* STEP D — TABLE LEGAL STYLE */
+.inv-lines {
+    padding: 8px 12px;
+}
+
+.inv-table thead {
+    background: #f5f7fa;
+    color: #0f172a;
+}
+
+.inv-table th {
+    padding: 7px 8px;
+    font-size: 10.5px;
+    border-bottom: 1px solid #d8dee7;
+}
+
+.inv-table td {
+    padding: 6px 8px;
+    font-size: 11.5px;
+    border-bottom: 1px solid #ebeff5;
+    background: #fff;
+}
+
+.inv-table tbody tr:nth-child(even) {
+    background: transparent;
+}
+
+.inv-col-desc { text-align: left; }
+.inv-col-qty { text-align: center; }
+.inv-col-unit,
+.inv-col-total { text-align: right; }
+
+/* STEP E — FOOTER 3 COLUMNS */
+.inv-footer-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+    padding: 10px;
+}
+
+.footer-col .sec-title {
+    margin-bottom: 5px;
+}
+
+.footer-col .sec-text {
+    font-size: 11.5px;
+    line-height: 1.35;
+}
+
+/* STEP F — PRINT CLEANUP */
+@media print {
+    @page {
+        size: A4;
+        margin: 12mm;
+    }
+
+    .controls-bar,
+    #printBtn,
+    #savePdfBtn,
+    #downloadPdfBtn,
+    #editBtn,
+    #sendBtn,
+    #backBtn,
+    .no-print,
+    .print-hint {
+        display: none !important;
+    }
+
+    .invoice-sheet,
+    .perf-card,
+    .card,
+    .vehicle-chip,
+    .summary-card,
+    .total-box {
+        box-shadow: none !important;
+        border-radius: 0 !important;
+    }
+
+    .inv-header,
+    .inv-meta,
+    .perf-grid,
+    .vehicle-card,
+    .summary-card,
+    .inv-lines,
+    .inv-footer-grid,
+    .inv-bottom {
+        break-inside: avoid;
+        page-break-inside: avoid;
+    }
+
+    .inv-table thead {
+        background: #f5f7fa !important;
+        color: #111827 !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+}

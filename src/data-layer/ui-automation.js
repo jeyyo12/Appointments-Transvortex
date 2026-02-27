@@ -35,39 +35,7 @@ class UIAutomation {
    * @private
    */
   attachFeedEventListeners() {
-    const closeBtn = document.querySelector('.tv-feed-close');
-    if (closeBtn) {
-      closeBtn.addEventListener('click', () => this.closeFeed());
-    }
-
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape' && this.feedOpen) {
-        this.closeFeed();
-      }
-    });
-
-    document.addEventListener('click', (e) => {
-      if (!this.feedOpen) return;
-      const feed = document.getElementById('tvAutomationFeed');
-      const bell = document.getElementById('tvBellBtn');
-      if (!feed) return;
-      if (feed.contains(e.target) || bell?.contains(e.target)) return;
-      this.closeFeed();
-    });
-
-    // Event delegation for alert actions
-    document.addEventListener('click', (e) => {
-      if (e.target.closest('.tv-alert-item')) {
-        const alertId = e.target.closest('.tv-alert-item').dataset.alertId;
-        this.handleAlertClick(alertId);
-      }
-
-      if (e.target.closest('.tv-alert-dismiss')) {
-        e.stopPropagation();
-        const alertId = e.target.closest('.tv-alert-item').dataset.alertId;
-        this.dismissAlert(alertId);
-      }
-    });
+    return;
   }
 
   /**
@@ -75,20 +43,8 @@ class UIAutomation {
    * @private
    */
   bindBellToggle() {
-    if (this.bellToggleBound) return;
-    const bellBtn = document.getElementById('tvBellBtn');
-    if (!bellBtn || bellBtn.dataset.automationFeedBound === '1') return;
-
-    bellBtn.dataset.automationFeedBound = '1';
-    bellBtn.addEventListener('click', () => {
-      if (this.feedOpen) {
-        this.closeFeed();
-      } else {
-        this.openFeed();
-      }
-    });
-
-    this.bellToggleBound = true;
+    this.bellToggleBound = false;
+    return;
   }
 
   /**

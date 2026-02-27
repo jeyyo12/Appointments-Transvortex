@@ -403,11 +403,25 @@ export async function getOrCreateInvoiceForAppointment(appointmentId, prefillDat
     };
     
     logger.info('📝 Creating invoice with payload:', invoicePayload);
+    if (typeof window !== 'undefined' && window.TVX_DVSA_DEBUG === true) {
+      console.debug('[TVX:DVSA] invoice-create-copy-vehicle', {
+        appointmentId,
+        invoiceId: null,
+        vehicle: canonicalVehicle
+      });
+    }
     
     const invoiceRef = await addDoc(collection(db, 'invoices'), invoicePayload);
     const invoiceId = invoiceRef.id;
     
     logger.info('✅ Invoice created:', invoiceId, 'Number:', invoiceNumber);
+    if (typeof window !== 'undefined' && window.TVX_DVSA_DEBUG === true) {
+      console.debug('[TVX:DVSA] invoice-created', {
+        appointmentId,
+        invoiceId,
+        vehicle: canonicalVehicle
+      });
+    }
     
     // Update appointment with invoice ID
     await updateDoc(aptRef, {

@@ -4234,8 +4234,15 @@ const notifState = {
     uid: '',
     unsubscribe: null,
     automationIds: new Set(),
-    automationSyncBusy: false
+    automationSyncBusy: false,
+    isOpen: false
 };
+
+function _notifDebug(...args) {
+    if (window.TVX_NOTIF_DEBUG === true || window.ALERTS_DEBUG === true) {
+        console.debug('[TVX:NOTIF]', ...args);
+    }
+}
 
 function _notifEscapeHtml(value) {
     return String(value || '')
@@ -4421,6 +4428,7 @@ async function syncAutomationAlertsToNotificationCenter() {
     if (notifState.automationSyncBusy) return;
     notifState.automationSyncBusy = true;
     try {
+        _notifDebug('sync:start');
         const alerts = window._dataLayer?.getTopAlerts?.() || [];
         const nextIds = new Set();
         for (const alert of alerts) {
@@ -4444,6 +4452,7 @@ async function syncAutomationAlertsToNotificationCenter() {
             await _notifArchiveMany(stale);
         }
         notifState.automationIds = nextIds;
+        _notifDebug('sync:done', { count: alerts.length, tracked: notifState.automationIds.size });
     } catch {
     } finally {
         notifState.automationSyncBusy = false;
@@ -4477,22 +4486,22 @@ function getNotifications() {
 
 function markRead(notificationId, read = true) {
     if (!notificationId) return;
-    _notifPatch(notificationId, { read: !!read });
+    return _notifPatch(notificationId, { read: !!read });
 }
 
 function markAllRead() {
     const ids = getNotifications().filter(item => !item.read).map(item => item.id);
-    ids.forEach(id => _notifPatch(id, { read: true }));
+    return Promise.all(ids.map(id => _notifPatch(id, { read: true })));
 }
 
 function removeNotification(notificationId) {
     if (!notificationId) return;
-    _notifPatch(notificationId, { archived: true });
+    return _notifPatch(notificationId, { archived: true });
 }
 
 function clearNotifications() {
     const ids = getNotifications().map(item => item.id);
-    _notifArchiveMany(ids);
+    return _notifArchiveMany(ids);
 }
 
 function unreadCount() {
@@ -4573,7 +4582,7 @@ function refreshBellBadge() {
     const badge  = document.getElementById('tvBellBadge');
     const btn    = document.getElementById('tvBellBtn');
     const drawer = document.getElementById('tvNotifDrawer');
-    const isOpen = !!drawer?.classList.contains('tv-notif-drawer--open');
+    const isOpen = !!notifState.isOpen;
     if (!badge || !btn) return;
     if (total > 0) {
         badge.textContent = total > 99 ? '99+' : String(total);
@@ -4645,8 +4654,13 @@ function toggleNotifDrawer() {
     const isOpen = drawer.classList.contains('tv-notif-drawer--open');
     if (isOpen) {
         drawer.classList.remove('tv-notif-drawer--open');
+        notifState.isOpen = false;
         bell?.setAttribute('aria-expanded', 'false');
+        _notifDebug('drawer:close', { count: getNotifications().length, unread: unreadCount() });
     } else {
+        notifState.filter = 'all';
+        const automationFeed = document.getElementById('tvAutomationFeed');
+        if (automationFeed) automationFeed.style.display = 'none';
         // Anchor drawer below the header by measuring it at open-time
         const header = document.getElementById('authBar');
         if (header) {
@@ -4655,8 +4669,10 @@ function toggleNotifDrawer() {
         }
         _renderNotifBody();
         drawer.classList.add('tv-notif-drawer--open');
+        notifState.isOpen = true;
         bell?.setAttribute('aria-expanded', 'true');
         drawer.querySelector('[data-notif-close]')?.focus();
+        _notifDebug('drawer:open', { filter: notifState.filter, count: getNotifications().length, unread: unreadCount() });
     }
 }
 
@@ -4666,21 +4682,25 @@ function bindNotifDrawer() {
     if (!drawer || drawer.dataset.notifBound) return;
     drawer.dataset.notifBound = '1';
 
-    drawer.addEventListener('click', (e) => {
+    drawer.addEventListener('click', async (e) => {
         // Header actions
         const markAllBtn = e.target.closest('[data-notif-mark-all]');
         if (markAllBtn) {
-            markAllRead();
+            const before = unreadCount();
+            await markAllRead();
             _renderNotifBody();
             refreshBellBadge();
+            _notifDebug('action:mark-all-read', { before, after: unreadCount() });
             return;
         }
 
         const clearBtn = e.target.closest('[data-notif-clear]');
         if (clearBtn) {
-            clearNotifications();
+            const before = getNotifications().length;
+            await clearNotifications();
             _renderNotifBody();
             refreshBellBadge();
+            _notifDebug('action:clear', { before, after: getNotifications().length });
             return;
         }
 
@@ -4691,8 +4711,9 @@ function bindNotifDrawer() {
             const aptId = openBtn.dataset.notifAptId;
             const linkKind = openBtn.dataset.notifLinkKind;
             const linkFilter = openBtn.dataset.notifLinkFilter;
-            if (notifId) markRead(notifId, true);
+            if (notifId) await markRead(notifId, true);
             drawer.classList.remove('tv-notif-drawer--open');
+            notifState.isOpen = false;
             const bell = document.getElementById('tvBellBtn');
             bell?.setAttribute('aria-expanded', 'false');
             if (aptId) {
@@ -4703,6 +4724,7 @@ function bindNotifDrawer() {
                 window._dataLayer?.applyFilter?.(linkFilter);
             }
             refreshBellBadge();
+            _notifDebug('action:open', { notifId, aptId, linkKind, linkFilter });
             return;
         }
 
@@ -4710,6 +4732,7 @@ function bindNotifDrawer() {
         if (filterChipBtn) {
             notifState.filter = filterChipBtn.dataset.notifFilterTab || 'all';
             _renderNotifBody();
+            _notifDebug('action:filter', notifState.filter);
             return;
         }
 
@@ -4718,18 +4741,21 @@ function bindNotifDrawer() {
         if (markReadBtn) {
             const notifId = markReadBtn.dataset.notifId;
             const isRead = markReadBtn.dataset.notifRead === '1';
-            if (notifId) markRead(notifId, !isRead);
+            const before = unreadCount();
+            if (notifId) await markRead(notifId, !isRead);
             _renderNotifBody();
             refreshBellBadge();
+            _notifDebug('action:toggle-read', { notifId, read: !isRead, before, after: unreadCount() });
             return;
         }
 
         // Remove persisted notification
         const removeBtn = e.target.closest('[data-notif-remove-id]');
         if (removeBtn) {
-            removeNotification(removeBtn.dataset.notifRemoveId);
+            await removeNotification(removeBtn.dataset.notifRemoveId);
             _renderNotifBody();
             refreshBellBadge();
+            _notifDebug('action:dismiss', removeBtn.dataset.notifRemoveId);
             return;
         }
 
@@ -4765,8 +4791,10 @@ function bindNotifDrawer() {
         // Close
         if (e.target.closest('[data-notif-close]')) {
             drawer.classList.remove('tv-notif-drawer--open');
+            notifState.isOpen = false;
             const bell = document.getElementById('tvBellBtn');
             bell?.setAttribute('aria-expanded', 'false');
+            _notifDebug('drawer:close:button');
         }
     });
 
@@ -4777,7 +4805,9 @@ function bindNotifDrawer() {
         if (!dr?.classList.contains('tv-notif-drawer--open')) return;
         if (!dr.contains(ev.target) && !btn?.contains(ev.target)) {
             dr.classList.remove('tv-notif-drawer--open');
+            notifState.isOpen = false;
             btn?.setAttribute('aria-expanded', 'false');
+            _notifDebug('drawer:close:outside');
         }
     }, { passive: true, capture: false });
 
@@ -4785,9 +4815,11 @@ function bindNotifDrawer() {
         if (ev.key !== 'Escape') return;
         if (!drawer.classList.contains('tv-notif-drawer--open')) return;
         drawer.classList.remove('tv-notif-drawer--open');
+        notifState.isOpen = false;
         const btn = document.getElementById('tvBellBtn');
         btn?.setAttribute('aria-expanded', 'false');
         btn?.focus();
+        _notifDebug('drawer:close:escape');
     });
 }
 window.toggleNotifDrawer = toggleNotifDrawer;
@@ -9164,6 +9196,17 @@ function setupAppointmentFormLogic() {
 
     // 2b. DVSA Vehicle Lookup (Cloud Function proxy)
     function initDvsaLookup() {
+        const dvsaDebug = (...args) => {
+            if (window.TVX_DVSA_DEBUG === true) {
+                console.debug('[TVX:DVSA]', ...args);
+            }
+        };
+        const milesDebug = (...args) => {
+            if (window.TVX_MILES_DEBUG === true) {
+                console.debug('[TVX:MILES]', ...args);
+            }
+        };
+
         const lookupInput = document.getElementById('vehicleLookupVrm');
         const lookupBtn = document.getElementById('vehicleLookupBtn');
         const lookupBtnText = document.getElementById('vehicleLookupBtnText');
@@ -9235,7 +9278,8 @@ function setupAppointmentFormLogic() {
             const regValue = normalizeVrm(vehicle?.vrm || regNumberEl?.value || lookupInput?.value || '');
             const makeModelValue = (make + ' ' + model).trim() || String(makeModelEl?.value || '').trim() || 'N/A';
             const mileageEl = document.getElementById('mileage');
-            const mileageValue = String(mileageEl?.value || '').trim() || 'N/A';
+            const mileageRaw = parseMiles(mileageEl?.dataset?.rawMileage ?? mileageEl?.value);
+            const mileageValue = formatMiles(mileageRaw) || 'N/A';
             summaryWrap.innerHTML = `
                 <div class="vehicle-summary-head">
                     <p class="vehicle-summary-title">Vehicle Summary</p>
@@ -9309,6 +9353,50 @@ function setupAppointmentFormLogic() {
                 if (typeof onSave === 'function') onSave(next);
             };
 
+            const commitMileageValue = async (value) => {
+                const parsedMiles = parseMiles(value);
+                const formattedMiles = formatMiles(parsedMiles);
+
+                if (mileageEl) {
+                    mileageEl.dataset.rawMileage = parsedMiles === null ? '0' : String(parsedMiles);
+                    mileageEl.value = formattedMiles;
+                }
+                if (mileageText) mileageText.textContent = formattedMiles || 'N/A';
+                if (mileageInput) mileageInput.value = parsedMiles === null ? '' : String(parsedMiles);
+
+                if (!window.__tvxLastDvsaVehicle || typeof window.__tvxLastDvsaVehicle !== 'object') {
+                    window.__tvxLastDvsaVehicle = {};
+                }
+                window.__tvxLastDvsaVehicle.mileage = parsedMiles;
+
+                milesDebug('commit', {
+                    appointmentId: editingAppointmentId || null,
+                    rawInput: value,
+                    parsedMiles,
+                    formattedMiles
+                });
+
+                if (!editingAppointmentId) return;
+
+                const canonicalVehicle = buildCanonicalVehicle({
+                    regPlate: regNumberEl?.value || lookupInput?.value || '',
+                    makeModel: makeModelEl?.value || '',
+                    mileage: parsedMiles,
+                    motStatus: window.__tvxLastDvsaVehicle?.motStatus || '',
+                    motExpiry: window.__tvxLastDvsaVehicle?.motExpiry || '',
+                    taxStatus: window.__tvxLastDvsaVehicle?.taxStatus || '',
+                    dvsaVerified: Boolean(window.__tvxLastDvsaVehicle?.dvsaVerified),
+                    dvsaCheckedAt: window.__tvxLastDvsaVehicle?.dvsaCheckedAt || null
+                });
+
+                await syncCanonicalVehicleToFirestore(canonicalVehicle);
+
+                milesDebug('synced', {
+                    appointmentId: editingAppointmentId,
+                    mileage: canonicalVehicle.mileage
+                });
+            };
+
             summaryWrap.querySelectorAll('.edit-btn[data-target]').forEach((button) => {
                 button.addEventListener('click', (e) => {
                     e.preventDefault();
@@ -9337,13 +9425,13 @@ function setupAppointmentFormLogic() {
 
             if (mileageInput) {
                 mileageInput.addEventListener('blur', () => finishEdit(mileageText, mileageInput, (value) => {
-                    if (mileageEl) mileageEl.value = value;
+                    commitMileageValue(value);
                 }));
                 mileageInput.addEventListener('keydown', (e) => {
                     if (e.key === 'Enter') {
                         e.preventDefault();
                         finishEdit(mileageText, mileageInput, (value) => {
-                            if (mileageEl) mileageEl.value = value;
+                            commitMileageValue(value);
                         });
                     }
                 });
@@ -9373,6 +9461,20 @@ function setupAppointmentFormLogic() {
             if (value === null || value === undefined || value === '') return null;
             const numeric = Number(String(value).replace(/[^0-9.-]/g, ''));
             return Number.isFinite(numeric) && numeric > 0 ? numeric : null;
+        }
+
+        function parseMiles(input) {
+            if (input === null || input === undefined) return null;
+            const digits = String(input).replace(/\D/g, '');
+            if (!digits) return null;
+            const numeric = Number(digits);
+            return Number.isFinite(numeric) && numeric > 0 ? numeric : null;
+        }
+
+        function formatMiles(value) {
+            const parsed = parseMiles(value);
+            if (parsed === null) return '';
+            return parsed.toLocaleString('en-GB');
         }
 
         function buildCanonicalVehicle(payload = {}) {
@@ -9419,6 +9521,21 @@ function setupAppointmentFormLogic() {
                     updatedAt: serverTimestamp()
                 });
 
+                dvsaDebug('appointment-vehicle-written', {
+                    appointmentId: editingAppointmentId,
+                    invoiceId: aptData.invoiceId || null,
+                    vehicle: {
+                        regPlate: canonicalVehicle.regPlate || '',
+                        makeModel: canonicalVehicle.makeModel || '',
+                        mileage: canonicalVehicle.mileage ?? null,
+                        motStatus: canonicalVehicle.motStatus || '',
+                        motExpiry: canonicalVehicle.motExpiry || '',
+                        taxStatus: canonicalVehicle.taxStatus || '',
+                        dvsaVerified: Boolean(canonicalVehicle.dvsaVerified),
+                        dvsaCheckedAt: canonicalVehicle.dvsaCheckedAt || null
+                    }
+                });
+
                 const linkedInvoiceIds = new Set();
                 if (aptData.invoiceId) {
                     linkedInvoiceIds.add(String(aptData.invoiceId));
@@ -9442,6 +9559,21 @@ function setupAppointmentFormLogic() {
                             updatedAt: serverTimestamp()
                         });
                     }));
+
+                    dvsaDebug('invoice-vehicle-written', {
+                        appointmentId: editingAppointmentId,
+                        invoiceIds: Array.from(linkedInvoiceIds),
+                        vehicle: {
+                            regPlate: canonicalVehicle.regPlate || '',
+                            makeModel: canonicalVehicle.makeModel || '',
+                            mileage: canonicalVehicle.mileage ?? null,
+                            motStatus: canonicalVehicle.motStatus || '',
+                            motExpiry: canonicalVehicle.motExpiry || '',
+                            taxStatus: canonicalVehicle.taxStatus || '',
+                            dvsaVerified: Boolean(canonicalVehicle.dvsaVerified),
+                            dvsaCheckedAt: canonicalVehicle.dvsaCheckedAt || null
+                        }
+                    });
 
                     if (!aptData.invoiceId) {
                         const primaryInvoiceId = Array.from(linkedInvoiceIds)[0];
@@ -9565,6 +9697,11 @@ function setupAppointmentFormLogic() {
                     dvsaCheckedAt: new Date().toISOString()
                 });
                 window.__tvxLastDvsaVehicle = canonicalVehicle;
+                dvsaDebug('lookup-success', {
+                    appointmentId: editingAppointmentId || null,
+                    invoiceId: null,
+                    vehicle: canonicalVehicle
+                });
                 await syncCanonicalVehicleToFirestore(canonicalVehicle);
 
                 renderSummary(data || {});

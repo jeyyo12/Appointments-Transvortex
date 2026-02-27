@@ -178,7 +178,11 @@ function toISODateString(value) {
     return date.toISOString().split('T')[0];
 }
 
-const INVOICE_VEHICLE_DEBUG = false;
+const _invoiceMissingElementWarnings = new Set();
+
+function isInvoiceVehicleDebugEnabled() {
+    return window.INVOICE_VEHICLE_DEBUG === true;
+}
 
 function formatDateTimeUK(value) {
     const date = toDateValue(value);
@@ -191,6 +195,28 @@ function formatDateTimeUK(value) {
         minute: '2-digit'
     });
 }
+
+function parseMiles(input) {
+    if (input === null || input === undefined) return null;
+    const digits = String(input).replace(/\D/g, '');
+    if (!digits) return null;
+    const numeric = Number(digits);
+    return Number.isFinite(numeric) && numeric > 0 ? numeric : null;
+}
+
+function formatMiles(value) {
+    const parsed = parseMiles(value);
+    if (parsed === null) return '';
+    return parsed.toLocaleString('en-GB');
+}
+
+/*
+Manual test checklist (mileage sync):
+1) Edit mileage in DVSA summary and commit (blur/Enter) -> appointments/{id}.vehicle.mileage updates.
+2) If appointment.invoiceId exists -> invoices/{invoiceId}.vehicle.mileage and mileage mirror update immediately.
+3) Open invoice -> Vehicle Details mileage shows formatted with separators.
+4) Enter "10.000" / "10,000" / "10000" -> stored as 10000 raw, displayed as "10,000".
+*/
 
 function getVehicleVM(data = {}) {
     const normalizeText = (value) => (value === undefined || value === null ? '' : String(value).trim());
@@ -228,7 +254,9 @@ async function selfHealInvoiceVehicleFromAppointment(rawInvoice, appointmentData
     if (!rawInvoice.appointmentId || !appointmentData) return rawInvoice;
 
     const currentVehicle = getVehicleVM(rawInvoice);
-    if (currentVehicle.regPlate) return rawInvoice;
+    const hasCurrentReg = !!currentVehicle.regPlate;
+    const hasCurrentMileage = parseMiles(currentVehicle.mileage) !== null;
+    if (hasCurrentReg && hasCurrentMileage) return rawInvoice;
 
     const healedVehicle = getVehicleVM({
         vehicle: appointmentData.vehicle || {},
@@ -244,7 +272,8 @@ async function selfHealInvoiceVehicleFromAppointment(rawInvoice, appointmentData
         client: appointmentData.client || {}
     });
 
-    if (!healedVehicle.regPlate) return rawInvoice;
+    const healedMileage = parseMiles(healedVehicle.mileage);
+    if (!healedVehicle.regPlate && healedMileage === null) return rawInvoice;
 
     const patchedInvoice = {
         ...rawInvoice,
@@ -252,7 +281,7 @@ async function selfHealInvoiceVehicleFromAppointment(rawInvoice, appointmentData
             ...(rawInvoice.vehicle || {}),
             regPlate: healedVehicle.regPlate || '',
             makeModel: healedVehicle.makeModel || '',
-            mileage: healedVehicle.mileage || '',
+            mileage: healedMileage ?? '',
             motStatus: healedVehicle.motStatus || '',
             motExpiry: healedVehicle.motExpiry || '',
             taxStatus: healedVehicle.taxStatus || '',
@@ -262,7 +291,7 @@ async function selfHealInvoiceVehicleFromAppointment(rawInvoice, appointmentData
         regPlate: healedVehicle.regPlate || '',
         vehicleReg: healedVehicle.regPlate || '',
         vehicleMakeModel: healedVehicle.makeModel || '',
-        mileage: healedVehicle.mileage || ''
+        mileage: healedMileage ?? ''
     };
 
     try {
@@ -396,10 +425,10 @@ function renderInvoiceMeta() {
     const data = currentInvoiceData;
     if (!data) return;
 
-    document.getElementById('invoiceNumber').textContent = data.invoiceNumber || '—';
-    document.getElementById('invoiceDate').textContent = formatDateUK(data.invoiceDate);
-    document.getElementById('invoiceDue').textContent = formatDateUK(data.dueDate);
-    document.getElementById('invoiceRef').textContent = data.refPin || data.pin || '—';
+    setText('invoiceNumber', data.invoiceNumber || '—');
+    setText('invoiceDate', formatDateUK(data.invoiceDate));
+    setText('invoiceDue', formatDateUK(data.dueDate));
+    setText('invoiceRef', data.refPin || data.pin || '—');
     
     const vehicle = getVehicleVM({
         regPlate: data.regPlate,
@@ -410,26 +439,26 @@ function renderInvoiceMeta() {
         mileage: data.mileage ?? data.vehicleMileage,
         client: data.client
     });
-    console.debug('[Invoice][VehicleResolve]', {
-        invoiceId: data.id || currentInvoiceId || null,
-        regSource: getVehicleRegResolutionSource(data),
-        vehicleVM: vehicle
-    });
+    const updatedIds = [];
+    const setVehicleText = (id, value, fallback = '—') => {
+        setText(id, value, fallback);
+        updatedIds.push(id);
+    };
 
-    document.getElementById('vehicleReg').textContent = vehicle.regPlate || '—';
-    const regCardEl = document.getElementById('vehicleRegCard');
-    if (regCardEl) regCardEl.textContent = vehicle.regPlate || '—';
-    const makeModelEl = document.getElementById('vehicleMakeModel');
-    if (makeModelEl) makeModelEl.textContent = vehicle.makeModel || '—';
-    const mileageEl = document.getElementById('vehicleMileage');
-    if (mileageEl) mileageEl.textContent = vehicle.mileage || '—';
+    setVehicleText('vehicleReg', vehicle.regPlate || '—');
+    setVehicleText('vehicleRegCard', vehicle.regPlate || '—');
+    setVehicleText('vehicleMakeModel', vehicle.makeModel || '—');
+    setVehicleText('vehicleMileage', formatMiles(vehicle.mileage) || '—');
 
     const motWrap = document.getElementById('vehicleMotExpiryWrap');
     const motEl = document.getElementById('vehicleMotExpiry');
     if (motWrap && motEl) {
-        const motText = vehicle.motExpiry ? formatDateUK(vehicle.motExpiry) : '';
+        const motExpiryText = vehicle.motExpiry ? formatDateUK(vehicle.motExpiry) : '';
+        const motStatusText = vehicle.motStatus ? String(vehicle.motStatus) : '';
+        const motText = [motExpiryText, motStatusText].filter(Boolean).join(' • ');
         motWrap.style.display = motText ? '' : 'none';
         motEl.textContent = motText || '—';
+        updatedIds.push('vehicleMotExpiryWrap', 'vehicleMotExpiry');
     }
 
     const taxWrap = document.getElementById('vehicleTaxStatusWrap');
@@ -437,16 +466,45 @@ function renderInvoiceMeta() {
     if (taxWrap && taxEl) {
         taxWrap.style.display = vehicle.taxStatus ? '' : 'none';
         taxEl.textContent = vehicle.taxStatus || '—';
+        updatedIds.push('vehicleTaxStatusWrap', 'vehicleTaxStatus');
     }
 
     const dvsaMeta = document.getElementById('vehicleDvsaMeta');
+    const dvsaBadgeEl = document.getElementById('vehicleDvsaBadge');
     const dvsaCheckedEl = document.getElementById('vehicleDvsaCheckedAt');
     if (dvsaMeta) {
         dvsaMeta.style.display = vehicle.dvsaVerified ? '' : 'none';
+        updatedIds.push('vehicleDvsaMeta');
+    }
+    if (dvsaBadgeEl) {
+        dvsaBadgeEl.textContent = vehicle.dvsaVerified ? 'DVSA verified' : '';
+        updatedIds.push('vehicleDvsaBadge');
     }
     if (dvsaCheckedEl) {
         const checked = formatDateTimeUK(vehicle.dvsaCheckedAt);
         dvsaCheckedEl.textContent = checked ? `Checked ${checked}` : '';
+        updatedIds.push('vehicleDvsaCheckedAt');
+    }
+
+    if (isInvoiceVehicleDebugEnabled()) {
+        console.debug('[Invoice][VehicleResolve]', {
+            invoiceId: data.id || currentInvoiceId || null,
+            rawVehicle: {
+                vehicle: data.vehicle || null,
+                regPlate: data.regPlate || '',
+                vehicleReg: data.vehicleReg || '',
+                vehicleMakeModel: data.vehicleMakeModel || '',
+                mileage: data.mileage ?? data.vehicleMileage ?? '',
+                motStatus: data.motStatus || data.vehicle?.motStatus || '',
+                motExpiry: data.motExpiry || data.vehicle?.motExpiry || '',
+                taxStatus: data.taxStatus || data.vehicle?.taxStatus || '',
+                dvsaVerified: data.dvsaVerified ?? data.vehicle?.dvsaVerified,
+                dvsaCheckedAt: data.dvsaCheckedAt || data.vehicle?.dvsaCheckedAt || null
+            },
+            regSource: getVehicleRegResolutionSource(data),
+            vehicleVM: vehicle,
+            updatedIds
+        });
     }
 }
 
@@ -2710,11 +2768,21 @@ function normalizeInvoiceData(raw, invoiceId, appointmentFallback = null) {
     };
 }
 
-function setTextById(id, value, fallback = '—') {
+function setText(id, value, fallback = '—') {
     const el = document.getElementById(id);
-    if (!el) return;
+    if (!el) {
+        if (isInvoiceVehicleDebugEnabled() && !_invoiceMissingElementWarnings.has(id)) {
+            _invoiceMissingElementWarnings.add(id);
+            console.debug('[Invoice][VehicleResolve] Missing DOM element:', id);
+        }
+        return;
+    }
     const text = value === undefined || value === null || value === '' ? fallback : value;
     el.textContent = text;
+}
+
+function setTextById(id, value, fallback = '—') {
+    setText(id, value, fallback);
 }
 
 function populatePreview(vm) {
@@ -2729,7 +2797,7 @@ function populatePreview(vm) {
         mileage: vm.mileage ?? vm.vehicleMileage,
         client: vm.client
     });
-    if (INVOICE_VEHICLE_DEBUG) {
+    if (isInvoiceVehicleDebugEnabled()) {
         console.debug('[invoice] vehicleVM', vehicle);
     }
 
@@ -2751,7 +2819,7 @@ function populatePreview(vm) {
     }
 
     setTextById('vehicleMakeModel', vehicle.makeModel || '—');
-    const mileageText = vehicle.mileage ? vehicle.mileage : '—';
+    const mileageText = formatMiles(vehicle.mileage) || '—';
     setTextById('vehicleMileage', mileageText);
 
     setTextById('summarySubtotal', formatCurrency(vm.subtotal));
@@ -2785,7 +2853,7 @@ function populatePreview(vm) {
     setTextById('pBillPhone', vm.billToPhone || '—');
     setTextById('pVehMake', vehicle.makeModel || '—');
     setTextById('pVehReg', vehicle.regPlate || '—');
-    setTextById('pMileage', vehicle.mileage || '—');
+    setTextById('pMileage', formatMiles(vehicle.mileage) || '—');
     
     setTextById('pTotal', formatCurrency(vm.total));
     setTextById('pPaid', formatCurrency(vm.amountPaid));
@@ -2886,7 +2954,17 @@ async function loadInvoicePreview(invoiceId) {
     currentInvoiceId = invoiceId;
     currentAptId = rawInvoice.appointmentId || null;
 
+    if (window.TVX_DVSA_DEBUG === true) {
+        console.debug('[TVX:DVSA] invoice-load', {
+            invoiceId,
+            appointmentId: rawInvoice.appointmentId || null,
+            invoiceVehicle: rawInvoice.vehicle || null,
+            resolvedVehicle: normalized.vehicle || null
+        });
+    }
+
     populatePreview(normalized);
+    renderInvoiceMeta();
     renderServices(normalized.items);
     renderTotalsOptimized(normalized);
     renderPaymentTerms();
@@ -3467,6 +3545,15 @@ async function renderInvoiceFromStandalone(invoiceData) {
     }
 
     const healedInvoiceData = await selfHealInvoiceVehicleFromAppointment(invoiceData, appointmentData, invoiceData.id);
+
+    if (window.TVX_DVSA_DEBUG === true) {
+        console.debug('[TVX:DVSA] invoice-load', {
+            invoiceId: invoiceData.id,
+            appointmentId: invoiceData.appointmentId || null,
+            invoiceVehicle: invoiceData.vehicle || null,
+            resolvedVehicle: healedInvoiceData.vehicle || null
+        });
+    }
 
     // 🔄 Use normalizeInvoiceData for consistent mileage handling
     // This function properly merges invoice + appointment data with appointment.mileage taking priority
