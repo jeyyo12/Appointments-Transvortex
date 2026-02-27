@@ -178,6 +178,24 @@ function toISODateString(value) {
     return date.toISOString().split('T')[0];
 }
 
+function normalizeVehicleFromInvoiceData(data = {}) {
+    const normalizeText = (value) => (value === undefined || value === null ? '' : String(value).trim());
+    const pick = (...values) => {
+        for (const value of values) {
+            const text = normalizeText(value);
+            if (text) return text;
+        }
+        return '';
+    };
+
+    const regPlate = pick(data.regPlate, data.vehicleReg, data.client?.regPlate);
+    const makeModel = pick(data.vehicleMakeModel, data.makeModel, data.client?.vehicle, data.client?.makeModel);
+    const mileageRaw = data.mileage ?? data.client?.mileage ?? '';
+    const mileage = normalizeText(mileageRaw);
+
+    return { regPlate, makeModel, mileage };
+}
+
 function addDaysISO(baseDateISO, days) {
     const base = baseDateISO ? new Date(baseDateISO) : new Date();
     base.setDate(base.getDate() + days);
@@ -287,9 +305,20 @@ function renderInvoiceMeta() {
     document.getElementById('invoiceDue').textContent = formatDateUK(data.dueDate);
     document.getElementById('invoiceRef').textContent = data.refPin || data.pin || '—';
     
-    // Vehicle registration in meta grid
-    const vehicleReg = data.vehicleReg || data.client?.regPlate || '';
-    document.getElementById('vehicleReg').textContent = vehicleReg || '—';
+    const vehicle = normalizeVehicleFromInvoiceData({
+        regPlate: data.regPlate,
+        vehicleReg: data.vehicleReg,
+        vehicleMakeModel: data.vehicleMakeModel,
+        makeModel: data.makeModel,
+        mileage: data.mileage ?? data.vehicleMileage,
+        client: data.client
+    });
+
+    document.getElementById('vehicleReg').textContent = vehicle.regPlate || '—';
+    const makeModelEl = document.getElementById('vehicleMakeModel');
+    if (makeModelEl) makeModelEl.textContent = vehicle.makeModel || '—';
+    const mileageEl = document.getElementById('vehicleMileage');
+    if (mileageEl) mileageEl.textContent = vehicle.mileage || '—';
 }
 
 /**
@@ -1278,14 +1307,23 @@ function toggleEditMode() {
     originalInvoiceData = JSON.parse(JSON.stringify(currentInvoiceData));
     
     // Initialize draft data from current invoice
+    const normalizedVehicle = normalizeVehicleFromInvoiceData({
+        regPlate: currentInvoiceData.regPlate,
+        vehicleReg: currentInvoiceData.vehicleReg,
+        vehicleMakeModel: currentInvoiceData.vehicleMakeModel,
+        makeModel: currentInvoiceData.makeModel,
+        mileage: currentInvoiceData.mileage ?? currentInvoiceData.vehicleMileage,
+        client: currentInvoiceData.client
+    });
+
     draftData = {
         client: {
             name: currentInvoiceData.client?.name || '',
             address: currentInvoiceData.client?.address || '',
             phone: currentInvoiceData.client?.phone || '',
-            vehicle: currentInvoiceData.client?.vehicle || '',
-            regPlate: currentInvoiceData.client?.regPlate || '',
-            mileage: currentInvoiceData.client?.mileage || ''
+            vehicle: normalizedVehicle.makeModel || '',
+            regPlate: normalizedVehicle.regPlate || '',
+            mileage: normalizedVehicle.mileage || ''
         },
         services: (currentInvoiceData.services || []).map(s => ({
             description: s.description || '',
@@ -1888,15 +1926,33 @@ async function saveInvoiceChanges(e) {
         // ✅ Use lowercase for consistent storage
         const paymentStatus = paidAmount > 0 && paidAmount >= totals.total ? 'paid' : 'unpaid';
 
+        const vehicleForSave = normalizeVehicleFromInvoiceData({
+            regPlate: draftData.client?.regPlate,
+            vehicleMakeModel: draftData.client?.vehicle,
+            mileage: draftData.client?.mileage,
+            client: {}
+        });
+
+        console.debug('[Invoice][Vehicle] normalized payload:', vehicleForSave);
+
         // Prepare update object
         const updateData = {
             // Client info
             name: draftData.client?.name || '',
             address: draftData.client?.address || '',
             phone: draftData.client?.phone || '',
-            carMakeModel: draftData.client?.vehicle || '',
-            regPlate: draftData.client?.regPlate || '',
-            mileage: draftData.client?.mileage || '',
+            carMakeModel: vehicleForSave.makeModel || '',
+            vehicleMakeModel: vehicleForSave.makeModel || '',
+            regPlate: vehicleForSave.regPlate || '',
+            mileage: vehicleForSave.mileage || '',
+            client: {
+                name: draftData.client?.name || '',
+                address: draftData.client?.address || '',
+                phone: draftData.client?.phone || '',
+                vehicle: vehicleForSave.makeModel || '',
+                regPlate: vehicleForSave.regPlate || '',
+                mileage: vehicleForSave.mileage || ''
+            },
             
             // Jobs and parts
             jobs,
@@ -1946,16 +2002,27 @@ async function saveInvoiceChanges(e) {
         if (currentInvoiceId) {
             // SCENARIO 1: Updating existing standalone invoice in invoices collection
             const invoiceUpdateData = {
+                client: {
+                    name: draftData.client?.name || '',
+                    phone: draftData.client?.phone || '',
+                    address: draftData.client?.address || '',
+                    vehicle: vehicleForSave.makeModel || '',
+                    regPlate: vehicleForSave.regPlate || '',
+                    mileage: vehicleForSave.mileage || ''
+                },
                 customer: {
                     name: draftData.client?.name || '',
                     phone: draftData.client?.phone || '',
                     address: draftData.client?.address || ''
                 },
                 vehicle: {
-                    makeModel: draftData.client?.vehicle || '',
-                    regPlate: draftData.client?.regPlate || '',
-                    mileage: draftData.client?.mileage || ''
+                    makeModel: vehicleForSave.makeModel || '',
+                    regPlate: vehicleForSave.regPlate || '',
+                    mileage: vehicleForSave.mileage || ''
                 },
+                vehicleMakeModel: vehicleForSave.makeModel || '',
+                regPlate: vehicleForSave.regPlate || '',
+                mileage: vehicleForSave.mileage || '',
                 jobs,
                 parts,
                 notes: draftData.notes || '',
@@ -1978,6 +2045,13 @@ async function saveInvoiceChanges(e) {
             } else if (shouldClearLegalProfile) {
                 invoiceUpdateData.legalProfile = deleteField();
             }
+
+            console.debug('[Invoice][Vehicle] write keys (invoices):', {
+                client: invoiceUpdateData.client,
+                vehicleMakeModel: invoiceUpdateData.vehicleMakeModel,
+                regPlate: invoiceUpdateData.regPlate,
+                mileage: invoiceUpdateData.mileage
+            });
             
             await updateDoc(doc(db, 'invoices', currentInvoiceId), invoiceUpdateData);
             console.log('✅ [Invoice] Updated invoice in invoices collection:', currentInvoiceId);
@@ -1989,6 +2063,12 @@ async function saveInvoiceChanges(e) {
             } else if (shouldClearLegalProfile) {
                 updateData.legalProfile = deleteField();
             }
+            console.debug('[Invoice][Vehicle] write keys (appointments):', {
+                client: updateData.client,
+                vehicleMakeModel: updateData.vehicleMakeModel,
+                regPlate: updateData.regPlate,
+                mileage: updateData.mileage
+            });
             await updateDoc(doc(db, 'appointments', currentAptId), updateData);
             console.log('✅ [Invoice] Updated appointment:', currentAptId);
             
@@ -2014,9 +2094,17 @@ async function saveInvoiceChanges(e) {
                 address: draftData.client?.address || '',
                 
                 // Vehicle info
-                vehicleMakeModel: draftData.client?.vehicle || '',
-                regPlate: draftData.client?.regPlate || '',
-                mileage: draftData.client?.mileage || '',
+                client: {
+                    name: draftData.client?.name || '',
+                    phone: draftData.client?.phone || '',
+                    address: draftData.client?.address || '',
+                    vehicle: vehicleForSave.makeModel || '',
+                    regPlate: vehicleForSave.regPlate || '',
+                    mileage: vehicleForSave.mileage || ''
+                },
+                vehicleMakeModel: vehicleForSave.makeModel || '',
+                regPlate: vehicleForSave.regPlate || '',
+                mileage: vehicleForSave.mileage || '',
                 
                 // Jobs/parts
                 jobs,
@@ -2406,27 +2494,19 @@ function normalizeInvoiceData(raw, invoiceId, appointmentFallback = null) {
         ? normalizeMechanicDetails(data, appointment)
         : null;
 
-    const vehicleMakeModel = getFirst(
-        data.vehicleMakeModel,
-        data.vehicle?.makeModel,
-        data.carMakeModel,
-        appointment.vehicleMakeModel,
-        appointment.carMakeModel
-    );
-
-    const vehicleReg = getFirst(
-        data.regPlate,
-        data.registrationPlate,
-        data.vehicle?.regPlate,
-        appointment.regPlate,
-        appointment.registrationPlate
-    );
-
-    const vehicleMileage = getFirst(
-        data.mileage,
-        data.vehicle?.mileage,
-        appointment.mileage
-    );
+    const vehicleData = normalizeVehicleFromInvoiceData({
+        regPlate: getFirst(data.regPlate, data.registrationPlate, data.vehicle?.regPlate, appointment.regPlate, appointment.registrationPlate),
+        vehicleReg: getFirst(data.vehicleReg, appointment.vehicleReg),
+        vehicleMakeModel: getFirst(data.vehicleMakeModel, data.vehicle?.makeModel, data.carMakeModel, appointment.vehicleMakeModel, appointment.carMakeModel),
+        makeModel: getFirst(data.makeModel, appointment.makeModel),
+        mileage: data.mileage ?? data.vehicle?.mileage ?? appointment.mileage ?? '',
+        client: {
+            regPlate: getFirst(data.client?.regPlate, appointment.client?.regPlate),
+            vehicle: getFirst(data.client?.vehicle, appointment.client?.vehicle),
+            makeModel: getFirst(data.client?.makeModel, appointment.client?.makeModel),
+            mileage: data.client?.mileage ?? appointment.client?.mileage ?? ''
+        }
+    });
 
     return {
         id: invoiceId || data.id || '',
@@ -2441,9 +2521,9 @@ function normalizeInvoiceData(raw, invoiceId, appointmentFallback = null) {
         billToAddress: customerAddress,
         postcode: customerPostcode || '',
         billToPhone: customerPhone || '',
-        vehicleMakeModel: vehicleMakeModel || '',
-        vehicleReg: vehicleReg || '',
-        vehicleMileage: vehicleMileage || '',
+        vehicleMakeModel: vehicleData.makeModel || '',
+        vehicleReg: vehicleData.regPlate || '',
+        vehicleMileage: vehicleData.mileage || '',
         items,
         subtotal,
         vatRate,
@@ -2468,13 +2548,22 @@ function setTextById(id, value, fallback = '—') {
 function populatePreview(vm) {
     if (!vm) return;
 
+    const vehicle = normalizeVehicleFromInvoiceData({
+        regPlate: vm.regPlate,
+        vehicleReg: vm.vehicleReg,
+        vehicleMakeModel: vm.vehicleMakeModel,
+        makeModel: vm.makeModel,
+        mileage: vm.mileage ?? vm.vehicleMileage,
+        client: vm.client
+    });
+
     applyIssuerPreview(vm.legalProfile);
 
     setTextById('invoiceNumber', vm.invoiceNumber);
     setTextById('invoiceDate', formatDateUK(vm.invoiceDate));
     setTextById('invoiceDue', formatDateUK(vm.dueDate));
     setTextById('invoiceRef', vm.refPin || '—');
-    setTextById('vehicleReg', vm.vehicleReg || '—');
+    setTextById('vehicleReg', vehicle.regPlate || '—');
 
     setTextById('billToName', vm.billToName || '—');
     const billToAddress = appendPostcodeToAddress(vm.billToAddress || '', vm.postcode || '');
@@ -2485,8 +2574,8 @@ function populatePreview(vm) {
         billToPhoneEl.style.display = vm.billToPhone ? '' : 'none';
     }
 
-    setTextById('vehicleMakeModel', vm.vehicleMakeModel || '—');
-    const mileageText = vm.vehicleMileage ? vm.vehicleMileage : '—';
+    setTextById('vehicleMakeModel', vehicle.makeModel || '—');
+    const mileageText = vehicle.mileage ? vehicle.mileage : '—';
     setTextById('vehicleMileage', mileageText);
 
     setTextById('summarySubtotal', formatCurrency(vm.subtotal));
@@ -2514,13 +2603,13 @@ function populatePreview(vm) {
     setTextById('pInvDate', formatDateUK(vm.invoiceDate));
     setTextById('pInvDue', formatDateUK(vm.dueDate));
     setTextById('pInvRef', vm.refPin || '—');
-    setTextById('pInvReg', vm.vehicleReg || '—');
+    setTextById('pInvReg', vehicle.regPlate || '—');
     
     setTextById('pBillName', vm.billToName || '—');
     setTextById('pBillPhone', vm.billToPhone || '—');
-    setTextById('pVehMake', vm.vehicleMakeModel || '—');
-    setTextById('pVehReg', vm.vehicleReg || '—');
-    setTextById('pMileage', vm.vehicleMileage || '—');
+    setTextById('pVehMake', vehicle.makeModel || '—');
+    setTextById('pVehReg', vehicle.regPlate || '—');
+    setTextById('pMileage', vehicle.mileage || '—');
     
     setTextById('pTotal', formatCurrency(vm.total));
     setTextById('pPaid', formatCurrency(vm.amountPaid));
@@ -2941,6 +3030,14 @@ function renderBillToOptimized(normalizedData) {
     if (!normalizedData || !normalizedData.client) return;
 
     const client = normalizedData.client;
+    const vehicle = normalizeVehicleFromInvoiceData({
+        regPlate: normalizedData.regPlate,
+        vehicleReg: normalizedData.vehicleReg,
+        vehicleMakeModel: normalizedData.vehicleMakeModel,
+        makeModel: normalizedData.makeModel,
+        mileage: normalizedData.mileage ?? normalizedData.vehicleMileage,
+        client
+    });
 
     // Client name (required)
     setFieldVisibility('billToName', client.name, true);
@@ -2953,11 +3050,11 @@ function renderBillToOptimized(normalizedData) {
     setFieldVisibility('billToAddress', billToAddress, false);
 
     // Vehicle (optional) - support both client.vehicle and direct vehicleMake field
-    const vehicleMake = client.vehicle || normalizedData.vehicleMake || '';
+    const vehicleMake = vehicle.makeModel || '';
     setFieldVisibility('vehicleMakeModel', vehicleMake, false);
 
     // Mileage (optional) - support both formats
-    const mileage = client.mileage || normalizedData.vehicleMileage || normalizedData.mileage || '';
+    const mileage = vehicle.mileage || '';
     const mileageText = mileage ? (typeof mileage === 'number' ? mileage.toLocaleString() + ' mi' : mileage) : '';
     setFieldVisibility('vehicleMileage', mileageText, false);
 }

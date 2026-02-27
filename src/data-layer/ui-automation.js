@@ -12,6 +12,7 @@ class UIAutomation {
     this.feedOpen = false;
     this.lastAlertCount = 0;
     this.dataActions = null; // Will be set during initialization
+    this.bellToggleBound = false;
   }
 
   /**
@@ -52,6 +53,7 @@ class UIAutomation {
 
     // Attach event listeners
     this.attachFeedEventListeners();
+    this.bindBellToggle();
   }
 
   /**
@@ -63,6 +65,21 @@ class UIAutomation {
     if (closeBtn) {
       closeBtn.addEventListener('click', () => this.closeFeed());
     }
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && this.feedOpen) {
+        this.closeFeed();
+      }
+    });
+
+    document.addEventListener('click', (e) => {
+      if (!this.feedOpen) return;
+      const feed = document.getElementById('tvAutomationFeed');
+      const bell = document.getElementById('tvBellBtn');
+      if (!feed) return;
+      if (feed.contains(e.target) || bell?.contains(e.target)) return;
+      this.closeFeed();
+    });
 
     // Event delegation for alert actions
     document.addEventListener('click', (e) => {
@@ -80,21 +97,39 @@ class UIAutomation {
   }
 
   /**
+   * Bind bell click toggle for automation feed (no duplicate listeners)
+   * @private
+   */
+  bindBellToggle() {
+    if (this.bellToggleBound) return;
+    const bellBtn = document.getElementById('tvBellBtn');
+    if (!bellBtn || bellBtn.dataset.automationFeedBound === '1') return;
+
+    bellBtn.dataset.automationFeedBound = '1';
+    bellBtn.addEventListener('click', () => {
+      if (this.feedOpen) {
+        this.closeFeed();
+      } else {
+        this.openFeed();
+      }
+    });
+
+    this.bellToggleBound = true;
+  }
+
+  /**
    * Update feed panel with latest alerts
    */
   updateFeed() {
     const alerts = automationEngine.getTopAlerts();
     const feedAlerts = document.getElementById('tvFeedAlerts');
+    console.debug('[alerts] count=', alerts.length);
 
     if (alerts.length === 0) {
       this.closeFeed();
       return;
     }
 
-    // Auto-open feed if alert count changed
-    if (alerts.length > this.lastAlertCount) {
-      this.openFeed();
-    }
     this.lastAlertCount = alerts.length;
 
     // Render alerts
@@ -160,6 +195,7 @@ class UIAutomation {
     if (feed && !this.feedOpen) {
       feed.style.display = 'block';
       this.feedOpen = true;
+      console.debug('[alerts] modal opened via bell');
     }
   }
 
@@ -171,6 +207,7 @@ class UIAutomation {
     if (feed && this.feedOpen) {
       feed.style.display = 'none';
       this.feedOpen = false;
+      console.debug('[alerts] modal closed');
     }
   }
 

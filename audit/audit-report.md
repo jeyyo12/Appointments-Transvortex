@@ -1,6 +1,6 @@
 # Wiring Audit Report
 
-_Generated: 2026-02-27T16:01:38.040Z — files scanned: 85_
+_Generated: 2026-02-27T17:07:37.150Z — files scanned: 85_
 
 > **Definition of Done:** Real broken candidates = 0 · Unmapped actions = 0 · Invoice violations = 0 · Runtime smoke test passes
 
@@ -92,9 +92,9 @@ Count: **0**  (target: 0)
 
 | File | Line | Via | Params |
 | --- | --- | --- | --- |
-| script.js | 9824 | js | invoiceId=${invoiceId}, mode=edit |
-| script.js | 10138 | js | invoiceId=${invoiceId}, mode=view |
-| script.js | 10157 | js | invoiceId=${invoiceId}, mode=edit |
+| script.js | 9945 | js | invoiceId=${invoiceId}, mode=edit |
+| script.js | 10259 | js | invoiceId=${invoiceId}, mode=view |
+| script.js | 10278 | js | invoiceId=${invoiceId}, mode=edit |
 | src/invoices/invoice-manager.js | 636 | js | invoiceId=${invoiceId}, mode=${mode} |
 | src/storage/storage.events.js | 132 | js | invoiceId=${targetInvoiceId}, mode=view |
 | src/storage/storage.events.js | 140 | js | invoiceId=${targetInvoiceId}, mode=view |
@@ -108,12 +108,12 @@ Count: **0**  (target: 0)
 
 | File | Line | Function |
 | --- | --- | --- |
-| script.js | 9649 | openInvoiceForAppointment |
-| script.js | 9654 | openInvoice |
-| script.js | 9696 | openInvoiceFromAppointment |
-| script.js | 9702 | openInvoice |
-| script.js | 9723 | openInvoice |
-| script.js | 10116 | openInvoiceFile |
+| script.js | 9770 | openInvoiceForAppointment |
+| script.js | 9775 | openInvoice |
+| script.js | 9817 | openInvoiceFromAppointment |
+| script.js | 9823 | openInvoice |
+| script.js | 9844 | openInvoice |
+| script.js | 10237 | openInvoiceFile |
 | src/invoice-create/invoiceCreate.flow.js | 48 | openInvoice |
 | src/invoice-create/invoiceCreate.flow.js | 150 | openInvoice |
 | src/invoices/invoice-manager.js | 631 | openInvoicePage |
@@ -127,9 +127,9 @@ Count: **0**  (target: 0)
 
 | File | Line | Function |
 | --- | --- | --- |
-| script.js | 9617 | generateInvoiceNumberStable |
-| script.js | 9685 | generateInvoiceNumberLegacy |
-| src/invoice.js | 202 | generateInvoiceNumberStandalone |
+| script.js | 9738 | generateInvoiceNumberStable |
+| script.js | 9806 | generateInvoiceNumberLegacy |
+| src/invoice.js | 220 | generateInvoiceNumberStandalone |
 | src/invoices/invoice-manager.js | 18 | generateInvoiceNumber |
 
 ## 4. Likely False Positives — Do NOT Fix Unless Proven
@@ -228,7 +228,7 @@ Patterns that may trigger unexpected jump/scroll behavior (`href="#..."`, `locat
 | script.js | 5273 | scroll-into-view | `selected.scrollIntoView({ block: 'center', behavior: 'smooth' });` |
 | script.js | 5287 | scroll-into-view | `selected.scrollIntoView({ block: 'center', behavior: 'smooth' });` |
 | script.js | 5608 | scroll-into-view | `activeTabBtn.scrollIntoView({` |
-| script.js | 9259 | location-hash | `if (!fromPopState && location.hash === '#appointments') {` |
+| script.js | 9380 | location-hash | `if (!fromPopState && location.hash === '#appointments') {` |
 | src/core/chips-mode.js | 603 | scroll-into-view | `rowEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });` |
 | src/enterprise-dashboard.js | 389 | scroll-into-view | `firstApt.scrollIntoView({ behavior: 'smooth', block: 'nearest' });` |
 | src/header/header-search.js | 153 | scroll-into-view | `appointmentsTab.scrollIntoView({ behavior: 'smooth' });` |
@@ -406,7 +406,7 @@ Navigation to `.html` routes without query params (excluding `index.html`) that 
 - script.js:8191 — `const btn = e.target.closest('button[data-action]');`
 - src/core/events.js:9 — `const target = event.target.closest('[data-action][data-id]');`
 - src/core/events.js:12 — `const noId = event.target.closest('[data-action]:not([data-id])');`
-- src/invoice.js:1694 — `const actionEl = e.target.closest('[data-action]');`
+- src/invoice.js:1732 — `const actionEl = e.target.closest('[data-action]');`
 - src/utils/notifications.js:212 — `const action = e.target.closest('[data-action]')?.dataset.action;`
 - src/workspace/workspace-controller.js:387 — `const button = e.target.closest('[data-action]');`
 
@@ -414,8 +414,8 @@ Navigation to `.html` routes without query params (excluding `index.html`) that 
 
 Most duplicates are benign utility names. High-risk ones are covered in Section 5.
 
-- `createInvoiceFromAppointment` — CHIPS_MODE_INTEGRATION.js:193, script.js:9712, src/invoice-create/invoiceCreate.flow.js:35
-- `updateLiveIndicators` — index.html:5278, src/enterprise-dashboard.js:260
+- `createInvoiceFromAppointment` — CHIPS_MODE_INTEGRATION.js:193, script.js:9833, src/invoice-create/invoiceCreate.flow.js:35
+- `updateLiveIndicators` — index.html:5341, src/enterprise-dashboard.js:260
 - `registerServiceWorker` — pwa-init.js:46, pwa.js:9
 - `showUpdateNotification` — pwa-init.js:151, sw-update.js:82
 - `setupInstallPrompt` — pwa-init.js:202, pwa.js:116
@@ -429,8 +429,8 @@ Most duplicates are benign utility names. High-risk ones are covered in Section 
 - `tracedUpdateDoc` — script.js:235, src/invoice.js:63
 - `formatCurrencyGBP` — script.js:320, src/core/chips-mode.js:951, src/shared/format.js:11
 - `toNumber` — script.js:330, src/data-layer/formatters.js:41, src/invoice-create/invoiceCreate.ui.js:11, src/invoices/invoice-manager.js:24, src/metrics/dashboard-metrics.js:329, src/shared/format.js:21, src/storage/storage.events.js:18, src/storage/storage.service.js:12, src/storage/storage.ui.js:12
-- `computePaymentStatus` — script.js:342, src/invoice.js:1590
-- `escapeHtml` — script.js:592, src/core/chips-mode.js:929, src/invoice.js:1824
+- `computePaymentStatus` — script.js:342, src/invoice.js:1628
+- `escapeHtml` — script.js:592, src/core/chips-mode.js:929, src/invoice.js:1862
 - `collectJobsPartsFromForm` — script.js:663, src/invoice-create/invoiceCreate.ui.js:31
 - `buildJobsSummary` — script.js:958, src/invoice-create/invoiceCreate.ui.js:37
-- `initializeFirebase` — script.js:1006, src/core/app.js:22, src/invoice.js:1044
+- `initializeFirebase` — script.js:1006, src/core/app.js:22, src/invoice.js:1073

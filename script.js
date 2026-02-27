@@ -5889,10 +5889,33 @@ async function handleAddAppointment(e) {
             basePayload.invoiceLegalProfile = deleteField();
         }
 
-        // Add mileage if provided (safe default: null)
-        // Use raw numeric value from dataset, not the formatted display value
+        // Add canonical vehicle payload + legacy mirrors
         const rawMileage = Number(document.querySelector('#mileage')?.dataset.rawMileage || 0);
-        basePayload.mileage = rawMileage > 0 ? rawMileage : null;
+        const cachedDvsaVehicle = window.__tvxLastDvsaVehicle || {};
+        const canonicalRegPlate = (euVehicleReg || registrationPlate || cachedDvsaVehicle.regPlate || '').toString().trim();
+        const canonicalMakeModel = (vehicleMakeModel || cachedDvsaVehicle.makeModel || '').toString().trim();
+        const canonicalMileage = rawMileage > 0
+            ? rawMileage
+            : (cachedDvsaVehicle.mileage ?? null);
+
+        basePayload.vehicle = {
+            regPlate: canonicalRegPlate,
+            makeModel: canonicalMakeModel,
+            mileage: canonicalMileage,
+            motStatus: (cachedDvsaVehicle.motStatus || '').toString().trim(),
+            motExpiry: (cachedDvsaVehicle.motExpiry || '').toString().trim(),
+            taxStatus: (cachedDvsaVehicle.taxStatus || '').toString().trim(),
+            dvsaVerified: Boolean(cachedDvsaVehicle.dvsaVerified),
+            dvsaCheckedAt: cachedDvsaVehicle.dvsaCheckedAt || null
+        };
+
+        basePayload.vehicleMakeModel = canonicalMakeModel;
+        basePayload.makeModel = canonicalMakeModel;
+        basePayload.regPlate = canonicalRegPlate;
+        basePayload.vehicleReg = canonicalRegPlate;
+        basePayload.registrationPlate = canonicalRegPlate;
+        basePayload.regNumber = canonicalRegPlate;
+        basePayload.mileage = canonicalMileage;
 
         // Determine if we're in create or edit mode
         console.log('[SAVE] payload:', basePayload);
@@ -6123,17 +6146,26 @@ async function syncInvoiceWithAppointment(invoiceId, appointmentData, appointmen
         const resolvedVehicleMakeModel = firstNonEmpty(
             appointmentData?.vehicleMakeModel,
             appointmentData?.makeModel,
+            appointmentData?.vehicle?.makeModel,
             invoice.vehicleMakeModel,
+            invoice.vehicle?.makeModel,
             invoice.makeModel
         );
         const resolvedRegistrationPlate = firstNonEmpty(
             appointmentData?.registrationPlate,
             appointmentData?.regNumber,
             appointmentData?.regPlate,
+            appointmentData?.vehicle?.regPlate,
             invoice.registrationPlate,
+            invoice.vehicle?.regPlate,
             invoice.regPlate
         );
-        const resolvedMileage = firstDefined(appointmentData?.mileage, invoice.mileage);
+        const resolvedMileage = firstDefined(appointmentData?.mileage, appointmentData?.vehicle?.mileage, invoice.mileage, invoice.vehicle?.mileage);
+        const resolvedMotStatus = firstNonEmpty(appointmentData?.vehicle?.motStatus, invoice.vehicle?.motStatus);
+        const resolvedMotExpiry = firstNonEmpty(appointmentData?.vehicle?.motExpiry, invoice.vehicle?.motExpiry);
+        const resolvedTaxStatus = firstNonEmpty(appointmentData?.vehicle?.taxStatus, invoice.vehicle?.taxStatus);
+        const resolvedDvsaVerified = firstDefined(appointmentData?.vehicle?.dvsaVerified, invoice.vehicle?.dvsaVerified);
+        const resolvedDvsaCheckedAt = firstDefined(appointmentData?.vehicle?.dvsaCheckedAt, invoice.vehicle?.dvsaCheckedAt);
 
         // Non-destructive location mapping (explicit requirement)
         const resolvedAddress = appointmentData?.address ?? invoice.address;
@@ -6156,6 +6188,7 @@ async function syncInvoiceWithAppointment(invoiceId, appointmentData, appointmen
         const hasVehicleMakeInput = appointmentData?.vehicleMakeModel !== undefined || appointmentData?.makeModel !== undefined || appointmentData?.carMakeModel !== undefined;
         const hasVehiclePlateInput = appointmentData?.registrationPlate !== undefined || appointmentData?.regNumber !== undefined || appointmentData?.regPlate !== undefined;
         const hasMileageInput = appointmentData?.mileage !== undefined;
+        const hasCanonicalVehicleInput = appointmentData?.vehicle !== undefined;
         const hasAddressInput = appointmentData?.address !== undefined;
         const hasPostcodeInput = appointmentData?.postcode !== undefined;
         const hasCustomerNameInput = appointmentData?.customerName !== undefined;
@@ -6207,6 +6240,21 @@ async function syncInvoiceWithAppointment(invoiceId, appointmentData, appointmen
             },
             updatedAt: serverTimestamp()
         };
+
+        const canonicalVehiclePayload = {
+            regPlate: resolvedRegistrationPlate || '',
+            makeModel: resolvedVehicleMakeModel || '',
+            mileage: resolvedMileage,
+            motStatus: resolvedMotStatus || '',
+            motExpiry: resolvedMotExpiry || '',
+            taxStatus: resolvedTaxStatus || '',
+            dvsaVerified: Boolean(resolvedDvsaVerified),
+            dvsaCheckedAt: resolvedDvsaCheckedAt || null
+        };
+
+        if (hasCanonicalVehicleInput || hasVehicleMakeInput || hasVehiclePlateInput || hasMileageInput) {
+            updatePayload.vehicle = canonicalVehiclePayload;
+        }
 
         // Vehicle fields: update only when present in canonical appointment source
         if (hasVehicleMakeInput) {
@@ -6322,13 +6370,25 @@ async function syncInvoiceFromAppointmentPayload(appointmentId, appointmentData)
         mergedAppointment.vehicleMakeModel = firstNonEmpty(
             mergedAppointment.vehicleMakeModel,
             mergedAppointment.makeModel,
+            mergedAppointment.vehicle?.makeModel,
             mergedAppointment.carMakeModel
         );
         mergedAppointment.registrationPlate = firstNonEmpty(
             mergedAppointment.registrationPlate,
             mergedAppointment.regNumber,
+            mergedAppointment.vehicle?.regPlate,
             mergedAppointment.regPlate
         );
+        mergedAppointment.vehicle = {
+            regPlate: mergedAppointment.registrationPlate || '',
+            makeModel: mergedAppointment.vehicleMakeModel || '',
+            mileage: mergedAppointment.vehicle?.mileage ?? mergedAppointment.mileage ?? null,
+            motStatus: (mergedAppointment.vehicle?.motStatus || '').toString().trim(),
+            motExpiry: (mergedAppointment.vehicle?.motExpiry || '').toString().trim(),
+            taxStatus: (mergedAppointment.vehicle?.taxStatus || '').toString().trim(),
+            dvsaVerified: Boolean(mergedAppointment.vehicle?.dvsaVerified),
+            dvsaCheckedAt: mergedAppointment.vehicle?.dvsaCheckedAt || null
+        };
 
         const syncOptions = {
             hasExplicitPaidAmount: hasField(appointmentData, 'paidAmount') || hasField(appointmentData, 'amountPaid'),
@@ -6466,6 +6526,16 @@ function populateFormFromAppointment(appointment) {
     if (vehicleLookupVrmEl) vehicleLookupVrmEl.value = (appointment.registrationPlate || appointment.regNumber || '').replace(/\s+/g, '').toUpperCase();
     const mileageEl = document.getElementById('mileage');
     if (mileageEl) mileageEl.value = coalesceMileageValue(appointment) || '';
+    window.__tvxLastDvsaVehicle = {
+        regPlate: appointment.vehicle?.regPlate || appointment.registrationPlate || appointment.regNumber || '',
+        makeModel: appointment.vehicle?.makeModel || appointment.makeModel || appointment.vehicleMakeModel || '',
+        mileage: appointment.vehicle?.mileage ?? appointment.mileage ?? null,
+        motStatus: appointment.vehicle?.motStatus || '',
+        motExpiry: appointment.vehicle?.motExpiry || '',
+        taxStatus: appointment.vehicle?.taxStatus || '',
+        dvsaVerified: Boolean(appointment.vehicle?.dvsaVerified),
+        dvsaCheckedAt: appointment.vehicle?.dvsaCheckedAt || null
+    };
     if (typeof window._resetVehicleLookupUI === 'function') {
         window._resetVehicleLookupUI();
         if (vehicleLookupVrmEl) vehicleLookupVrmEl.value = (appointment.registrationPlate || appointment.regNumber || '').replace(/\s+/g, '').toUpperCase();
@@ -8880,6 +8950,7 @@ function setupAppointmentFormLogic() {
         const summaryWrap = document.getElementById('vehicleSummary');
         const makeModelEl = document.getElementById('makeModel');
         const regNumberEl = document.getElementById('regNumber');
+        const mileageEl = document.getElementById('mileage');
 
         if (!lookupInput || !lookupBtn || !lookupStatus) {
             if (!window.__tvxDvsaLookupWarnedMissing) {
@@ -9077,6 +9148,71 @@ function setupAppointmentFormLogic() {
             return String(base || '').trim().replace(/\/+$/, '');
         }
 
+        function normalizeMileage(value) {
+            if (value === null || value === undefined || value === '') return null;
+            const numeric = Number(String(value).replace(/[^0-9.-]/g, ''));
+            return Number.isFinite(numeric) && numeric > 0 ? numeric : null;
+        }
+
+        function buildCanonicalVehicle(payload = {}) {
+            const regPlate = normalizeVrm(payload.regPlate || payload.vrm || regNumberEl?.value || lookupInput?.value || '');
+            const makeModel = String(payload.makeModel || '').trim();
+            const mileage = normalizeMileage(payload.mileage ?? mileageEl?.dataset?.rawMileage ?? mileageEl?.value);
+            return {
+                regPlate,
+                makeModel,
+                mileage,
+                motStatus: String(payload.motStatus || '').trim(),
+                motExpiry: String(payload.motExpiry || '').trim(),
+                taxStatus: String(payload.taxStatus || '').trim(),
+                dvsaVerified: Boolean(payload.dvsaVerified),
+                dvsaCheckedAt: payload.dvsaCheckedAt || null
+            };
+        }
+
+        async function syncCanonicalVehicleToFirestore(vehiclePayload) {
+            if (!db || !editingAppointmentId) return;
+
+            try {
+                const { doc, getDoc, updateDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+
+                const aptRef = doc(db, 'appointments', editingAppointmentId);
+                const aptSnap = await getDoc(aptRef);
+                if (!aptSnap.exists()) return;
+
+                const aptData = aptSnap.data() || {};
+                const canonicalVehicle = {
+                    ...vehiclePayload,
+                    dvsaCheckedAt: serverTimestamp()
+                };
+
+                await updateDoc(aptRef, {
+                    vehicle: canonicalVehicle,
+                    vehicleMakeModel: canonicalVehicle.makeModel || '',
+                    makeModel: canonicalVehicle.makeModel || '',
+                    regPlate: canonicalVehicle.regPlate || '',
+                    vehicleReg: canonicalVehicle.regPlate || '',
+                    registrationPlate: canonicalVehicle.regPlate || '',
+                    regNumber: canonicalVehicle.regPlate || '',
+                    mileage: canonicalVehicle.mileage,
+                    updatedAt: serverTimestamp()
+                });
+
+                if (aptData.invoiceId) {
+                    await updateDoc(doc(db, 'invoices', aptData.invoiceId), {
+                        vehicle: canonicalVehicle,
+                        vehicleMakeModel: canonicalVehicle.makeModel || '',
+                        regPlate: canonicalVehicle.regPlate || '',
+                        vehicleReg: canonicalVehicle.regPlate || '',
+                        mileage: canonicalVehicle.mileage,
+                        updatedAt: serverTimestamp()
+                    });
+                }
+            } catch (error) {
+                console.warn('[DVSA] Vehicle sync warning:', error);
+            }
+        }
+
         function getDvsaEndpoint() {
             const projectId = app?.options?.projectId || db?.app?.options?.projectId || 'appointments-transvortex';
             const overrideBase = window.TVX_DVSA_ENDPOINT || localStorage.getItem('tvx_dvsa_endpoint') || '';
@@ -9173,6 +9309,20 @@ function setupAppointmentFormLogic() {
                 if (regNumberEl) regNumberEl.value = resolvedVrm;
                 if (lookupInput) lookupInput.value = resolvedVrm;
                 if (makeModelEl && resolvedMakeModel) makeModelEl.value = resolvedMakeModel;
+
+                const canonicalVehicle = buildCanonicalVehicle({
+                    vrm: resolvedVrm,
+                    regPlate: resolvedVrm,
+                    makeModel: resolvedMakeModel,
+                    mileage: data?.mileage,
+                    motStatus: data?.motStatus,
+                    motExpiry: data?.motExpiry,
+                    taxStatus: data?.taxStatus,
+                    dvsaVerified: true,
+                    dvsaCheckedAt: new Date().toISOString()
+                });
+                window.__tvxLastDvsaVehicle = canonicalVehicle;
+                await syncCanonicalVehicleToFirestore(canonicalVehicle);
 
                 renderSummary(data || {});
                 setStatus('success', 'Vehicle verified and fields auto-filled.');

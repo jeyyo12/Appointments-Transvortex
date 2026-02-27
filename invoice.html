@@ -353,8 +353,32 @@
                 <!-- VEHICLE DETAILS CARD -->
                 <div class="perf-card vehicle-card">
                     <h4>Vehicle Details</h4>
-                    <div class="vehicle-make" id="vehicleMakeModel">—</div>
-                    <div class="mileage">Mileage: <span id="vehicleMileage">—</span></div>
+                    <div class="vehicle-card-grid">
+                        <div class="vehicle-chip">
+                            <span class="vehicle-chip-label">REG</span>
+                            <span class="vehicle-chip-value" id="vehicleRegCard">—</span>
+                        </div>
+                        <div class="vehicle-chip">
+                            <span class="vehicle-chip-label">Make/Model ✏️</span>
+                            <span class="vehicle-chip-value" id="vehicleMakeModel">—</span>
+                        </div>
+                        <div class="vehicle-chip">
+                            <span class="vehicle-chip-label">Mileage ✏️</span>
+                            <span class="vehicle-chip-value" id="vehicleMileage">—</span>
+                        </div>
+                        <div class="vehicle-chip" id="vehicleMotExpiryWrap" style="display:none;">
+                            <span class="vehicle-chip-label">MOT Expiry</span>
+                            <span class="vehicle-chip-value" id="vehicleMotExpiry">—</span>
+                        </div>
+                        <div class="vehicle-chip" id="vehicleTaxStatusWrap" style="display:none;">
+                            <span class="vehicle-chip-label">Tax Status</span>
+                            <span class="vehicle-chip-value" id="vehicleTaxStatus">—</span>
+                        </div>
+                    </div>
+                    <div class="vehicle-dvsa-meta" id="vehicleDvsaMeta" style="display:none;">
+                        <span class="vehicle-dvsa-badge" id="vehicleDvsaBadge">Verified via DVSA</span>
+                        <span class="vehicle-dvsa-checked" id="vehicleDvsaCheckedAt">—</span>
+                    </div>
                 </div>
 
                 <!-- SUMMARY CARD (Aggressive Dark) -->

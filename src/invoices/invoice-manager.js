@@ -320,6 +320,35 @@ export async function getOrCreateInvoiceForAppointment(appointmentId, prefillDat
     const basePhone = prefillData.customerPhone || aptData.customerPhone || '';
     const baseAddress = prefillData.address || aptData.address || '';
     const baseEmail = prefillData.customerEmail || prefillData.email || aptData.customerEmail || aptData.email || '';
+    const canonicalVehicle = {
+      regPlate: (
+        prefillData?.vehicle?.regPlate ||
+        prefillData?.registrationPlate ||
+        prefillData?.regPlate ||
+        aptData?.vehicle?.regPlate ||
+        aptData?.registrationPlate ||
+        aptData?.regNumber ||
+        aptData?.regPlate ||
+        euVehicleReg ||
+        ''
+      ).toString().trim(),
+      makeModel: (
+        prefillData?.vehicle?.makeModel ||
+        prefillData?.vehicleMakeModel ||
+        prefillData?.makeModel ||
+        aptData?.vehicle?.makeModel ||
+        aptData?.vehicleMakeModel ||
+        aptData?.makeModel ||
+        aptData?.carMakeModel ||
+        ''
+      ).toString().trim(),
+      mileage: prefillData?.vehicle?.mileage ?? prefillData?.mileage ?? aptData?.vehicle?.mileage ?? aptData?.mileage ?? '',
+      motStatus: (prefillData?.vehicle?.motStatus || aptData?.vehicle?.motStatus || '').toString().trim(),
+      motExpiry: (prefillData?.vehicle?.motExpiry || aptData?.vehicle?.motExpiry || '').toString().trim(),
+      taxStatus: (prefillData?.vehicle?.taxStatus || aptData?.vehicle?.taxStatus || '').toString().trim(),
+      dvsaVerified: Boolean(prefillData?.vehicle?.dvsaVerified ?? aptData?.vehicle?.dvsaVerified),
+      dvsaCheckedAt: prefillData?.vehicle?.dvsaCheckedAt || aptData?.vehicle?.dvsaCheckedAt || null
+    };
     
     const invoicePayload = {
       invoiceNumber: invoiceNumber,
@@ -341,9 +370,11 @@ export async function getOrCreateInvoiceForAppointment(appointmentId, prefillDat
       ...(baseEmail || euBuyer.email ? { customerEmail: baseEmail || euBuyer.email } : {}),
       
       // Vehicle info
-      vehicleMakeModel: prefillData.vehicleMakeModel || prefillData.makeModel || aptData.vehicleMakeModel || aptData.makeModel || '',
-      regPlate: prefillData.registrationPlate || prefillData.regPlate || aptData.registrationPlate || aptData.regNumber || aptData.regPlate || euVehicleReg || '',
-      mileage: prefillData.mileage || aptData.mileage || '',
+      vehicle: canonicalVehicle,
+      vehicleMakeModel: canonicalVehicle.makeModel || '',
+      regPlate: canonicalVehicle.regPlate || '',
+      vehicleReg: canonicalVehicle.regPlate || '',
+      mileage: canonicalVehicle.mileage,
       
       // STEP 4: Store jobs/parts in new schema
       jobs,
