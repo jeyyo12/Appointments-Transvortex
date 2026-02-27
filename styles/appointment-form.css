@@ -671,6 +671,92 @@ select.form-input {
   margin-bottom: var(--gap-10);
 }
 
+.itemsPanel {
+  position: relative;
+}
+
+.itemsPanelHeader {
+  position: sticky;
+  top: 0;
+  z-index: 8;
+  background: #fff;
+  padding-top: 2px;
+}
+
+.tab-count {
+  margin-left: 6px;
+  min-width: 20px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.08);
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1.2;
+  text-align: center;
+}
+
+.tabBtn.active .tab-count {
+  background: rgba(255, 122, 24, 0.18);
+  color: #c2410c;
+}
+
+.presetGroups {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+
+.presetGroupChip {
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  color: #64748b;
+  border-radius: 999px;
+  min-height: 34px;
+  padding: 0 12px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.presetGroupChip.active {
+  border-color: rgba(255, 122, 24, 0.45);
+  background: rgba(255, 122, 24, 0.09);
+  color: #c2410c;
+}
+
+.presetQuickList {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  min-height: 34px;
+  margin-bottom: 10px;
+}
+
+.presetQuickChip {
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  color: #334155;
+  border-radius: 999px;
+  min-height: 34px;
+  padding: 0 12px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.presetQuickChip:hover {
+  border-color: rgba(255, 122, 24, 0.4);
+  background: rgba(255, 122, 24, 0.08);
+}
+
+.presetQuickList:empty::after {
+  content: 'No presets available';
+  color: #94a3b8;
+  font-size: 12px;
+  padding: 7px 0;
+}
+
 .chipSearch {
   position: relative;
   flex: 1;
@@ -707,6 +793,13 @@ select.form-input {
   transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   white-space: nowrap;
   box-shadow: 0 2px 6px rgba(255, 122, 24, 0.2);
+}
+
+.chipAddBtn--icon {
+  min-width: 44px;
+  width: 44px;
+  padding: 0;
+  font-size: 14px;
 }
 
 .chipAddBtn:hover {
@@ -771,7 +864,8 @@ select.form-input {
 }
 
 .suggestItem.highlight {
-  background: #fef3c7;
+  background: #fff7ed;
+  border-left: 3px solid #fb923c;
   font-weight: 600;
 }
 
@@ -858,11 +952,320 @@ select.form-input {
 }
 
 .chipsList.empty::after {
-  content: 'No items added yet';
+  content: 'No items added yet. Use search to add labour or parts.';
   text-align: center;
   padding: var(--pad-14);
   color: #94a3b8;
   font-size: var(--fs-12);
+}
+
+/* =====================================================
+   STEP 3 ENTERPRISE GRID REFINEMENT (ServiceTitan-style)
+   ===================================================== */
+.itemsPanel--enterprise {
+  border: 1px solid #dbe3ee;
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: none;
+}
+
+.itemsPanel--enterprise .itemsPanelHeader {
+  position: sticky;
+  top: 0;
+  z-index: 9;
+  padding: 8px 10px;
+  border-bottom: 1px solid #e2e8f0;
+  background: #fff;
+  box-shadow: 0 1px 0 rgba(15, 23, 42, 0.04);
+}
+
+.woHeaderTotal {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #475569;
+}
+
+.woHeaderTotal strong {
+  font-size: 16px;
+  font-weight: 900;
+  color: #c2410c;
+  font-variant-numeric: tabular-nums;
+}
+
+.itemsPanel--enterprise .chipAdder {
+  margin-bottom: 8px;
+}
+
+/* Full-width search when + button is removed */
+.chipAdder--search-only {
+  display: block;
+}
+
+.chipAdder--search-only .chipSearch {
+  width: 100%;
+}
+
+.itemsPanel--enterprise .chipInput {
+  height: 42px;
+  border-radius: 8px;
+  border-color: #d6dee9;
+}
+
+.itemsPanel--enterprise .chipAddBtn--icon {
+  height: 42px;
+  min-width: 42px;
+  border-radius: 8px;
+  background: #fff;
+  color: #334155;
+  border-color: #cbd5e1;
+  box-shadow: none;
+}
+
+.itemsPanel--enterprise .chipAddBtn--icon:hover {
+  color: #0f172a;
+  background: #f8fafc;
+  border-color: #94a3b8;
+  transform: none;
+}
+
+.itemsPanel--enterprise .chipsWrap {
+  border: 1px solid #dbe3ee;
+  border-radius: 10px;
+  padding: 8px;
+}
+
+.itemGridHeader {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) 74px 100px 70px 110px 36px;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #f8fafc;
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  position: sticky;
+  top: 58px;
+  z-index: 6;
+}
+
+.itemGridHeader .col-qty,
+.itemGridHeader .col-vat {
+  text-align: center;
+}
+
+.itemGridHeader .col-unit,
+.itemGridHeader .col-total {
+  text-align: right;
+}
+
+.chipsList {
+  gap: 6px;
+}
+
+.chipItem {
+  border-radius: 8px;
+  box-shadow: none;
+  padding: 8px 10px;
+}
+
+.chipTop,
+.chipBottom {
+  margin: 0;
+}
+
+.chipBottom {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) 74px 100px 70px 110px 36px;
+  gap: 8px;
+  align-items: center;
+}
+
+.chipDescInput {
+  width: 100%;
+  min-height: 34px;
+  border: 1px solid #d6dee9;
+  border-radius: 8px;
+  padding: 0 10px;
+  font-size: 13px;
+  color: #0f172a;
+}
+
+.chipDescInput:focus {
+  outline: 2px solid rgba(255, 122, 24, 0.2);
+  outline-offset: 1px;
+  border-color: #fb923c;
+}
+
+.chipName {
+  font-size: 13px;
+}
+
+.chipTop {
+  display: none;
+}
+
+.chipStepper {
+  min-height: 34px;
+}
+
+.chipStepperBtn {
+  min-height: 34px;
+}
+
+.chipStepper .chipQty,
+.chipVat {
+  height: 34px;
+}
+
+.chipVat {
+  width: 100%;
+  border: 1px solid #d6dee9;
+  border-radius: 8px;
+  background: #fff;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 700;
+  color: #334155;
+}
+
+.chipPrice {
+  height: 34px;
+  border-radius: 8px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.chipTotal {
+  font-size: 14px;
+  color: #0f172a;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.chipActions {
+  justify-content: flex-end;
+}
+
+.chipActions--row {
+  display: inline-flex;
+}
+
+.chipFav {
+  display: none;
+}
+
+.chipRemove {
+  height: 34px;
+  width: 34px;
+  border-radius: 8px;
+}
+
+.totalsBar {
+  border-top: 1px solid #dbe3ee;
+  background: #f8fafc;
+  padding: 10px 12px;
+}
+
+.tLine,
+.tGrand {
+  font-variant-numeric: tabular-nums;
+}
+
+.tGrand {
+  font-size: 15px;
+  font-weight: 900;
+}
+
+.premium-notes-card,
+.premium-details {
+  border: 1px solid #dbe3ee;
+  border-radius: 10px;
+  box-shadow: none;
+}
+
+.premium-summary {
+  padding: 10px 12px;
+}
+
+.summary-title {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.premium-textarea {
+  border-radius: 8px;
+  border: 1px solid #d6dee9;
+  box-shadow: none;
+}
+
+@media (max-width: 900px) {
+  /* Variant B: Enterprise grid stays visible on mobile — wrapper scrolls horizontally */
+  .chipsWrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .itemGridHeader {
+    display: grid;
+    min-width: 420px;
+    grid-template-columns: minmax(120px, 1fr) 48px 78px 60px 80px 32px;
+    font-size: 10px;
+    letter-spacing: 0;
+    gap: 4px;
+    padding: 6px 8px;
+  }
+
+  .chipTop {
+    display: none;
+  }
+
+  .chipBottom {
+    min-width: 420px;
+    grid-template-columns: minmax(120px, 1fr) 48px 78px 60px 80px 32px;
+    gap: 4px;
+  }
+
+  .chipItem {
+    min-width: 420px;
+  }
+
+  .chipActions--row {
+    display: inline-flex;
+  }
+
+  .chipDescInput {
+    font-size: 12px;
+    padding: 0 6px;
+  }
+
+  .chipPrice {
+    font-size: 12px;
+    padding: 0 4px;
+  }
+
+  .chipVat {
+    font-size: 11px;
+    padding: 0 2px;
+  }
+
+  .chipTotal {
+    font-size: 12px;
+    text-align: right;
+  }
+
+  .chipRemove {
+    height: 32px;
+    width: 32px;
+    font-size: 12px;
+  }
 }
 
 /* Individual Chip Item */
@@ -887,16 +1290,40 @@ select.form-input {
 }
 
 .chipTop {
-  display: flex;
+  /* Hidden in enterprise grid layout — description lives in chipDescInput */
+  display: none;
   justify-content: space-between;
-  align-items: flex-start;
+  align-items: center;
   gap: var(--gap-8);
 }
 
+.chipActions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.chipFav {
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  color: #94a3b8;
+  border-radius: 10px;
+  height: 34px;
+  width: 34px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.chipFav.active {
+  color: #d97706;
+  background: #fff7ed;
+  border-color: #fdba74;
+}
+
 .chipName {
-  font-size: var(--fs-16);
+  font-size: 14px;
   line-height: 1.2;
-  font-weight: 600;
+  font-weight: 700;
   color: #0b1220;
   flex: 1;
   word-break: break-word;
@@ -907,8 +1334,8 @@ select.form-input {
   background: #fee2e2;
   color: #991b1b;
   border-radius: 12px;
-  height: 38px;
-  width: 40px;
+  height: 34px;
+  width: 36px;
   font-weight: 900;
   font-size: var(--fs-14);
   cursor: pointer;
@@ -929,25 +1356,43 @@ select.form-input {
 }
 
 .chipBottom {
-  margin-top: var(--gap-8);
+  /* grid-template-columns set by enterprise refinement block above */
   display: grid;
-  grid-template-columns: 1fr 1fr auto;
-  gap: var(--gap-8);
-  align-items: flex-end;
+  align-items: center;
 }
 
-.chipBottom label {
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  font-size: var(--fs-12);
-  color: #64748b;
-  gap: 6px;
-  font-weight: 600;
+.chipStepper {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  overflow: hidden;
+  min-height: 38px;
 }
 
-.chipBottom input {
-  min-width: 0;
+.chipStepperBtn {
+  width: 32px;
+  min-height: 38px;
+  border: 0;
+  background: #f8fafc;
+  color: #334155;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.chipStepperBtn:hover {
+  background: #f1f5f9;
+}
+
+.chipStepper .chipQty {
+  width: 48px;
+  border: 0;
+  border-left: 1px solid #e2e8f0;
+  border-right: 1px solid #e2e8f0;
+  border-radius: 0;
+  text-align: center;
+  height: 38px;
+  padding: 0;
 }
 
 .chipQty,
@@ -979,33 +1424,31 @@ select.form-input {
 
 .chipTotal {
   font-weight: 950;
-  font-size: var(--fs-16);
+  font-size: 15px;
   color: #f97316;
   font-variant-numeric: tabular-nums;
-  padding-bottom: 6px;
+  padding-bottom: 0;
   text-align: right;
+}
+
+.totalsBar {
+  position: sticky;
+  bottom: 0;
+  z-index: 7;
+  background: #fff;
+  border-top: 1px solid #e2e8f0;
+}
+
+.tLine--subtle {
+  margin-top: 4px;
+  font-size: 12px;
+  color: #64748b;
 }
 
 /* Mobile Responsive - Chip Layout Adjustments */
 @media (max-width: 520px) {
-  .chipBottom {
-    grid-template-columns: 1fr 1fr;
-    gap: var(--gap-6);
-  }
-
-  .chipTotal {
-    grid-column: 1 / -1;
-    text-align: right;
-  }
-
-  .chipAdder {
-    flex-direction: column;
-  }
-
-  .chipAddBtn {
-    width: 100%;
-  }
-
+  /* Grid columns maintained via 900 px rule + horizontal scroll;
+     only keep non-layout utilities here */
   .suggestBox {
     max-height: 200px;
   }
@@ -2120,5 +2563,561 @@ select.form-input {
   
   .char-counter {
     align-self: flex-end;
+  }
+}
+
+/* =====================================================================
+   Appointment Form - Consolidated Feature Scope
+   Namespace wrapper: .tvx-appointmentForm
+   ===================================================================== */
+
+/* Appointment Form - Step 1 */
+.tvx-appointmentForm #appointmentForm.appt-form {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(10px, 1.8vw, 16px);
+  padding-bottom: calc(clamp(48px, 8vw, 72px) + env(safe-area-inset-bottom));
+}
+
+.tvx-appointmentForm .tvModeToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: clamp(6px, 1.2vw, 10px);
+  background: rgba(15, 23, 42, 0.04);
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: clamp(10px, 2vw, 14px);
+  padding: clamp(6px, 1.2vw, 10px);
+  width: fit-content;
+}
+
+.tvx-appointmentForm .tvModeBtn {
+  border: 1px solid transparent;
+  background: transparent;
+  color: rgba(15, 23, 42, 0.7);
+  font-weight: 600;
+  border-radius: clamp(8px, 1.6vw, 12px);
+  padding: clamp(8px, 1.8vw, 12px) clamp(12px, 2.4vw, 16px);
+  min-height: clamp(40px, 7.5vw, 44px);
+  cursor: pointer;
+}
+
+.tvx-appointmentForm .tvModeBtn--active {
+  background: linear-gradient(135deg, #fff1e6 0%, #ffe8d6 100%);
+  border-color: rgba(255, 138, 61, 0.4);
+  color: #ff7a18;
+}
+
+.tvx-appointmentForm #appointmentForm .appt-form-tabs {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(15, 23, 42, 0.05);
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  border-radius: 10px;
+  padding: 4px;
+}
+
+.tvx-appointmentForm #appointmentForm .appt-form-tab {
+  border: 1px solid transparent;
+  background: transparent;
+  color: rgba(15, 23, 42, 0.7);
+  border-radius: 8px;
+  padding: 8px 12px;
+  min-height: 44px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.tvx-appointmentForm #appointmentForm .appt-form-tab.active {
+  background: #ffffff;
+  color: #ff7a18;
+  border-color: rgba(255, 138, 61, 0.3);
+}
+
+.tvx-appointmentForm #appointmentForm .appt-form-panel {
+  display: none;
+  min-width: 0;
+}
+
+.tvx-appointmentForm #appointmentForm .appt-form-panel.active {
+  display: block;
+}
+
+.tvx-appointmentForm #appointmentForm .appt-form__grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: clamp(12px, 2vw, 18px);
+  align-items: start;
+  min-width: 0;
+}
+
+@media (min-width: 768px) {
+  .tvx-appointmentForm #appointmentForm .appt-form__grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.tvx-appointmentForm #appointmentForm .appt-form__grid > * {
+  min-width: 0;
+}
+
+.tvx-appointmentForm #appointmentForm .appt-form__grid > .itemsPanel,
+.tvx-appointmentForm #appointmentForm .appt-form__grid > .premium-notes-card {
+  grid-column: 1 / -1;
+}
+
+.tvx-appointmentForm .tvFormGrid {
+  display: grid;
+  gap: clamp(8px, 1.4vw, 12px);
+}
+
+.tvx-appointmentForm .tvFormGrid .field-row {
+  margin-bottom: 0;
+  gap: clamp(8px, 1.2vw, 12px);
+}
+
+@media (min-width: 768px) {
+  .tvx-appointmentForm .tvFormGrid .field-row.two {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.tvx-appointmentForm .appt-input,
+.tvx-appointmentForm .appt-select,
+.tvx-appointmentForm .appt-textarea {
+  min-height: 44px;
+  font-size: 16px;
+  padding: clamp(10px, 2vw, 12px) clamp(10px, 2.4vw, 14px);
+}
+
+.tvx-appointmentForm .appt-form__actions {
+  gap: clamp(8px, 1.4vw, 12px);
+  margin-top: clamp(8px, 1.4vw, 12px);
+  padding: clamp(8px, 1.6vw, 12px) clamp(10px, 2.2vw, 14px) calc(clamp(8px, 1.6vw, 12px) + env(safe-area-inset-bottom));
+}
+
+.tvx-appointmentForm #appointmentForm .appt-form__actions button {
+  width: 100%;
+  min-height: 44px;
+}
+
+/* Appointment Form - Step 2 */
+.tvx-appointmentForm #appointmentForm #apptTabInvoiceRO .appt-card {
+  margin-bottom: clamp(10px, 1.6vw, 14px);
+}
+
+.tvx-appointmentForm #appointmentForm #apptTabInvoiceRO .appt-label,
+.tvx-appointmentForm #appointmentForm #apptTabInvoiceRO h3,
+.tvx-appointmentForm #appointmentForm #apptTabInvoiceRO input,
+.tvx-appointmentForm #appointmentForm #apptTabInvoiceRO textarea {
+  word-break: normal;
+  overflow-wrap: break-word;
+  white-space: normal;
+}
+
+.tvx-appointmentForm #vehicleLookupBtn,
+.tvx-appointmentForm .vehicle-lookup-btn {
+  min-height: 44px;
+}
+
+/* Appointment Form - Step 3 */
+.tvx-appointmentForm .itemsPanel,
+.tvx-appointmentForm .premium-notes-card {
+  min-width: 0;
+}
+
+.tvx-appointmentForm .itemsPanel .chipQty,
+.tvx-appointmentForm .itemsPanel .chipPrice,
+.tvx-appointmentForm .itemsPanel .chipTotal,
+.tvx-appointmentForm .itemsPanel .chipVat,
+.tvx-appointmentForm .itemsPanel .tLine b,
+.tvx-appointmentForm .itemsPanel .tGrand b,
+.tvx-appointmentForm #workOrderHeadTotal {
+  font-variant-numeric: tabular-nums;
+}
+
+.tvx-appointmentForm .itemsPanel .chipPrice,
+.tvx-appointmentForm .itemsPanel .chipTotal,
+.tvx-appointmentForm .itemsPanel .tLine b,
+.tvx-appointmentForm .itemsPanel .tGrand b {
+  text-align: right;
+}
+
+/* Appointment Form - Mobile */
+@media (max-width: 767px) {
+  .tvx-appointmentForm #appointmentForm .appt-form__grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .tvx-appointmentForm #appointmentForm .appt-card,
+  .tvx-appointmentForm #appointmentForm .itemsPanel,
+  .tvx-appointmentForm #appointmentForm .premium-notes-card {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .tvx-appointmentForm #appointmentForm .tvFormGrid .field-row.two,
+  .tvx-appointmentForm #appointmentForm .tvRow2 {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    align-items: start;
+  }
+
+  .tvx-appointmentForm #appointmentForm .appt-location-row {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: clamp(10px, 2vw, 14px);
+  }
+}
+
+@media (max-width: 520px) {
+  .tvx-appointmentForm #appointmentForm .tvFormGrid .field-row.two,
+  .tvx-appointmentForm #appointmentForm .tvRow2,
+  .tvx-appointmentForm #appointmentForm .appt-location-row {
+    grid-template-columns: 1fr;
+  }
+
+  .tvx-appointmentForm #appointmentForm .appt-label {
+    white-space: normal;
+    line-height: 1.15;
+  }
+}
+
+@media (min-width: 980px) {
+  #appointmentsTab .tvDashboard--workspaceOptimized {
+    max-width: 1320px;
+    margin-left: auto;
+    margin-right: auto;
+    grid-template-columns: minmax(420px, 560px) minmax(0, 1fr);
+    align-items: start;
+    column-gap: clamp(14px, 2vw, 24px);
+  }
+
+  #appointmentsTab #addAppointmentSection {
+    min-width: 420px;
+    width: 100%;
+  }
+}
+
+/* =====================================================
+   STEP 3 ITEMS PANEL - FINAL SCOPED OVERRIDES
+   (wins against later layered chip styles)
+   ===================================================== */
+.itemsPanel.itemsPanel--enterprise .chipAddBtn,
+.itemsPanel.itemsPanel--enterprise .chipAddBtn--icon {
+  display: none !important;
+}
+
+.itemsPanel.itemsPanel--enterprise .totalsBar {
+  border-top: 1px solid #dbe3ee;
+  background: #f8fafc;
+  box-shadow: none;
+}
+
+.itemsPanel.itemsPanel--enterprise.is-empty .totalsBar {
+  display: none;
+}
+
+.itemsPanel.itemsPanel--enterprise .tLine,
+.itemsPanel.itemsPanel--enterprise .tGrand,
+.itemsPanel.itemsPanel--enterprise .tRight b,
+.itemsPanel.itemsPanel--enterprise .tLeft b,
+.itemsPanel.itemsPanel--enterprise .woHeaderTotal strong,
+.itemsPanel.itemsPanel--enterprise .chipQty,
+.itemsPanel.itemsPanel--enterprise .chipPrice,
+.itemsPanel.itemsPanel--enterprise .chipTotal {
+  font-variant-numeric: tabular-nums;
+}
+
+.itemsPanel.itemsPanel--enterprise .tRight,
+.itemsPanel.itemsPanel--enterprise .tRight b,
+.itemsPanel.itemsPanel--enterprise .tLeft b {
+  text-align: right;
+}
+
+.itemsPanel.itemsPanel--enterprise .chipBottom {
+  margin-top: 0;
+}
+
+.itemsPanel.itemsPanel--enterprise .chipRemove,
+.itemsPanel.itemsPanel--enterprise .chipStepperBtn,
+.itemsPanel.itemsPanel--enterprise .chipQty,
+.itemsPanel.itemsPanel--enterprise .chipPrice,
+.itemsPanel.itemsPanel--enterprise .chipVat {
+  min-height: 44px;
+}
+
+.itemsPanel.itemsPanel--enterprise .chipQty,
+.itemsPanel.itemsPanel--enterprise .chipPrice,
+.itemsPanel.itemsPanel--enterprise .chipVat,
+.itemsPanel.itemsPanel--enterprise .chipDescInput {
+  font-size: 16px;
+}
+
+.itemsPanel.itemsPanel--enterprise .chipPrice,
+.itemsPanel.itemsPanel--enterprise .chipTotal,
+.itemsPanel.itemsPanel--enterprise .itemGridHeader .col-unit,
+.itemsPanel.itemsPanel--enterprise .itemGridHeader .col-total,
+.itemsPanel.itemsPanel--enterprise .itemGridHeader .col-vat {
+  text-align: right;
+}
+
+.itemsPanel.itemsPanel--enterprise .chipDescInput {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 520px) {
+  .itemsPanel.itemsPanel--enterprise .itemGridHeader {
+    display: none;
+  }
+
+  .itemsPanel.itemsPanel--enterprise .chipsWrap {
+    overflow-x: visible;
+    padding: 8px;
+  }
+
+  .itemsPanel.itemsPanel--enterprise .chipsList {
+    gap: 8px;
+  }
+
+  .itemsPanel.itemsPanel--enterprise .chipItem {
+    min-width: 0;
+    border-radius: 10px;
+    border: 1px solid #dbe3ee;
+    background: #ffffff;
+    box-shadow: none;
+    padding: 8px;
+  }
+
+  .itemsPanel.itemsPanel--enterprise .chipBottom {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 88px 64px;
+    grid-template-areas:
+      'desc desc desc'
+      'qty unit vat'
+      'total total remove';
+    gap: 8px;
+    align-items: center;
+  }
+
+  .itemsPanel.itemsPanel--enterprise .chipDescInput {
+    grid-area: desc;
+    width: 100%;
+  }
+
+  .itemsPanel.itemsPanel--enterprise .chipStepper {
+    grid-area: qty;
+    width: 100%;
+  }
+
+  .itemsPanel.itemsPanel--enterprise .chipPrice {
+    grid-area: unit;
+    width: 100%;
+  }
+
+  .itemsPanel.itemsPanel--enterprise .chipVat {
+    grid-area: vat;
+    width: 100%;
+  }
+
+  .itemsPanel.itemsPanel--enterprise .chipTotal {
+    grid-area: total;
+    font-weight: 900;
+    font-size: 15px;
+    justify-self: end;
+    align-self: center;
+  }
+
+  .itemsPanel.itemsPanel--enterprise .chipActions--row {
+    grid-area: remove;
+    display: inline-flex;
+    justify-self: end;
+    align-self: center;
+  }
+
+  .itemsPanel.itemsPanel--enterprise .chipRemove {
+    width: 44px;
+    min-width: 44px;
+    height: 44px;
+    border: 1px solid #fecaca;
+    background: #fff;
+    color: #b91c1c;
+    border-radius: 10px;
+    box-shadow: none;
+  }
+
+  .itemsPanel.itemsPanel--enterprise .chipRemove:hover {
+    background: #fff5f5;
+    transform: none;
+  }
+
+  .itemsPanel.itemsPanel--enterprise .totalsBar {
+    position: static;
+    margin-top: 8px;
+    padding: 12px;
+  }
+}
+
+@media (min-width: 521px) and (max-width: 767px) {
+  .itemsPanel.itemsPanel--enterprise .itemGridHeader,
+  .itemsPanel.itemsPanel--enterprise .chipBottom {
+    grid-template-columns: minmax(140px, 1fr) 64px 90px 70px 94px 36px;
+    gap: 8px;
+  }
+
+  .itemsPanel.itemsPanel--enterprise .chipItem {
+    min-width: 0;
+  }
+}
+
+/* Step 3 - Jobs Added Mobile Fix */
+@media (max-width: 520px) {
+  .tvx-appointmentForm .tvx-step3 #jobsChips,
+  .tvx-appointmentForm .tvx-step3 #partsChips {
+    overflow-x: hidden;
+  }
+
+  .tvx-appointmentForm .tvx-step3 #jobsChips .chipItem,
+  .tvx-appointmentForm .tvx-step3 #partsChips .chipItem {
+    display: grid;
+    grid-template-rows: auto auto;
+    gap: 8px;
+    min-width: 0;
+    padding: 8px;
+    overflow: hidden;
+  }
+
+  .tvx-appointmentForm .tvx-step3 #jobsChips .chipTop,
+  .tvx-appointmentForm .tvx-step3 #partsChips .chipTop {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start;
+    column-gap: 8px;
+    min-width: 0;
+  }
+
+  .tvx-appointmentForm .tvx-step3 #jobsChips .chipName,
+  .tvx-appointmentForm .tvx-step3 #partsChips .chipName {
+    min-width: 0;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: normal;
+    line-height: 1.25;
+  }
+
+  .tvx-appointmentForm .tvx-step3 #jobsChips .chipActions,
+  .tvx-appointmentForm .tvx-step3 #partsChips .chipActions {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-left: 0;
+  }
+
+  .tvx-appointmentForm .tvx-step3 #jobsChips .chipFav,
+  .tvx-appointmentForm .tvx-step3 #partsChips .chipFav,
+  .tvx-appointmentForm .tvx-step3 #jobsChips .chipActions--row,
+  .tvx-appointmentForm .tvx-step3 #partsChips .chipActions--row {
+    display: none;
+  }
+
+  .tvx-appointmentForm .tvx-step3 #jobsChips .chipTop .chipRemove,
+  .tvx-appointmentForm .tvx-step3 #partsChips .chipTop .chipRemove {
+    width: 32px;
+    min-width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    font-size: 16px;
+    line-height: 1;
+    align-self: start;
+  }
+
+  .tvx-appointmentForm .tvx-step3 #jobsChips .chipBottom,
+  .tvx-appointmentForm .tvx-step3 #partsChips .chipBottom {
+    display: grid;
+    grid-template-columns: minmax(116px, 1.4fr) minmax(96px, 1fr) minmax(74px, 0.9fr) minmax(72px, auto);
+    grid-template-areas: 'qty unit vat total';
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .tvx-appointmentForm .tvx-step3 #jobsChips .chipDescInput,
+  .tvx-appointmentForm .tvx-step3 #partsChips .chipDescInput {
+    display: none;
+  }
+
+  .tvx-appointmentForm .tvx-step3 #jobsChips .chipStepper,
+  .tvx-appointmentForm .tvx-step3 #partsChips .chipStepper {
+    grid-area: qty;
+    min-width: 0;
+    width: 100%;
+    display: grid;
+    grid-template-columns: 44px minmax(0, 1fr) 44px;
+    gap: 0;
+  }
+
+  .tvx-appointmentForm .tvx-step3 #jobsChips .chipPrice,
+  .tvx-appointmentForm .tvx-step3 #partsChips .chipPrice {
+    grid-area: unit;
+    min-width: 0;
+    width: 100%;
+  }
+
+  .tvx-appointmentForm .tvx-step3 #jobsChips .chipVat,
+  .tvx-appointmentForm .tvx-step3 #partsChips .chipVat {
+    grid-area: vat;
+    min-width: 0;
+    width: 100%;
+  }
+
+  .tvx-appointmentForm .tvx-step3 #jobsChips .chipTotal,
+  .tvx-appointmentForm .tvx-step3 #partsChips .chipTotal {
+    grid-area: total;
+    justify-self: end;
+    min-width: 0;
+    text-align: right;
+    font-weight: 800;
+    color: #334155;
+  }
+
+  .tvx-appointmentForm .tvx-step3 #jobsChips .chipStepperBtn,
+  .tvx-appointmentForm .tvx-step3 #partsChips .chipStepperBtn,
+  .tvx-appointmentForm .tvx-step3 #jobsChips .chipQty,
+  .tvx-appointmentForm .tvx-step3 #partsChips .chipQty,
+  .tvx-appointmentForm .tvx-step3 #jobsChips .chipPrice,
+  .tvx-appointmentForm .tvx-step3 #partsChips .chipPrice,
+  .tvx-appointmentForm .tvx-step3 #jobsChips .chipVat,
+  .tvx-appointmentForm .tvx-step3 #partsChips .chipVat {
+    height: 44px;
+    min-height: 44px;
+    font-size: 16px;
+  }
+
+  .tvx-appointmentForm .tvx-step3 #jobsChips .chipQty,
+  .tvx-appointmentForm .tvx-step3 #partsChips .chipQty,
+  .tvx-appointmentForm .tvx-step3 #jobsChips .chipPrice,
+  .tvx-appointmentForm .tvx-step3 #partsChips .chipPrice,
+  .tvx-appointmentForm .tvx-step3 #jobsChips .chipTotal,
+  .tvx-appointmentForm .tvx-step3 #partsChips .chipTotal {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .tvx-appointmentForm .tvx-step3 #jobsChips .chipQty,
+  .tvx-appointmentForm .tvx-step3 #partsChips .chipQty,
+  .tvx-appointmentForm .tvx-step3 #jobsChips .chipPrice,
+  .tvx-appointmentForm .tvx-step3 #partsChips .chipPrice {
+    padding-left: 8px;
+    padding-right: 8px;
   }
 }

@@ -311,7 +311,7 @@ export const LANG_RO = {
     btnEdit: "Editează",
     btnDelete: "Șterge",
     btnSave: "Salvează",
-    btnCancel: "Anulează",
+    btnCancel: "Anuleaza",
     btnConfirm: "Confirmă",
     btnClose: "Închide",
     btnSaveAppointment: "Salvează Programarea",

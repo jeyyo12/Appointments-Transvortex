@@ -1,6 +1,6 @@
 # Wiring Audit Report
 
-_Generated: 2026-02-27T12:46:26.502Z — files scanned: 84_
+_Generated: 2026-02-27T15:18:59.844Z — files scanned: 85_
 
 > **Definition of Done:** Real broken candidates = 0 · Unmapped actions = 0 · Invoice violations = 0 · Runtime smoke test passes
 
@@ -9,13 +9,13 @@ _Generated: 2026-02-27T12:46:26.502Z — files scanned: 84_
 | Metric | Count | Target | Status |
 | --- | --- | --- | --- |
 | 🔴 REAL broken wiring candidates | 0 | 0 | ✅ |
-| 🔵 Likely false positives (informational) | 22 | — | ℹ️ Review if needed |
+| 🔵 Likely false positives (informational) | 21 | — | ℹ️ Review if needed |
 | 🟡 Unmapped data-action values | 0 | 0 | ✅ |
 | 🟠 Invoice param violations | 0 | 0 | ✅ |
 | 🔁 High-risk duplicate functions (informational) | 0 | — | ℹ️ Review if needed |
 | Wiring completeness estimate | ~100% | 100% |  |
 
-**Total controls:** 78  |  **unique data-action values:** 20  |  **inline onclick:** 44  |  **window.* exports:** 117
+**Total controls:** 77  |  **unique data-action values:** 20  |  **inline onclick:** 44  |  **window.* exports:** 128
 
 
 ## 2. REAL Issues — Fix These (ranked by impact)
@@ -92,9 +92,9 @@ Count: **0**  (target: 0)
 
 | File | Line | Via | Params |
 | --- | --- | --- | --- |
-| script.js | 9287 | js | invoiceId=${invoiceId}, mode=edit |
-| script.js | 9601 | js | invoiceId=${invoiceId}, mode=view |
-| script.js | 9620 | js | invoiceId=${invoiceId}, mode=edit |
+| script.js | 9818 | js | invoiceId=${invoiceId}, mode=edit |
+| script.js | 10132 | js | invoiceId=${invoiceId}, mode=view |
+| script.js | 10151 | js | invoiceId=${invoiceId}, mode=edit |
 | src/invoices/invoice-manager.js | 636 | js | invoiceId=${invoiceId}, mode=${mode} |
 | src/storage/storage.events.js | 132 | js | invoiceId=${targetInvoiceId}, mode=view |
 | src/storage/storage.events.js | 140 | js | invoiceId=${targetInvoiceId}, mode=view |
@@ -108,12 +108,12 @@ Count: **0**  (target: 0)
 
 | File | Line | Function |
 | --- | --- | --- |
-| script.js | 9112 | openInvoiceForAppointment |
-| script.js | 9117 | openInvoice |
-| script.js | 9159 | openInvoiceFromAppointment |
-| script.js | 9165 | openInvoice |
-| script.js | 9186 | openInvoice |
-| script.js | 9579 | openInvoiceFile |
+| script.js | 9643 | openInvoiceForAppointment |
+| script.js | 9648 | openInvoice |
+| script.js | 9690 | openInvoiceFromAppointment |
+| script.js | 9696 | openInvoice |
+| script.js | 9717 | openInvoice |
+| script.js | 10110 | openInvoiceFile |
 | src/invoice-create/invoiceCreate.flow.js | 48 | openInvoice |
 | src/invoice-create/invoiceCreate.flow.js | 150 | openInvoice |
 | src/invoices/invoice-manager.js | 631 | openInvoicePage |
@@ -127,8 +127,8 @@ Count: **0**  (target: 0)
 
 | File | Line | Function |
 | --- | --- | --- |
-| script.js | 9080 | generateInvoiceNumberStable |
-| script.js | 9148 | generateInvoiceNumberLegacy |
+| script.js | 9611 | generateInvoiceNumberStable |
+| script.js | 9679 | generateInvoiceNumberLegacy |
 | src/invoice.js | 202 | generateInvoiceNumberStandalone |
 | src/invoices/invoice-manager.js | 18 | generateInvoiceNumber |
 
@@ -141,7 +141,7 @@ Verify before making any changes to items listed here.
 
 ### 4a. Non-item-scoped or exempt-file data-action missing data-id
 
-Count: **22**
+Count: **21**
 
 These live in: modal dialogs, invoice.html, chips / search / filter controls, offline.html.
 
@@ -149,8 +149,6 @@ They use *local* event delegation that only needs `data-action` (no `data-id` re
 
 | File | Action | Why likely OK |
 | --- | --- | --- |
-| index.html | add-job | Non-item-scoped action (global/filter/chip) |
-| index.html | add-part | Non-item-scoped action (global/filter/chip) |
 | invoice.html | add-service | Exempt file (local delegation, no bindActionDelegation) |
 | invoice.html | add-part | Exempt file (local delegation, no bindActionDelegation) |
 | invoice.html | mark-paid | Exempt file (local delegation, no bindActionDelegation) |
@@ -161,6 +159,7 @@ They use *local* event delegation that only needs `data-action` (no `data-id` re
 | script.js | cancel | Non-item-scoped action (global/filter/chip) |
 | script.js | save | Non-item-scoped action (global/filter/chip) |
 | script.js | close | Non-item-scoped action (global/filter/chip) |
+| src/core/chips-mode.js | add-preset-chip | Non-item-scoped action (global/filter/chip) |
 | src/modal.js | cancel | Exempt file (local delegation, no bindActionDelegation) |
 | src/modal.js | confirm | Exempt file (local delegation, no bindActionDelegation) |
 | src/shared/modal.js | cancel | Exempt file (local delegation, no bindActionDelegation) |
@@ -192,7 +191,7 @@ A duplicate here means two files define the same critical function independently
 
 Static heuristic checks for no-op controls and unexpected scroll/navigation triggers.
 
-Dead buttons: **6** · Scroll-jumps: **12** · Suspicious navigation: **0**
+Dead buttons: **14** · Scroll-jumps: **13** · Suspicious navigation: **0**
 
 
 ### 6a. Dead Buttons
@@ -201,6 +200,14 @@ Controls that look interactive (by class naming) but have no `data-action`, `onc
 
 | File | Snippet |
 | --- | --- |
+| index.html | `<button class="tv-notif-drawer__action" data-notif-mark-all aria-label="Mark all notifications as read">` |
+| index.html | `<button class="tv-notif-drawer__action" data-notif-clear aria-label="Clear notifications">` |
+| index.html | `<button type="button" class="loc-choice-btn" data-loc-value="garage"                                                          aria-pressed="false" aria-label="A` |
+| index.html | `<button type="button" class="loc-choice-btn" data-loc-value="client"                                                          aria-pressed="false" aria-label="A` |
+| index.html | `<button type="button" class="loc-chip-btn" data-contact-value="phone"                                                          aria-pressed="false" title="Phone` |
+| index.html | `<button type="button" class="loc-chip-btn" data-contact-value="sms"                                                          aria-pressed="false" title="SMS tex` |
+| index.html | `<button type="button" class="loc-chip-btn" data-contact-value="whatsapp"                                                          aria-pressed="false" title="Wh` |
+| index.html | `<button type="button" class="loc-chip-btn" data-contact-value="email"                                                          aria-pressed="false" title="Email` |
 | index.html | `<button id="cleanupInvoicesBtn" class="tvBtn tvBtn--secondary tvBtn--sm tvInvoicesStorage__action" title="Cleanup duplicate invoices">` |
 | index.html | `<button id="refreshInvoicesButton" class="tvBtn tvBtn--secondary tvBtn--sm tvInvoicesStorage__action" title="Refresh invoices list">` |
 | index.html | `<button type="button" class="btn-time-now">` |
@@ -214,14 +221,15 @@ Patterns that may trigger unexpected jump/scroll behavior (`href="#..."`, `locat
 
 | File | Line | Kind | Snippet |
 | --- | --- | --- | --- |
-| script.js | 4351 | scroll-into-view | `if (firstCard) firstCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });` |
-| script.js | 4455 | scroll-into-view | `aptRow.scrollIntoView({` |
-| script.js | 4749 | scroll-into-view | `activeTabBtn.scrollIntoView({` |
-| script.js | 5010 | scroll-to | `window.scrollTo(0, this.scrollLockY);` |
-| script.js | 5064 | scroll-into-view | `selected.scrollIntoView({ block: 'center', behavior: 'smooth' });` |
-| script.js | 5078 | scroll-into-view | `selected.scrollIntoView({ block: 'center', behavior: 'smooth' });` |
-| script.js | 5373 | scroll-into-view | `activeTabBtn.scrollIntoView({` |
-| script.js | 8722 | location-hash | `if (!fromPopState && location.hash === '#appointments') {` |
+| script.js | 4539 | scroll-into-view | `if (firstCard) firstCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });` |
+| script.js | 4648 | scroll-into-view | `aptRow.scrollIntoView({` |
+| script.js | 4942 | scroll-into-view | `activeTabBtn.scrollIntoView({` |
+| script.js | 5219 | scroll-to | `window.scrollTo(0, this.scrollLockY);` |
+| script.js | 5273 | scroll-into-view | `selected.scrollIntoView({ block: 'center', behavior: 'smooth' });` |
+| script.js | 5287 | scroll-into-view | `selected.scrollIntoView({ block: 'center', behavior: 'smooth' });` |
+| script.js | 5608 | scroll-into-view | `activeTabBtn.scrollIntoView({` |
+| script.js | 9253 | location-hash | `if (!fromPopState && location.hash === '#appointments') {` |
+| src/core/chips-mode.js | 603 | scroll-into-view | `rowEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });` |
 | src/enterprise-dashboard.js | 389 | scroll-into-view | `firstApt.scrollIntoView({ behavior: 'smooth', block: 'nearest' });` |
 | src/header/header-search.js | 153 | scroll-into-view | `appointmentsTab.scrollIntoView({ behavior: 'smooth' });` |
 | src/ui/form-stepper.js | 266 | scroll-into-view | `stepperHeader?.scrollIntoView({ behavior: 'smooth', block: 'start' });` |
@@ -242,10 +250,9 @@ Navigation to `.html` routes without query params (excluding `index.html`) that 
 | cancel | 5 |
 | toggle-paid | 3 |
 | confirm | 3 |
-| add-part | 2 |
 | invoice | 2 |
-| add-job | 1 |
 | add-service | 1 |
+| add-part | 1 |
 | mark-paid | 1 |
 | clear-payment | 1 |
 | save-draft | 1 |
@@ -258,6 +265,7 @@ Navigation to `.html` routes without query params (excluding `index.html`) that 
 | edit | 1 |
 | delete | 1 |
 | save | 1 |
+| add-preset-chip | 1 |
 
 ## Appendix B: All window.* exports
 
@@ -306,6 +314,12 @@ Navigation to `.html` routes without query params (excluding `index.html`) that 
 | window.debugTvSplash | script.js | no | no |
 | window.tvScanPageSize | script.js | no | no |
 | window.Chart | script.js | no | no |
+| window.addNotification | script.js | no | no |
+| window.getNotifications | script.js | no | no |
+| window.markRead | script.js | no | no |
+| window.markAllRead | script.js | no | no |
+| window.clearNotifications | script.js | no | no |
+| window.unreadCount | script.js | no | no |
 | window.toggleNotifDrawer | script.js | no | no |
 | window.refreshBellBadge | script.js | no | no |
 | window.createAppointmentCard | script.js | no | no |
@@ -330,6 +344,11 @@ Navigation to `.html` routes without query params (excluding `index.html`) that 
 | window.__TVX_UI_V2 | script.js | no | no |
 | window.initEnterpriseHeaderControls | script.js | no | no |
 | window.initWorkspacePanel | script.js, src/workspace/workspace-controller.js | no | no |
+| window.__tvTimePickerTestsRan | script.js | no | no |
+| window._syncServiceLocationUI | script.js | no | no |
+| window._syncContactPrefUI | script.js | no | no |
+| window._showLocPanel | script.js | no | no |
+| window._resetVehicleLookupUI | script.js | no | no |
 | window.__tvFilterAptsInitialized | script.js | no | no |
 | window.__tvRenderAptsInitialized | script.js | no | no |
 | window.updateAppointmentStats | script.js | no | no |
@@ -383,7 +402,7 @@ Navigation to `.html` routes without query params (excluding `index.html`) that 
 
 ## Appendix C: Closest-delegation sites (data-action dispatch points)
 
-- script.js:7956 — `const btn = e.target.closest('button[data-action]');`
+- script.js:8191 — `const btn = e.target.closest('button[data-action]');`
 - src/core/events.js:9 — `const target = event.target.closest('[data-action][data-id]');`
 - src/core/events.js:12 — `const noId = event.target.closest('[data-action]:not([data-id])');`
 - src/invoice.js:1694 — `const actionEl = e.target.closest('[data-action]');`
@@ -394,8 +413,8 @@ Navigation to `.html` routes without query params (excluding `index.html`) that 
 
 Most duplicates are benign utility names. High-risk ones are covered in Section 5.
 
-- `createInvoiceFromAppointment` — CHIPS_MODE_INTEGRATION.js:193, script.js:9175, src/invoice-create/invoiceCreate.flow.js:35
-- `updateLiveIndicators` — index.html:4741, src/enterprise-dashboard.js:260
+- `createInvoiceFromAppointment` — CHIPS_MODE_INTEGRATION.js:193, script.js:9706, src/invoice-create/invoiceCreate.flow.js:35
+- `updateLiveIndicators` — index.html:5274, src/enterprise-dashboard.js:260
 - `registerServiceWorker` — pwa-init.js:46, pwa.js:9
 - `showUpdateNotification` — pwa-init.js:151, sw-update.js:82
 - `setupInstallPrompt` — pwa-init.js:202, pwa.js:116
@@ -405,12 +424,12 @@ Most duplicates are benign utility names. High-risk ones are covered in Section 
 - `getPlatform` — pwa-init.js:277, pwa.js:101
 - `checkForUpdates` — pwa-init.js:293, sw-update.js:98
 - `unregisterServiceWorker` — pwa-init.js:315, sw-update.js:121
-- `renderScannedInvoiceReviewItems` — render_items_update.js:1, script.js:3496
+- `renderScannedInvoiceReviewItems` — render_items_update.js:1, script.js:3516
 - `tracedUpdateDoc` — script.js:235, src/invoice.js:63
-- `formatCurrencyGBP` — script.js:320, src/core/chips-mode.js:644, src/shared/format.js:11
+- `formatCurrencyGBP` — script.js:320, src/core/chips-mode.js:951, src/shared/format.js:11
 - `toNumber` — script.js:330, src/data-layer/formatters.js:41, src/invoice-create/invoiceCreate.ui.js:11, src/invoices/invoice-manager.js:24, src/metrics/dashboard-metrics.js:329, src/shared/format.js:21, src/storage/storage.events.js:18, src/storage/storage.service.js:12, src/storage/storage.ui.js:12
 - `computePaymentStatus` — script.js:342, src/invoice.js:1590
-- `escapeHtml` — script.js:592, src/core/chips-mode.js:622, src/invoice.js:1824
+- `escapeHtml` — script.js:592, src/core/chips-mode.js:929, src/invoice.js:1824
 - `collectJobsPartsFromForm` — script.js:663, src/invoice-create/invoiceCreate.ui.js:31
-- `buildJobsSummary` — script.js:938, src/invoice-create/invoiceCreate.ui.js:37
-- `initializeFirebase` — script.js:986, src/core/app.js:22, src/invoice.js:1044
+- `buildJobsSummary` — script.js:958, src/invoice-create/invoiceCreate.ui.js:37
+- `initializeFirebase` — script.js:1006, src/core/app.js:22, src/invoice.js:1044

@@ -1,4 +1,7 @@
 {
+  "functions": {
+    "source": "functions"
+  },
   "storage": {
     "rules": "storage.rules"
   },
@@ -18,6 +21,13 @@
       "CODEBASE_AUDIT_AND_REFACTORING_BLUEPRINT.md"
     ],
     "rewrites": [
+      {
+        "source": "/api/dvsa",
+        "function": {
+          "functionId": "dvsa",
+          "region": "europe-west2"
+        }
+      },
       {
         "source": "/",
         "destination": "/index.html"

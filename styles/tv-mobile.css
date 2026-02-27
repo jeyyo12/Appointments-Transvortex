@@ -743,10 +743,7 @@ body:has([aria-modal="true"]) .mobile-fab-button {
     display: block;
   }
 
-  /* Hide original form actions bar on mobile (replaced by stepper footer) */
-  .appt-form__actions--stepper-replaced {
-    display: none !important;
-  }
+  /* Add Appointment stepper visibility now handled in styles/appointment-form.css */
 }
 
 /* ═══════════════════════════════════════════
@@ -758,10 +755,6 @@ body:has([aria-modal="true"]) .mobile-fab-button {
   .tvCard,
   .tvCard--compact {
     border-radius: 12px !important;
-  }
-
-  .appt-form__grid {
-    gap: 10px !important;
   }
 }
 
@@ -2107,6 +2100,28 @@ section.tvInvoicesStorage {
   gap: 6px;
 }
 .tv-notif-drawer__title i { color: #FF7A18; }
+.tv-notif-drawer__actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+  margin-right: 6px;
+}
+.tv-notif-drawer__action {
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  color: #475569;
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+}
+.tv-notif-drawer__action:hover {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+}
 .tv-notif-drawer__close {
   width: 26px;
   height: 26px;
@@ -2143,6 +2158,15 @@ section.tvInvoicesStorage {
 }
 .tv-notif-empty i { font-size: 16px; }
 
+.tv-notif-section-title {
+  padding: 10px 14px 6px;
+  font-size: 10px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #64748b;
+  font-weight: 700;
+}
+
 /* Alert row */
 .tv-notif-item {
   display: flex;
@@ -2154,6 +2178,9 @@ section.tvInvoicesStorage {
 }
 .tv-notif-item:last-child { border-bottom: none; }
 .tv-notif-item:hover { background: #f8fafc; }
+.tv-notif-item--read {
+  opacity: 0.78;
+}
 
 .tv-notif-item__icon {
   font-size: 16px;
@@ -2199,6 +2226,25 @@ section.tvInvoicesStorage {
   transition: background 0.1s;
 }
 .tv-notif-view:hover { background: #eff6ff; border-color: #bfdbfe; }
+
+.tv-notif-open,
+.tv-notif-mark-read {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 9px;
+  border-radius: 5px;
+  border: 1px solid #e5e7eb;
+  background: #f8fafc;
+  color: #334155;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.tv-notif-open:hover,
+.tv-notif-mark-read:hover {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+}
 
 /* Dismiss ×  button */
 .tv-notif-dismiss {

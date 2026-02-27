@@ -20,7 +20,7 @@ export function confirmModal({
     icon = null,
     iconColor = null,
     confirmText = 'Confirmă',
-    cancelText = 'Anulează',
+    cancelText = 'Anuleaza',
     variant = 'primary'
 }) {
     return new Promise((resolve) => {

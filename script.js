@@ -678,9 +678,10 @@ function collectChipsFromList(listId, kind) {
 
     const chips = Array.from(list.querySelectorAll('.chipItem'));
     return chips.map(chip => {
-        const name = chip.querySelector('.chipName')?.textContent?.trim() || '';
+        const name = chip.querySelector('.chipDescInput')?.value?.trim() || chip.querySelector('.chipName')?.textContent?.trim() || '';
         const qtyValue = chip.querySelector('.chipQty')?.value ?? '0';
         const priceValue = chip.querySelector('.chipPrice')?.value ?? '0';
+        const vatValue = chip.querySelector('.chipVat')?.value ?? '0';
 
         let qty = parseInt(qtyValue, 10);
         if (!Number.isFinite(qty) || qty < 1) qty = 1;
@@ -688,7 +689,11 @@ function collectChipsFromList(listId, kind) {
         let unitPrice = parseCurrencyToNumber(priceValue);
         if (unitPrice < 0) unitPrice = 0;
 
-        const lineTotal = qty * unitPrice;
+        let vatRate = parseFloat(vatValue);
+        if (!Number.isFinite(vatRate) || vatRate < 0) vatRate = 0;
+
+        const baseTotal = qty * unitPrice;
+        const lineTotal = baseTotal + (baseTotal * (vatRate / 100));
 
         if (!name) return null;
 
@@ -698,6 +703,7 @@ function collectChipsFromList(listId, kind) {
             name,
             qty,
             unitPrice,
+            vatRate,
             price: unitPrice,
             lineTotal
         };
@@ -855,16 +861,30 @@ function populateInvoiceROFromAppointment(appointment) {
 function updateAppointmentTotals() {
     const jobs = collectJobsFromUI();
     const parts = collectPartsFromUI();
-    const labourSubtotal = jobs.reduce((sum, item) => sum + toNumber(item.lineTotal), 0);
-    const partsSubtotal = parts.reduce((sum, item) => sum + toNumber(item.lineTotal), 0);
-    const combined = labourSubtotal + partsSubtotal;
+    const labourBase = jobs.reduce((sum, item) => sum + (toNumber(item.qty) * toNumber(item.unitPrice)), 0);
+    const partsBase = parts.reduce((sum, item) => sum + (toNumber(item.qty) * toNumber(item.unitPrice)), 0);
+    const jobsVat = jobs.reduce((sum, item) => sum + ((toNumber(item.qty) * toNumber(item.unitPrice)) * (toNumber(item.vatRate) / 100)), 0);
+    const partsVat = parts.reduce((sum, item) => sum + ((toNumber(item.qty) * toNumber(item.unitPrice)) * (toNumber(item.vatRate) / 100)), 0);
+    const labourSubtotal = labourBase;
+    const partsSubtotal = partsBase;
+    const combined = labourBase + partsBase;
+    const vat = jobsVat + partsVat;
+    const total = combined + vat;
 
     const labourEl = document.getElementById('labourSubtotal');
     const partsEl = document.getElementById('partsSubtotal');
     const combinedEl = document.getElementById('combinedSubtotal');
+    const vatEl = document.getElementById('vatAmount');
+    const totalEl = document.getElementById('totalAmount');
+    const jobsTabCountEl = document.getElementById('jobsTabCount');
+    const partsTabCountEl = document.getElementById('partsTabCount');
     if (labourEl) labourEl.textContent = formatCurrencyGBP(labourSubtotal);
     if (partsEl) partsEl.textContent = formatCurrencyGBP(partsSubtotal);
     if (combinedEl) combinedEl.textContent = formatCurrencyGBP(combined);
+    if (vatEl) vatEl.textContent = formatCurrencyGBP(vat);
+    if (totalEl) totalEl.textContent = formatCurrencyGBP(total);
+    if (jobsTabCountEl) jobsTabCountEl.textContent = String(jobs.length || 0);
+    if (partsTabCountEl) partsTabCountEl.textContent = String(parts.length || 0);
 
     const euJobsCountPreviewEl = document.getElementById('euJobsCountPreview');
     const euTotalPreviewEl = document.getElementById('euTotalPreview');
@@ -4199,11 +4219,93 @@ function showNotification(message, type = 'info') {
 }
 
 // ==========================================
-// SMART NOTIFICATION SYSTEM (bell + alerts drawer)
-// Computed from appointments data; persists dismissals in localStorage.
+// NOTIFICATION CENTER (bell + alerts drawer)
+// Includes smart appointment alerts + persisted toasts.
 // ==========================================
+const TV_NOTIF_STORE_KEY = 'tv_notif_store_v1';
+const TV_NOTIF_STORE_LIMIT = 120;
 const TV_NOTIF_DISMISS_KEY = 'tv_notif_dismiss_v1';
 const TV_NOTIF_DISMISS_TTL = 6 * 60 * 60 * 1000; // 6 hours
+
+function _notifEscapeHtml(value) {
+    return String(value || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function _notifGetStore() {
+    try {
+        const parsed = JSON.parse(localStorage.getItem(TV_NOTIF_STORE_KEY) || '[]');
+        return Array.isArray(parsed) ? parsed : [];
+    } catch {
+        return [];
+    }
+}
+
+function _notifSetStore(items) {
+    try {
+        localStorage.setItem(TV_NOTIF_STORE_KEY, JSON.stringify(Array.isArray(items) ? items.slice(0, TV_NOTIF_STORE_LIMIT) : []));
+    } catch {}
+}
+
+function addNotification(message, type = 'info', options = {}) {
+    const text = String(message || '').trim();
+    if (!text) return null;
+    const notif = {
+        id: `n_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+        message: text,
+        type: ['success', 'error', 'warning', 'info'].includes(type) ? type : 'info',
+        read: false,
+        createdAt: Date.now(),
+        relatedAptId: options.relatedAptId ? String(options.relatedAptId) : '',
+        action: options.action ? String(options.action) : ''
+    };
+    const items = _notifGetStore();
+    items.unshift(notif);
+    _notifSetStore(items);
+    return notif;
+}
+
+function getNotifications() {
+    return _notifGetStore();
+}
+
+function markRead(notificationId, read = true) {
+    if (!notificationId) return;
+    const items = _notifGetStore().map(item => (
+        item.id === notificationId ? { ...item, read: !!read } : item
+    ));
+    _notifSetStore(items);
+}
+
+function markAllRead() {
+    const items = _notifGetStore().map(item => ({ ...item, read: true }));
+    _notifSetStore(items);
+}
+
+function removeNotification(notificationId) {
+    if (!notificationId) return;
+    const items = _notifGetStore().filter(item => item.id !== notificationId);
+    _notifSetStore(items);
+}
+
+function clearNotifications() {
+    _notifSetStore([]);
+}
+
+function unreadCount() {
+    return _notifGetStore().reduce((count, item) => count + (item.read ? 0 : 1), 0);
+}
+
+window.addNotification = addNotification;
+window.getNotifications = getNotifications;
+window.markRead = markRead;
+window.markAllRead = markAllRead;
+window.clearNotifications = clearNotifications;
+window.unreadCount = unreadCount;
 
 function _notifGetDismissMap() {
     try { return JSON.parse(localStorage.getItem(TV_NOTIF_DISMISS_KEY) || '{}'); } catch { return {}; }
@@ -4268,7 +4370,7 @@ function computeAlerts(apts) {
 function refreshBellBadge() {
     const apts   = window.appointments || appointments || [];
     const alerts = computeAlerts(apts);
-    const total  = alerts.reduce((s, a) => s + a.count, 0);
+    const total  = alerts.reduce((s, a) => s + a.count, 0) + unreadCount();
     const badge  = document.getElementById('tvBellBadge');
     const btn    = document.getElementById('tvBellBtn');
     if (!badge || !btn) return;
@@ -4283,19 +4385,49 @@ function refreshBellBadge() {
     // Refresh drawer body live if open
     const drawer = document.getElementById('tvNotifDrawer');
     if (drawer?.classList.contains('tv-notif-drawer--open')) {
-        _renderNotifBody(alerts);
+        _renderNotifBody();
     }
 }
 
 /** Render alert items into the drawer body */
-function _renderNotifBody(alerts) {
+function _renderNotifBody() {
     const body = document.getElementById('tvNotifBody');
     if (!body) return;
-    if (alerts.length === 0) {
+    const alerts = computeAlerts(window.appointments || appointments || []);
+    const items = getNotifications();
+    if (alerts.length === 0 && items.length === 0) {
         body.innerHTML = `<div class="tv-notif-empty"><i class="fas fa-check-circle"></i><span>All clear</span></div>`;
         return;
     }
-    body.innerHTML = alerts.map(a => `
+
+    const icons = {
+        success: 'check-circle',
+        error: 'exclamation-circle',
+        warning: 'exclamation-triangle',
+        info: 'info-circle'
+    };
+
+    const notificationsHtml = items.length > 0 ? `
+        <div class="tv-notif-section-title">Notifications</div>
+        ${items.map(item => `
+            <div class="tv-notif-item ${item.read ? 'tv-notif-item--read' : ''}">
+                <span class="tv-notif-item__icon"><i class="fas fa-${icons[item.type] || icons.info}"></i></span>
+                <div class="tv-notif-item__content">
+                    <span class="tv-notif-item__label">${_notifEscapeHtml(item.message)}</span>
+                    <span class="tv-notif-item__count">${new Date(item.createdAt || Date.now()).toLocaleString([], { hour: '2-digit', minute: '2-digit', day: '2-digit', month: 'short' })}</span>
+                </div>
+                <div class="tv-notif-item__btns">
+                    ${item.relatedAptId ? `<button class="tv-notif-open" data-notif-open-id="${item.id}" data-notif-apt-id="${_notifEscapeHtml(item.relatedAptId)}" aria-label="Open related appointment">Open</button>` : ''}
+                    <button class="tv-notif-mark-read" data-notif-id="${item.id}" data-notif-read="${item.read ? '1' : '0'}" aria-label="${item.read ? 'Mark as unread' : 'Mark as read'}">${item.read ? 'Undo' : 'Read'}</button>
+                    <button class="tv-notif-dismiss" data-notif-remove-id="${item.id}" aria-label="Remove notification">×</button>
+                </div>
+            </div>
+        `).join('')}
+    ` : '';
+
+    const alertsHtml = alerts.length > 0 ? `
+        <div class="tv-notif-section-title">Smart alerts</div>
+        ${alerts.map(a => `
         <div class="tv-notif-item">
             <span class="tv-notif-item__icon" style="color:${a.color}"><i class="fas ${a.icon}"></i></span>
             <div class="tv-notif-item__content">
@@ -4307,7 +4439,10 @@ function _renderNotifBody(alerts) {
                 <button class="tv-notif-dismiss" data-notif-key="${a.key}" data-notif-count="${a.count}" aria-label="Dismiss">×</button>
             </div>
         </div>
-    `).join('');
+    `).join('')}
+    ` : '';
+
+    body.innerHTML = `${notificationsHtml}${alertsHtml}`;
 }
 
 /** Toggle the bell drawer open/closed */
@@ -4324,7 +4459,7 @@ function toggleNotifDrawer() {
             const rect = header.getBoundingClientRect();
             document.documentElement.style.setProperty('--tv-header-bottom', `${rect.bottom + 4}px`);
         }
-        _renderNotifBody(computeAlerts(window.appointments || appointments || []));
+        _renderNotifBody();
         drawer.classList.add('tv-notif-drawer--open');
     }
 }
@@ -4336,6 +4471,59 @@ function bindNotifDrawer() {
     drawer.dataset.notifBound = '1';
 
     drawer.addEventListener('click', (e) => {
+        // Header actions
+        const markAllBtn = e.target.closest('[data-notif-mark-all]');
+        if (markAllBtn) {
+            markAllRead();
+            _renderNotifBody();
+            refreshBellBadge();
+            return;
+        }
+
+        const clearBtn = e.target.closest('[data-notif-clear]');
+        if (clearBtn) {
+            clearNotifications();
+            _renderNotifBody();
+            refreshBellBadge();
+            return;
+        }
+
+        // Open related appointment
+        const openBtn = e.target.closest('.tv-notif-open');
+        if (openBtn) {
+            const notifId = openBtn.dataset.notifOpenId;
+            const aptId = openBtn.dataset.notifAptId;
+            if (notifId) markRead(notifId, true);
+            drawer.classList.remove('tv-notif-drawer--open');
+            if (aptId) {
+                const allFilterBtn = document.querySelector('.apts-filter-btn[data-filter="all"]');
+                if (allFilterBtn) allFilterBtn.click();
+                setTimeout(() => highlightAndScrollToAppointment(aptId), 120);
+            }
+            refreshBellBadge();
+            return;
+        }
+
+        // Mark read / undo
+        const markReadBtn = e.target.closest('.tv-notif-mark-read');
+        if (markReadBtn) {
+            const notifId = markReadBtn.dataset.notifId;
+            const isRead = markReadBtn.dataset.notifRead === '1';
+            if (notifId) markRead(notifId, !isRead);
+            _renderNotifBody();
+            refreshBellBadge();
+            return;
+        }
+
+        // Remove persisted notification
+        const removeBtn = e.target.closest('[data-notif-remove-id]');
+        if (removeBtn) {
+            removeNotification(removeBtn.dataset.notifRemoveId);
+            _renderNotifBody();
+            refreshBellBadge();
+            return;
+        }
+
         // View
         const viewBtn = e.target.closest('.tv-notif-view');
         if (viewBtn) {
@@ -4361,7 +4549,7 @@ function bindNotifDrawer() {
             map[key]             = Date.now();
             map[key + '_count']  = count;
             _notifSetDismissMap(map);
-            _renderNotifBody(computeAlerts(window.appointments || appointments || []));
+            _renderNotifBody();
             refreshBellBadge();
             return;
         }
@@ -4386,7 +4574,12 @@ window.refreshBellBadge  = refreshBellBadge;
 // ==========================================
 // TOAST NOTIFICATION SYSTEM (Design System)
 // ==========================================
-function showToast(message, type = 'success') {
+function showToast(message, type = 'success', options = {}) {
+    if (options.persist !== false) {
+        addNotification(message, type, options);
+        if (typeof refreshBellBadge === 'function') refreshBellBadge();
+    }
+
     // Create toast container if doesn't exist
     let toastContainer = document.querySelector('.tvToastContainer');
     if (!toastContainer) {
@@ -4817,11 +5010,84 @@ const TimePicker = {
         
         // Event listeners
         this.bindEvents();
+
+        if (!window.__tvTimePickerTestsRan) {
+            window.__tvTimePickerTestsRan = true;
+            this.runTypeInputNormalizationTests();
+        }
     },
     
     detectDeviceType() {
         const isMobile = window.matchMedia('(max-width: 768px)').matches;
         return isMobile ? 'type' : 'picker';
+    },
+
+    clamp(value, min, max) {
+        return Math.min(max, Math.max(min, value));
+    },
+
+    filterTypeInput(raw) {
+        const normalized = String(raw || '')
+            .replace(/\./g, ':')
+            .replace(/[^\d:]/g, '');
+
+        const firstColon = normalized.indexOf(':');
+        if (firstColon !== -1) {
+            const left = normalized.slice(0, firstColon).replace(/\D/g, '').slice(0, 2);
+            const right = normalized.slice(firstColon + 1).replace(/\D/g, '').slice(0, 2);
+            return `${left}:${right}`;
+        }
+
+        const digits = normalized.replace(/\D/g, '').slice(0, 4);
+        if (digits.length === 4) {
+            return `${digits.slice(0, 2)}:${digits.slice(2, 4)}`;
+        }
+        return digits;
+    },
+
+    normalizeTypedTime(input) {
+        const cleaned = this.filterTypeInput(input).trim();
+        if (!cleaned) return null;
+
+        let hourPart = '';
+        let minutePart = '';
+
+        if (cleaned.includes(':')) {
+            const [hRaw, mRaw] = cleaned.split(':');
+            hourPart = (hRaw || '').replace(/\D/g, '').slice(0, 2);
+            minutePart = (mRaw || '').replace(/\D/g, '').slice(0, 2);
+        } else {
+            const digits = cleaned.replace(/\D/g, '');
+            if (digits.length === 1) {
+                hourPart = digits;
+                minutePart = '00';
+            } else if (digits.length === 2) {
+                hourPart = digits;
+                minutePart = '00';
+            } else if (digits.length === 3) {
+                hourPart = digits.substring(0, 1);
+                minutePart = digits.substring(1, 3);
+            } else if (digits.length === 4) {
+                hourPart = digits.substring(0, 2);
+                minutePart = digits.substring(2, 4);
+            }
+        }
+
+        if (!hourPart && !minutePart) return null;
+
+        let hours = parseInt(hourPart || '0', 10);
+        let minutes = parseInt(minutePart || '0', 10);
+        if (Number.isNaN(hours)) hours = 0;
+        if (Number.isNaN(minutes)) minutes = 0;
+
+        hours = this.clamp(hours, 0, 23);
+        minutes = this.clamp(minutes, 0, 59);
+
+        return {
+            hours,
+            minutes,
+            formatted: `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`
+        };
     },
     
     setMode(mode) {
@@ -4866,65 +5132,19 @@ const TimePicker = {
         
         // Focus appropriate input
         if (mode === 'type' && this.typeInput) {
+            this.typeInput.readOnly = false;
+            this.typeInput.disabled = false;
+            this.typeInput.style.pointerEvents = 'auto';
             setTimeout(() => this.typeInput.focus(), 100);
+        } else if (mode === 'picker' && this.typeInput) {
+            this.typeInput.readOnly = true;
+            this.typeInput.disabled = false;
+            this.typeInput.style.pointerEvents = 'auto';
         }
     },
     
     parseTimeInput(input) {
-        // Accept formats: "1430", "14:30", "14.30"
-        const normalized = input.trim().replace(/\./g, ':');
-        
-        // Remove leading/trailing separators
-        const cleaned = normalized.replace(/^[:]+|[:]+$/g, '');
-        
-        // Check if it's HH:MM format
-        if (cleaned.includes(':')) {
-            const parts = cleaned.split(':');
-            if (parts.length === 2) {
-                const hours = parseInt(parts[0], 10);
-                const minutes = parseInt(parts[1], 10);
-                
-                if (!isNaN(hours) && !isNaN(minutes)) {
-                    return { 
-                        hours: hours, 
-                        minutes: minutes,
-                        isValid: hours >= 0 && hours <= 23 && minutes >= 0 && minutes <= 59,
-                        formatted: `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`
-                    };
-                }
-            }
-        } else {
-            // Check if it's HHMM format (4 or 3 digits)
-            const digits = cleaned.replace(/\D/g, '');
-            if (digits.length === 4) {
-                const hours = parseInt(digits.substring(0, 2), 10);
-                const minutes = parseInt(digits.substring(2, 4), 10);
-                
-                if (!isNaN(hours) && !isNaN(minutes)) {
-                    return {
-                        hours: hours,
-                        minutes: minutes,
-                        isValid: hours >= 0 && hours <= 23 && minutes >= 0 && minutes <= 59,
-                        formatted: `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`
-                    };
-                }
-            } else if (digits.length === 3) {
-                // e.g., "930" -> 09:30
-                const hours = parseInt(digits.substring(0, 1), 10);
-                const minutes = parseInt(digits.substring(1, 3), 10);
-                
-                if (!isNaN(hours) && !isNaN(minutes)) {
-                    return {
-                        hours: hours,
-                        minutes: minutes,
-                        isValid: hours >= 0 && hours <= 9 && minutes >= 0 && minutes <= 59,
-                        formatted: `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`
-                    };
-                }
-            }
-        }
-        
-        return null;
+        return this.normalizeTypedTime(input);
     },
     
     validateAndApply(input) {
@@ -4942,18 +5162,7 @@ const TimePicker = {
             return false;
         }
         
-        if (!parsed.isValid) {
-            let errorMsg = 'Invalid time';
-            if (parsed.hours > 23) {
-                errorMsg = 'Ore: 0-23';
-            } else if (parsed.minutes > 59) {
-                errorMsg = 'Minute: 0-59';
-            }
-            this.showError(errorEl, errorMsg);
-            return false;
-        }
-        
-        // Valid time - clear error and update pickers
+        // Normalized time - clear error and update pickers
         this.clearError();
         this.selectHour(parsed.hours);
         this.selectMinute(parsed.minutes);
@@ -5294,9 +5503,20 @@ const TimePicker = {
         // Type Mode input events
         if (this.typeInput) {
             this.typeInput.addEventListener('input', (e) => {
-                if (e.target.value) {
-                    this.validateAndApply(e.target.value);
+                const filtered = this.filterTypeInput(e.target.value);
+                if (e.target.value !== filtered) {
+                    e.target.value = filtered;
                 }
+                this.clearError();
+            });
+
+            this.typeInput.addEventListener('blur', () => {
+                const raw = this.typeInput.value;
+                if (!raw || raw.trim() === '') {
+                    this.clearError();
+                    return;
+                }
+                this.validateAndApply(raw);
             });
             
             this.typeInput.addEventListener('keydown', (e) => {
@@ -5330,6 +5550,21 @@ const TimePicker = {
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape' && this.overlay.style.display === 'flex') {
                 this.close();
+            }
+        });
+    },
+
+    runTypeInputNormalizationTests() {
+        const tests = [
+            { input: '9', expected: '09:00' },
+            { input: '0930', expected: '09:30' },
+            { input: '24:99', expected: '23:59' }
+        ];
+
+        tests.forEach(({ input, expected }) => {
+            const normalized = this.normalizeTypedTime(input);
+            if (!normalized || normalized.formatted !== expected) {
+                console.error('[TimePicker] normalization test failed', { input, expected, got: normalized?.formatted || null });
             }
         });
     }
@@ -5735,10 +5970,10 @@ async function handleAddAppointment(e) {
             // Reset location sections
             const serviceLocationEl = document.getElementById('serviceLocation');
             if (serviceLocationEl) serviceLocationEl.value = '';
-            const garageSection = document.getElementById('garageAddressSection');
-            const clientSection = document.getElementById('clientAddressSection');
-            if (garageSection) garageSection.style.display = 'none';
-            if (clientSection) clientSection.removeAttribute('open');
+            if (typeof window._syncServiceLocationUI === 'function') window._syncServiceLocationUI('');
+            if (typeof window._syncContactPrefUI === 'function') window._syncContactPrefUI('');
+            if (typeof window._showLocPanel === 'function') window._showLocPanel('');
+            if (typeof window._resetVehicleLookupUI === 'function') window._resetVehicleLookupUI();
 
             const jobsContainer = document.getElementById('jobsContainer');
             const partsContainer = document.getElementById('partsContainer');
@@ -6220,14 +6455,21 @@ function populateFormFromAppointment(appointment) {
     if (customerPhoneEl) customerPhoneEl.value = appointment.customerPhone || appointment.phone || '';
     const contactPrefEl = document.getElementById('contactPref');
     if (contactPrefEl) contactPrefEl.value = appointment.contactPref || '';
+    if (typeof window._syncContactPrefUI === 'function') window._syncContactPrefUI(appointment.contactPref || '');
     
     // Vehicle info - Direct field mapping (no parsing)
     const makeModelEl = document.getElementById('makeModel');
     if (makeModelEl) makeModelEl.value = appointment.makeModel || appointment.vehicleMakeModel || '';
     const regNumberEl = document.getElementById('regNumber');
     if (regNumberEl) regNumberEl.value = appointment.registrationPlate || appointment.regNumber || '';
+    const vehicleLookupVrmEl = document.getElementById('vehicleLookupVrm');
+    if (vehicleLookupVrmEl) vehicleLookupVrmEl.value = (appointment.registrationPlate || appointment.regNumber || '').replace(/\s+/g, '').toUpperCase();
     const mileageEl = document.getElementById('mileage');
     if (mileageEl) mileageEl.value = coalesceMileageValue(appointment) || '';
+    if (typeof window._resetVehicleLookupUI === 'function') {
+        window._resetVehicleLookupUI();
+        if (vehicleLookupVrmEl) vehicleLookupVrmEl.value = (appointment.registrationPlate || appointment.regNumber || '').replace(/\s+/g, '').toUpperCase();
+    }
     
     // Refresh vehicle input formatting (formats mileage with commas, registration plate with spaces)
     if (typeof refreshVehicleFormatting === 'function') {
@@ -6243,23 +6485,16 @@ function populateFormFromAppointment(appointment) {
     
     const serviceLocationEl = document.getElementById('serviceLocation');
     if (serviceLocationEl) serviceLocationEl.value = appointment.serviceLocation || '';
+    if (typeof window._syncServiceLocationUI === 'function') window._syncServiceLocationUI(appointment.serviceLocation || '');
     
     // Location address
-    const garageSection = document.getElementById('garageAddressSection');
-    const clientSection = document.getElementById('clientAddressSection');
-    if (appointment.serviceLocation === 'garage' && garageSection) {
-        garageSection.style.display = 'block';
-        if (clientSection) clientSection.style.display = 'none';
-    } else if (appointment.serviceLocation === 'client' && clientSection) {
-        clientSection.style.display = 'block';
-        if (garageSection) garageSection.style.display = 'none';
+    // Reveal correct address panel for edit mode
+    if (typeof window._showLocPanel === 'function') window._showLocPanel(appointment.serviceLocation || '');
+    if (appointment.serviceLocation === 'client') {
         const addressEl = document.getElementById('address');
         const postcodeEl = document.getElementById('postcode');
         if (addressEl) addressEl.value = appointment.address || '';
         if (postcodeEl) postcodeEl.value = appointment.postcode || '';
-    } else {
-        if (garageSection) garageSection.style.display = 'none';
-        if (clientSection) clientSection.style.display = 'none';
     }
     
     // Jobs and Parts - Populate chips for edit mode
@@ -8167,7 +8402,7 @@ async function handleDeleteAction(id, appointment, confirmModal) {
         message: `Ești sigur că vrei să ștergi programarea pentru ${appointment.customerName}?\n\nAceastă acțiune este permanentă și nu poate fi anulată.`,
         icon: 'fa-trash-alt',
         confirmText: 'Șterge definitiv',
-        cancelText: 'Anulează',
+        cancelText: 'Anuleaza',
         variant: 'danger'
     });
 
@@ -8497,6 +8732,12 @@ function setupEventListeners() {
 function setupAppointmentFormLogic() {
     initAddAppointmentTabs();
 
+    if (db) {
+        import('./src/core/chips-mode.js')
+            .then(({ setFirestoreDb }) => setFirestoreDb(db))
+            .catch(err => console.warn('[CHIPS] Failed to set Firestore DB:', err));
+    }
+
     // 0. Setup cancel edit button
     const cancelEditBtn = document.getElementById('cancelEditBtn');
     if (cancelEditBtn) {
@@ -8513,10 +8754,8 @@ function setupAppointmentFormLogic() {
                 if (mileageEl) mileageEl.value = '';
                 const serviceLocationEl = document.getElementById('serviceLocation');
                 if (serviceLocationEl) serviceLocationEl.value = '';
-                const garageAddrSection = document.getElementById('garageAddressSection');
-                const clientAddrSection = document.getElementById('clientAddressSection');
-                if (garageAddrSection) garageAddrSection.style.display = 'none';
-                if (clientAddrSection) clientAddrSection.removeAttribute('open');
+                if (typeof window._showLocPanel === 'function') window._showLocPanel('');
+                if (typeof window._resetVehicleLookupUI === 'function') window._resetVehicleLookupUI();
                 renderJobRows([]);
                 renderPartRows([]);
                 updateAppointmentTotals();
@@ -8528,31 +8767,90 @@ function setupAppointmentFormLogic() {
         });
     }
     
+    // Helper: show/hide address revelation panels
+    function _showLocPanel(value) {
+        const garageSection = document.getElementById('garageAddressSection');
+        const clientSection = document.getElementById('clientAddressSection');
+        if (value === 'garage') {
+            if (garageSection) garageSection.style.display = '';
+            if (clientSection) clientSection.style.display = 'none';
+        } else if (value === 'client') {
+            if (garageSection) garageSection.style.display = 'none';
+            if (clientSection) clientSection.style.display = '';
+            // Auto-focus address field if empty
+            const addressEl = document.getElementById('address');
+            if (addressEl && !addressEl.value.trim()) {
+                setTimeout(() => addressEl.focus(), 80);
+            }
+        } else {
+            if (garageSection) garageSection.style.display = 'none';
+            if (clientSection) clientSection.style.display = 'none';
+        }
+    }
+    window._showLocPanel = _showLocPanel;
+
     // 1. Toggle location sections based on serviceLocation dropdown
     const serviceLocationSelect = document.getElementById('serviceLocation');
-    const garageSection = document.getElementById('garageAddressSection');
-    const clientSection = document.getElementById('clientAddressSection');
-    
     if (serviceLocationSelect) {
         serviceLocationSelect.addEventListener('change', (e) => {
             if (e.target.value === 'garage') {
-                if (garageSection) garageSection.style.display = 'block';
-                if (clientSection) clientSection.removeAttribute('open');
-                // Clear client address fields
+                // Clear client address fields when switching away from client
                 const addressEl = document.getElementById('address');
                 const postcodeEl = document.getElementById('postcode');
                 if (addressEl) addressEl.value = '';
                 if (postcodeEl) postcodeEl.value = '';
-            } else if (e.target.value === 'client') {
-                if (garageSection) garageSection.style.display = 'none';
-                if (clientSection) clientSection.setAttribute('open', '');
-            } else {
-                if (garageSection) garageSection.style.display = 'none';
-                if (clientSection) clientSection.removeAttribute('open');
             }
+            _showLocPanel(e.target.value);
         });
     }
-    
+
+    // 1b. Custom service-location choice cards
+    (function () {
+        const sel = document.getElementById('serviceLocation');
+        const btns = document.querySelectorAll('#serviceLocationBtns .loc-choice-btn');
+        function syncLocUI(val) {
+            btns.forEach(b => b.setAttribute('aria-pressed', String(b.dataset.locValue === val)));
+        }
+        window._syncServiceLocationUI = syncLocUI;
+        btns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const val = btn.dataset.locValue;
+                if (sel) {
+                    sel.value = val;
+                    sel.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+                syncLocUI(val);
+            });
+            // Keyboard: Enter/Space already fire click on <button>, but ensure it
+            btn.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); btn.click(); }
+            });
+        });
+    })();
+
+    // 1c. Custom contact-preference chips (single-select + clearable)
+    (function () {
+        const sel = document.getElementById('contactPref');
+        const btns = document.querySelectorAll('#contactPrefBtns .loc-chip-btn');
+        function syncContactUI(val) {
+            btns.forEach(b => b.setAttribute('aria-pressed', String(b.dataset.contactValue === val)));
+        }
+        window._syncContactPrefUI = syncContactUI;
+        btns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const val = btn.dataset.contactValue;
+                // Toggle: clicking active chip clears selection
+                const isDifferent = (sel ? sel.value : '') !== val || btn.getAttribute('aria-pressed') !== 'true';
+                const newVal = isDifferent ? val : '';
+                if (sel) sel.value = newVal;
+                syncContactUI(newVal);
+            });
+            btn.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); btn.click(); }
+            });
+        });
+    })();
+
     // 2. Force UPPERCASE for makeModel and regNumber
     const makeModelInput = document.getElementById('makeModel');
     const regNumberInput = document.getElementById('regNumber');
@@ -8572,6 +8870,239 @@ function setupAppointmentFormLogic() {
             e.target.setSelectionRange(cursorPos, cursorPos);
         });
     }
+
+    // 2b. DVSA Vehicle Lookup (Cloud Function proxy)
+    (function () {
+        const lookupInput = document.getElementById('vehicleLookupVrm');
+        const lookupBtn = document.getElementById('vehicleLookupBtn');
+        const lookupBtnText = document.getElementById('vehicleLookupBtnText');
+        const lookupStatus = document.getElementById('vehicleLookupStatus');
+        const summaryWrap = document.getElementById('vehicleSummary');
+        const makeModelEl = document.getElementById('makeModel');
+        const regNumberEl = document.getElementById('regNumber');
+
+        if (!lookupInput || !lookupBtn || !lookupStatus || !summaryWrap) return;
+
+        let isLookupLoading = false;
+
+        function normalizeVrm(raw) {
+            return String(raw || '').trim().toUpperCase().replace(/\s+/g, '');
+        }
+
+        function formatDate(value) {
+            if (!value) return 'N/A';
+            const date = new Date(value);
+            if (Number.isNaN(date.getTime())) return String(value);
+            return date.toLocaleDateString('en-GB', { year: 'numeric', month: 'short', day: '2-digit' });
+        }
+
+        function motClass(status) {
+            const s = String(status || '').toLowerCase();
+            if (s.includes('valid')) return 'status-valid';
+            if (s.includes('expired') || s.includes('invalid') || s.includes('no details')) return 'status-expired';
+            return 'status-unknown';
+        }
+
+        function setStatus(type, message) {
+            lookupStatus.className = `vehicle-lookup-status is-${type}`;
+            lookupStatus.textContent = message || '';
+        }
+
+        function renderSkeleton() {
+            summaryWrap.classList.add('is-visible');
+            summaryWrap.innerHTML = `
+                <div class="vehicle-summary-skeleton" aria-hidden="true">
+                    <div class="line" style="width: 64%"></div>
+                    <div class="line" style="width: 84%"></div>
+                    <div class="line" style="width: 72%"></div>
+                    <div class="line" style="width: 78%"></div>
+                </div>
+            `;
+        }
+
+        function renderSummary(vehicle) {
+            summaryWrap.classList.add('is-visible');
+            const make = String(vehicle?.make || '').trim();
+            const model = String(vehicle?.model || '').trim();
+            const motStatus = String(vehicle?.motStatus || 'Unknown');
+            const taxStatus = String(vehicle?.taxStatus || 'Unknown');
+            const motExpiry = formatDate(vehicle?.motExpiry);
+            summaryWrap.innerHTML = `
+                <div class="vehicle-summary-head">
+                    <p class="vehicle-summary-title">Vehicle Summary</p>
+                    <span class="vehicle-summary-badge">Verified via DVSA</span>
+                </div>
+                <div class="vehicle-summary-grid">
+                    <div class="vehicle-summary-row"><span>Make / Model</span><strong>${(make + ' ' + model).trim() || 'N/A'}</strong></div>
+                    <div class="vehicle-summary-row"><span>MOT Status</span><span class="vehicle-mot-pill ${motClass(motStatus)}">${motStatus}</span></div>
+                    <div class="vehicle-summary-row"><span>MOT Expiry</span><strong>${motExpiry}</strong></div>
+                    <div class="vehicle-summary-row"><span>Tax Status</span><strong>${taxStatus}</strong></div>
+                </div>
+            `;
+        }
+
+        function clearSummary() {
+            summaryWrap.classList.remove('is-visible');
+            summaryWrap.innerHTML = '';
+        }
+
+        function setLoading(nextLoading) {
+            isLookupLoading = nextLoading;
+            lookupBtn.disabled = nextLoading;
+            lookupBtn.dataset.loading = String(nextLoading);
+            lookupBtn.setAttribute('aria-busy', String(nextLoading));
+            if (lookupBtnText) lookupBtnText.textContent = nextLoading ? 'Checking…' : 'Check DVSA';
+        }
+
+        function normalizeEndpointBase(base) {
+            return String(base || '').trim().replace(/\/+$/, '');
+        }
+
+        function getDvsaEndpoints(vrm) {
+            const encodedVrm = encodeURIComponent(vrm);
+            const projectId = app?.options?.projectId || db?.app?.options?.projectId || 'appointments-transvortex';
+            const overrideBase = window.TVX_DVSA_ENDPOINT || localStorage.getItem('tvx_dvsa_endpoint') || '';
+            const host = window.location.hostname;
+            const isLocalDev = host === '127.0.0.1' || host === 'localhost';
+
+            const candidates = [];
+            if (overrideBase) {
+                const normalizedOverride = normalizeEndpointBase(overrideBase);
+                if (normalizedOverride.includes('?')) {
+                    candidates.push(normalizedOverride);
+                } else {
+                    candidates.push(`${normalizedOverride}?vrm=${encodedVrm}`);
+                }
+            }
+
+            // Primary endpoint (Hosting rewrite target)
+            candidates.push(`/api/dvsa?vrm=${encodedVrm}`);
+
+            // Fallback direct Cloud Function URL
+            candidates.push(`https://europe-west2-${projectId}.cloudfunctions.net/dvsa?vrm=${encodedVrm}`);
+
+            // In local dev, only keep explicit override + direct cloud URL
+            if (isLocalDev) {
+                return Array.from(new Set(candidates));
+            }
+
+            return Array.from(new Set(candidates));
+        }
+
+        async function runLookup() {
+            if (isLookupLoading) return;
+
+            const vrm = normalizeVrm(lookupInput.value);
+            lookupInput.value = vrm;
+
+            if (!vrm) {
+                clearSummary();
+                setStatus('error', 'Enter a registration number first.');
+                return;
+            }
+
+            setLoading(true);
+            setStatus('info', 'Checking DVSA data…');
+            renderSkeleton();
+
+            try {
+                const endpoints = getDvsaEndpoints(vrm);
+                let response = null;
+                let lastStatus = 0;
+                let hadNetworkError = false;
+
+                for (const endpoint of endpoints) {
+                    try {
+                        response = await fetch(endpoint, {
+                            method: 'GET',
+                            headers: { 'Accept': 'application/json' }
+                        });
+
+                        if (response.ok) {
+                            break;
+                        }
+
+                        lastStatus = response.status;
+
+                        // 400 means endpoint works, VRM format/validation failed → don't retry others
+                        if (response.status === 400) {
+                            break;
+                        }
+
+                        // 404 can be wrong endpoint OR vehicle not found depending on backend implementation
+                        // Try next candidate if available before deciding.
+                    } catch (err) {
+                        hadNetworkError = true;
+                        console.warn('[DVSA] Endpoint attempt failed:', endpoint, err);
+                        response = null;
+                    }
+                }
+
+                if (!response || !response.ok) {
+                    clearSummary();
+
+                    if (lastStatus === 400) {
+                        setStatus('error', 'Registration format is invalid.');
+                    } else if (lastStatus === 404) {
+                        setStatus('error', 'DVSA endpoint not found (404). Check that functions:dvsa is deployed in the active Firebase project/region.');
+                    } else if (lastStatus === 502 || lastStatus === 503) {
+                        setStatus('error', 'DVSA service is temporarily unavailable. You can continue manually.');
+                    } else if (hadNetworkError) {
+                        const host = window.location.hostname;
+                        const isLocalDev = host === '127.0.0.1' || host === 'localhost';
+                        if (isLocalDev) {
+                            setStatus('error', 'Local preview cannot reach DVSA endpoint (CORS or missing deploy). Use Firebase Hosting or set localStorage["tvx_dvsa_endpoint"].');
+                        } else {
+                            setStatus('error', 'Could not reach DVSA endpoint (network/CORS). You can continue manually.');
+                        }
+                    } else {
+                        setStatus('error', 'Lookup failed. You can continue manually.');
+                    }
+                    return;
+                }
+
+                const data = await response.json();
+                const resolvedVrm = normalizeVrm(data?.vrm || vrm);
+                const resolvedMakeModel = `${String(data?.make || '').trim()} ${String(data?.model || '').trim()}`.trim();
+
+                if (regNumberEl) regNumberEl.value = resolvedVrm;
+                if (lookupInput) lookupInput.value = resolvedVrm;
+                if (makeModelEl && resolvedMakeModel) makeModelEl.value = resolvedMakeModel;
+
+                renderSummary(data || {});
+                setStatus('success', 'Vehicle verified and fields auto-filled.');
+            } catch (error) {
+                clearSummary();
+                console.warn('[DVSA] Lookup error:', error);
+                setStatus('error', 'Lookup service unavailable right now. You can continue manually.');
+            } finally {
+                setLoading(false);
+            }
+        }
+
+        lookupInput.addEventListener('input', (e) => {
+            const cursorPos = e.target.selectionStart;
+            const normalized = normalizeVrm(e.target.value);
+            e.target.value = normalized;
+            const safePos = Math.min(cursorPos || normalized.length, normalized.length);
+            e.target.setSelectionRange(safePos, safePos);
+        });
+
+        lookupBtn.addEventListener('click', runLookup);
+        lookupInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                runLookup();
+            }
+        });
+
+        window._resetVehicleLookupUI = function _resetVehicleLookupUI() {
+            setLoading(false);
+            clearSummary();
+            setStatus('info', '');
+            lookupInput.value = '';
+        };
+    })();
     
     // 3. Sync vehicleTimeQuick (Quick mode) with appointmentTimeValue
     const vehicleTimeQuick = document.getElementById('vehicleTimeQuick');

@@ -25,15 +25,15 @@
     <link rel="stylesheet" href="styles/buttons.css">
     <link rel="stylesheet" href="styles/modal.css">
     <link rel="stylesheet" href="styles/appointments.css">
-    <link rel="stylesheet" href="styles/appointment-form.css">
     <link rel="stylesheet" href="styles/enterprise-dashboard.css">
     <link rel="stylesheet" href="styles/premium-ui.css">
     <link rel="stylesheet" href="styles/premium-v2.css">
     <link rel="stylesheet" href="styles/automation.css">
     <link rel="stylesheet" href="styles/appointments-saas.css">
     <link rel="stylesheet" href="styles/appointments-toolbar.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="styles/tv-mobile.css">
+    <link rel="stylesheet" href="styles/appointment-form.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         /* HEADER STYLING CONSOLIDATED IN premium-ui.css */
 
@@ -3437,6 +3437,433 @@
             pointer-events: none;
         }
 
+        /* =========================================
+           LOCATION CARD — Enterprise SaaS Premium
+           ========================================= */
+
+        /* -- CSS tokens -- */
+        :root {
+            --loc-accent:        #FF7A18;
+            --loc-accent-bg:     rgba(255, 122, 24, 0.08);
+            --loc-accent-border: rgba(255, 122, 24, 0.55);
+            --loc-wa-accent:     #25D366;
+            --loc-wa-bg:         rgba(37, 211, 102, 0.08);
+            --loc-wa-border:     rgba(37, 211, 102, 0.55);
+            --loc-border:        rgba(15, 23, 42, 0.12);
+            --loc-border-hover:  rgba(15, 23, 42, 0.24);
+            --loc-radius-card:   14px;
+            --loc-radius-chip:   10px;
+            --loc-surface:       #ffffff;
+            --loc-surface-hover: #f8fafc;
+            --loc-text:          #334155;
+            --loc-text-muted:    #64748b;
+            --loc-focus-ring:    0 0 0 3px rgba(255, 122, 24, 0.28);
+            --loc-trans:         background 0.14s ease, border-color 0.14s ease, color 0.14s ease, box-shadow 0.14s ease;
+        }
+
+        /* -- Field group wrapper -- */
+        .loc-field-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            margin-bottom: 4px;
+        }
+        .loc-field-label-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .loc-field-label {
+            margin-bottom: 0 !important;
+        }
+        .loc-field-optional {
+            font-size: 0.72rem;
+            font-weight: 600;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            color: var(--loc-text-muted);
+            background: #f1f5f9;
+            border-radius: 6px;
+            padding: 2px 7px;
+        }
+
+        /* -- Service Type: choice cards -- */
+        .loc-choice-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+        .loc-choice-btn {
+            position: relative;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            min-height: 52px;
+            padding: 12px 14px;
+            border-radius: var(--loc-radius-card);
+            border: 1.5px solid var(--loc-border);
+            background: var(--loc-surface);
+            color: var(--loc-text);
+            font-size: 0.875rem;
+            font-weight: 600;
+            cursor: pointer;
+            touch-action: manipulation;
+            transition: var(--loc-trans);
+            text-align: left;
+            overflow: hidden;
+        }
+        .loc-choice-btn:hover:not([aria-pressed="true"]) {
+            border-color: var(--loc-border-hover);
+            background: var(--loc-surface-hover);
+        }
+        .loc-choice-btn:focus-visible {
+            outline: none;
+            box-shadow: var(--loc-focus-ring);
+        }
+        .loc-choice-btn[aria-pressed="true"] {
+            border-color: var(--loc-accent-border);
+            background: var(--loc-accent-bg);
+            color: var(--loc-accent);
+            box-shadow: 0 2px 8px rgba(255, 122, 24, 0.12);
+        }
+        .loc-choice-btn:active {
+            transform: scale(0.98);
+        }
+        .loc-choice-icon {
+            width: 28px;
+            height: 28px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 8px;
+            background: #f1f5f9;
+            font-size: 0.85rem;
+            flex-shrink: 0;
+            transition: background 0.14s ease, color 0.14s ease;
+        }
+        .loc-choice-btn[aria-pressed="true"] .loc-choice-icon {
+            background: rgba(255, 122, 24, 0.15);
+            color: var(--loc-accent);
+        }
+        .loc-choice-text {
+            flex: 1;
+        }
+        .loc-choice-check {
+            font-size: 0.9rem;
+            color: var(--loc-accent);
+            opacity: 0;
+            transform: scale(0.6);
+            transition: opacity 0.15s ease, transform 0.15s ease;
+            pointer-events: none;
+        }
+        .loc-choice-btn[aria-pressed="true"] .loc-choice-check {
+            opacity: 1;
+            transform: scale(1);
+        }
+
+        /* -- Contact Preference: chips -- */
+        .loc-contact-chips {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 6px;
+        }
+        @media (max-width: 400px) {
+            .loc-contact-chips {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+        }
+        .loc-chip-btn {
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            min-height: 56px;
+            padding: 8px 6px;
+            border-radius: var(--loc-radius-chip);
+            border: 1.5px solid var(--loc-border);
+            background: var(--loc-surface);
+            color: var(--loc-text-muted);
+            font-size: 0.75rem;
+            font-weight: 600;
+            cursor: pointer;
+            touch-action: manipulation;
+            transition: var(--loc-trans);
+            overflow: hidden;
+        }
+        .loc-chip-btn:hover:not([aria-pressed="true"]) {
+            border-color: var(--loc-border-hover);
+            background: var(--loc-surface-hover);
+            color: var(--loc-text);
+        }
+        .loc-chip-btn:focus-visible {
+            outline: none;
+            box-shadow: var(--loc-focus-ring);
+        }
+        .loc-chip-btn[aria-pressed="true"] {
+            border-color: var(--loc-accent-border);
+            background: var(--loc-accent-bg);
+            color: var(--loc-accent);
+        }
+        .loc-chip-btn[data-contact-value="whatsapp"][aria-pressed="true"] {
+            border-color: var(--loc-wa-border);
+            background: var(--loc-wa-bg);
+            color: #16a34a;
+        }
+        .loc-chip-btn:active {
+            transform: scale(0.96);
+        }
+        .loc-chip-icon {
+            font-size: 1rem;
+            transition: transform 0.14s ease;
+        }
+        .loc-chip-btn[aria-pressed="true"] .loc-chip-icon {
+            transform: scale(1.1);
+        }
+        .loc-chip-check {
+            position: absolute;
+            top: 5px;
+            right: 6px;
+            font-size: 0.6rem;
+            color: var(--loc-accent);
+            opacity: 0;
+            transition: opacity 0.14s ease;
+        }
+        .loc-chip-btn[data-contact-value="whatsapp"][aria-pressed="true"] .loc-chip-check {
+            color: #16a34a;
+        }
+        .loc-chip-btn[aria-pressed="true"] .loc-chip-check {
+            opacity: 1;
+        }
+
+        /* -- Address reveal panels -- */
+        .loc-reveal {
+            overflow: hidden;
+            animation: locReveal 0.22s ease forwards;
+        }
+        @keyframes locReveal {
+            from { opacity: 0; transform: translateY(-6px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .loc-garage-info {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            padding: 12px 14px;
+            background: rgba(255, 138, 61, 0.07);
+            border: 1px solid rgba(255, 138, 61, 0.2);
+            border-radius: 12px;
+            font-size: 0.875rem;
+            color: #374151;
+            line-height: 1.55;
+        }
+        .loc-garage-icon {
+            color: #FF8A3D;
+            margin-top: 2px;
+            flex-shrink: 0;
+        }
+        .loc-address-inner {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .loc-nav-hint {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .loc-nav-hint i {
+            color: var(--loc-accent);
+        }
+
+        /* Keep old class names working (backwards compat) */
+        .loc-seg__btn { display: none !important; }
+        .loc-contact__btn { display: none !important; }
+        /* === END LOCATION CARD === */
+
+        /* =========================================
+           VEHICLE LOOKUP — Enterprise SaaS Premium
+           ========================================= */
+        :root {
+            --veh-accent: #FF7A18;
+            --veh-accent-soft: rgba(255, 122, 24, 0.08);
+            --veh-border: rgba(15, 23, 42, 0.12);
+            --veh-surface: #ffffff;
+            --veh-text: #0f172a;
+            --veh-muted: #64748b;
+        }
+        .vehicle-lookup-card {
+            border: 1px solid var(--veh-border);
+            border-radius: 14px;
+            background: linear-gradient(160deg, #ffffff 0%, #f8fafc 100%);
+            padding: 12px;
+            display: grid;
+            gap: 10px;
+        }
+        .vehicle-lookup-row {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            gap: 8px;
+            align-items: end;
+        }
+        .vehicle-lookup-input {
+            min-height: 46px;
+            font-weight: 700;
+            letter-spacing: 0.03em;
+            text-transform: uppercase;
+        }
+        .vehicle-lookup-btn {
+            min-height: 46px;
+            border: 1px solid rgba(255, 122, 24, 0.4);
+            border-radius: 12px;
+            background: var(--veh-accent-soft);
+            color: var(--veh-accent);
+            font-weight: 700;
+            padding: 0 14px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            transition: background 0.14s ease, border-color 0.14s ease, transform 0.14s ease;
+            touch-action: manipulation;
+        }
+        .vehicle-lookup-btn:hover:not(:disabled) {
+            background: rgba(255, 122, 24, 0.12);
+            border-color: rgba(255, 122, 24, 0.55);
+        }
+        .vehicle-lookup-btn:active:not(:disabled) { transform: scale(0.98); }
+        .vehicle-lookup-btn:disabled {
+            opacity: 0.72;
+            cursor: not-allowed;
+        }
+        .vehicle-lookup-spinner {
+            width: 14px;
+            height: 14px;
+            border-radius: 999px;
+            border: 2px solid rgba(255, 122, 24, 0.35);
+            border-top-color: var(--veh-accent);
+            animation: vehSpin 0.7s linear infinite;
+            display: none;
+        }
+        .vehicle-lookup-btn[data-loading="true"] .vehicle-lookup-spinner { display: inline-block; }
+        @keyframes vehSpin { to { transform: rotate(360deg); } }
+
+        .vehicle-lookup-status {
+            min-height: 20px;
+            font-size: 0.82rem;
+            font-weight: 600;
+            color: var(--veh-muted);
+        }
+        .vehicle-lookup-status.is-success { color: #166534; }
+        .vehicle-lookup-status.is-error { color: #b91c1c; }
+        .vehicle-lookup-status.is-info { color: #475569; }
+
+        .vehicle-summary-wrap {
+            min-height: 108px;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 10px;
+            background: var(--veh-surface);
+            visibility: hidden;
+            opacity: 0;
+            transition: opacity 0.18s ease;
+        }
+        .vehicle-summary-wrap.is-visible {
+            visibility: visible;
+            opacity: 1;
+            animation: vehFadeIn 0.22s ease;
+        }
+        @keyframes vehFadeIn {
+            from { opacity: 0; transform: translateY(4px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .vehicle-summary-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+        .vehicle-summary-title {
+            font-size: 0.84rem;
+            font-weight: 800;
+            color: var(--veh-text);
+            margin: 0;
+        }
+        .vehicle-summary-badge {
+            font-size: 0.7rem;
+            font-weight: 700;
+            color: var(--veh-accent);
+            background: var(--veh-accent-soft);
+            border: 1px solid rgba(255, 122, 24, 0.35);
+            border-radius: 999px;
+            padding: 3px 8px;
+            white-space: nowrap;
+        }
+        .vehicle-summary-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 6px;
+        }
+        .vehicle-summary-row {
+            display: flex;
+            justify-content: space-between;
+            gap: 8px;
+            font-size: 0.83rem;
+            color: #334155;
+        }
+        .vehicle-summary-row span:first-child { color: #64748b; }
+        .vehicle-mot-pill {
+            font-size: 0.72rem;
+            font-weight: 700;
+            border-radius: 999px;
+            padding: 2px 8px;
+            border: 1px solid transparent;
+        }
+        .vehicle-mot-pill.status-valid {
+            color: #166534;
+            background: rgba(34, 197, 94, 0.12);
+            border-color: rgba(34, 197, 94, 0.3);
+        }
+        .vehicle-mot-pill.status-expired,
+        .vehicle-mot-pill.status-invalid,
+        .vehicle-mot-pill.status-no-details {
+            color: #991b1b;
+            background: rgba(239, 68, 68, 0.12);
+            border-color: rgba(239, 68, 68, 0.3);
+        }
+        .vehicle-mot-pill.status-unknown {
+            color: #475569;
+            background: rgba(148, 163, 184, 0.14);
+            border-color: rgba(148, 163, 184, 0.36);
+        }
+        .vehicle-summary-skeleton {
+            display: grid;
+            gap: 8px;
+        }
+        .vehicle-summary-skeleton .line {
+            height: 10px;
+            border-radius: 6px;
+            background: linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 50%, #e2e8f0 75%);
+            background-size: 200% 100%;
+            animation: vehShimmer 1s linear infinite;
+        }
+        @keyframes vehShimmer {
+            from { background-position: 200% 0; }
+            to { background-position: -200% 0; }
+        }
+        @media (max-width: 420px) {
+            .vehicle-lookup-row {
+                grid-template-columns: 1fr;
+            }
+            .vehicle-lookup-btn {
+                width: 100%;
+                min-height: 44px;
+            }
+        }
+
         #authBar .tvHeaderKpis .indicator-badge,
         #authBar .tvHeaderKpis .kpiChip {
             border-radius: 16px !important;
@@ -3630,6 +4057,10 @@
 <div id="tvNotifDrawer" class="tv-notif-drawer" role="dialog" aria-modal="false" aria-label="Alerts">
     <div class="tv-notif-drawer__header">
         <span class="tv-notif-drawer__title"><i class="fas fa-bell"></i> Alerts</span>
+        <div class="tv-notif-drawer__actions">
+            <button class="tv-notif-drawer__action" data-notif-mark-all aria-label="Mark all notifications as read">Mark all read</button>
+            <button class="tv-notif-drawer__action" data-notif-clear aria-label="Clear notifications">Clear</button>
+        </div>
         <button class="tv-notif-drawer__close" data-notif-close aria-label="Close alerts">×</button>
     </div>
     <div id="tvNotifBody" class="tv-notif-drawer__body">
@@ -3659,6 +4090,7 @@
                 <div class="tvDashboard tvDashboard--twocol tvDashboard--workspaceOptimized">
                     <!-- LEFT: Add Appointment Form -->
                     <section id="addAppointmentSection" class="tvCard tvCard--compact tvCard--accent tvCard--sticky tv-apt-drawer" data-admin-only>
+                        <div class="tvx-appointmentForm">
                         <div class="tvCardHeader">
                             <div>
                                 <h2><i class="fas fa-calendar-plus"></i> <span data-i18n="Adauga Programare Noua">Add New Appointment</span></h2>
@@ -3740,7 +4172,7 @@
                                                     id="appointmentTime" 
                                                     type="text" 
                                                     readonly 
-                                                    placeholder="SelecteazÄƒ ora" 
+                                                    placeholder="Selecteaza ora" 
                                                     autocomplete="off" 
                                                     class="appt-input"
                                                 />
@@ -3754,6 +4186,30 @@
                                 <section class="card appt-card">
                                     <h3><i class="fas fa-car"></i> <span data-i18n="sectionVehicle">Vehicle</span></h3>
                                     <div class="tvFormGrid">
+                                        <div class="vehicle-lookup-card" aria-label="Vehicle Lookup">
+                                            <div class="vehicle-lookup-row">
+                                                <div>
+                                                    <label for="vehicleLookupVrm" class="appt-label">Vehicle Lookup (DVSA)</label>
+                                                    <input
+                                                        type="text"
+                                                        id="vehicleLookupVrm"
+                                                        class="appt-input vehicle-lookup-input"
+                                                        placeholder="e.g. AB12XYZ"
+                                                        maxlength="10"
+                                                        inputmode="text"
+                                                        autocomplete="off"
+                                                        aria-describedby="vehicleLookupStatus"
+                                                    />
+                                                </div>
+                                                <button type="button" id="vehicleLookupBtn" class="vehicle-lookup-btn" aria-label="Check DVSA">
+                                                    <span class="vehicle-lookup-spinner" aria-hidden="true"></span>
+                                                    <span id="vehicleLookupBtnText">Check DVSA</span>
+                                                </button>
+                                            </div>
+                                            <div id="vehicleLookupStatus" class="vehicle-lookup-status" role="status" aria-live="polite"></div>
+                                            <div id="vehicleSummary" class="vehicle-summary-wrap" aria-live="polite"></div>
+                                        </div>
+
                                         <div class="field-row two">
                                             <div class="tvOptionalField">
                                                 <label for="makeModel" class="appt-label"><span data-i18n="fieldMakeModel">Make/Model</span></label>
@@ -3801,92 +4257,143 @@
 
                                 <!-- Location Card -->
                                 <section class="card appt-card">
-                                    <h3><i class="fas fa-map-marker-alt"></i> LocaÈ›ie</h3>
+                                    <h3><i class="fas fa-map-marker-alt"></i> Location</h3>
                                     <div class="tvFormGrid">
-                                        <div class="field-row two appt-location-row">
-                                            <div>
-                                                <label for="serviceLocation" class="appt-label">Tip Serviciu</label>
-                                                <select id="serviceLocation" name="serviceLocation" class="appt-select">
-                                                    <option value="">Select...</option>
-                                                    <option value="garage">At Garage</option>
-                                                    <option value="client">At Client</option>
-                                                </select>
-                                            </div>
-                                            <div class="tvOptionalField">
-                                                <label for="contactPref" class="appt-label">Contact Preference</label>
-                                                <select id="contactPref" name="contactPref" class="appt-select">
-                                                    <option value="">Select...</option>
-                                                    <option value="phone">Phone</option>
-                                                    <option value="sms">SMS</option>
-                                                    <option value="whatsapp">WhatsApp</option>
-                                                    <option value="email">Email</option>
-                                                </select>
+                                        <!-- Hidden selects (read by form-collection JS) -->
+                                        <select id="serviceLocation" name="serviceLocation" style="display:none;" aria-hidden="true" tabindex="-1">
+                                            <option value=""></option>
+                                            <option value="garage">At Garage</option>
+                                            <option value="client">At Client</option>
+                                        </select>
+                                        <select id="contactPref" name="contactPref" style="display:none;" aria-hidden="true" tabindex="-1">
+                                            <option value=""></option>
+                                            <option value="phone">Phone</option>
+                                            <option value="sms">SMS</option>
+                                            <option value="whatsapp">WhatsApp</option>
+                                            <option value="email">Email</option>
+                                        </select>
+
+                                        <!-- Service Type: segmented choice cards -->
+                                        <div class="loc-field-group">
+                                            <label class="appt-label loc-field-label">Service Type</label>
+                                            <div class="loc-choice-row" role="radiogroup" aria-label="Service Type" id="serviceLocationBtns">
+                                                <button type="button" class="loc-choice-btn" data-loc-value="garage"
+                                                        aria-pressed="false" aria-label="At Garage">
+                                                    <span class="loc-choice-icon"><i class="fas fa-warehouse"></i></span>
+                                                    <span class="loc-choice-text">At Garage</span>
+                                                    <span class="loc-choice-check" aria-hidden="true"><i class="fas fa-check-circle"></i></span>
+                                                </button>
+                                                <button type="button" class="loc-choice-btn" data-loc-value="client"
+                                                        aria-pressed="false" aria-label="At Client">
+                                                    <span class="loc-choice-icon"><i class="fas fa-house-user"></i></span>
+                                                    <span class="loc-choice-text">At Client</span>
+                                                    <span class="loc-choice-check" aria-hidden="true"><i class="fas fa-check-circle"></i></span>
+                                                </button>
                                             </div>
                                         </div>
 
-                                        <!-- Garage Address (hidden initially) -->
-                                        <div id="garageAddressSection" class="tvOptionalBlock" style="display: none; margin-top: 10px;">
-                                            <p style="padding: 10px; background: rgba(255,138,61,0.08); border-radius: 12px; margin: 0; font-size: 0.9rem;">
-                                                <i class="fas fa-building" style="color: #FF8A3D;"></i> 
-                                                TransvortexLTD Mobile Mechanic, 81 Foley Rd, Birmingham B8 2JT
-                                            </p>
+                                        <!-- Contact Preference: chip-style single-select (optional / clearable) -->
+                                        <div class="loc-field-group">
+                                            <div class="loc-field-label-row">
+                                                <label class="appt-label loc-field-label">Contact Preference</label>
+                                                <span class="loc-field-optional">Optional</span>
+                                            </div>
+                                            <div class="loc-contact-chips" role="radiogroup" aria-label="Contact Preference" id="contactPrefBtns">
+                                                <button type="button" class="loc-chip-btn" data-contact-value="phone"
+                                                        aria-pressed="false" title="Phone call">
+                                                    <i class="fas fa-phone loc-chip-icon"></i>
+                                                    <span>Phone</span>
+                                                    <i class="fas fa-check loc-chip-check" aria-hidden="true"></i>
+                                                </button>
+                                                <button type="button" class="loc-chip-btn" data-contact-value="sms"
+                                                        aria-pressed="false" title="SMS text message">
+                                                    <i class="fas fa-comment-sms loc-chip-icon"></i>
+                                                    <span>SMS</span>
+                                                    <i class="fas fa-check loc-chip-check" aria-hidden="true"></i>
+                                                </button>
+                                                <button type="button" class="loc-chip-btn" data-contact-value="whatsapp"
+                                                        aria-pressed="false" title="WhatsApp message">
+                                                    <i class="fab fa-whatsapp loc-chip-icon"></i>
+                                                    <span>WhatsApp</span>
+                                                    <i class="fas fa-check loc-chip-check" aria-hidden="true"></i>
+                                                </button>
+                                                <button type="button" class="loc-chip-btn" data-contact-value="email"
+                                                        aria-pressed="false" title="Email">
+                                                    <i class="fas fa-envelope loc-chip-icon"></i>
+                                                    <span>Email</span>
+                                                    <i class="fas fa-check loc-chip-check" aria-hidden="true"></i>
+                                                </button>
+                                            </div>
                                         </div>
 
-                                        <!-- Client Address Collapsible -->
-                                        <details id="clientAddressSection" class="collapsible tvOptionalBlock">
-                                            <summary>AdresÄƒ Client (opÈ›ional)</summary>
-                                            <div class="collapsible-content">
+                                        <!-- Garage Address (shown when "At Garage" selected) -->
+                                        <div id="garageAddressSection" class="loc-reveal" style="display: none;">
+                                            <div class="loc-garage-info">
+                                                <i class="fas fa-building loc-garage-icon"></i>
+                                                <span>TransvortexLTD Mobile Mechanic<br>81 Foley Rd, Birmingham B8 2JT</span>
+                                            </div>
+                                        </div>
+
+                                        <!-- Client Address (shown when "At Client" selected) -->
+                                        <div id="clientAddressSection" class="loc-reveal" style="display: none;">
+                                            <div class="loc-address-inner">
                                                 <div class="field-row two">
                                                     <div>
-                                                        <label for="address" class="appt-label">AdresÄƒ</label>
-                                                        <input 
-                                                            type="text" 
-                                                            id="address" 
-                                                            name="address" 
-                                                            placeholder="ex: Str. PrincipalÄƒ nr. 10, Birmingham" 
+                                                        <label for="address" class="appt-label">Address</label>
+                                                        <input
+                                                            type="text"
+                                                            id="address"
+                                                            name="address"
+                                                            placeholder="e.g. 10 Main Street, Birmingham"
                                                             class="appt-input"
                                                             autocomplete="street-address"
                                                         />
                                                     </div>
                                                     <div>
-                                                        <label for="postcode" class="appt-label">Cod PoÈ™tal</label>
-                                                        <input 
-                                                            type="text" 
-                                                            id="postcode" 
-                                                            name="postcode" 
-                                                            placeholder="ex: E1 6AN" 
+                                                        <label for="postcode" class="appt-label">Postcode</label>
+                                                        <input
+                                                            type="text"
+                                                            id="postcode"
+                                                            name="postcode"
+                                                            placeholder="e.g. E1 6AN"
                                                             class="appt-input"
                                                             autocomplete="postal-code"
                                                         />
                                                     </div>
                                                 </div>
+                                                <div class="field-hint loc-nav-hint"><i class="fas fa-route"></i> Used for navigation</div>
                                             </div>
-                                        </details>
+                                        </div>
                                     </div>
                                 </section>
 
                                 <!-- Compact Items Panel (Jobs + Parts + Totals) -->
-                                <section class="itemsPanel">
+                                <section class="itemsPanel itemsPanel--enterprise tvx-step3">
                                     <div class="itemsPanelHeader">
                                         <div class="itemsTabs">
                                             <button type="button" class="tabBtn active" data-tab="jobs">
                                                 <i class="fas fa-wrench"></i> <span class="tab-label">LABOUR</span>
+                                                <span class="tab-count" id="jobsTabCount">0</span>
                                             </button>
                                             <button type="button" class="tabBtn" data-tab="parts">
                                                 <i class="fas fa-cogs"></i> <span class="tab-label">PARTS</span>
+                                                <span class="tab-count" id="partsTabCount">0</span>
                                             </button>
+                                        </div>
+                                        <div class="woHeaderTotal">
+                                            <span>TOTAL</span>
+                                            <strong id="workOrderHeadTotal">£0.00</strong>
                                         </div>
                                     </div>
 
                                     <!-- Jobs Tab with Chips Mode -->
                                     <div class="itemsTabBody active" id="tabJobs">
                                         <!-- Search/Add Input -->
-                                        <div class="chipAdder">
+                                        <div class="chipAdder chipAdder--search-only" role="search" aria-label="Add labour item">
                                             <div class="chipSearch">
-                                                <input class="chipInput" id="jobSearchInput" placeholder="Search or type new job..." autocomplete="off" />
+                                                <input class="chipInput" id="jobSearchInput" placeholder="Type or select labour — press Enter to add" autocomplete="off" />
                                                 <div class="suggestBox" id="jobSuggestBox"></div>
                                             </div>
-                                            <button type="button" class="chipAddBtn" data-action="add-job">Add</button>
                                         </div>
                                         
                                         <!-- Chips Display -->
@@ -3894,6 +4401,14 @@
                                             <div class="chipsHeader">
                                                 <span class="chipsTitle">Jobs added</span>
                                                 <span class="chipsCount" id="jobsCount">0</span>
+                                            </div>
+                                            <div class="itemGridHeader" aria-hidden="true">
+                                                <span class="col-desc">Description</span>
+                                                <span class="col-qty">Qty</span>
+                                                <span class="col-unit">Unit</span>
+                                                <span class="col-vat">VAT</span>
+                                                <span class="col-total">Total</span>
+                                                <span class="col-remove"></span>
                                             </div>
                                             <div class="chipsList" id="jobsChips"></div>
                                         </div>
@@ -3905,12 +4420,11 @@
                                     <!-- Parts Tab with Chips Mode -->
                                     <div class="itemsTabBody" id="tabParts">
                                         <!-- Search/Add Input -->
-                                        <div class="chipAdder">
+                                        <div class="chipAdder chipAdder--search-only" role="search" aria-label="Add part item">
                                             <div class="chipSearch">
-                                                <input class="chipInput" id="partSearchInput" placeholder="Search or type new part..." autocomplete="off" />
+                                                <input class="chipInput" id="partSearchInput" placeholder="Type or select part — press Enter to add" autocomplete="off" />
                                                 <div class="suggestBox" id="partSuggestBox"></div>
                                             </div>
-                                            <button type="button" class="chipAddBtn" data-action="add-part">Add</button>
                                         </div>
                                         
                                         <!-- Chips Display -->
@@ -3918,6 +4432,14 @@
                                             <div class="chipsHeader">
                                                 <span class="chipsTitle">Parts added</span>
                                                 <span class="chipsCount" id="partsCount">0</span>
+                                            </div>
+                                            <div class="itemGridHeader" aria-hidden="true">
+                                                <span class="col-desc">Description</span>
+                                                <span class="col-qty">Qty</span>
+                                                <span class="col-unit">Unit</span>
+                                                <span class="col-vat">VAT</span>
+                                                <span class="col-total">Total</span>
+                                                <span class="col-remove"></span>
                                             </div>
                                             <div class="chipsList" id="partsChips"></div>
                                         </div>
@@ -3930,17 +4452,25 @@
                                         <div class="tLeft">
                                             <div class="tLine">
                                                 <span>Labour</span>
-                                                <b id="labourSubtotal">Â£0.00</b>
+                                                <b id="labourSubtotal">£0.00</b>
                                             </div>
                                             <div class="tLine">
                                                 <span>Parts</span>
-                                                <b id="partsSubtotal">Â£0.00</b>
+                                                <b id="partsSubtotal">£0.00</b>
+                                            </div>
+                                            <div class="tLine">
+                                                <span>VAT</span>
+                                                <b id="vatAmount">£0.00</b>
                                             </div>
                                         </div>
                                         <div class="tRight">
                                             <div class="tGrand">
+                                                <span>Total</span>
+                                                <b id="totalAmount">£0.00</b>
+                                            </div>
+                                            <div class="tLine tLine--subtle">
                                                 <span>Subtotal</span>
-                                                <b id="combinedSubtotal">Â£0.00</b>
+                                                <b id="combinedSubtotal">£0.00</b>
                                             </div>
                                         </div>
                                     </div>
@@ -4067,6 +4597,7 @@
                                 </button>
                             </div>
                         </form>
+                        </div>
                     </section>
 
                     <div class="tvWorkspaceStack" id="tvWorkspaceStack">
@@ -4460,9 +4991,11 @@
                         maxlength="5"
                         class="time-type-input"
                         autocomplete="off"
+                        autocapitalize="off"
+                        spellcheck="false"
                     />
                     <div class="time-type-error" id="timeTypeError"></div>
-                    <div class="time-type-hint">AcceptÄƒ: 1430, 14:30, 14.30</div>
+                    <div class="time-type-hint">Accept: 1430, 14:30, 14.30</div>
                 </div>
             </div>
             
@@ -4485,7 +5018,7 @@
             <div class="time-picker-footer">
                 <button type="button" class="btn-time-now">Acum</button>
                 <div class="time-picker-actions">
-                    <button type="button" class="btn-time-cancel">AnuleazÄƒ</button>
+                    <button type="button" class="btn-time-cancel">Anuleaza</button>
                     <button type="button" class="btn-time-ok">OK</button>
                 </div>
             </div>

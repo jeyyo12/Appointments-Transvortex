@@ -1,9 +1,9 @@
 {
-  "generatedAt": "2026-02-27T12:46:26.502Z",
-  "totalFilesScanned": 84,
+  "generatedAt": "2026-02-27T15:18:59.844Z",
+  "totalFilesScanned": 85,
   "summary": {
     "realBrokenCandidates": 0,
-    "likelyFalsePositives": 22,
+    "likelyFalsePositives": 21,
     "unmappedActions": 0,
     "invoiceViolations": 0,
     "highRiskDuplicates": 0,
@@ -54,57 +54,57 @@
       },
       {
         "file": "index.html",
-        "line": 3613,
+        "line": 4040,
         "expression": "toggleNotifDrawer()"
       },
       {
         "file": "index.html",
-        "line": 3620,
+        "line": 4047,
         "expression": "handleAuthToggle()"
       },
       {
         "file": "index.html",
-        "line": 3642,
+        "line": 4073,
         "expression": "switchTab("
       },
       {
         "file": "index.html",
-        "line": 3645,
+        "line": 4076,
         "expression": "switchTab("
       },
       {
         "file": "index.html",
-        "line": 3648,
+        "line": 4079,
         "expression": "switchTab("
       },
       {
         "file": "index.html",
-        "line": 3667,
+        "line": 4099,
         "expression": "tvAptDrawerClose()"
       },
       {
         "file": "index.html",
-        "line": 4086,
+        "line": 4617,
         "expression": "setActiveWorkspace("
       },
       {
         "file": "index.html",
-        "line": 4090,
+        "line": 4621,
         "expression": "setActiveWorkspace("
       },
       {
         "file": "index.html",
-        "line": 4094,
+        "line": 4625,
         "expression": "setActiveWorkspace("
       },
       {
         "file": "index.html",
-        "line": 4098,
+        "line": 4629,
         "expression": "setActiveWorkspace("
       },
       {
         "file": "index.html",
-        "line": 4531,
+        "line": 5064,
         "expression": "tvAptDrawerOpen()"
       },
       {
@@ -124,32 +124,32 @@
       },
       {
         "file": "script.js",
-        "line": 9509,
+        "line": 10040,
         "expression": "tvInvLoadMore(this)"
       },
       {
         "file": "script.js",
-        "line": 9567,
+        "line": 10098,
         "expression": "openPDF("
       },
       {
         "file": "script.js",
-        "line": 9568,
+        "line": 10099,
         "expression": "generateAndSaveInvoicePDF("
       },
       {
         "file": "script.js",
-        "line": 9572,
+        "line": 10103,
         "expression": "window.markInvoicePaid && window.markInvoicePaid("
       },
       {
         "file": "script.js",
-        "line": 9579,
+        "line": 10110,
         "expression": "openInvoiceFile("
       },
       {
         "file": "script.js",
-        "line": 9579,
+        "line": 10110,
         "expression": "deleteInvoiceConfirm("
       },
       {
@@ -237,9 +237,8 @@
   "dataAction": {
     "uniqueActions": 20,
     "counts": {
-      "add-job": 1,
-      "add-part": 2,
       "add-service": 1,
+      "add-part": 1,
       "mark-paid": 1,
       "clear-payment": 1,
       "save-draft": 1,
@@ -256,6 +255,7 @@
       "close": 5,
       "cancel": 5,
       "save": 1,
+      "add-preset-chip": 1,
       "confirm": 3
     },
     "realMissingDataId": {
@@ -263,24 +263,8 @@
       "items": []
     },
     "fpMissingDataId": {
-      "total": 22,
+      "total": 21,
       "items": [
-        {
-          "file": "index.html",
-          "action": "add-job",
-          "isItemScoped": false,
-          "hasDataId": false,
-          "snippet": "<button type=\"button\" class=\"chipAddBtn\" data-action=\"add-job\">",
-          "isExempt": false
-        },
-        {
-          "file": "index.html",
-          "action": "add-part",
-          "isItemScoped": false,
-          "hasDataId": false,
-          "snippet": "<button type=\"button\" class=\"chipAddBtn\" data-action=\"add-part\">",
-          "isExempt": false
-        },
         {
           "file": "invoice.html",
           "action": "add-service",
@@ -359,6 +343,14 @@
           "isItemScoped": false,
           "hasDataId": false,
           "snippet": "<button type=\"button\" class=\"modern-modal-btn modern-modal-btn-cancel\" data-action=\"close\">",
+          "isExempt": false
+        },
+        {
+          "file": "src/core/chips-mode.js",
+          "action": "add-preset-chip",
+          "isItemScoped": false,
+          "hasDataId": false,
+          "snippet": "<button type=\"button\" class=\"presetQuickChip\" data-action=\"add-preset-chip\" data-kind=\"${kind}\" data-label=\"${escapeHtml(label)}\">",
           "isExempt": false
         },
         {
@@ -446,12 +438,12 @@
     "unmappedToHandler": []
   },
   "eventWiring": {
-    "addEventListenerClickCount": 109,
+    "addEventListenerClickCount": 114,
     "closestDelegationCount": 6,
     "closestDelegations": [
       {
         "file": "script.js",
-        "line": 7956,
+        "line": 8191,
         "snippet": "const btn = e.target.closest('button[data-action]');"
       },
       {
@@ -482,7 +474,7 @@
     ]
   },
   "windowExports": {
-    "total": 117,
+    "total": 128,
     "stubFunctions": [],
     "all": {
       "testFirebaseInit": [
@@ -570,13 +562,13 @@
       "__TVX_USE_WIZARD_V2": [
         {
           "file": "index.html",
-          "line": 4506,
+          "line": 5039,
           "isStub": false,
           "isNoop": false
         },
         {
           "file": "index.html",
-          "line": 4522,
+          "line": 5055,
           "isStub": false,
           "isNoop": false
         }
@@ -584,7 +576,7 @@
       "__openWizardV2": [
         {
           "file": "index.html",
-          "line": 4512,
+          "line": 5045,
           "isStub": false,
           "isNoop": false
         }
@@ -592,7 +584,7 @@
       "switchTab": [
         {
           "file": "index.html",
-          "line": 4513,
+          "line": 5046,
           "isStub": false,
           "isNoop": false
         },
@@ -604,7 +596,7 @@
         },
         {
           "file": "script.js",
-          "line": 4624,
+          "line": 4817,
           "isStub": false,
           "isNoop": false
         },
@@ -618,7 +610,7 @@
       "filteredAppointments": [
         {
           "file": "index.html",
-          "line": 4694,
+          "line": 5227,
           "isStub": false,
           "isNoop": false
         },
@@ -644,13 +636,13 @@
       "__tvInitFlags": [
         {
           "file": "index.html",
-          "line": 4705,
+          "line": 5238,
           "isStub": false,
           "isNoop": false
         },
         {
           "file": "index.html",
-          "line": 4743,
+          "line": 5276,
           "isStub": false,
           "isNoop": false
         },
@@ -676,13 +668,13 @@
       "updateLiveIndicators": [
         {
           "file": "index.html",
-          "line": 4769,
+          "line": 5302,
           "isStub": false,
           "isNoop": false
         },
         {
           "file": "index.html",
-          "line": 4741,
+          "line": 5274,
           "isStub": false,
           "isNoop": false,
           "isDeclared": true
@@ -691,7 +683,7 @@
       "tvAptDrawerOpen": [
         {
           "file": "index.html",
-          "line": 4539,
+          "line": 5072,
           "isStub": false,
           "isNoop": false,
           "isDeclared": true
@@ -700,7 +692,7 @@
       "tvAptDrawerClose": [
         {
           "file": "index.html",
-          "line": 4550,
+          "line": 5083,
           "isStub": false,
           "isNoop": false,
           "isDeclared": true
@@ -709,7 +701,7 @@
       "applyKPIFilter": [
         {
           "file": "index.html",
-          "line": 4634,
+          "line": 5167,
           "isStub": false,
           "isNoop": false,
           "isDeclared": true
@@ -718,7 +710,7 @@
       "filterAppointmentsByKPI": [
         {
           "file": "index.html",
-          "line": 4671,
+          "line": 5204,
           "isStub": false,
           "isNoop": false,
           "isDeclared": true
@@ -727,7 +719,7 @@
       "initKPIFilters": [
         {
           "file": "index.html",
-          "line": 4703,
+          "line": 5236,
           "isStub": false,
           "isNoop": false,
           "isDeclared": true
@@ -773,7 +765,7 @@
         },
         {
           "file": "script.js",
-          "line": 4758,
+          "line": 4951,
           "isStub": false,
           "isNoop": false
         }
@@ -787,7 +779,7 @@
         },
         {
           "file": "script.js",
-          "line": 4623,
+          "line": 4816,
           "isStub": false,
           "isNoop": false
         }
@@ -801,7 +793,7 @@
         },
         {
           "file": "script.js",
-          "line": 4625,
+          "line": 4818,
           "isStub": false,
           "isNoop": false
         },
@@ -821,7 +813,7 @@
         },
         {
           "file": "script.js",
-          "line": 4626,
+          "line": 4819,
           "isStub": false,
           "isNoop": false
         },
@@ -841,7 +833,7 @@
         },
         {
           "file": "script.js",
-          "line": 4627,
+          "line": 4820,
           "isStub": false,
           "isNoop": false
         },
@@ -861,7 +853,7 @@
         },
         {
           "file": "script.js",
-          "line": 4628,
+          "line": 4821,
           "isStub": false,
           "isNoop": false
         }
@@ -875,7 +867,7 @@
         },
         {
           "file": "script.js",
-          "line": 4662,
+          "line": 4855,
           "isStub": false,
           "isNoop": false
         },
@@ -915,7 +907,7 @@
         },
         {
           "file": "script.js",
-          "line": 7492,
+          "line": 7727,
           "isStub": false,
           "isNoop": false
         },
@@ -951,7 +943,7 @@
         },
         {
           "file": "script.js",
-          "line": 7497,
+          "line": 7732,
           "isStub": false,
           "isNoop": false
         },
@@ -1045,7 +1037,7 @@
       "debugTvSplash": [
         {
           "file": "script.js",
-          "line": 1249,
+          "line": 1269,
           "isStub": false,
           "isNoop": false
         }
@@ -1053,7 +1045,7 @@
       "tvScanPageSize": [
         {
           "file": "script.js",
-          "line": 2413,
+          "line": 2433,
           "isStub": false,
           "isNoop": false
         }
@@ -1061,13 +1053,61 @@
       "Chart": [
         {
           "file": "script.js",
-          "line": 2691,
+          "line": 2711,
           "isStub": false,
           "isNoop": false
         },
         {
           "file": "script.js",
-          "line": 2737,
+          "line": 2757,
+          "isStub": false,
+          "isNoop": false
+        }
+      ],
+      "addNotification": [
+        {
+          "file": "script.js",
+          "line": 4303,
+          "isStub": false,
+          "isNoop": false
+        }
+      ],
+      "getNotifications": [
+        {
+          "file": "script.js",
+          "line": 4304,
+          "isStub": false,
+          "isNoop": false
+        }
+      ],
+      "markRead": [
+        {
+          "file": "script.js",
+          "line": 4305,
+          "isStub": false,
+          "isNoop": false
+        }
+      ],
+      "markAllRead": [
+        {
+          "file": "script.js",
+          "line": 4306,
+          "isStub": false,
+          "isNoop": false
+        }
+      ],
+      "clearNotifications": [
+        {
+          "file": "script.js",
+          "line": 4307,
+          "isStub": false,
+          "isNoop": false
+        }
+      ],
+      "unreadCount": [
+        {
+          "file": "script.js",
+          "line": 4308,
           "isStub": false,
           "isNoop": false
         }
@@ -1075,7 +1115,7 @@
       "toggleNotifDrawer": [
         {
           "file": "script.js",
-          "line": 4384,
+          "line": 4572,
           "isStub": false,
           "isNoop": false
         }
@@ -1083,7 +1123,7 @@
       "refreshBellBadge": [
         {
           "file": "script.js",
-          "line": 4385,
+          "line": 4573,
           "isStub": false,
           "isNoop": false
         }
@@ -1091,7 +1131,7 @@
       "createAppointmentCard": [
         {
           "file": "script.js",
-          "line": 4631,
+          "line": 4824,
           "isStub": false,
           "isNoop": false
         }
@@ -1099,7 +1139,7 @@
       "getScheduledDate": [
         {
           "file": "script.js",
-          "line": 4632,
+          "line": 4825,
           "isStub": false,
           "isNoop": false
         }
@@ -1107,7 +1147,7 @@
       "normalizeAppointment": [
         {
           "file": "script.js",
-          "line": 4633,
+          "line": 4826,
           "isStub": false,
           "isNoop": false
         }
@@ -1115,7 +1155,7 @@
       "formatCurrencyGBP": [
         {
           "file": "script.js",
-          "line": 4634,
+          "line": 4827,
           "isStub": false,
           "isNoop": false
         }
@@ -1123,7 +1163,7 @@
       "formatDateShort": [
         {
           "file": "script.js",
-          "line": 4635,
+          "line": 4828,
           "isStub": false,
           "isNoop": false
         }
@@ -1131,7 +1171,7 @@
       "formatTimeShort": [
         {
           "file": "script.js",
-          "line": 4636,
+          "line": 4829,
           "isStub": false,
           "isNoop": false
         }
@@ -1139,7 +1179,7 @@
       "toNumber": [
         {
           "file": "script.js",
-          "line": 4637,
+          "line": 4830,
           "isStub": false,
           "isNoop": false
         }
@@ -1147,7 +1187,7 @@
       "handleEditAction": [
         {
           "file": "script.js",
-          "line": 4640,
+          "line": 4833,
           "isStub": false,
           "isNoop": false
         },
@@ -1161,7 +1201,7 @@
       "handleDeleteAction": [
         {
           "file": "script.js",
-          "line": 4641,
+          "line": 4834,
           "isStub": false,
           "isNoop": false
         },
@@ -1175,7 +1215,7 @@
       "handleVisitAction": [
         {
           "file": "script.js",
-          "line": 4642,
+          "line": 4835,
           "isStub": false,
           "isNoop": false
         },
@@ -1189,13 +1229,13 @@
       "toggleAppointmentPaidStatus": [
         {
           "file": "script.js",
-          "line": 4643,
+          "line": 4836,
           "isStub": false,
           "isNoop": false
         },
         {
           "file": "script.js",
-          "line": 9698,
+          "line": 10229,
           "isStub": false,
           "isNoop": false
         },
@@ -1209,7 +1249,7 @@
       "toggleSecondaryActions": [
         {
           "file": "script.js",
-          "line": 4644,
+          "line": 4837,
           "isStub": false,
           "isNoop": false
         },
@@ -1223,7 +1263,7 @@
       "renderAppointments": [
         {
           "file": "script.js",
-          "line": 4645,
+          "line": 4838,
           "isStub": false,
           "isNoop": false
         },
@@ -1255,7 +1295,7 @@
       "enterEditMode": [
         {
           "file": "script.js",
-          "line": 4646,
+          "line": 4839,
           "isStub": false,
           "isNoop": false
         },
@@ -1269,7 +1309,7 @@
       "showNotification": [
         {
           "file": "script.js",
-          "line": 4647,
+          "line": 4840,
           "isStub": false,
           "isNoop": false
         },
@@ -1283,7 +1323,7 @@
       "getOrCreateInvoiceForAppointment": [
         {
           "file": "script.js",
-          "line": 4648,
+          "line": 4841,
           "isStub": false,
           "isNoop": false
         },
@@ -1297,7 +1337,7 @@
       "openInvoice": [
         {
           "file": "script.js",
-          "line": 4649,
+          "line": 4842,
           "isStub": false,
           "isNoop": false
         }
@@ -1305,7 +1345,7 @@
       "getAppointmentAmountGBP": [
         {
           "file": "script.js",
-          "line": 4652,
+          "line": 4845,
           "isStub": false,
           "isNoop": false
         }
@@ -1313,7 +1353,7 @@
       "callUsedOnce": [
         {
           "file": "script.js",
-          "line": 4655,
+          "line": 4848,
           "isStub": false,
           "isNoop": false
         },
@@ -1327,7 +1367,7 @@
       "__TVX_UI_V2": [
         {
           "file": "script.js",
-          "line": 4660,
+          "line": 4853,
           "isStub": false,
           "isNoop": false
         }
@@ -1335,7 +1375,7 @@
       "initEnterpriseHeaderControls": [
         {
           "file": "script.js",
-          "line": 4683,
+          "line": 4876,
           "isStub": false,
           "isNoop": false
         }
@@ -1343,7 +1383,7 @@
       "initWorkspacePanel": [
         {
           "file": "script.js",
-          "line": 4763,
+          "line": 4956,
           "isStub": false,
           "isNoop": false
         },
@@ -1354,10 +1394,110 @@
           "isNoop": false
         }
       ],
+      "__tvTimePickerTestsRan": [
+        {
+          "file": "script.js",
+          "line": 5015,
+          "isStub": false,
+          "isNoop": false
+        }
+      ],
+      "_syncServiceLocationUI": [
+        {
+          "file": "script.js",
+          "line": 5973,
+          "isStub": false,
+          "isNoop": false
+        },
+        {
+          "file": "script.js",
+          "line": 6488,
+          "isStub": false,
+          "isNoop": false
+        },
+        {
+          "file": "script.js",
+          "line": 8814,
+          "isStub": false,
+          "isNoop": false
+        }
+      ],
+      "_syncContactPrefUI": [
+        {
+          "file": "script.js",
+          "line": 5974,
+          "isStub": false,
+          "isNoop": false
+        },
+        {
+          "file": "script.js",
+          "line": 6458,
+          "isStub": false,
+          "isNoop": false
+        },
+        {
+          "file": "script.js",
+          "line": 8838,
+          "isStub": false,
+          "isNoop": false
+        }
+      ],
+      "_showLocPanel": [
+        {
+          "file": "script.js",
+          "line": 5975,
+          "isStub": false,
+          "isNoop": false
+        },
+        {
+          "file": "script.js",
+          "line": 6492,
+          "isStub": false,
+          "isNoop": false
+        },
+        {
+          "file": "script.js",
+          "line": 8757,
+          "isStub": false,
+          "isNoop": false
+        },
+        {
+          "file": "script.js",
+          "line": 8790,
+          "isStub": false,
+          "isNoop": false
+        }
+      ],
+      "_resetVehicleLookupUI": [
+        {
+          "file": "script.js",
+          "line": 5976,
+          "isStub": false,
+          "isNoop": false
+        },
+        {
+          "file": "script.js",
+          "line": 6469,
+          "isStub": false,
+          "isNoop": false
+        },
+        {
+          "file": "script.js",
+          "line": 8758,
+          "isStub": false,
+          "isNoop": false
+        },
+        {
+          "file": "script.js",
+          "line": 9099,
+          "isStub": false,
+          "isNoop": false
+        }
+      ],
       "__tvFilterAptsInitialized": [
         {
           "file": "script.js",
-          "line": 6683,
+          "line": 6918,
           "isStub": false,
           "isNoop": false
         }
@@ -1365,7 +1505,7 @@
       "__tvRenderAptsInitialized": [
         {
           "file": "script.js",
-          "line": 6798,
+          "line": 7033,
           "isStub": false,
           "isNoop": false
         }
@@ -1373,7 +1513,7 @@
       "updateAppointmentStats": [
         {
           "file": "script.js",
-          "line": 8826,
+          "line": 9357,
           "isStub": false,
           "isNoop": false
         }
@@ -1381,7 +1521,7 @@
       "openInvoiceForAppointment": [
         {
           "file": "script.js",
-          "line": 9133,
+          "line": 9664,
           "isStub": false,
           "isNoop": false
         }
@@ -1389,7 +1529,7 @@
       "__USE_MODULAR_STORAGE__": [
         {
           "file": "script.js",
-          "line": 9302,
+          "line": 9833,
           "isStub": false,
           "isNoop": false
         },
@@ -1409,7 +1549,7 @@
       "tvInvLoadMore": [
         {
           "file": "script.js",
-          "line": 9586,
+          "line": 10117,
           "isStub": false,
           "isNoop": false
         }
@@ -1417,7 +1557,7 @@
       "openInvoiceFile": [
         {
           "file": "script.js",
-          "line": 9687,
+          "line": 10218,
           "isStub": false,
           "isNoop": false
         },
@@ -1431,7 +1571,7 @@
       "deleteInvoiceConfirm": [
         {
           "file": "script.js",
-          "line": 9688,
+          "line": 10219,
           "isStub": false,
           "isNoop": false
         },
@@ -1445,7 +1585,7 @@
       "openPDF": [
         {
           "file": "script.js",
-          "line": 9690,
+          "line": 10221,
           "isStub": false,
           "isNoop": false
         }
@@ -1453,7 +1593,7 @@
       "generateAndSaveInvoicePDF": [
         {
           "file": "script.js",
-          "line": 9691,
+          "line": 10222,
           "isStub": false,
           "isNoop": false
         }
@@ -1461,7 +1601,7 @@
       "handleRefreshInvoices": [
         {
           "file": "script.js",
-          "line": 9693,
+          "line": 10224,
           "isStub": false,
           "isNoop": false
         },
@@ -1475,7 +1615,7 @@
       "filterInvoices": [
         {
           "file": "script.js",
-          "line": 9694,
+          "line": 10225,
           "isStub": false,
           "isNoop": false
         }
@@ -1483,7 +1623,7 @@
       "toggleAppointmentDropdown": [
         {
           "file": "script.js",
-          "line": 9699,
+          "line": 10230,
           "isStub": false,
           "isNoop": false
         }
@@ -1867,7 +2007,7 @@
     "directOpens": [
       {
         "file": "script.js",
-        "line": 9287,
+        "line": 9818,
         "url": "invoice.html?invoiceId=${invoiceId}&mode=edit",
         "params": {
           "invoiceId": "${invoiceId}",
@@ -1877,7 +2017,7 @@
       },
       {
         "file": "script.js",
-        "line": 9601,
+        "line": 10132,
         "url": "invoice.html?invoiceId=${invoiceId}&mode=view",
         "params": {
           "invoiceId": "${invoiceId}",
@@ -1887,7 +2027,7 @@
       },
       {
         "file": "script.js",
-        "line": 9620,
+        "line": 10151,
         "url": "invoice.html?invoiceId=${invoiceId}&mode=edit",
         "params": {
           "invoiceId": "${invoiceId}",
@@ -1950,32 +2090,32 @@
     "functionCalls": [
       {
         "file": "script.js",
-        "line": 9112,
+        "line": 9643,
         "fnName": "openInvoiceForAppointment"
       },
       {
         "file": "script.js",
-        "line": 9117,
+        "line": 9648,
         "fnName": "openInvoice"
       },
       {
         "file": "script.js",
-        "line": 9159,
+        "line": 9690,
         "fnName": "openInvoiceFromAppointment"
       },
       {
         "file": "script.js",
-        "line": 9165,
+        "line": 9696,
         "fnName": "openInvoice"
       },
       {
         "file": "script.js",
-        "line": 9186,
+        "line": 9717,
         "fnName": "openInvoice"
       },
       {
         "file": "script.js",
-        "line": 9579,
+        "line": 10110,
         "fnName": "openInvoiceFile"
       },
       {
@@ -2012,12 +2152,12 @@
     "invoiceNumberGenerators": [
       {
         "file": "script.js",
-        "line": 9080,
+        "line": 9611,
         "fnName": "generateInvoiceNumberStable"
       },
       {
         "file": "script.js",
-        "line": 9148,
+        "line": 9679,
         "fnName": "generateInvoiceNumberLegacy"
       },
       {
@@ -2048,7 +2188,7 @@
           },
           {
             "file": "script.js",
-            "line": 9175
+            "line": 9706
           },
           {
             "file": "src/invoice-create/invoiceCreate.flow.js",
@@ -2061,7 +2201,7 @@
         "locs": [
           {
             "file": "index.html",
-            "line": 4741
+            "line": 5274
           },
           {
             "file": "src/enterprise-dashboard.js",
@@ -2195,7 +2335,7 @@
           },
           {
             "file": "script.js",
-            "line": 3496
+            "line": 3516
           }
         ]
       },
@@ -2221,7 +2361,7 @@
           },
           {
             "file": "src/core/chips-mode.js",
-            "line": 644
+            "line": 951
           },
           {
             "file": "src/shared/format.js",
@@ -2292,7 +2432,7 @@
           },
           {
             "file": "src/core/chips-mode.js",
-            "line": 622
+            "line": 929
           },
           {
             "file": "src/invoice.js",
@@ -2318,7 +2458,7 @@
         "locs": [
           {
             "file": "script.js",
-            "line": 938
+            "line": 958
           },
           {
             "file": "src/invoice-create/invoiceCreate.ui.js",
@@ -2331,7 +2471,7 @@
         "locs": [
           {
             "file": "script.js",
-            "line": 986
+            "line": 1006
           },
           {
             "file": "src/core/app.js",
@@ -2348,7 +2488,7 @@
         "locs": [
           {
             "file": "script.js",
-            "line": 1122
+            "line": 1142
           },
           {
             "file": "src/app.js",
@@ -2361,7 +2501,7 @@
         "locs": [
           {
             "file": "script.js",
-            "line": 4141
+            "line": 4161
           },
           {
             "file": "src/appointments-init.js",
@@ -2374,7 +2514,7 @@
         "locs": [
           {
             "file": "script.js",
-            "line": 4172
+            "line": 4192
           },
           {
             "file": "src/shared/ui.js",
@@ -2391,7 +2531,7 @@
         "locs": [
           {
             "file": "script.js",
-            "line": 4388
+            "line": 4576
           },
           {
             "file": "src/shared/ui.js",
@@ -2408,7 +2548,7 @@
         "locs": [
           {
             "file": "script.js",
-            "line": 4442
+            "line": 4635
           },
           {
             "file": "src/utils/notifications.js",
@@ -2421,7 +2561,7 @@
         "locs": [
           {
             "file": "script.js",
-            "line": 4590
+            "line": 4783
           },
           {
             "file": "src/appointments-init.js",
@@ -2434,7 +2574,7 @@
         "locs": [
           {
             "file": "script.js",
-            "line": 4610
+            "line": 4803
           },
           {
             "file": "src/appointments-init.js",
@@ -2447,7 +2587,7 @@
         "locs": [
           {
             "file": "script.js",
-            "line": 5359
+            "line": 5594
           },
           {
             "file": "src/app.js",
@@ -2460,7 +2600,7 @@
         "locs": [
           {
             "file": "script.js",
-            "line": 6351
+            "line": 6586
           },
           {
             "file": "src/utils/validators.js",
@@ -2473,7 +2613,7 @@
         "locs": [
           {
             "file": "script.js",
-            "line": 6453
+            "line": 6688
           },
           {
             "file": "src/utils/normalizers.js",
@@ -2485,8 +2625,40 @@
   },
   "uiUxBugs": {
     "deadButtons": {
-      "total": 6,
+      "total": 14,
       "items": [
+        {
+          "file": "index.html",
+          "tagSnippet": "<button class=\"tv-notif-drawer__action\" data-notif-mark-all aria-label=\"Mark all notifications as read\">"
+        },
+        {
+          "file": "index.html",
+          "tagSnippet": "<button class=\"tv-notif-drawer__action\" data-notif-clear aria-label=\"Clear notifications\">"
+        },
+        {
+          "file": "index.html",
+          "tagSnippet": "<button type=\"button\" class=\"loc-choice-btn\" data-loc-value=\"garage\"\r\n                                                        aria-pressed=\"false\" aria-label=\"At Garage\">"
+        },
+        {
+          "file": "index.html",
+          "tagSnippet": "<button type=\"button\" class=\"loc-choice-btn\" data-loc-value=\"client\"\r\n                                                        aria-pressed=\"false\" aria-label=\"At Client\">"
+        },
+        {
+          "file": "index.html",
+          "tagSnippet": "<button type=\"button\" class=\"loc-chip-btn\" data-contact-value=\"phone\"\r\n                                                        aria-pressed=\"false\" title=\"Phone call\">"
+        },
+        {
+          "file": "index.html",
+          "tagSnippet": "<button type=\"button\" class=\"loc-chip-btn\" data-contact-value=\"sms\"\r\n                                                        aria-pressed=\"false\" title=\"SMS text message\">"
+        },
+        {
+          "file": "index.html",
+          "tagSnippet": "<button type=\"button\" class=\"loc-chip-btn\" data-contact-value=\"whatsapp\"\r\n                                                        aria-pressed=\"false\" title=\"WhatsApp message\">"
+        },
+        {
+          "file": "index.html",
+          "tagSnippet": "<button type=\"button\" class=\"loc-chip-btn\" data-contact-value=\"email\"\r\n                                                        aria-pressed=\"false\" title=\"Email\">"
+        },
         {
           "file": "index.html",
           "tagSnippet": "<button id=\"cleanupInvoicesBtn\" class=\"tvBtn tvBtn--secondary tvBtn--sm tvInvoicesStorage__action\" title=\"Cleanup duplicate invoices\">"
@@ -2514,55 +2686,61 @@
       ]
     },
     "scrollJumps": {
-      "total": 12,
+      "total": 13,
       "items": [
         {
           "file": "script.js",
-          "line": 4351,
+          "line": 4539,
           "kind": "scroll-into-view",
           "snippet": "if (firstCard) firstCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });"
         },
         {
           "file": "script.js",
-          "line": 4455,
+          "line": 4648,
           "kind": "scroll-into-view",
           "snippet": "aptRow.scrollIntoView({"
         },
         {
           "file": "script.js",
-          "line": 4749,
+          "line": 4942,
           "kind": "scroll-into-view",
           "snippet": "activeTabBtn.scrollIntoView({"
         },
         {
           "file": "script.js",
-          "line": 5010,
+          "line": 5219,
           "kind": "scroll-to",
           "snippet": "window.scrollTo(0, this.scrollLockY);"
         },
         {
           "file": "script.js",
-          "line": 5064,
+          "line": 5273,
           "kind": "scroll-into-view",
           "snippet": "selected.scrollIntoView({ block: 'center', behavior: 'smooth' });"
         },
         {
           "file": "script.js",
-          "line": 5078,
+          "line": 5287,
           "kind": "scroll-into-view",
           "snippet": "selected.scrollIntoView({ block: 'center', behavior: 'smooth' });"
         },
         {
           "file": "script.js",
-          "line": 5373,
+          "line": 5608,
           "kind": "scroll-into-view",
           "snippet": "activeTabBtn.scrollIntoView({"
         },
         {
           "file": "script.js",
-          "line": 8722,
+          "line": 9253,
           "kind": "location-hash",
           "snippet": "if (!fromPopState && location.hash === '#appointments') {"
+        },
+        {
+          "file": "src/core/chips-mode.js",
+          "line": 603,
+          "kind": "scroll-into-view",
+          "snippet": "rowEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });"
         },
         {
           "file": "src/enterprise-dashboard.js",
