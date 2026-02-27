@@ -2977,6 +2977,10 @@ select.form-input {
 
 /* Step 3 - Jobs Added Mobile Fix */
 @media (max-width: 520px) {
+  .tvx-appointmentForm .tvx-step3 .woHeaderTotal {
+    display: none;
+  }
+
   .tvx-appointmentForm .tvx-step3 #jobsChips,
   .tvx-appointmentForm .tvx-step3 #partsChips {
     overflow-x: hidden;
@@ -3120,4 +3124,9 @@ select.form-input {
     padding-left: 8px;
     padding-right: 8px;
   }
+}
+
+.tvx-appointmentForm .tvx-step3 .totalsBar .tLine--subtle,
+.tvx-appointmentForm .tvx-step3 #combinedSubtotal {
+  display: none;
 }
