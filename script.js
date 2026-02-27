@@ -4226,6 +4226,16 @@ const TV_NOTIF_STORE_KEY = 'tv_notif_store_v1';
 const TV_NOTIF_STORE_LIMIT = 120;
 const TV_NOTIF_DISMISS_KEY = 'tv_notif_dismiss_v1';
 const TV_NOTIF_DISMISS_TTL = 6 * 60 * 60 * 1000; // 6 hours
+const TV_NOTIF_COLLECTION_LIMIT = 50;
+
+const notifState = {
+    list: [],
+    filter: 'all',
+    uid: '',
+    unsubscribe: null,
+    automationIds: new Set(),
+    automationSyncBusy: false
+};
 
 function _notifEscapeHtml(value) {
     return String(value || '')
@@ -4251,53 +4261,242 @@ function _notifSetStore(items) {
     } catch {}
 }
 
+function _notifNormalizeRecord(raw = {}) {
+    const created = raw.createdAt?.toMillis?.() || raw.createdAt || Date.now();
+    const readAt = raw.readAt?.toMillis?.() || raw.readAt || null;
+    return {
+        id: String(raw.id || ''),
+        type: String(raw.type || 'system'),
+        severity: String(raw.severity || 'info'),
+        title: String(raw.title || ''),
+        message: String(raw.message || ''),
+        read: !!readAt,
+        readAt,
+        createdAt: created,
+        archived: !!raw.archived,
+        link: raw.link && typeof raw.link === 'object' ? raw.link : null,
+        relatedAptId: raw.relatedAptId ? String(raw.relatedAptId) : ''
+    };
+}
+
+function _notifSetInMemory(items = []) {
+    notifState.list = Array.isArray(items)
+        ? items
+            .map(_notifNormalizeRecord)
+            .filter(item => !item.archived)
+            .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))
+            .slice(0, TV_NOTIF_COLLECTION_LIMIT)
+        : [];
+}
+
+function _notifHasFirestoreContext() {
+    return !!(db && currentUser?.uid);
+}
+
+function _notifLoadLocalIntoMemory() {
+    const local = _notifGetStore().map(item => ({
+        ...item,
+        title: item.title || item.message || '',
+        severity: item.severity || item.type || 'info',
+        type: item.type || 'system',
+        link: item.link || null,
+        archived: !!item.archived,
+        readAt: item.read ? (item.readAt || Date.now()) : null
+    }));
+    _notifSetInMemory(local);
+}
+
+async function _notifSubscribeFirestore(uid) {
+    if (!db || !uid) {
+        _notifLoadLocalIntoMemory();
+        return;
+    }
+    if (notifState.uid === uid && typeof notifState.unsubscribe === 'function') return;
+    if (typeof notifState.unsubscribe === 'function') {
+        notifState.unsubscribe();
+        notifState.unsubscribe = null;
+    }
+
+    try {
+        const { collection, query, where, orderBy, limit, onSnapshot } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+        const notifRef = collection(db, 'users', uid, 'notifications');
+        const q = query(notifRef, where('archived', '==', false), orderBy('createdAt', 'desc'), limit(TV_NOTIF_COLLECTION_LIMIT));
+
+        notifState.uid = uid;
+        notifState.unsubscribe = onSnapshot(q, (snap) => {
+            const list = snap.docs.map(d => _notifNormalizeRecord({ id: d.id, ...d.data() }));
+            _notifSetInMemory(list);
+            if (typeof refreshBellBadge === 'function') refreshBellBadge();
+        }, () => {
+            _notifLoadLocalIntoMemory();
+            if (typeof refreshBellBadge === 'function') refreshBellBadge();
+        });
+    } catch {
+        _notifLoadLocalIntoMemory();
+    }
+}
+
+function _notifEnsureAuthScopedStore() {
+    if (_notifHasFirestoreContext()) {
+        _notifSubscribeFirestore(currentUser.uid);
+    } else if (!notifState.list.length) {
+        _notifLoadLocalIntoMemory();
+    }
+}
+
+async function _notifUpsert(record, notificationId = '') {
+    const normalized = _notifNormalizeRecord(record);
+    const id = notificationId || normalized.id || `n_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+
+    const optimistic = { ...normalized, id };
+    const next = [optimistic, ...notifState.list.filter(item => item.id !== id)];
+    _notifSetInMemory(next);
+
+    if (_notifHasFirestoreContext()) {
+        try {
+            const { doc, setDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+            await setDoc(doc(db, 'users', currentUser.uid, 'notifications', id), {
+                type: normalized.type || 'system',
+                severity: normalized.severity || 'info',
+                title: normalized.title || normalized.message || '',
+                message: normalized.message || normalized.title || '',
+                link: normalized.link || null,
+                relatedAptId: normalized.relatedAptId || '',
+                createdAt: serverTimestamp(),
+                readAt: normalized.read ? serverTimestamp() : null,
+                archived: false
+            }, { merge: true });
+        } catch {}
+    } else {
+        const local = _notifGetStore();
+        local.unshift({
+            id,
+            message: normalized.message || normalized.title || '',
+            type: normalized.type || 'info',
+            read: !!normalized.read,
+            createdAt: normalized.createdAt || Date.now(),
+            relatedAptId: normalized.relatedAptId || '',
+            action: '',
+            title: normalized.title || normalized.message || '',
+            severity: normalized.severity || 'info',
+            link: normalized.link || null,
+            archived: false,
+            readAt: normalized.read ? Date.now() : null
+        });
+        _notifSetStore(local);
+        _notifLoadLocalIntoMemory();
+    }
+    return optimistic;
+}
+
+async function _notifPatch(notificationId, patch = {}) {
+    if (!notificationId) return;
+
+    _notifSetInMemory(notifState.list.map(item => item.id === notificationId ? { ...item, ...patch } : item));
+
+    if (_notifHasFirestoreContext()) {
+        try {
+            const { doc, updateDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+            const payload = { ...patch };
+            if (Object.prototype.hasOwnProperty.call(payload, 'read')) {
+                payload.readAt = payload.read ? serverTimestamp() : null;
+                delete payload.read;
+            }
+            await updateDoc(doc(db, 'users', currentUser.uid, 'notifications', notificationId), payload);
+        } catch {}
+    } else {
+        const items = _notifGetStore().map(item => item.id === notificationId
+            ? { ...item, ...patch, readAt: patch.read ? Date.now() : (patch.read === false ? null : item.readAt), archived: !!patch.archived || !!item.archived }
+            : item);
+        _notifSetStore(items.filter(item => !item.archived));
+        _notifLoadLocalIntoMemory();
+    }
+}
+
+async function _notifArchiveMany(ids = []) {
+    await Promise.all((ids || []).map(id => _notifPatch(id, { archived: true })));
+}
+
+async function syncAutomationAlertsToNotificationCenter() {
+    if (notifState.automationSyncBusy) return;
+    notifState.automationSyncBusy = true;
+    try {
+        const alerts = window._dataLayer?.getTopAlerts?.() || [];
+        const nextIds = new Set();
+        for (const alert of alerts) {
+            const notificationId = `automation_${String(alert.type || 'general')}_${String(alert.actionTarget || 'all')}`;
+            nextIds.add(notificationId);
+            await _notifUpsert({
+                id: notificationId,
+                type: 'automation',
+                severity: alert.type === 'overdue' ? 'danger' : (alert.type === 'uninvoiced' ? 'warning' : 'info'),
+                title: alert.title || 'Automation alert',
+                message: alert.description || '',
+                link: { kind: 'filter', filter: alert.actionTarget || 'all' },
+                read: false,
+                archived: false,
+                createdAt: Date.now()
+            }, notificationId);
+        }
+
+        const stale = [...notifState.automationIds].filter(id => !nextIds.has(id));
+        if (stale.length) {
+            await _notifArchiveMany(stale);
+        }
+        notifState.automationIds = nextIds;
+    } catch {
+    } finally {
+        notifState.automationSyncBusy = false;
+    }
+}
+
 function addNotification(message, type = 'info', options = {}) {
     const text = String(message || '').trim();
     if (!text) return null;
+    _notifEnsureAuthScopedStore();
     const notif = {
-        id: `n_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+        id: options.notificationId || `n_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+        title: options.title ? String(options.title) : text,
         message: text,
-        type: ['success', 'error', 'warning', 'info'].includes(type) ? type : 'info',
+        type: options.type || 'system',
+        severity: ['success', 'error', 'warning', 'info'].includes(type) ? (type === 'error' ? 'danger' : type) : 'info',
         read: false,
         createdAt: Date.now(),
         relatedAptId: options.relatedAptId ? String(options.relatedAptId) : '',
-        action: options.action ? String(options.action) : ''
+        link: options.link && typeof options.link === 'object' ? options.link : null,
+        archived: false
     };
-    const items = _notifGetStore();
-    items.unshift(notif);
-    _notifSetStore(items);
+    _notifUpsert(notif, notif.id);
     return notif;
 }
 
 function getNotifications() {
-    return _notifGetStore();
+    _notifEnsureAuthScopedStore();
+    return notifState.list.slice();
 }
 
 function markRead(notificationId, read = true) {
     if (!notificationId) return;
-    const items = _notifGetStore().map(item => (
-        item.id === notificationId ? { ...item, read: !!read } : item
-    ));
-    _notifSetStore(items);
+    _notifPatch(notificationId, { read: !!read });
 }
 
 function markAllRead() {
-    const items = _notifGetStore().map(item => ({ ...item, read: true }));
-    _notifSetStore(items);
+    const ids = getNotifications().filter(item => !item.read).map(item => item.id);
+    ids.forEach(id => _notifPatch(id, { read: true }));
 }
 
 function removeNotification(notificationId) {
     if (!notificationId) return;
-    const items = _notifGetStore().filter(item => item.id !== notificationId);
-    _notifSetStore(items);
+    _notifPatch(notificationId, { archived: true });
 }
 
 function clearNotifications() {
-    _notifSetStore([]);
+    const ids = getNotifications().map(item => item.id);
+    _notifArchiveMany(ids);
 }
 
 function unreadCount() {
-    return _notifGetStore().reduce((count, item) => count + (item.read ? 0 : 1), 0);
+    return getNotifications().reduce((count, item) => count + (item.read ? 0 : 1), 0);
 }
 
 window.addNotification = addNotification;
@@ -4368,22 +4567,25 @@ function computeAlerts(apts) {
 
 /** Update the bell badge count */
 function refreshBellBadge() {
-    const apts   = window.appointments || appointments || [];
-    const alerts = computeAlerts(apts);
-    const total  = alerts.reduce((s, a) => s + a.count, 0) + unreadCount();
+    _notifEnsureAuthScopedStore();
+    syncAutomationAlertsToNotificationCenter();
+    const total  = unreadCount();
     const badge  = document.getElementById('tvBellBadge');
     const btn    = document.getElementById('tvBellBtn');
+    const drawer = document.getElementById('tvNotifDrawer');
+    const isOpen = !!drawer?.classList.contains('tv-notif-drawer--open');
     if (!badge || !btn) return;
     if (total > 0) {
         badge.textContent = total > 99 ? '99+' : String(total);
         badge.style.display = 'flex';
         btn.setAttribute('aria-label', `${total} alert${total === 1 ? '' : 's'}`);
+        btn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
     } else {
         badge.style.display = 'none';
         btn.setAttribute('aria-label', 'No alerts');
+        btn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
     }
     // Refresh drawer body live if open
-    const drawer = document.getElementById('tvNotifDrawer');
     if (drawer?.classList.contains('tv-notif-drawer--open')) {
         _renderNotifBody();
     }
@@ -4393,9 +4595,11 @@ function refreshBellBadge() {
 function _renderNotifBody() {
     const body = document.getElementById('tvNotifBody');
     if (!body) return;
-    const alerts = computeAlerts(window.appointments || appointments || []);
-    const items = getNotifications();
-    if (alerts.length === 0 && items.length === 0) {
+    const allItems = getNotifications().filter(item => !item.archived);
+    const items = notifState.filter === 'all'
+        ? allItems
+        : allItems.filter(item => item.type === notifState.filter);
+    if (items.length === 0) {
         body.innerHTML = `<div class="tv-notif-empty"><i class="fas fa-check-circle"></i><span>All clear</span></div>`;
         return;
     }
@@ -4407,51 +4611,41 @@ function _renderNotifBody() {
         info: 'info-circle'
     };
 
-    const notificationsHtml = items.length > 0 ? `
-        <div class="tv-notif-section-title">Notifications</div>
+    const notificationsHtml = `
+        <div class="tv-notif-section-title">
+            <button class="tv-notif-chip ${notifState.filter === 'all' ? 'is-active' : ''}" data-notif-filter-tab="all">All</button>
+            <button class="tv-notif-chip ${notifState.filter === 'automation' ? 'is-active' : ''}" data-notif-filter-tab="automation">Automation</button>
+            <button class="tv-notif-chip ${notifState.filter === 'system' ? 'is-active' : ''}" data-notif-filter-tab="system">System</button>
+        </div>
         ${items.map(item => `
             <div class="tv-notif-item ${item.read ? 'tv-notif-item--read' : ''}">
-                <span class="tv-notif-item__icon"><i class="fas fa-${icons[item.type] || icons.info}"></i></span>
+                <span class="tv-notif-item__icon"><i class="fas fa-${icons[item.severity] || icons[item.type] || icons.info}"></i></span>
                 <div class="tv-notif-item__content">
-                    <span class="tv-notif-item__label">${_notifEscapeHtml(item.message)}</span>
+                    <span class="tv-notif-item__label">${_notifEscapeHtml(item.title || item.message)}</span>
+                    ${item.message && item.message !== item.title ? `<span class="tv-notif-item__label" style="opacity:.75">${_notifEscapeHtml(item.message)}</span>` : ''}
                     <span class="tv-notif-item__count">${new Date(item.createdAt || Date.now()).toLocaleString([], { hour: '2-digit', minute: '2-digit', day: '2-digit', month: 'short' })}</span>
                 </div>
                 <div class="tv-notif-item__btns">
-                    ${item.relatedAptId ? `<button class="tv-notif-open" data-notif-open-id="${item.id}" data-notif-apt-id="${_notifEscapeHtml(item.relatedAptId)}" aria-label="Open related appointment">Open</button>` : ''}
+                    ${(item.relatedAptId || item.link?.kind === 'filter') ? `<button class="tv-notif-open" data-notif-open-id="${item.id}" data-notif-apt-id="${_notifEscapeHtml(item.relatedAptId || '')}" data-notif-link-kind="${_notifEscapeHtml(item.link?.kind || '')}" data-notif-link-filter="${_notifEscapeHtml(item.link?.filter || '')}" aria-label="Open related item">Open</button>` : ''}
                     <button class="tv-notif-mark-read" data-notif-id="${item.id}" data-notif-read="${item.read ? '1' : '0'}" aria-label="${item.read ? 'Mark as unread' : 'Mark as read'}">${item.read ? 'Undo' : 'Read'}</button>
                     <button class="tv-notif-dismiss" data-notif-remove-id="${item.id}" aria-label="Remove notification">×</button>
                 </div>
             </div>
         `).join('')}
-    ` : '';
+    `;
 
-    const alertsHtml = alerts.length > 0 ? `
-        <div class="tv-notif-section-title">Smart alerts</div>
-        ${alerts.map(a => `
-        <div class="tv-notif-item">
-            <span class="tv-notif-item__icon" style="color:${a.color}"><i class="fas ${a.icon}"></i></span>
-            <div class="tv-notif-item__content">
-                <span class="tv-notif-item__label">${a.label}</span>
-                <span class="tv-notif-item__count">${a.count}</span>
-            </div>
-            <div class="tv-notif-item__btns">
-                <button class="tv-notif-view" data-notif-filter="${a.filter}" aria-label="View ${a.label}">View</button>
-                <button class="tv-notif-dismiss" data-notif-key="${a.key}" data-notif-count="${a.count}" aria-label="Dismiss">×</button>
-            </div>
-        </div>
-    `).join('')}
-    ` : '';
-
-    body.innerHTML = `${notificationsHtml}${alertsHtml}`;
+    body.innerHTML = notificationsHtml;
 }
 
 /** Toggle the bell drawer open/closed */
 function toggleNotifDrawer() {
     const drawer = document.getElementById('tvNotifDrawer');
+    const bell = document.getElementById('tvBellBtn');
     if (!drawer) return;
     const isOpen = drawer.classList.contains('tv-notif-drawer--open');
     if (isOpen) {
         drawer.classList.remove('tv-notif-drawer--open');
+        bell?.setAttribute('aria-expanded', 'false');
     } else {
         // Anchor drawer below the header by measuring it at open-time
         const header = document.getElementById('authBar');
@@ -4461,6 +4655,8 @@ function toggleNotifDrawer() {
         }
         _renderNotifBody();
         drawer.classList.add('tv-notif-drawer--open');
+        bell?.setAttribute('aria-expanded', 'true');
+        drawer.querySelector('[data-notif-close]')?.focus();
     }
 }
 
@@ -4493,14 +4689,27 @@ function bindNotifDrawer() {
         if (openBtn) {
             const notifId = openBtn.dataset.notifOpenId;
             const aptId = openBtn.dataset.notifAptId;
+            const linkKind = openBtn.dataset.notifLinkKind;
+            const linkFilter = openBtn.dataset.notifLinkFilter;
             if (notifId) markRead(notifId, true);
             drawer.classList.remove('tv-notif-drawer--open');
+            const bell = document.getElementById('tvBellBtn');
+            bell?.setAttribute('aria-expanded', 'false');
             if (aptId) {
                 const allFilterBtn = document.querySelector('.apts-filter-btn[data-filter="all"]');
                 if (allFilterBtn) allFilterBtn.click();
                 setTimeout(() => highlightAndScrollToAppointment(aptId), 120);
+            } else if (linkKind === 'filter' && linkFilter) {
+                window._dataLayer?.applyFilter?.(linkFilter);
             }
             refreshBellBadge();
+            return;
+        }
+
+        const filterChipBtn = e.target.closest('[data-notif-filter-tab]');
+        if (filterChipBtn) {
+            notifState.filter = filterChipBtn.dataset.notifFilterTab || 'all';
+            _renderNotifBody();
             return;
         }
 
@@ -4556,6 +4765,8 @@ function bindNotifDrawer() {
         // Close
         if (e.target.closest('[data-notif-close]')) {
             drawer.classList.remove('tv-notif-drawer--open');
+            const bell = document.getElementById('tvBellBtn');
+            bell?.setAttribute('aria-expanded', 'false');
         }
     });
 
@@ -4566,8 +4777,18 @@ function bindNotifDrawer() {
         if (!dr?.classList.contains('tv-notif-drawer--open')) return;
         if (!dr.contains(ev.target) && !btn?.contains(ev.target)) {
             dr.classList.remove('tv-notif-drawer--open');
+            btn?.setAttribute('aria-expanded', 'false');
         }
     }, { passive: true, capture: false });
+
+    document.addEventListener('keydown', (ev) => {
+        if (ev.key !== 'Escape') return;
+        if (!drawer.classList.contains('tv-notif-drawer--open')) return;
+        drawer.classList.remove('tv-notif-drawer--open');
+        const btn = document.getElementById('tvBellBtn');
+        btn?.setAttribute('aria-expanded', 'false');
+        btn?.focus();
+    });
 }
 window.toggleNotifDrawer = toggleNotifDrawer;
 window.refreshBellBadge  = refreshBellBadge;
@@ -9174,7 +9395,7 @@ function setupAppointmentFormLogic() {
             if (!db || !editingAppointmentId) return;
 
             try {
-                const { doc, getDoc, updateDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+                const { doc, getDoc, updateDoc, serverTimestamp, collection, query, where, getDocs } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
 
                 const aptRef = doc(db, 'appointments', editingAppointmentId);
                 const aptSnap = await getDoc(aptRef);
@@ -9198,15 +9419,37 @@ function setupAppointmentFormLogic() {
                     updatedAt: serverTimestamp()
                 });
 
+                const linkedInvoiceIds = new Set();
                 if (aptData.invoiceId) {
-                    await updateDoc(doc(db, 'invoices', aptData.invoiceId), {
-                        vehicle: canonicalVehicle,
-                        vehicleMakeModel: canonicalVehicle.makeModel || '',
-                        regPlate: canonicalVehicle.regPlate || '',
-                        vehicleReg: canonicalVehicle.regPlate || '',
-                        mileage: canonicalVehicle.mileage,
-                        updatedAt: serverTimestamp()
-                    });
+                    linkedInvoiceIds.add(String(aptData.invoiceId));
+                } else {
+                    const invoicesSnap = await getDocs(query(
+                        collection(db, 'invoices'),
+                        where('appointmentId', '==', editingAppointmentId)
+                    ));
+                    invoicesSnap.forEach((docSnap) => linkedInvoiceIds.add(docSnap.id));
+                }
+
+                if (linkedInvoiceIds.size > 0) {
+                    await Promise.all(Array.from(linkedInvoiceIds).map((invoiceId) => {
+                        return updateDoc(doc(db, 'invoices', invoiceId), {
+                            appointmentId: editingAppointmentId,
+                            vehicle: canonicalVehicle,
+                            vehicleMakeModel: canonicalVehicle.makeModel || '',
+                            regPlate: canonicalVehicle.regPlate || '',
+                            vehicleReg: canonicalVehicle.regPlate || '',
+                            mileage: canonicalVehicle.mileage,
+                            updatedAt: serverTimestamp()
+                        });
+                    }));
+
+                    if (!aptData.invoiceId) {
+                        const primaryInvoiceId = Array.from(linkedInvoiceIds)[0];
+                        await updateDoc(aptRef, {
+                            invoiceId: primaryInvoiceId,
+                            updatedAt: serverTimestamp()
+                        });
+                    }
                 }
             } catch (error) {
                 console.warn('[DVSA] Vehicle sync warning:', error);

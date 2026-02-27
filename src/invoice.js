@@ -178,7 +178,21 @@ function toISODateString(value) {
     return date.toISOString().split('T')[0];
 }
 
-function normalizeVehicleFromInvoiceData(data = {}) {
+const INVOICE_VEHICLE_DEBUG = false;
+
+function formatDateTimeUK(value) {
+    const date = toDateValue(value);
+    if (!date || Number.isNaN(date.getTime())) return '';
+    return date.toLocaleString('en-GB', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+    });
+}
+
+function getVehicleVM(data = {}) {
     const normalizeText = (value) => (value === undefined || value === null ? '' : String(value).trim());
     const pick = (...values) => {
         for (const value of values) {
@@ -188,12 +202,94 @@ function normalizeVehicleFromInvoiceData(data = {}) {
         return '';
     };
 
-    const regPlate = pick(data.regPlate, data.vehicleReg, data.client?.regPlate);
-    const makeModel = pick(data.vehicleMakeModel, data.makeModel, data.client?.vehicle, data.client?.makeModel);
-    const mileageRaw = data.mileage ?? data.client?.mileage ?? '';
-    const mileage = normalizeText(mileageRaw);
+    const vehicle = data.vehicle || {};
+    const regPlate = pick(vehicle.regPlate, data.regPlate, data.vehicleReg, data.client?.regPlate);
+    const makeModel = pick(vehicle.makeModel, data.vehicleMakeModel, data.client?.vehicle);
+    const mileage = pick(vehicle.mileage, data.mileage, data.client?.mileage);
+    const motStatus = pick(vehicle.motStatus, data.motStatus, data.client?.motStatus);
+    const motExpiry = pick(vehicle.motExpiry, data.motExpiry, data.client?.motExpiry);
+    const taxStatus = pick(vehicle.taxStatus, data.taxStatus, data.client?.taxStatus);
+    const dvsaCheckedAt = vehicle.dvsaCheckedAt || data.dvsaCheckedAt || null;
+    const dvsaVerified = Boolean(vehicle.dvsaVerified ?? data.dvsaVerified);
 
-    return { regPlate, makeModel, mileage };
+    return { regPlate, makeModel, mileage, motStatus, motExpiry, taxStatus, dvsaVerified, dvsaCheckedAt };
+}
+
+function getVehicleRegResolutionSource(data = {}) {
+    if (data?.vehicle?.regPlate) return 'data.vehicle.regPlate';
+    if (data?.regPlate) return 'data.regPlate';
+    if (data?.vehicleReg) return 'data.vehicleReg';
+    if (data?.client?.regPlate) return 'data.client.regPlate';
+    return 'fallback-dash';
+}
+
+async function selfHealInvoiceVehicleFromAppointment(rawInvoice, appointmentData, invoiceId) {
+    if (!rawInvoice || !invoiceId) return rawInvoice;
+    if (!rawInvoice.appointmentId || !appointmentData) return rawInvoice;
+
+    const currentVehicle = getVehicleVM(rawInvoice);
+    if (currentVehicle.regPlate) return rawInvoice;
+
+    const healedVehicle = getVehicleVM({
+        vehicle: appointmentData.vehicle || {},
+        regPlate: appointmentData.regPlate || appointmentData.registrationPlate || appointmentData.regNumber || '',
+        vehicleReg: appointmentData.vehicleReg || '',
+        vehicleMakeModel: appointmentData.vehicleMakeModel || appointmentData.makeModel || '',
+        mileage: appointmentData.mileage ?? '',
+        motStatus: appointmentData.motStatus || '',
+        motExpiry: appointmentData.motExpiry || '',
+        taxStatus: appointmentData.taxStatus || '',
+        dvsaCheckedAt: appointmentData.dvsaCheckedAt || null,
+        dvsaVerified: appointmentData.dvsaVerified,
+        client: appointmentData.client || {}
+    });
+
+    if (!healedVehicle.regPlate) return rawInvoice;
+
+    const patchedInvoice = {
+        ...rawInvoice,
+        vehicle: {
+            ...(rawInvoice.vehicle || {}),
+            regPlate: healedVehicle.regPlate || '',
+            makeModel: healedVehicle.makeModel || '',
+            mileage: healedVehicle.mileage || '',
+            motStatus: healedVehicle.motStatus || '',
+            motExpiry: healedVehicle.motExpiry || '',
+            taxStatus: healedVehicle.taxStatus || '',
+            dvsaVerified: Boolean(healedVehicle.dvsaVerified),
+            dvsaCheckedAt: healedVehicle.dvsaCheckedAt || null
+        },
+        regPlate: healedVehicle.regPlate || '',
+        vehicleReg: healedVehicle.regPlate || '',
+        vehicleMakeModel: healedVehicle.makeModel || '',
+        mileage: healedVehicle.mileage || ''
+    };
+
+    try {
+        const { doc, updateDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+        await updateDoc(doc(db, 'invoices', invoiceId), {
+            vehicle: patchedInvoice.vehicle,
+            regPlate: patchedInvoice.regPlate,
+            vehicleReg: patchedInvoice.vehicleReg,
+            vehicleMakeModel: patchedInvoice.vehicleMakeModel,
+            mileage: patchedInvoice.mileage,
+            appointmentId: rawInvoice.appointmentId,
+            updatedAt: serverTimestamp()
+        });
+        console.debug('[Invoice][SelfHeal] Applied vehicle fallback from appointment', {
+            invoiceId,
+            appointmentId: rawInvoice.appointmentId,
+            regPlate: patchedInvoice.regPlate
+        });
+    } catch (error) {
+        console.warn('[Invoice][SelfHeal] Vehicle patch failed:', error);
+    }
+
+    return patchedInvoice;
+}
+
+function normalizeVehicleFromInvoiceData(data = {}) {
+    return getVehicleVM(data);
 }
 
 function addDaysISO(baseDateISO, days) {
@@ -305,20 +401,53 @@ function renderInvoiceMeta() {
     document.getElementById('invoiceDue').textContent = formatDateUK(data.dueDate);
     document.getElementById('invoiceRef').textContent = data.refPin || data.pin || '—';
     
-    const vehicle = normalizeVehicleFromInvoiceData({
+    const vehicle = getVehicleVM({
         regPlate: data.regPlate,
         vehicleReg: data.vehicleReg,
+        vehicle: data.vehicle,
         vehicleMakeModel: data.vehicleMakeModel,
         makeModel: data.makeModel,
         mileage: data.mileage ?? data.vehicleMileage,
         client: data.client
     });
+    console.debug('[Invoice][VehicleResolve]', {
+        invoiceId: data.id || currentInvoiceId || null,
+        regSource: getVehicleRegResolutionSource(data),
+        vehicleVM: vehicle
+    });
 
     document.getElementById('vehicleReg').textContent = vehicle.regPlate || '—';
+    const regCardEl = document.getElementById('vehicleRegCard');
+    if (regCardEl) regCardEl.textContent = vehicle.regPlate || '—';
     const makeModelEl = document.getElementById('vehicleMakeModel');
     if (makeModelEl) makeModelEl.textContent = vehicle.makeModel || '—';
     const mileageEl = document.getElementById('vehicleMileage');
     if (mileageEl) mileageEl.textContent = vehicle.mileage || '—';
+
+    const motWrap = document.getElementById('vehicleMotExpiryWrap');
+    const motEl = document.getElementById('vehicleMotExpiry');
+    if (motWrap && motEl) {
+        const motText = vehicle.motExpiry ? formatDateUK(vehicle.motExpiry) : '';
+        motWrap.style.display = motText ? '' : 'none';
+        motEl.textContent = motText || '—';
+    }
+
+    const taxWrap = document.getElementById('vehicleTaxStatusWrap');
+    const taxEl = document.getElementById('vehicleTaxStatus');
+    if (taxWrap && taxEl) {
+        taxWrap.style.display = vehicle.taxStatus ? '' : 'none';
+        taxEl.textContent = vehicle.taxStatus || '—';
+    }
+
+    const dvsaMeta = document.getElementById('vehicleDvsaMeta');
+    const dvsaCheckedEl = document.getElementById('vehicleDvsaCheckedAt');
+    if (dvsaMeta) {
+        dvsaMeta.style.display = vehicle.dvsaVerified ? '' : 'none';
+    }
+    if (dvsaCheckedEl) {
+        const checked = formatDateTimeUK(vehicle.dvsaCheckedAt);
+        dvsaCheckedEl.textContent = checked ? `Checked ${checked}` : '';
+    }
 }
 
 /**
@@ -1307,9 +1436,10 @@ function toggleEditMode() {
     originalInvoiceData = JSON.parse(JSON.stringify(currentInvoiceData));
     
     // Initialize draft data from current invoice
-    const normalizedVehicle = normalizeVehicleFromInvoiceData({
+    const normalizedVehicle = getVehicleVM({
         regPlate: currentInvoiceData.regPlate,
         vehicleReg: currentInvoiceData.vehicleReg,
+        vehicle: currentInvoiceData.vehicle,
         vehicleMakeModel: currentInvoiceData.vehicleMakeModel,
         makeModel: currentInvoiceData.makeModel,
         mileage: currentInvoiceData.mileage ?? currentInvoiceData.vehicleMileage,
@@ -1926,12 +2056,13 @@ async function saveInvoiceChanges(e) {
         // ✅ Use lowercase for consistent storage
         const paymentStatus = paidAmount > 0 && paidAmount >= totals.total ? 'paid' : 'unpaid';
 
-        const vehicleForSave = normalizeVehicleFromInvoiceData({
-            regPlate: draftData.client?.regPlate,
-            vehicleMakeModel: draftData.client?.vehicle,
-            mileage: draftData.client?.mileage,
-            client: {}
-        });
+        const persistedVehicle = getVehicleVM(currentInvoiceData || {});
+        const vehicleForSave = {
+            ...persistedVehicle,
+            regPlate: String(draftData.client?.regPlate || '').trim(),
+            makeModel: String(draftData.client?.vehicle || '').trim(),
+            mileage: String(draftData.client?.mileage || '').trim()
+        };
 
         console.debug('[Invoice][Vehicle] normalized payload:', vehicleForSave);
 
@@ -1952,6 +2083,16 @@ async function saveInvoiceChanges(e) {
                 vehicle: vehicleForSave.makeModel || '',
                 regPlate: vehicleForSave.regPlate || '',
                 mileage: vehicleForSave.mileage || ''
+            },
+            vehicle: {
+                regPlate: vehicleForSave.regPlate || '',
+                makeModel: vehicleForSave.makeModel || '',
+                mileage: vehicleForSave.mileage || '',
+                motStatus: vehicleForSave.motStatus || '',
+                motExpiry: vehicleForSave.motExpiry || '',
+                taxStatus: vehicleForSave.taxStatus || '',
+                dvsaVerified: Boolean(vehicleForSave.dvsaVerified),
+                dvsaCheckedAt: vehicleForSave.dvsaCheckedAt || null
             },
             
             // Jobs and parts
@@ -2023,6 +2164,16 @@ async function saveInvoiceChanges(e) {
                 vehicleMakeModel: vehicleForSave.makeModel || '',
                 regPlate: vehicleForSave.regPlate || '',
                 mileage: vehicleForSave.mileage || '',
+                vehicle: {
+                    regPlate: vehicleForSave.regPlate || '',
+                    makeModel: vehicleForSave.makeModel || '',
+                    mileage: vehicleForSave.mileage || '',
+                    motStatus: vehicleForSave.motStatus || '',
+                    motExpiry: vehicleForSave.motExpiry || '',
+                    taxStatus: vehicleForSave.taxStatus || '',
+                    dvsaVerified: Boolean(vehicleForSave.dvsaVerified),
+                    dvsaCheckedAt: vehicleForSave.dvsaCheckedAt || null
+                },
                 jobs,
                 parts,
                 notes: draftData.notes || '',
@@ -2101,6 +2252,16 @@ async function saveInvoiceChanges(e) {
                     vehicle: vehicleForSave.makeModel || '',
                     regPlate: vehicleForSave.regPlate || '',
                     mileage: vehicleForSave.mileage || ''
+                },
+                vehicle: {
+                    regPlate: vehicleForSave.regPlate || '',
+                    makeModel: vehicleForSave.makeModel || '',
+                    mileage: vehicleForSave.mileage || '',
+                    motStatus: vehicleForSave.motStatus || '',
+                    motExpiry: vehicleForSave.motExpiry || '',
+                    taxStatus: vehicleForSave.taxStatus || '',
+                    dvsaVerified: Boolean(vehicleForSave.dvsaVerified),
+                    dvsaCheckedAt: vehicleForSave.dvsaCheckedAt || null
                 },
                 vehicleMakeModel: vehicleForSave.makeModel || '',
                 regPlate: vehicleForSave.regPlate || '',
@@ -2494,17 +2655,18 @@ function normalizeInvoiceData(raw, invoiceId, appointmentFallback = null) {
         ? normalizeMechanicDetails(data, appointment)
         : null;
 
-    const vehicleData = normalizeVehicleFromInvoiceData({
-        regPlate: getFirst(data.regPlate, data.registrationPlate, data.vehicle?.regPlate, appointment.regPlate, appointment.registrationPlate),
-        vehicleReg: getFirst(data.vehicleReg, appointment.vehicleReg),
-        vehicleMakeModel: getFirst(data.vehicleMakeModel, data.vehicle?.makeModel, data.carMakeModel, appointment.vehicleMakeModel, appointment.carMakeModel),
-        makeModel: getFirst(data.makeModel, appointment.makeModel),
-        mileage: data.mileage ?? data.vehicle?.mileage ?? appointment.mileage ?? '',
+    const vehicleData = getVehicleVM({
+        vehicle: data.vehicle,
+        regPlate: getFirst(data.regPlate),
+        vehicleReg: getFirst(data.vehicleReg),
+        vehicleMakeModel: getFirst(data.vehicleMakeModel),
+        makeModel: getFirst(data.makeModel),
+        mileage: data.mileage ?? data.vehicle?.mileage ?? '',
         client: {
-            regPlate: getFirst(data.client?.regPlate, appointment.client?.regPlate),
-            vehicle: getFirst(data.client?.vehicle, appointment.client?.vehicle),
-            makeModel: getFirst(data.client?.makeModel, appointment.client?.makeModel),
-            mileage: data.client?.mileage ?? appointment.client?.mileage ?? ''
+            regPlate: getFirst(data.client?.regPlate),
+            vehicle: getFirst(data.client?.vehicle),
+            makeModel: getFirst(data.client?.makeModel),
+            mileage: data.client?.mileage ?? ''
         }
     });
 
@@ -2524,6 +2686,16 @@ function normalizeInvoiceData(raw, invoiceId, appointmentFallback = null) {
         vehicleMakeModel: vehicleData.makeModel || '',
         vehicleReg: vehicleData.regPlate || '',
         vehicleMileage: vehicleData.mileage || '',
+        vehicle: {
+            regPlate: vehicleData.regPlate || '',
+            makeModel: vehicleData.makeModel || '',
+            mileage: vehicleData.mileage || '',
+            motStatus: vehicleData.motStatus || '',
+            motExpiry: vehicleData.motExpiry || '',
+            taxStatus: vehicleData.taxStatus || '',
+            dvsaVerified: Boolean(vehicleData.dvsaVerified),
+            dvsaCheckedAt: vehicleData.dvsaCheckedAt || null
+        },
         items,
         subtotal,
         vatRate,
@@ -2548,14 +2720,18 @@ function setTextById(id, value, fallback = '—') {
 function populatePreview(vm) {
     if (!vm) return;
 
-    const vehicle = normalizeVehicleFromInvoiceData({
+    const vehicle = getVehicleVM({
         regPlate: vm.regPlate,
         vehicleReg: vm.vehicleReg,
+        vehicle: vm.vehicle,
         vehicleMakeModel: vm.vehicleMakeModel,
         makeModel: vm.makeModel,
         mileage: vm.mileage ?? vm.vehicleMileage,
         client: vm.client
     });
+    if (INVOICE_VEHICLE_DEBUG) {
+        console.debug('[invoice] vehicleVM', vehicle);
+    }
 
     applyIssuerPreview(vm.legalProfile);
 
@@ -2687,7 +2863,8 @@ async function loadInvoicePreview(invoiceId) {
         }
     }
 
-    const normalized = normalizeInvoiceData(rawInvoice, invoiceId, appointmentData);
+    const healedInvoice = await selfHealInvoiceVehicleFromAppointment(rawInvoice, appointmentData, invoiceId);
+    const normalized = normalizeInvoiceData(healedInvoice, invoiceId, appointmentData);
     if (typeof DEBUG !== 'undefined' && DEBUG) {
         console.log('[DEBUG][InvoiceRender]', {
             invoiceId,
@@ -3030,9 +3207,10 @@ function renderBillToOptimized(normalizedData) {
     if (!normalizedData || !normalizedData.client) return;
 
     const client = normalizedData.client;
-    const vehicle = normalizeVehicleFromInvoiceData({
+    const vehicle = getVehicleVM({
         regPlate: normalizedData.regPlate,
         vehicleReg: normalizedData.vehicleReg,
+        vehicle: normalizedData.vehicle,
         vehicleMakeModel: normalizedData.vehicleMakeModel,
         makeModel: normalizedData.makeModel,
         mileage: normalizedData.mileage ?? normalizedData.vehicleMileage,
@@ -3288,9 +3466,11 @@ async function renderInvoiceFromStandalone(invoiceData) {
         }
     }
 
+    const healedInvoiceData = await selfHealInvoiceVehicleFromAppointment(invoiceData, appointmentData, invoiceData.id);
+
     // 🔄 Use normalizeInvoiceData for consistent mileage handling
     // This function properly merges invoice + appointment data with appointment.mileage taking priority
-    const normalized = normalizeInvoiceData(invoiceData, invoiceData.id, appointmentData);
+    const normalized = normalizeInvoiceData(healedInvoiceData, healedInvoiceData.id || invoiceData.id, appointmentData);
     if (typeof DEBUG !== 'undefined' && DEBUG) {
         console.log('[DEBUG][InvoiceRender]', {
             invoiceId: invoiceData.id,
@@ -3299,7 +3479,7 @@ async function renderInvoiceFromStandalone(invoiceData) {
     }
     
     console.log('📊 [Invoice] Normalized data with mileage:', {
-        invoiceMileage: invoiceData.mileage || invoiceData.vehicle?.mileage,
+        invoiceMileage: healedInvoiceData.mileage || healedInvoiceData.vehicle?.mileage,
         appointmentMileage: appointmentData?.mileage,
         finalMileage: normalized.vehicleMileage
     });
@@ -3315,8 +3495,8 @@ async function renderInvoiceFromStandalone(invoiceData) {
     };
     
     // Add services/parts arrays for edit mode compatibility
-    const jobs = Array.isArray(invoiceData.jobs) ? invoiceData.jobs : [];
-    const parts = Array.isArray(invoiceData.parts) ? invoiceData.parts : [];
+    const jobs = Array.isArray(healedInvoiceData.jobs) ? healedInvoiceData.jobs : [];
+    const parts = Array.isArray(healedInvoiceData.parts) ? healedInvoiceData.parts : [];
     normalized.services = (jobs.length > 0 ? jobs : normalized.items).map(item => ({
         description: item.description || item.name || '',
         qty: parseInt(item.qty, 10) || 1,

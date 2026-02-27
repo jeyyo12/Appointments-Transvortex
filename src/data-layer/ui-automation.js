@@ -27,33 +27,7 @@ class UIAutomation {
    * Called once during app init
    */
   initAutomationFeed() {
-    // Create feed panel if it doesn't exist
-    if (document.getElementById('tvAutomationFeed')) {
-      return; // Already exists
-    }
-
-    const feedHTML = `
-      <div id="tvAutomationFeed" class="tv-automation-feed" style="display: none;">
-        <div class="tv-feed-header">
-          <span class="tv-feed-title">Automation Alerts</span>
-          <button class="tv-feed-close" aria-label="Close alerts">×</button>
-        </div>
-        <div class="tv-feed-alerts" id="tvFeedAlerts"></div>
-        <div class="tv-feed-footer">
-          <small>Click alert to filter and jump to item</small>
-        </div>
-      </div>
-    `;
-
-    // Inject before main content
-    const mainContent = document.querySelector('.tv-main-container') || document.body;
-    const feedPanel = document.createElement('div');
-    feedPanel.innerHTML = feedHTML;
-    mainContent.parentNode.insertBefore(feedPanel.firstElementChild, mainContent);
-
-    // Attach event listeners
-    this.attachFeedEventListeners();
-    this.bindBellToggle();
+    this.feedOpen = false;
   }
 
   /**
@@ -122,29 +96,9 @@ class UIAutomation {
    */
   updateFeed() {
     const alerts = automationEngine.getTopAlerts();
-    const feedAlerts = document.getElementById('tvFeedAlerts');
     console.debug('[alerts] count=', alerts.length);
 
-    if (alerts.length === 0) {
-      this.closeFeed();
-      return;
-    }
-
     this.lastAlertCount = alerts.length;
-
-    // Render alerts
-    feedAlerts.innerHTML = alerts.map(alert => `
-      <div class="tv-alert-item" data-alert-id="${alert.id}" data-type="${alert.type}">
-        <div class="tv-alert-icon">
-          ${this.getAlertIcon(alert.type)}
-        </div>
-        <div class="tv-alert-content">
-          <div class="tv-alert-title">${alert.title}</div>
-          <div class="tv-alert-desc">${alert.description}</div>
-        </div>
-        <button class="tv-alert-dismiss" aria-label="Dismiss" data-alert-id="${alert.id}">✕</button>
-      </div>
-    `).join('');
   }
 
   /**
@@ -191,24 +145,14 @@ class UIAutomation {
    * Open feed panel
    */
   openFeed() {
-    const feed = document.getElementById('tvAutomationFeed');
-    if (feed && !this.feedOpen) {
-      feed.style.display = 'block';
-      this.feedOpen = true;
-      console.debug('[alerts] modal opened via bell');
-    }
+    this.feedOpen = false;
   }
 
   /**
    * Close feed panel
    */
   closeFeed() {
-    const feed = document.getElementById('tvAutomationFeed');
-    if (feed && this.feedOpen) {
-      feed.style.display = 'none';
-      this.feedOpen = false;
-      console.debug('[alerts] modal closed');
-    }
+    this.feedOpen = false;
   }
 
   /**
