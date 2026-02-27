@@ -4683,6 +4683,7 @@ function bindNotifDrawer() {
     drawer.dataset.notifBound = '1';
 
     drawer.addEventListener('click', async (e) => {
+        e.stopPropagation();
         // Header actions
         const markAllBtn = e.target.closest('[data-notif-mark-all]');
         if (markAllBtn) {
@@ -5183,10 +5184,12 @@ document.addEventListener('DOMContentLoaded', () => {
     window.addEventListener('scroll', onHeaderScroll, { passive: true });
     onHeaderScroll();
 
-    runTvSplashIntro().catch(err => {
-        console.warn('⚠️ tvSplash intro failed:', err);
-        document.body.style.overflow = '';
-    });
+    const tvSplash = document.getElementById('tvSplash');
+    if (tvSplash) {
+        tvSplash.classList.add('hidden');
+        tvSplash.classList.remove('show');
+    }
+    document.body.style.overflow = '';
     
     // Scroll active tab into view on page load (mobile-friendly)
     setTimeout(() => {

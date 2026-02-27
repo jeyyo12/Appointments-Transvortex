@@ -676,17 +676,18 @@
     flex: 0 1 auto !important;
     display: flex !important;
     align-items: center;
-    gap: 12px;
+    gap: 0;
+    min-height: clamp(42px, 7vw, 58px);
     overflow: visible !important;
 }
 
 #authBar #tvHeaderGif {
+    display: none !important;
     max-height: clamp(60px, 9vw, 78px);
     width: auto;
     height: auto;
     object-fit: contain !important;
     flex: 0 0 auto !important;
-    display: block !important;
 }
 
 #authBar #tvHeaderCompanyLogo {

@@ -45,11 +45,6 @@
     padding-bottom: 6px !important;
   }
 
-  /* Shrink brand assets */
-  #authBar #tvHeaderGif {
-    max-height: 36px !important;
-  }
-
   #authBar #tvHeaderCompanyLogo {
     max-height: 28px !important;
   }
