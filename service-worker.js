@@ -4,13 +4,12 @@
  * No infinite reload loops, no complex update logic
  */
 
-const CACHE_NAME = 'transvortex-v25-dvsa-fix-20260227';
+const CACHE_NAME = 'transvortex-v26-js-network-first-20260227';
 const CRITICAL_ASSETS = [
   './index.html',
   './invoice.html',
   './offline.html',
-  './styles.css',
-  './script.js'
+  './styles.css'
 ];
 
 /**
@@ -146,8 +145,8 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  // NETWORK-FIRST for main app script (prevents stale DVSA wiring)
-  if (url.pathname.endsWith('/script.js') || url.pathname.endsWith('script.js')) {
+  // NETWORK-FIRST for same-origin JavaScript (prevents stale app/module wiring)
+  if (event.request.destination === 'script' || url.pathname.endsWith('.js')) {
     event.respondWith(
       fetch(event.request)
         .then(response => {

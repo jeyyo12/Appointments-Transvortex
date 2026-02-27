@@ -61,6 +61,14 @@ function getInitState() {
  * Initialize application
  */
 async function initApp() {
+  if (typeof window !== 'undefined' && window.__TVX_APP_STARTED === true) {
+    logger.debug('Skipping app init: __TVX_APP_STARTED guard is active');
+    return;
+  }
+  if (typeof window !== 'undefined') {
+    window.__TVX_APP_STARTED = true;
+  }
+
   configureStartupLogLevel();
 
   const initState = getInitState();

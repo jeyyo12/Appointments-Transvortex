@@ -1,6 +1,6 @@
 # Wiring Audit Report
 
-_Generated: 2026-02-27T18:51:23.533Z — files scanned: 85_
+_Generated: 2026-02-27T18:57:05.041Z — files scanned: 85_
 
 > **Definition of Done:** Real broken candidates = 0 · Unmapped actions = 0 · Invoice violations = 0 · Runtime smoke test passes
 
@@ -15,7 +15,7 @@ _Generated: 2026-02-27T18:51:23.533Z — files scanned: 85_
 | 🔁 High-risk duplicate functions (informational) | 0 | — | ℹ️ Review if needed |
 | Wiring completeness estimate | ~100% | 100% |  |
 
-**Total controls:** 86  |  **unique data-action values:** 26  |  **inline onclick:** 44  |  **window.* exports:** 138
+**Total controls:** 86  |  **unique data-action values:** 26  |  **inline onclick:** 44  |  **window.* exports:** 139
 
 
 ## 2. REAL Issues — Fix These (ranked by impact)
@@ -382,6 +382,8 @@ Navigation to `.html` routes without query params (excluding `index.html`) that 
 | window.handleRefreshInvoices | script.js, src/storage/storage.page.js | no | no |
 | window.filterInvoices | script.js | no | no |
 | window.toggleAppointmentDropdown | script.js | no | no |
+| window.__tvDebug | src/app.js, src/core/events.js, src/storage/storage.page.js | no | no |
+| window.__TVX_APP_STARTED | src/app.js | no | no |
 | window.handleSignIn | src/app.js | no | no |
 | window.handleSignOut | src/app.js | no | no |
 | window.__tvFirebase | src/config/firebase.js, src/firebase/firebase.js | no | no |
@@ -389,7 +391,6 @@ Navigation to `.html` routes without query params (excluding `index.html`) that 
 | window.modalManager | src/core/app.js | no | no |
 | window.appState | src/core/app.js | no | no |
 | window.eventBus | src/core/app.js | no | no |
-| window.__tvDebug | src/core/events.js | no | no |
 | window.AppointmentsManager | src/data-layer/appointments-manager.js | no | no |
 | window.appointmentsManager | src/data-layer/appointments-manager.js | no | no |
 | window.AppointmentsUIRenderer | src/data-layer/appointments-ui.js | no | no |

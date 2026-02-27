@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-02-27T18:51:23.533Z",
+  "generatedAt": "2026-02-27T18:57:05.041Z",
   "totalFilesScanned": 85,
   "summary": {
     "realBrokenCandidates": 0,
@@ -520,7 +520,7 @@
     ]
   },
   "windowExports": {
-    "total": 138,
+    "total": 139,
     "stubFunctions": [],
     "all": {
       "testFirebaseInit": [
@@ -648,7 +648,7 @@
         },
         {
           "file": "src/app.js",
-          "line": 238,
+          "line": 286,
           "isStub": false,
           "isNoop": false
         }
@@ -919,13 +919,13 @@
         },
         {
           "file": "src/app.js",
-          "line": 20,
+          "line": 56,
           "isStub": false,
           "isNoop": false
         },
         {
           "file": "src/storage/storage.page.js",
-          "line": 57,
+          "line": 71,
           "isStub": false,
           "isNoop": false
         },
@@ -1713,13 +1713,13 @@
         },
         {
           "file": "src/app.js",
-          "line": 61,
+          "line": 107,
           "isStub": false,
           "isNoop": false
         },
         {
           "file": "src/storage/storage.page.js",
-          "line": 53,
+          "line": 67,
           "isStub": false,
           "isNoop": false
         }
@@ -1785,7 +1785,7 @@
         },
         {
           "file": "src/storage/storage.page.js",
-          "line": 156,
+          "line": 172,
           "isStub": false,
           "isNoop": false
         }
@@ -1806,10 +1806,50 @@
           "isNoop": false
         }
       ],
+      "__tvDebug": [
+        {
+          "file": "src/app.js",
+          "line": 29,
+          "isStub": false,
+          "isNoop": false
+        },
+        {
+          "file": "src/app.js",
+          "line": 51,
+          "isStub": false,
+          "isNoop": false
+        },
+        {
+          "file": "src/core/events.js",
+          "line": 26,
+          "isStub": false,
+          "isNoop": false
+        },
+        {
+          "file": "src/storage/storage.page.js",
+          "line": 27,
+          "isStub": false,
+          "isNoop": false
+        }
+      ],
+      "__TVX_APP_STARTED": [
+        {
+          "file": "src/app.js",
+          "line": 64,
+          "isStub": false,
+          "isNoop": false
+        },
+        {
+          "file": "src/app.js",
+          "line": 69,
+          "isStub": false,
+          "isNoop": false
+        }
+      ],
       "handleSignIn": [
         {
           "file": "src/app.js",
-          "line": 236,
+          "line": 284,
           "isStub": false,
           "isNoop": false
         }
@@ -1817,7 +1857,7 @@
       "handleSignOut": [
         {
           "file": "src/app.js",
-          "line": 237,
+          "line": 285,
           "isStub": false,
           "isNoop": false
         }
@@ -1864,14 +1904,6 @@
         {
           "file": "src/core/app.js",
           "line": 114,
-          "isStub": false,
-          "isNoop": false
-        }
-      ],
-      "__tvDebug": [
-        {
-          "file": "src/core/events.js",
-          "line": 26,
           "isStub": false,
           "isNoop": false
         }
@@ -2693,7 +2725,7 @@
           },
           {
             "file": "src/app.js",
-            "line": 110
+            "line": 158
           }
         ]
       },
@@ -2792,7 +2824,7 @@
           },
           {
             "file": "src/app.js",
-            "line": 189
+            "line": 237
           }
         ]
       },
