@@ -8872,7 +8872,7 @@ function setupAppointmentFormLogic() {
     }
 
     // 2b. DVSA Vehicle Lookup (Cloud Function proxy)
-    (function () {
+    function initDvsaLookup() {
         const lookupInput = document.getElementById('vehicleLookupVrm');
         const lookupBtn = document.getElementById('vehicleLookupBtn');
         const lookupBtnText = document.getElementById('vehicleLookupBtnText');
@@ -8882,9 +8882,14 @@ function setupAppointmentFormLogic() {
         const regNumberEl = document.getElementById('regNumber');
 
         if (!lookupInput || !lookupBtn || !lookupStatus) {
-            console.warn('[DVSA] Lookup UI not initialized (missing required elements).');
+            if (!window.__tvxDvsaLookupWarnedMissing) {
+                console.warn('[DVSA] Lookup UI not initialized (missing required elements).');
+                window.__tvxDvsaLookupWarnedMissing = true;
+            }
             return;
         }
+
+        lookupBtn.type = 'button';
 
         if (lookupBtn.dataset.dvsaBound === '1') return;
         lookupBtn.dataset.dvsaBound = '1';
@@ -8959,6 +8964,7 @@ function setupAppointmentFormLogic() {
             isLookupLoading = nextLoading;
             lookupBtn.disabled = nextLoading;
             lookupBtn.dataset.loading = String(nextLoading);
+            lookupBtn.classList.toggle('is-loading', nextLoading);
             lookupBtn.setAttribute('aria-busy', String(nextLoading));
             if (lookupBtnText) lookupBtnText.textContent = nextLoading ? 'Checking…' : 'Check DVSA';
         }
@@ -8984,7 +8990,10 @@ function setupAppointmentFormLogic() {
             return '/api/dvsa';
         }
 
-        async function runLookup() {
+        async function runLookup(triggerEvent) {
+            if (triggerEvent?.preventDefault) triggerEvent.preventDefault();
+            if (triggerEvent?.stopPropagation) triggerEvent.stopPropagation();
+
             if (isLookupLoading) return;
 
             const vrm = normalizeVrm(lookupInput.value);
@@ -9052,9 +9061,9 @@ function setupAppointmentFormLogic() {
                 const host = String(window.location.hostname || '').toLowerCase();
                 const isLocalDev = host === '127.0.0.1' || host === 'localhost';
                 if (isLocalDev) {
-                    setStatus('error', 'DVSA unavailable on local preview. Use Firebase Hosting or set localStorage["tvx_dvsa_endpoint"].');
+                    setStatus('error', 'Lookup failed (offline, CORS blocked, or endpoint missing). Use Firebase Hosting or set localStorage["tvx_dvsa_endpoint"].');
                 } else {
-                    setStatus('error', 'DVSA unavailable on this host. Use Firebase Hosting or configure endpoint.');
+                    setStatus('error', 'Lookup failed (offline, CORS blocked, or DVSA endpoint not deployed).');
                 }
             } finally {
                 setLoading(false);
@@ -9069,11 +9078,25 @@ function setupAppointmentFormLogic() {
             e.target.setSelectionRange(safePos, safePos);
         });
 
-        lookupBtn.addEventListener('click', runLookup);
+        const parentForm = lookupBtn.closest('form');
+        if (parentForm && parentForm.dataset.dvsaSubmitGuardBound !== '1') {
+            parentForm.dataset.dvsaSubmitGuardBound = '1';
+            parentForm.addEventListener('submit', (e) => {
+                const submitter = e.submitter || document.activeElement;
+                const isDvsaSubmit = submitter === lookupBtn || document.activeElement === lookupInput;
+                if (!isDvsaSubmit) return;
+                e.preventDefault();
+                e.stopPropagation();
+                runLookup(e);
+            });
+        }
+
+        lookupBtn.addEventListener('click', (e) => runLookup(e));
         lookupInput.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') {
                 e.preventDefault();
-                runLookup();
+                e.stopPropagation();
+                runLookup(e);
             }
         });
 
@@ -9083,7 +9106,9 @@ function setupAppointmentFormLogic() {
             setStatus('info', '');
             lookupInput.value = '';
         };
-    })();
+    }
+
+    initDvsaLookup();
     
     // 3. Sync vehicleTimeQuick (Quick mode) with appointmentTimeValue
     const vehicleTimeQuick = document.getElementById('vehicleTimeQuick');

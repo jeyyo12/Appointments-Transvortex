@@ -5031,7 +5031,7 @@
     <script type="module" src="./src/app.js"></script>
     
     <!-- Legacy code (appointments + other features) -->
-    <script type="module" src="./script.js?v=2026-02-18-1415"></script>
+    <script type="module" src="./script.js?v=2026-02-27-1930"></script>
 
     <script type="module">
         const params = new URLSearchParams(window.location.search);
@@ -5114,6 +5114,10 @@
     if ('serviceWorker' in navigator) {
         const RELOAD_FLAG = 'tvx_sw_reloading';
         window.addEventListener('load', () => {
+            navigator.serviceWorker.getRegistration()
+                .then(r => r?.update())
+                .catch(() => {});
+
             navigator.serviceWorker.register('./service-worker.js', { scope: './' })
                 .then(reg => {
                     console.log('[PWA] Service Worker registered:', reg.scope);

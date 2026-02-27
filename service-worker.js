@@ -4,7 +4,7 @@
  * No infinite reload loops, no complex update logic
  */
 
-const CACHE_NAME = 'transvortex-v24-deploy-parity-20260224';
+const CACHE_NAME = 'transvortex-v25-dvsa-fix-20260227';
 const CRITICAL_ASSETS = [
   './index.html',
   './invoice.html',
@@ -142,6 +142,24 @@ self.addEventListener('fetch', event => {
           return caches.match(event.request)
             .then(response => response || caches.match('./index.html') || caches.match('./offline.html'));
         })
+    );
+    return;
+  }
+
+  // NETWORK-FIRST for main app script (prevents stale DVSA wiring)
+  if (url.pathname.endsWith('/script.js') || url.pathname.endsWith('script.js')) {
+    event.respondWith(
+      fetch(event.request)
+        .then(response => {
+          if (response && response.status === 200) {
+            const copy = response.clone();
+            caches.open(CACHE_NAME).then(cache => {
+              cache.put(event.request, copy);
+            });
+          }
+          return response;
+        })
+        .catch(() => caches.match(event.request))
     );
     return;
   }
