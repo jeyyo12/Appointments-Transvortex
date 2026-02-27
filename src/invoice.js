@@ -181,7 +181,7 @@ function toISODateString(value) {
 const _invoiceMissingElementWarnings = new Set();
 
 function isInvoiceVehicleDebugEnabled() {
-    return window.INVOICE_VEHICLE_DEBUG === true;
+    return window.INVOICE_VEHICLE_DEBUG === true || window.TVX_DEBUG_VEHICLE === true;
 }
 
 function formatDateTimeUK(value) {

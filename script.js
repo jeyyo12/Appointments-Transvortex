@@ -4239,9 +4239,26 @@ const notifState = {
 };
 
 function _notifDebug(...args) {
-    if (window.TVX_NOTIF_DEBUG === true || window.ALERTS_DEBUG === true) {
+    if (window.TVX_NOTIF_DEBUG === true || window.ALERTS_DEBUG === true || window.TVX_DEBUG_ALERTS === true) {
         console.debug('[TVX:NOTIF]', ...args);
     }
+}
+
+function hideLegacyAutomationFeedPanel() {
+    const automationFeed = document.getElementById('tvAutomationFeed');
+    if (!automationFeed) return;
+    automationFeed.style.display = 'none';
+    automationFeed.setAttribute('aria-hidden', 'true');
+}
+
+function setAlertsOpenState(nextOpen) {
+    const drawer = document.getElementById('tvNotifDrawer');
+    const bell = document.getElementById('tvBellBtn');
+    const isOpen = nextOpen === true;
+    notifState.isOpen = isOpen;
+    if (drawer) drawer.classList.toggle('tv-notif-drawer--open', isOpen);
+    bell?.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+    window.isAlertsOpen = isOpen;
 }
 
 function _notifEscapeHtml(value) {
@@ -4500,7 +4517,7 @@ function removeNotification(notificationId) {
 }
 
 function clearNotifications() {
-    const ids = getNotifications().map(item => item.id);
+    const ids = getNotifications().filter(item => item.read).map(item => item.id);
     return _notifArchiveMany(ids);
 }
 
@@ -4622,9 +4639,9 @@ function _renderNotifBody() {
 
     const notificationsHtml = `
         <div class="tv-notif-section-title">
-            <button class="tv-notif-chip ${notifState.filter === 'all' ? 'is-active' : ''}" data-notif-filter-tab="all">All</button>
-            <button class="tv-notif-chip ${notifState.filter === 'automation' ? 'is-active' : ''}" data-notif-filter-tab="automation">Automation</button>
-            <button class="tv-notif-chip ${notifState.filter === 'system' ? 'is-active' : ''}" data-notif-filter-tab="system">System</button>
+            <button type="button" class="tv-notif-chip ${notifState.filter === 'all' ? 'is-active' : ''}" data-action="notif-tab" data-tab="all" data-notif-filter-tab="all">All</button>
+            <button type="button" class="tv-notif-chip ${notifState.filter === 'automation' ? 'is-active' : ''}" data-action="notif-tab" data-tab="automation" data-notif-filter-tab="automation">Automation</button>
+            <button type="button" class="tv-notif-chip ${notifState.filter === 'system' ? 'is-active' : ''}" data-action="notif-tab" data-tab="system" data-notif-filter-tab="system">System</button>
         </div>
         ${items.map(item => `
             <div class="tv-notif-item ${item.read ? 'tv-notif-item--read' : ''}">
@@ -4649,18 +4666,14 @@ function _renderNotifBody() {
 /** Toggle the bell drawer open/closed */
 function toggleNotifDrawer() {
     const drawer = document.getElementById('tvNotifDrawer');
-    const bell = document.getElementById('tvBellBtn');
     if (!drawer) return;
     const isOpen = drawer.classList.contains('tv-notif-drawer--open');
     if (isOpen) {
-        drawer.classList.remove('tv-notif-drawer--open');
-        notifState.isOpen = false;
-        bell?.setAttribute('aria-expanded', 'false');
+        setAlertsOpenState(false);
         _notifDebug('drawer:close', { count: getNotifications().length, unread: unreadCount() });
     } else {
         notifState.filter = 'all';
-        const automationFeed = document.getElementById('tvAutomationFeed');
-        if (automationFeed) automationFeed.style.display = 'none';
+        hideLegacyAutomationFeedPanel();
         // Anchor drawer below the header by measuring it at open-time
         const header = document.getElementById('authBar');
         if (header) {
@@ -4668,9 +4681,7 @@ function toggleNotifDrawer() {
             document.documentElement.style.setProperty('--tv-header-bottom', `${rect.bottom + 4}px`);
         }
         _renderNotifBody();
-        drawer.classList.add('tv-notif-drawer--open');
-        notifState.isOpen = true;
-        bell?.setAttribute('aria-expanded', 'true');
+        setAlertsOpenState(true);
         drawer.querySelector('[data-notif-close]')?.focus();
         _notifDebug('drawer:open', { filter: notifState.filter, count: getNotifications().length, unread: unreadCount() });
     }
@@ -4681,11 +4692,18 @@ function bindNotifDrawer() {
     const drawer = document.getElementById('tvNotifDrawer');
     if (!drawer || drawer.dataset.notifBound) return;
     drawer.dataset.notifBound = '1';
+    let ignoreNextOutsideClick = false;
+    let lastInternalDrawerInteractionAt = 0;
 
     drawer.addEventListener('click', async (e) => {
         e.stopPropagation();
+        ignoreNextOutsideClick = true;
+        lastInternalDrawerInteractionAt = Date.now();
+        setTimeout(() => { ignoreNextOutsideClick = false; }, 0);
+        const action = e.target.closest('[data-action]')?.dataset.action || '';
+        if (action) _notifDebug('action:dispatch', action);
         // Header actions
-        const markAllBtn = e.target.closest('[data-notif-mark-all]');
+        const markAllBtn = action === 'notif-mark-all' ? e.target : e.target.closest('[data-notif-mark-all]');
         if (markAllBtn) {
             const before = unreadCount();
             await markAllRead();
@@ -4695,7 +4713,7 @@ function bindNotifDrawer() {
             return;
         }
 
-        const clearBtn = e.target.closest('[data-notif-clear]');
+        const clearBtn = action === 'notif-clear' ? e.target : e.target.closest('[data-notif-clear]');
         if (clearBtn) {
             const before = getNotifications().length;
             await clearNotifications();
@@ -4713,10 +4731,7 @@ function bindNotifDrawer() {
             const linkKind = openBtn.dataset.notifLinkKind;
             const linkFilter = openBtn.dataset.notifLinkFilter;
             if (notifId) await markRead(notifId, true);
-            drawer.classList.remove('tv-notif-drawer--open');
-            notifState.isOpen = false;
-            const bell = document.getElementById('tvBellBtn');
-            bell?.setAttribute('aria-expanded', 'false');
+            setAlertsOpenState(false);
             if (aptId) {
                 const allFilterBtn = document.querySelector('.apts-filter-btn[data-filter="all"]');
                 if (allFilterBtn) allFilterBtn.click();
@@ -4729,9 +4744,11 @@ function bindNotifDrawer() {
             return;
         }
 
-        const filterChipBtn = e.target.closest('[data-notif-filter-tab]');
+        const filterChipBtn = action === 'notif-tab'
+            ? e.target.closest('[data-tab]')
+            : e.target.closest('[data-notif-filter-tab]');
         if (filterChipBtn) {
-            notifState.filter = filterChipBtn.dataset.notifFilterTab || 'all';
+            notifState.filter = filterChipBtn.dataset.tab || filterChipBtn.dataset.notifFilterTab || 'all';
             _renderNotifBody();
             _notifDebug('action:filter', notifState.filter);
             return;
@@ -4764,7 +4781,7 @@ function bindNotifDrawer() {
         const viewBtn = e.target.closest('.tv-notif-view');
         if (viewBtn) {
             const filter = viewBtn.dataset.notifFilter;
-            drawer.classList.remove('tv-notif-drawer--open');
+            setAlertsOpenState(false);
             const filterBtn = document.querySelector(`.apts-filter-btn[data-filter="${filter}"]`);
             if (filterBtn) {
                 filterBtn.click();
@@ -4791,10 +4808,7 @@ function bindNotifDrawer() {
         }
         // Close
         if (e.target.closest('[data-notif-close]')) {
-            drawer.classList.remove('tv-notif-drawer--open');
-            notifState.isOpen = false;
-            const bell = document.getElementById('tvBellBtn');
-            bell?.setAttribute('aria-expanded', 'false');
+            setAlertsOpenState(false);
             _notifDebug('drawer:close:button');
         }
     });
@@ -4804,10 +4818,20 @@ function bindNotifDrawer() {
         const dr  = document.getElementById('tvNotifDrawer');
         const btn = document.getElementById('tvBellBtn');
         if (!dr?.classList.contains('tv-notif-drawer--open')) return;
-        if (!dr.contains(ev.target) && !btn?.contains(ev.target)) {
-            dr.classList.remove('tv-notif-drawer--open');
-            notifState.isOpen = false;
-            btn?.setAttribute('aria-expanded', 'false');
+        if (ignoreNextOutsideClick) {
+            _notifDebug('drawer:outside-eval', { close: false, reason: 'guard:next-tick' });
+            return;
+        }
+        if ((Date.now() - lastInternalDrawerInteractionAt) < 80) {
+            _notifDebug('drawer:outside-eval', { close: false, reason: 'guard:recent-internal-interaction' });
+            return;
+        }
+        const path = typeof ev.composedPath === 'function' ? ev.composedPath() : [];
+        const isInsideDrawer = dr.contains(ev.target) || (Array.isArray(path) && path.includes(dr));
+        const isOnBell = !!btn && (btn.contains(ev.target) || (Array.isArray(path) && path.includes(btn)));
+        _notifDebug('drawer:outside-eval', { close: !isInsideDrawer && !isOnBell, isInsideDrawer, isOnBell });
+        if (!isInsideDrawer && !isOnBell) {
+            setAlertsOpenState(false);
             _notifDebug('drawer:close:outside');
         }
     }, { passive: true, capture: false });
@@ -4815,10 +4839,8 @@ function bindNotifDrawer() {
     document.addEventListener('keydown', (ev) => {
         if (ev.key !== 'Escape') return;
         if (!drawer.classList.contains('tv-notif-drawer--open')) return;
-        drawer.classList.remove('tv-notif-drawer--open');
-        notifState.isOpen = false;
+        setAlertsOpenState(false);
         const btn = document.getElementById('tvBellBtn');
-        btn?.setAttribute('aria-expanded', 'false');
         btn?.focus();
         _notifDebug('drawer:close:escape');
     });
@@ -5183,6 +5205,8 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     window.addEventListener('scroll', onHeaderScroll, { passive: true });
     onHeaderScroll();
+
+    hideLegacyAutomationFeedPanel();
 
     const tvSplash = document.getElementById('tvSplash');
     if (tvSplash) {
@@ -6146,13 +6170,23 @@ async function handleAddAppointment(e) {
         }
 
         // Add canonical vehicle payload + legacy mirrors
-        const rawMileage = Number(document.querySelector('#mileage')?.dataset.rawMileage || 0);
+        const rawMileageSource = document.querySelector('#mileage')?.dataset.rawMileage || mileageValue || '';
+        const rawMileageDigits = String(rawMileageSource).replace(/\D/g, '');
+        const rawMileage = rawMileageDigits ? Number(rawMileageDigits) : 0;
         const cachedDvsaVehicle = window.__tvxLastDvsaVehicle || {};
         const canonicalRegPlate = (euVehicleReg || registrationPlate || cachedDvsaVehicle.regPlate || '').toString().trim();
         const canonicalMakeModel = (vehicleMakeModel || cachedDvsaVehicle.makeModel || '').toString().trim();
         const canonicalMileage = rawMileage > 0
             ? rawMileage
             : (cachedDvsaVehicle.mileage ?? null);
+
+        if (window.TVX_DEBUG_VEHICLE === true) {
+            console.debug('[TVX:VEHICLE] save:mileage-normalized', {
+                appointmentId: editingAppointmentId || null,
+                rawMileageSource,
+                canonicalMileage
+            });
+        }
 
         basePayload.vehicle = {
             regPlate: canonicalRegPlate,
@@ -9200,12 +9234,12 @@ function setupAppointmentFormLogic() {
     // 2b. DVSA Vehicle Lookup (Cloud Function proxy)
     function initDvsaLookup() {
         const dvsaDebug = (...args) => {
-            if (window.TVX_DVSA_DEBUG === true) {
+            if (window.TVX_DVSA_DEBUG === true || window.TVX_DEBUG_VEHICLE === true) {
                 console.debug('[TVX:DVSA]', ...args);
             }
         };
         const milesDebug = (...args) => {
-            if (window.TVX_MILES_DEBUG === true) {
+            if (window.TVX_MILES_DEBUG === true || window.TVX_DEBUG_VEHICLE === true) {
                 console.debug('[TVX:MILES]', ...args);
             }
         };
