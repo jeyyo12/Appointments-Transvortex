@@ -1,7 +1,7 @@
 import { initFirebase, logFirebaseStatus } from './src/config/firebase.js';
 import { initAuthListener, onAuthStateChange } from './src/core/auth-state.js';
 import { bindActionDelegation } from './src/core/events.js';
-import { dedupeInvoicesForAppointment, getOrCreateInvoiceForAppointment, openInvoice } from './src/invoices/invoice-manager.js';
+import { dedupeInvoicesForAppointment, getOrCreateInvoiceForAppointment, openInvoice, generateInvoiceNumber as generateCanonicalInvoiceNumber } from './src/invoices/invoice-manager.js';
 import { refreshVehicleFormatting } from './src/utils/input-formatters.js';
 import './src/enterprise-dashboard.js';
 import { initializeDataLayer } from './src/data-layer/index.js';
@@ -9145,11 +9145,8 @@ let isLoadingInvoice = false;
 /**
  * Generate invoice number in format: INV-XXXXX-YYMMDD
  */
-function generateInvoiceNumber() {
-    const now = new Date();
-    const dateStr = now.toISOString().slice(2, 8).replace(/-/g, '');
-    const random = Math.random().toString(36).substring(2, 7).toUpperCase();
-    return `INV-${random}-${dateStr}`;
+function generateInvoiceNumberLegacy() {
+    return generateCanonicalInvoiceNumber();
 }
 
 // ==========================================
@@ -9202,7 +9199,7 @@ async function createInvoiceFromAppointment(appointmentId, prefillData) {
         const { collection, addDoc, doc, getDoc, updateDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
         
         // Generate invoice number
-        const invoiceNumber = generateInvoiceNumber();
+        const invoiceNumber = generateInvoiceNumberLegacy();
         
         // Build invoice payload
         const invoicePayload = {
@@ -9600,7 +9597,7 @@ window.tvInvLoadMore = function(btn) {
 /**
  * Open invoice in editor
  */
-function openInvoiceFile(invoiceId) {
+function openInvoiceFileLegacy(invoiceId) {
     window.open(`invoice.html?invoiceId=${invoiceId}&mode=view`, '_blank');
 }
 
@@ -9687,7 +9684,7 @@ function handleRefreshInvoices() {
 // LEGACY: Expose functions globally for inline onclick handlers
 // NOTE: Now handled by src/storage/storage.events.js
 // Keeping these here as fallback for compatibility
-window.openInvoiceFile = window.openInvoiceFile || openInvoiceFile;
+window.openInvoiceFile = window.openInvoiceFile || openInvoiceFileLegacy;
 window.deleteInvoiceConfirm = window.deleteInvoiceConfirm || deleteInvoiceConfirm;
 // Storage card action buttons call these via onclick in a module context — must be on window
 window.openPDF = openPDF;

@@ -539,11 +539,19 @@ async function handleWorkspaceAction(action, appointmentId, buttonElement) {
   }
 }
 
+function getWorkspaceDb() {
+  return window.db || window.__tvFirebase?.db || null;
+}
+
 /**
  * Start appointment job from workspace
  */
 async function startAppointmentWorkspace(appointmentId, apt) {
-  if (!appointmentId || !window.db) return;
+  const dbRef = getWorkspaceDb();
+  if (!appointmentId || !dbRef) {
+    window.showNotification?.('Could not start job (database unavailable)', 'error');
+    return;
+  }
 
   try {
     const {
@@ -554,7 +562,7 @@ async function startAppointmentWorkspace(appointmentId, apt) {
       Timestamp
     } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
 
-    const ref = doc(window.db, 'appointments', appointmentId);
+    const ref = doc(dbRef, 'appointments', appointmentId);
     const startPayload = {
       jobStatus: 'in_progress',
       jobStartedAt: serverTimestamp(),
@@ -609,7 +617,8 @@ async function startAppointmentWorkspace(appointmentId, apt) {
  * Mark appointment as completed
  */
 async function completeAppointmentWorkspace(appointmentId) {
-  if (!appointmentId || !window.db) return;
+  const dbRef = getWorkspaceDb();
+  if (!appointmentId || !dbRef) return;
 
   try {
     const {
@@ -620,7 +629,7 @@ async function completeAppointmentWorkspace(appointmentId) {
       Timestamp
     } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
 
-    const ref = doc(window.db, 'appointments', appointmentId);
+    const ref = doc(dbRef, 'appointments', appointmentId);
     const completePayload = {
       jobStatus: 'completed',
       jobCompletedAt: serverTimestamp(),
@@ -650,7 +659,8 @@ async function completeAppointmentWorkspace(appointmentId) {
  * Mark invoice as paid
  */
 window.markInvoicePaid = async function(invoiceId) {
-  if (!invoiceId || !window.db) {
+  const dbRef = getWorkspaceDb();
+  if (!invoiceId || !dbRef) {
     console.error('❌ Cannot mark invoice paid: missing invoiceId or db');
     return;
   }
@@ -662,14 +672,14 @@ window.markInvoicePaid = async function(invoiceId) {
     const invoiceTotal = targetInvoice ? (targetInvoice.total || targetInvoice.totals?.total || 0) : 0;
     const appointmentId = targetInvoice?.appointmentId || targetInvoice?.aptId || targetInvoice?.meta?.appointmentId || null;
 
-    await updateDoc(doc(window.db, 'invoices', invoiceId), {
+    await updateDoc(doc(dbRef, 'invoices', invoiceId), {
       paymentStatus: 'paid',
       paidAmount: invoiceTotal
     });
 
     // Keep appointment/workspace filters consistent: paid invoice => completed appointment
     if (appointmentId) {
-      await updateDoc(doc(window.db, 'appointments', appointmentId), {
+      await updateDoc(doc(dbRef, 'appointments', appointmentId), {
         status: 'completed',
         paymentStatus: 'paid'
       });

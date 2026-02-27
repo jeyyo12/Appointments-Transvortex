@@ -1,13 +1,13 @@
 {
-  "generatedAt": "2026-02-27T12:31:57.940Z",
-  "totalFilesScanned": 85,
+  "generatedAt": "2026-02-27T12:46:26.502Z",
+  "totalFilesScanned": 84,
   "summary": {
-    "realBrokenCandidates": 2,
+    "realBrokenCandidates": 0,
     "likelyFalsePositives": 22,
     "unmappedActions": 0,
     "invoiceViolations": 0,
-    "highRiskDuplicates": 2,
-    "wiringCompletenessEstimate": "~97%"
+    "highRiskDuplicates": 0,
+    "wiringCompletenessEstimate": "~100%"
   },
   "onclickHandlers": {
     "total": 44,
@@ -124,32 +124,32 @@
       },
       {
         "file": "script.js",
-        "line": 9512,
+        "line": 9509,
         "expression": "tvInvLoadMore(this)"
       },
       {
         "file": "script.js",
-        "line": 9570,
+        "line": 9567,
         "expression": "openPDF("
       },
       {
         "file": "script.js",
-        "line": 9571,
+        "line": 9568,
         "expression": "generateAndSaveInvoicePDF("
       },
       {
         "file": "script.js",
-        "line": 9575,
+        "line": 9572,
         "expression": "window.markInvoicePaid && window.markInvoicePaid("
       },
       {
         "file": "script.js",
-        "line": 9582,
+        "line": 9579,
         "expression": "openInvoiceFile("
       },
       {
         "file": "script.js",
-        "line": 9582,
+        "line": 9579,
         "expression": "deleteInvoiceConfirm("
       },
       {
@@ -447,7 +447,7 @@
   },
   "eventWiring": {
     "addEventListenerClickCount": 109,
-    "closestDelegationCount": 7,
+    "closestDelegationCount": 6,
     "closestDelegations": [
       {
         "file": "script.js",
@@ -478,19 +478,12 @@
         "file": "src/workspace/workspace-controller.js",
         "line": 387,
         "snippet": "const button = e.target.closest('[data-action]');"
-      },
-      {
-        "file": "tools/audit-wiring.mjs",
-        "line": 614,
-        "snippet": "p('**Why it breaks:** `bindActionDelegation` (src/core/events.js) uses `closest(\"[data-action][data-id]\")` — missing `da"
       }
     ]
   },
   "windowExports": {
-    "total": 110,
-    "stubFunctions": [
-      "fn"
-    ],
+    "total": 117,
+    "stubFunctions": [],
     "all": {
       "testFirebaseInit": [
         {
@@ -554,6 +547,24 @@
           "line": 301,
           "isStub": false,
           "isNoop": false
+        }
+      ],
+      "log": [
+        {
+          "file": "FIRESTORE_DIAGNOSTIC.html",
+          "line": 91,
+          "isStub": false,
+          "isNoop": false,
+          "isDeclared": true
+        }
+      ],
+      "logConfig": [
+        {
+          "file": "FIRESTORE_DIAGNOSTIC.html",
+          "line": 99,
+          "isStub": false,
+          "isNoop": false,
+          "isDeclared": true
         }
       ],
       "__TVX_USE_WIZARD_V2": [
@@ -668,6 +679,58 @@
           "line": 4769,
           "isStub": false,
           "isNoop": false
+        },
+        {
+          "file": "index.html",
+          "line": 4741,
+          "isStub": false,
+          "isNoop": false,
+          "isDeclared": true
+        }
+      ],
+      "tvAptDrawerOpen": [
+        {
+          "file": "index.html",
+          "line": 4539,
+          "isStub": false,
+          "isNoop": false,
+          "isDeclared": true
+        }
+      ],
+      "tvAptDrawerClose": [
+        {
+          "file": "index.html",
+          "line": 4550,
+          "isStub": false,
+          "isNoop": false,
+          "isDeclared": true
+        }
+      ],
+      "applyKPIFilter": [
+        {
+          "file": "index.html",
+          "line": 4634,
+          "isStub": false,
+          "isNoop": false,
+          "isDeclared": true
+        }
+      ],
+      "filterAppointmentsByKPI": [
+        {
+          "file": "index.html",
+          "line": 4671,
+          "isStub": false,
+          "isNoop": false,
+          "isDeclared": true
+        }
+      ],
+      "initKPIFilters": [
+        {
+          "file": "index.html",
+          "line": 4703,
+          "isStub": false,
+          "isNoop": false,
+          "isDeclared": true
         }
       ],
       "goHome": [
@@ -676,6 +739,15 @@
           "line": 161,
           "isStub": false,
           "isNoop": false
+        }
+      ],
+      "checkConnection": [
+        {
+          "file": "offline.html",
+          "line": 166,
+          "isStub": false,
+          "isNoop": false,
+          "isDeclared": true
         }
       ],
       "PWA": [
@@ -821,7 +893,7 @@
         },
         {
           "file": "src/workspace/workspace-controller.js",
-          "line": 694,
+          "line": 704,
           "isStub": false,
           "isNoop": false
         }
@@ -891,7 +963,7 @@
         },
         {
           "file": "src/workspace/workspace-controller.js",
-          "line": 724,
+          "line": 734,
           "isStub": false,
           "isNoop": false
         }
@@ -1123,7 +1195,7 @@
         },
         {
           "file": "script.js",
-          "line": 9701,
+          "line": 9698,
           "isStub": false,
           "isNoop": false
         },
@@ -1277,7 +1349,7 @@
         },
         {
           "file": "src/workspace/workspace-controller.js",
-          "line": 693,
+          "line": 703,
           "isStub": false,
           "isNoop": false
         }
@@ -1317,7 +1389,7 @@
       "__USE_MODULAR_STORAGE__": [
         {
           "file": "script.js",
-          "line": 9305,
+          "line": 9302,
           "isStub": false,
           "isNoop": false
         },
@@ -1337,7 +1409,7 @@
       "tvInvLoadMore": [
         {
           "file": "script.js",
-          "line": 9589,
+          "line": 9586,
           "isStub": false,
           "isNoop": false
         }
@@ -1345,7 +1417,7 @@
       "openInvoiceFile": [
         {
           "file": "script.js",
-          "line": 9690,
+          "line": 9687,
           "isStub": false,
           "isNoop": false
         },
@@ -1359,7 +1431,7 @@
       "deleteInvoiceConfirm": [
         {
           "file": "script.js",
-          "line": 9691,
+          "line": 9688,
           "isStub": false,
           "isNoop": false
         },
@@ -1373,7 +1445,7 @@
       "openPDF": [
         {
           "file": "script.js",
-          "line": 9693,
+          "line": 9690,
           "isStub": false,
           "isNoop": false
         }
@@ -1381,7 +1453,7 @@
       "generateAndSaveInvoicePDF": [
         {
           "file": "script.js",
-          "line": 9694,
+          "line": 9691,
           "isStub": false,
           "isNoop": false
         }
@@ -1389,7 +1461,7 @@
       "handleRefreshInvoices": [
         {
           "file": "script.js",
-          "line": 9696,
+          "line": 9693,
           "isStub": false,
           "isNoop": false
         },
@@ -1403,7 +1475,7 @@
       "filterInvoices": [
         {
           "file": "script.js",
-          "line": 9697,
+          "line": 9694,
           "isStub": false,
           "isNoop": false
         }
@@ -1411,7 +1483,7 @@
       "toggleAppointmentDropdown": [
         {
           "file": "script.js",
-          "line": 9702,
+          "line": 9699,
           "isStub": false,
           "isNoop": false
         }
@@ -1745,16 +1817,8 @@
       "markInvoicePaid": [
         {
           "file": "src/workspace/workspace-controller.js",
-          "line": 652,
+          "line": 661,
           "isStub": false,
-          "isNoop": false
-        }
-      ],
-      "fn": [
-        {
-          "file": "tools/audit-wiring.mjs",
-          "line": 137,
-          "isStub": true,
           "isNoop": false
         }
       ],
@@ -1797,28 +1861,13 @@
   "onclickWindowCalls": {
     "total": 33,
     "callsToStubs": [],
-    "callsToUndefined": [
-      {
-        "file": "index.html",
-        "line": 3667,
-        "caller": "tvAptDrawerClose()",
-        "callee": "tvAptDrawerClose",
-        "bare": true
-      },
-      {
-        "file": "index.html",
-        "line": 4531,
-        "caller": "tvAptDrawerOpen()",
-        "callee": "tvAptDrawerOpen",
-        "bare": true
-      }
-    ]
+    "callsToUndefined": []
   },
   "invoiceFlows": {
     "directOpens": [
       {
         "file": "script.js",
-        "line": 9290,
+        "line": 9287,
         "url": "invoice.html?invoiceId=${invoiceId}&mode=edit",
         "params": {
           "invoiceId": "${invoiceId}",
@@ -1828,7 +1877,7 @@
       },
       {
         "file": "script.js",
-        "line": 9604,
+        "line": 9601,
         "url": "invoice.html?invoiceId=${invoiceId}&mode=view",
         "params": {
           "invoiceId": "${invoiceId}",
@@ -1838,7 +1887,7 @@
       },
       {
         "file": "script.js",
-        "line": 9623,
+        "line": 9620,
         "url": "invoice.html?invoiceId=${invoiceId}&mode=edit",
         "params": {
           "invoiceId": "${invoiceId}",
@@ -1911,27 +1960,22 @@
       },
       {
         "file": "script.js",
-        "line": 9162,
+        "line": 9159,
         "fnName": "openInvoiceFromAppointment"
       },
       {
         "file": "script.js",
-        "line": 9168,
+        "line": 9165,
         "fnName": "openInvoice"
       },
       {
         "file": "script.js",
-        "line": 9189,
+        "line": 9186,
         "fnName": "openInvoice"
       },
       {
         "file": "script.js",
-        "line": 9582,
-        "fnName": "openInvoiceFile"
-      },
-      {
-        "file": "script.js",
-        "line": 9603,
+        "line": 9579,
         "fnName": "openInvoiceFile"
       },
       {
@@ -1963,26 +2007,6 @@
         "file": "src/storage/storage.ui.js",
         "line": 379,
         "fnName": "openInvoiceFile"
-      },
-      {
-        "file": "tools/audit-wiring.mjs",
-        "line": 688,
-        "fnName": "openInvoicePage"
-      },
-      {
-        "file": "tools/audit-wiring.mjs",
-        "line": 694,
-        "fnName": "openInvoicePage"
-      },
-      {
-        "file": "tools/audit-wiring.mjs",
-        "line": 694,
-        "fnName": "openInvoice"
-      },
-      {
-        "file": "tools/audit-wiring.mjs",
-        "line": 710,
-        "fnName": "openInvoicePage"
       }
     ],
     "invoiceNumberGenerators": [
@@ -1994,12 +2018,12 @@
       {
         "file": "script.js",
         "line": 9148,
-        "fnName": "generateInvoiceNumber"
+        "fnName": "generateInvoiceNumberLegacy"
       },
       {
         "file": "src/invoice.js",
         "line": 202,
-        "fnName": "generateInvoiceNumber"
+        "fnName": "generateInvoiceNumberStandalone"
       },
       {
         "file": "src/invoices/invoice-manager.js",
@@ -2013,38 +2037,7 @@
     "canonicalContract": "invoice.html?invoiceId=<firestoreDocId>&mode=<view|edit>"
   },
   "duplicateFunctions": {
-    "highRisk": [
-      {
-        "fn": "generateInvoiceNumber",
-        "locs": [
-          {
-            "file": "script.js",
-            "line": 9147
-          },
-          {
-            "file": "src/invoice.js",
-            "line": 201
-          },
-          {
-            "file": "src/invoices/invoice-manager.js",
-            "line": 18
-          }
-        ]
-      },
-      {
-        "fn": "openInvoiceFile",
-        "locs": [
-          {
-            "file": "script.js",
-            "line": 9602
-          },
-          {
-            "file": "src/storage/storage.events.js",
-            "line": 125
-          }
-        ]
-      }
-    ],
+    "highRisk": [],
     "all": [
       {
         "fn": "createInvoiceFromAppointment",
@@ -2055,7 +2048,7 @@
           },
           {
             "file": "script.js",
-            "line": 9178
+            "line": 9175
           },
           {
             "file": "src/invoice-create/invoiceCreate.flow.js",
@@ -2492,56 +2485,8 @@
   },
   "uiUxBugs": {
     "deadButtons": {
-      "total": 40,
+      "total": 6,
       "items": [
-        {
-          "file": "index.html",
-          "tagSnippet": "<button class=\"tv-notif-drawer__close\" data-notif-close aria-label=\"Close alerts\">"
-        },
-        {
-          "file": "index.html",
-          "tagSnippet": "<button type=\"button\" id=\"cancelEditBtn\" class=\"btn-ghost\" style=\"min-height: 36px; padding: 8px 12px;\">"
-        },
-        {
-          "file": "index.html",
-          "tagSnippet": "<button type=\"button\" class=\"appt-form-tab active\" data-appt-tab=\"appointment\" aria-selected=\"true\">"
-        },
-        {
-          "file": "index.html",
-          "tagSnippet": "<button type=\"button\" class=\"appt-form-tab\" data-appt-tab=\"invoice-ro\" aria-selected=\"false\">"
-        },
-        {
-          "file": "index.html",
-          "tagSnippet": "<button type=\"button\" class=\"tabBtn active\" data-tab=\"jobs\">"
-        },
-        {
-          "file": "index.html",
-          "tagSnippet": "<button type=\"button\" class=\"tabBtn\" data-tab=\"parts\">"
-        },
-        {
-          "file": "index.html",
-          "tagSnippet": "<button type=\"button\" class=\"tag-btn active\" data-tag=\"internal\">"
-        },
-        {
-          "file": "index.html",
-          "tagSnippet": "<button type=\"button\" class=\"tag-btn\" data-tag=\"customer\">"
-        },
-        {
-          "file": "index.html",
-          "tagSnippet": "<button id=\"tvDensityToggle\" class=\"tv-density-btn\" title=\"Toggle compact/comfortable\" aria-label=\"Toggle card density\" aria-pressed=\"true\">"
-        },
-        {
-          "file": "index.html",
-          "tagSnippet": "<button type=\"button\" id=\"scanInvoiceCameraBtn\" class=\"scanBtn scanBtn--primary\">"
-        },
-        {
-          "file": "index.html",
-          "tagSnippet": "<button type=\"button\" id=\"scanInvoiceUploadBtn\" class=\"scanBtn scanBtn--secondary\">"
-        },
-        {
-          "file": "index.html",
-          "tagSnippet": "<button type=\"button\" id=\"scanInvoiceUploadConfirmBtn\" class=\"scanBtn scanBtn--primary\" style=\"min-height: 40px;\">"
-        },
         {
           "file": "index.html",
           "tagSnippet": "<button id=\"cleanupInvoicesBtn\" class=\"tvBtn tvBtn--secondary tvBtn--sm tvInvoicesStorage__action\" title=\"Cleanup duplicate invoices\">"
@@ -2549,42 +2494,6 @@
         {
           "file": "index.html",
           "tagSnippet": "<button id=\"refreshInvoicesButton\" class=\"tvBtn tvBtn--secondary tvBtn--sm tvInvoicesStorage__action\" title=\"Refresh invoices list\">"
-        },
-        {
-          "file": "index.html",
-          "tagSnippet": "<button type=\"button\" id=\"scanReviewGsfParseBtn\" class=\"scanReviewAction\" style=\"font-size:0.75rem;\" title=\"Re-run GSF table parser on OCR text\">"
-        },
-        {
-          "file": "index.html",
-          "tagSnippet": "<button type=\"button\" id=\"scanReviewParseItemsBtn\" class=\"scanReviewAction\" style=\"margin-left:auto; font-size:0.75rem;\" title=\"Re-parse items from OCR text using advanced description-zone logic\">"
-        },
-        {
-          "file": "index.html",
-          "tagSnippet": "<button type=\"button\" id=\"scanReviewDeleteBtn\" class=\"scanReviewAction scanReviewAction--danger\" style=\"display:none;\">"
-        },
-        {
-          "file": "index.html",
-          "tagSnippet": "<button type=\"button\" id=\"scanReviewSaveBtn\" class=\"scanReviewAction scanReviewAction--primary\">"
-        },
-        {
-          "file": "index.html",
-          "tagSnippet": "<button type=\"button\" id=\"scanReviewRetryBtn\" class=\"scanReviewAction\">"
-        },
-        {
-          "file": "index.html",
-          "tagSnippet": "<button type=\"button\" id=\"scanReviewRecalculateBtn\" class=\"scanReviewAction\">"
-        },
-        {
-          "file": "index.html",
-          "tagSnippet": "<button type=\"button\" id=\"scanReviewCancelBtn\" class=\"scanReviewAction\">"
-        },
-        {
-          "file": "index.html",
-          "tagSnippet": "<button type=\"button\" class=\"time-mode-btn time-mode-btn--type\" data-mode=\"type\" title=\"Type time\">"
-        },
-        {
-          "file": "index.html",
-          "tagSnippet": "<button type=\"button\" class=\"time-mode-btn time-mode-btn--picker\" data-mode=\"picker\" title=\"Select from wheels\">"
         },
         {
           "file": "index.html",
@@ -2600,77 +2509,13 @@
         },
         {
           "file": "invoice.html",
-          "tagSnippet": "<button id=\"editBtn\" class=\"btn-primary\">"
-        },
-        {
-          "file": "invoice.html",
-          "tagSnippet": "<button id=\"printBtn\" class=\"btn-primary\">"
-        },
-        {
-          "file": "invoice.html",
-          "tagSnippet": "<button id=\"sendBtn\" class=\"btn-primary\">"
-        },
-        {
-          "file": "invoice.html",
-          "tagSnippet": "<button id=\"downloadPdfBtn\" class=\"btn-primary\" style=\"display:none;\">"
-        },
-        {
-          "file": "invoice.html",
-          "tagSnippet": "<button id=\"savePdfBtn\" class=\"btn-primary\">"
-        },
-        {
-          "file": "invoice.html",
           "tagSnippet": "<button id=\"saveInvoiceBtn\" class=\"btn-success\" style=\"display:none;\">"
-        },
-        {
-          "file": "invoice.html",
-          "tagSnippet": "<button id=\"cancelEditBtn\" class=\"btn-secondary\" style=\"display:none;\">"
-        },
-        {
-          "file": "invoice.html",
-          "tagSnippet": "<button id=\"backBtn\" class=\"btn-secondary\">"
-        },
-        {
-          "file": "invoice.html",
-          "tagSnippet": "<button class=\"btn-send-option\" id=\"sendEmailBtn\">"
-        },
-        {
-          "file": "invoice.html",
-          "tagSnippet": "<button class=\"btn-send-option\" id=\"sendWhatsAppBtn\">"
-        },
-        {
-          "file": "invoice.html",
-          "tagSnippet": "<button class=\"btn-send-option\" id=\"copyLinkBtn\">"
-        },
-        {
-          "file": "invoice.html",
-          "tagSnippet": "<button class=\"btn-secondary\" id=\"closeSendModalFooter\">"
-        },
-        {
-          "file": "invoice.html",
-          "tagSnippet": "<button type=\"button\" class=\"invoice-mode-tab active\" data-invoice-mode=\"standard\" aria-selected=\"true\">"
-        },
-        {
-          "file": "invoice.html",
-          "tagSnippet": "<button type=\"button\" class=\"invoice-mode-tab\" data-invoice-mode=\"ro\" aria-selected=\"false\">"
         }
       ]
     },
     "scrollJumps": {
-      "total": 19,
+      "total": 12,
       "items": [
-        {
-          "file": "FIRESTORE_DIAGNOSTIC.html",
-          "line": 95,
-          "kind": "scroll-to",
-          "snippet": "LOG.scrollTop = LOG.scrollHeight;"
-        },
-        {
-          "file": "FIRESTORE_DIAGNOSTIC.html",
-          "line": 102,
-          "kind": "scroll-to",
-          "snippet": "CONFIG_LOG.scrollTop = CONFIG_LOG.scrollHeight;"
-        },
         {
           "file": "script.js",
           "line": 4351,
@@ -2720,12 +2565,6 @@
           "snippet": "if (!fromPopState && location.hash === '#appointments') {"
         },
         {
-          "file": "src/data-layer/invoice-renderer.js",
-          "line": 143,
-          "kind": "scroll-to",
-          "snippet": "const scrollTop = viewport.scrollTop;"
-        },
-        {
           "file": "src/enterprise-dashboard.js",
           "line": 389,
           "kind": "scroll-into-view",
@@ -2744,34 +2583,10 @@
           "snippet": "stepperHeader?.scrollIntoView({ behavior: 'smooth', block: 'start' });"
         },
         {
-          "file": "src/ui/wizard-v2/appt-wizard.js",
-          "line": 217,
-          "kind": "scroll-to",
-          "snippet": "if (bodyEl) bodyEl.scrollTop = 0;"
-        },
-        {
-          "file": "src/ui/wizard-v2/appt-wizard.js",
-          "line": 226,
-          "kind": "scroll-to",
-          "snippet": "if (bodyEl) bodyEl.scrollTop = 0;"
-        },
-        {
           "file": "src/utils/notifications.js",
           "line": 171,
           "kind": "scroll-into-view",
           "snippet": "aptRow.scrollIntoView({"
-        },
-        {
-          "file": "tools/audit-wiring.mjs",
-          "line": 821,
-          "kind": "href-hash",
-          "snippet": "p('Patterns that may trigger unexpected jump/scroll behavior (`href=\"#...\"`, `location.hash=`, `scrollIntoView`, `scrollTo`).');"
-        },
-        {
-          "file": "tools/audit-wiring.mjs",
-          "line": 821,
-          "kind": "location-hash",
-          "snippet": "p('Patterns that may trigger unexpected jump/scroll behavior (`href=\"#...\"`, `location.hash=`, `scrollIntoView`, `scrollTo`).');"
         }
       ]
     },

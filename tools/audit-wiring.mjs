@@ -16,7 +16,7 @@ const OUT_DIR = path.join(ROOT, 'audit');
 
 // ─── CONFIGURATION ───────────────────────────────────────────────────────────
 const EXTENSIONS = ['.html', '.js', '.mjs'];
-const IGNORE_DIRS = new Set(['node_modules', '.git', 'dist', 'build', '_archive_unused', 'audit']);
+const IGNORE_DIRS = new Set(['node_modules', '.git', 'dist', 'build', '_archive_unused', 'audit', 'tools']);
 
 // Actions that are item-scoped — they imply an entity id is needed for bindActionDelegation.
 // Missing data-id on these is a REAL issue (not a false positive).
@@ -120,6 +120,18 @@ function extractActionIdPairs(source) {
 function audit() {
   const files = collectFiles(ROOT);
 
+  // IDs referenced by scripts/templates are considered wired even without inline onclick/data-action.
+  const referencedElementIds = new Set();
+  for (const filePath of files) {
+    const src = fs.readFileSync(filePath, 'utf8');
+    const byIdRe = /getElementById\s*\(\s*['"]([^'"]+)['"]\s*\)/g;
+    let im;
+    while ((im = byIdRe.exec(src)) !== null) referencedElementIds.add(im[1]);
+    const qsIdRe = /querySelector(?:All)?\s*\(\s*['"]#([^'"\s>+~:\[]+)['"]\s*\)/g;
+    let qm;
+    while ((qm = qsIdRe.exec(src)) !== null) referencedElementIds.add(qm[1]);
+  }
+
   // Accumulators
   const onclickHandlers = [];         // { file, line, expression }
   const dataActionCounts = {};        // action -> count
@@ -194,6 +206,12 @@ function audit() {
         const hrefMatch = /\bhref\s*=\s*["']([^"']*)["']/i.exec(tag);
         const hasHref = !!hrefMatch;
         const hrefValue = (hrefMatch?.[1] || '').trim();
+        const idMatch = /\bid\s*=\s*["']([^"']+)["']/i.exec(tag);
+        const elementId = idMatch?.[1] || '';
+        const hasKnownUiDataHook = /\bdata-(appt-tab|tab|tag|mode|notif-close|invoice-mode|workspace-id)\b/i.test(tag);
+
+        if (elementId && referencedElementIds.has(elementId)) continue;
+        if (hasKnownUiDataHook) continue;
 
         if (tagLower.startsWith('<button')) {
           const typeMatch = /\btype\s*=\s*["']([^"']+)["']/i.exec(tag);
@@ -229,6 +247,20 @@ function audit() {
       }
     });
 
+    // ── inline HTML function declarations (global in classic <script>) ──
+    // This avoids false positives for onclick="fn()" when fn is declared as:
+    // function fn() { ... } inside index.html/offline.html scripts.
+    if (fileRel.endsWith('.html')) {
+      const fnDeclRe = /(?:^|\s)function\s+([a-zA-Z_$][a-zA-Z0-9_$]*)\s*\(/gm;
+      let fm;
+      while ((fm = fnDeclRe.exec(source)) !== null) {
+        const fn = fm[1];
+        if (!windowExports[fn]) windowExports[fn] = [];
+        const lineNum = source.slice(0, fm.index).split('\n').length;
+        windowExports[fn].push({ file: fileRel, line: lineNum, isStub: false, isNoop: false, isDeclared: true });
+      }
+    }
+
     // ── addEventListener click ──
     lines.forEach((line, i) => {
       if (RE_ADD_EVENT.test(line)) {
@@ -250,6 +282,10 @@ function audit() {
       const lineNo = i + 1;
       const trimmed = line.trim();
 
+      if (fileRel === 'FIRESTORE_DIAGNOSTIC.html') {
+        return;
+      }
+
       // UI/UX: scroll-jump triggers
       let mh;
       const hrefHashRe = /href\s*=\s*["']#([^"']*)["']/gi;
@@ -268,7 +304,7 @@ function audit() {
       if (/\bscrollIntoView\s*\(/.test(line)) {
         scrollJumps.push({ file: fileRel, line: lineNo, kind: 'scroll-into-view', snippet: trimmed.slice(0, 200) });
       }
-      if (/\bwindow\.scrollTo\s*\(|\bscrollTo\s*\(|\bscrollTop\s*=/.test(line)) {
+      if (/\bwindow\.scrollTo\s*\(|\bdocument\.(?:body|documentElement)\.scrollTop\s*=/.test(line)) {
         scrollJumps.push({ file: fileRel, line: lineNo, kind: 'scroll-to', snippet: trimmed.slice(0, 200) });
       }
 

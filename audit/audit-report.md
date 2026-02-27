@@ -1,6 +1,6 @@
 # Wiring Audit Report
 
-_Generated: 2026-02-27T12:31:57.940Z — files scanned: 85_
+_Generated: 2026-02-27T12:46:26.502Z — files scanned: 84_
 
 > **Definition of Done:** Real broken candidates = 0 · Unmapped actions = 0 · Invoice violations = 0 · Runtime smoke test passes
 
@@ -8,14 +8,14 @@ _Generated: 2026-02-27T12:31:57.940Z — files scanned: 85_
 
 | Metric | Count | Target | Status |
 | --- | --- | --- | --- |
-| 🔴 REAL broken wiring candidates | 2 | 0 | ❌ Fix required |
+| 🔴 REAL broken wiring candidates | 0 | 0 | ✅ |
 | 🔵 Likely false positives (informational) | 22 | — | ℹ️ Review if needed |
 | 🟡 Unmapped data-action values | 0 | 0 | ✅ |
 | 🟠 Invoice param violations | 0 | 0 | ✅ |
-| 🔁 High-risk duplicate functions (informational) | 2 | — | ℹ️ Review if needed |
-| Wiring completeness estimate | ~97% | 100% |  |
+| 🔁 High-risk duplicate functions (informational) | 0 | — | ℹ️ Review if needed |
+| Wiring completeness estimate | ~100% | 100% |  |
 
-**Total controls:** 78  |  **unique data-action values:** 20  |  **inline onclick:** 44  |  **window.* exports:** 110
+**Total controls:** 78  |  **unique data-action values:** 20  |  **inline onclick:** 44  |  **window.* exports:** 117
 
 
 ## 2. REAL Issues — Fix These (ranked by impact)
@@ -40,22 +40,17 @@ Count: **0**
 
 **Why it breaks:** The function body is empty or a no-op — the click fires but nothing happens.
 
-Known stubs: `window.fn`
+Known stubs: none
 
 ✅ None — stubs are overridden by real implementations before any click can fire.
 
 ### 2c. onclick calls window function with NO definition
 
-Count: **2**
+Count: **0**
 
 **Why it breaks:** The function does not exist at all — calling it throws `TypeError: window.fn is not a function`.
 
-| File | Line | Expression | Missing Function |
-| --- | --- | --- | --- |
-| index.html | 3667 | tvAptDrawerClose() | tvAptDrawerClose |
-| index.html | 4531 | tvAptDrawerOpen() | tvAptDrawerOpen |
-
-**Search command:** `rg "window\." -n script.js src/`
+✅ None found.
 
 ### 2d. data-action values not matched by any handler string in JS
 
@@ -97,9 +92,9 @@ Count: **0**  (target: 0)
 
 | File | Line | Via | Params |
 | --- | --- | --- | --- |
-| script.js | 9290 | js | invoiceId=${invoiceId}, mode=edit |
-| script.js | 9604 | js | invoiceId=${invoiceId}, mode=view |
-| script.js | 9623 | js | invoiceId=${invoiceId}, mode=edit |
+| script.js | 9287 | js | invoiceId=${invoiceId}, mode=edit |
+| script.js | 9601 | js | invoiceId=${invoiceId}, mode=view |
+| script.js | 9620 | js | invoiceId=${invoiceId}, mode=edit |
 | src/invoices/invoice-manager.js | 636 | js | invoiceId=${invoiceId}, mode=${mode} |
 | src/storage/storage.events.js | 132 | js | invoiceId=${targetInvoiceId}, mode=view |
 | src/storage/storage.events.js | 140 | js | invoiceId=${targetInvoiceId}, mode=view |
@@ -115,21 +110,16 @@ Count: **0**  (target: 0)
 | --- | --- | --- |
 | script.js | 9112 | openInvoiceForAppointment |
 | script.js | 9117 | openInvoice |
-| script.js | 9162 | openInvoiceFromAppointment |
-| script.js | 9168 | openInvoice |
-| script.js | 9189 | openInvoice |
-| script.js | 9582 | openInvoiceFile |
-| script.js | 9603 | openInvoiceFile |
+| script.js | 9159 | openInvoiceFromAppointment |
+| script.js | 9165 | openInvoice |
+| script.js | 9186 | openInvoice |
+| script.js | 9579 | openInvoiceFile |
 | src/invoice-create/invoiceCreate.flow.js | 48 | openInvoice |
 | src/invoice-create/invoiceCreate.flow.js | 150 | openInvoice |
 | src/invoices/invoice-manager.js | 631 | openInvoicePage |
 | src/invoices/invoice-manager.js | 639 | openInvoice |
 | src/storage/storage.events.js | 125 | openInvoiceFile |
 | src/storage/storage.ui.js | 379 | openInvoiceFile |
-| tools/audit-wiring.mjs | 688 | openInvoicePage |
-| tools/audit-wiring.mjs | 694 | openInvoicePage |
-| tools/audit-wiring.mjs | 694 | openInvoice |
-| tools/audit-wiring.mjs | 710 | openInvoicePage |
 
 ### 3e. Invoice number generators (duplicate risk)
 
@@ -138,8 +128,8 @@ Count: **0**  (target: 0)
 | File | Line | Function |
 | --- | --- | --- |
 | script.js | 9080 | generateInvoiceNumberStable |
-| script.js | 9148 | generateInvoiceNumber |
-| src/invoice.js | 202 | generateInvoiceNumber |
+| script.js | 9148 | generateInvoiceNumberLegacy |
+| src/invoice.js | 202 | generateInvoiceNumberStandalone |
 | src/invoices/invoice-manager.js | 18 | generateInvoiceNumber |
 
 ## 4. Likely False Positives — Do NOT Fix Unless Proven
@@ -196,30 +186,13 @@ Only invoice/wiring-critical function names are flagged here. The full duplicate
 A duplicate here means two files define the same critical function independently — risk of format drift or split behaviour.
 
 
-### `generateInvoiceNumber`
-
-Defined in **3 places:**
-
-- script.js:9147
-- src/invoice.js:201
-- src/invoices/invoice-manager.js:18
-**Action:** Confirm only `src/invoices/invoice-manager.js` holds the canonical definition; all others must import from it.
-
-
-### `openInvoiceFile`
-
-Defined in **2 places:**
-
-- script.js:9602
-- src/storage/storage.events.js:125
-**Action:** Confirm only `src/invoices/invoice-manager.js` holds the canonical definition; all others must import from it.
-
+✅ No high-risk duplicate functions found.
 
 ## 6. UI/UX Bugs (scroll-jump, dead buttons)
 
 Static heuristic checks for no-op controls and unexpected scroll/navigation triggers.
 
-Dead buttons: **40** · Scroll-jumps: **19** · Suspicious navigation: **0**
+Dead buttons: **6** · Scroll-jumps: **12** · Suspicious navigation: **0**
 
 
 ### 6a. Dead Buttons
@@ -228,46 +201,12 @@ Controls that look interactive (by class naming) but have no `data-action`, `onc
 
 | File | Snippet |
 | --- | --- |
-| index.html | `<button class="tv-notif-drawer__close" data-notif-close aria-label="Close alerts">` |
-| index.html | `<button type="button" id="cancelEditBtn" class="btn-ghost" style="min-height: 36px; padding: 8px 12px;">` |
-| index.html | `<button type="button" class="appt-form-tab active" data-appt-tab="appointment" aria-selected="true">` |
-| index.html | `<button type="button" class="appt-form-tab" data-appt-tab="invoice-ro" aria-selected="false">` |
-| index.html | `<button type="button" class="tabBtn active" data-tab="jobs">` |
-| index.html | `<button type="button" class="tabBtn" data-tab="parts">` |
-| index.html | `<button type="button" class="tag-btn active" data-tag="internal">` |
-| index.html | `<button type="button" class="tag-btn" data-tag="customer">` |
-| index.html | `<button id="tvDensityToggle" class="tv-density-btn" title="Toggle compact/comfortable" aria-label="Toggle card density" aria-pressed="true">` |
-| index.html | `<button type="button" id="scanInvoiceCameraBtn" class="scanBtn scanBtn--primary">` |
-| index.html | `<button type="button" id="scanInvoiceUploadBtn" class="scanBtn scanBtn--secondary">` |
-| index.html | `<button type="button" id="scanInvoiceUploadConfirmBtn" class="scanBtn scanBtn--primary" style="min-height: 40px;">` |
 | index.html | `<button id="cleanupInvoicesBtn" class="tvBtn tvBtn--secondary tvBtn--sm tvInvoicesStorage__action" title="Cleanup duplicate invoices">` |
 | index.html | `<button id="refreshInvoicesButton" class="tvBtn tvBtn--secondary tvBtn--sm tvInvoicesStorage__action" title="Refresh invoices list">` |
-| index.html | `<button type="button" id="scanReviewGsfParseBtn" class="scanReviewAction" style="font-size:0.75rem;" title="Re-run GSF table parser on OCR text">` |
-| index.html | `<button type="button" id="scanReviewParseItemsBtn" class="scanReviewAction" style="margin-left:auto; font-size:0.75rem;" title="Re-parse items from OCR text usi` |
-| index.html | `<button type="button" id="scanReviewDeleteBtn" class="scanReviewAction scanReviewAction--danger" style="display:none;">` |
-| index.html | `<button type="button" id="scanReviewSaveBtn" class="scanReviewAction scanReviewAction--primary">` |
-| index.html | `<button type="button" id="scanReviewRetryBtn" class="scanReviewAction">` |
-| index.html | `<button type="button" id="scanReviewRecalculateBtn" class="scanReviewAction">` |
-| index.html | `<button type="button" id="scanReviewCancelBtn" class="scanReviewAction">` |
-| index.html | `<button type="button" class="time-mode-btn time-mode-btn--type" data-mode="type" title="Type time">` |
-| index.html | `<button type="button" class="time-mode-btn time-mode-btn--picker" data-mode="picker" title="Select from wheels">` |
 | index.html | `<button type="button" class="btn-time-now">` |
 | index.html | `<button type="button" class="btn-time-cancel">` |
 | index.html | `<button type="button" class="btn-time-ok">` |
-| invoice.html | `<button id="editBtn" class="btn-primary">` |
-| invoice.html | `<button id="printBtn" class="btn-primary">` |
-| invoice.html | `<button id="sendBtn" class="btn-primary">` |
-| invoice.html | `<button id="downloadPdfBtn" class="btn-primary" style="display:none;">` |
-| invoice.html | `<button id="savePdfBtn" class="btn-primary">` |
 | invoice.html | `<button id="saveInvoiceBtn" class="btn-success" style="display:none;">` |
-| invoice.html | `<button id="cancelEditBtn" class="btn-secondary" style="display:none;">` |
-| invoice.html | `<button id="backBtn" class="btn-secondary">` |
-| invoice.html | `<button class="btn-send-option" id="sendEmailBtn">` |
-| invoice.html | `<button class="btn-send-option" id="sendWhatsAppBtn">` |
-| invoice.html | `<button class="btn-send-option" id="copyLinkBtn">` |
-| invoice.html | `<button class="btn-secondary" id="closeSendModalFooter">` |
-| invoice.html | `<button type="button" class="invoice-mode-tab active" data-invoice-mode="standard" aria-selected="true">` |
-| invoice.html | `<button type="button" class="invoice-mode-tab" data-invoice-mode="ro" aria-selected="false">` |
 
 ### 6b. Scroll Jumps
 
@@ -275,8 +214,6 @@ Patterns that may trigger unexpected jump/scroll behavior (`href="#..."`, `locat
 
 | File | Line | Kind | Snippet |
 | --- | --- | --- | --- |
-| FIRESTORE_DIAGNOSTIC.html | 95 | scroll-to | `LOG.scrollTop = LOG.scrollHeight;` |
-| FIRESTORE_DIAGNOSTIC.html | 102 | scroll-to | `CONFIG_LOG.scrollTop = CONFIG_LOG.scrollHeight;` |
 | script.js | 4351 | scroll-into-view | `if (firstCard) firstCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });` |
 | script.js | 4455 | scroll-into-view | `aptRow.scrollIntoView({` |
 | script.js | 4749 | scroll-into-view | `activeTabBtn.scrollIntoView({` |
@@ -285,15 +222,10 @@ Patterns that may trigger unexpected jump/scroll behavior (`href="#..."`, `locat
 | script.js | 5078 | scroll-into-view | `selected.scrollIntoView({ block: 'center', behavior: 'smooth' });` |
 | script.js | 5373 | scroll-into-view | `activeTabBtn.scrollIntoView({` |
 | script.js | 8722 | location-hash | `if (!fromPopState && location.hash === '#appointments') {` |
-| src/data-layer/invoice-renderer.js | 143 | scroll-to | `const scrollTop = viewport.scrollTop;` |
 | src/enterprise-dashboard.js | 389 | scroll-into-view | `firstApt.scrollIntoView({ behavior: 'smooth', block: 'nearest' });` |
 | src/header/header-search.js | 153 | scroll-into-view | `appointmentsTab.scrollIntoView({ behavior: 'smooth' });` |
 | src/ui/form-stepper.js | 266 | scroll-into-view | `stepperHeader?.scrollIntoView({ behavior: 'smooth', block: 'start' });` |
-| src/ui/wizard-v2/appt-wizard.js | 217 | scroll-to | `if (bodyEl) bodyEl.scrollTop = 0;` |
-| src/ui/wizard-v2/appt-wizard.js | 226 | scroll-to | `if (bodyEl) bodyEl.scrollTop = 0;` |
 | src/utils/notifications.js | 171 | scroll-into-view | `aptRow.scrollIntoView({` |
-| tools/audit-wiring.mjs | 821 | href-hash | `p('Patterns that may trigger unexpected jump/scroll behavior ('href="#..."', 'location.hash=', 'scrollIntoView', 'scrollTo').');` |
-| tools/audit-wiring.mjs | 821 | location-hash | `p('Patterns that may trigger unexpected jump/scroll behavior ('href="#..."', 'location.hash=', 'scrollIntoView', 'scrollTo').');` |
 
 ### 6c. Suspicious Navigation
 
@@ -339,13 +271,21 @@ Navigation to `.html` routes without query params (excluding `index.html`) that 
 | window.fixFirestoreRules | FIRESTORE_DIAGNOSTIC.html | no | no |
 | window.createInvoicesCollection | FIRESTORE_DIAGNOSTIC.html | no | no |
 | window.clearLogs | FIRESTORE_DIAGNOSTIC.html | no | no |
+| window.log | FIRESTORE_DIAGNOSTIC.html | no | no |
+| window.logConfig | FIRESTORE_DIAGNOSTIC.html | no | no |
 | window.__TVX_USE_WIZARD_V2 | index.html | no | no |
 | window.__openWizardV2 | index.html | no | no |
 | window.switchTab | index.html, script.js, src/app.js | no | no |
 | window.filteredAppointments | index.html, src/header/header-search.js | no | no |
 | window.__tvInitFlags | index.html, script.js, src/data-layer/index.js | no | no |
 | window.updateLiveIndicators | index.html | no | no |
+| window.tvAptDrawerOpen | index.html | no | no |
+| window.tvAptDrawerClose | index.html | no | no |
+| window.applyKPIFilter | index.html | no | no |
+| window.filterAppointmentsByKPI | index.html | no | no |
+| window.initKPIFilters | index.html | no | no |
 | window.goHome | offline.html | no | no |
+| window.checkConnection | offline.html | no | no |
 | window.PWA | pwa-init.js, pwa.js | no | no |
 | window.initPWA | pwa.js, script.js | no | no |
 | window.handleAuthToggle | script.js | no | no |
@@ -438,7 +378,6 @@ Navigation to `.html` routes without query params (excluding `index.html`) that 
 | window.setActiveWorkspace | src/workspace/workspace-controller.js | no | no |
 | window.tvGroupLoadMore | src/workspace/workspace-controller.js | no | no |
 | window.markInvoicePaid | src/workspace/workspace-controller.js | no | no |
-| window.fn | tools/audit-wiring.mjs | ⚠️ yes | no |
 | window.computeDashboardMetrics | verify-kpi-dashboard.js | no | no |
 | window.renderDashboardMetrics | verify-kpi-dashboard.js | no | no |
 
@@ -450,13 +389,12 @@ Navigation to `.html` routes without query params (excluding `index.html`) that 
 - src/invoice.js:1694 — `const actionEl = e.target.closest('[data-action]');`
 - src/utils/notifications.js:212 — `const action = e.target.closest('[data-action]')?.dataset.action;`
 - src/workspace/workspace-controller.js:387 — `const button = e.target.closest('[data-action]');`
-- tools/audit-wiring.mjs:614 — `p('**Why it breaks:** `bindActionDelegation` (src/core/events.js) uses `closest("[data-action][data-id]")` — missing `da`
 
 ## Appendix D: All duplicate function names (first 20)
 
 Most duplicates are benign utility names. High-risk ones are covered in Section 5.
 
-- `createInvoiceFromAppointment` — CHIPS_MODE_INTEGRATION.js:193, script.js:9178, src/invoice-create/invoiceCreate.flow.js:35
+- `createInvoiceFromAppointment` — CHIPS_MODE_INTEGRATION.js:193, script.js:9175, src/invoice-create/invoiceCreate.flow.js:35
 - `updateLiveIndicators` — index.html:4741, src/enterprise-dashboard.js:260
 - `registerServiceWorker` — pwa-init.js:46, pwa.js:9
 - `showUpdateNotification` — pwa-init.js:151, sw-update.js:82

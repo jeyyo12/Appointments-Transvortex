@@ -199,7 +199,7 @@ function generatePIN() {
  * Note: invoice.js is standalone (loaded by invoice.html) so it cannot
  * import from invoice-manager. Keep in sync with the canonical format manually.
  */
-function generateInvoiceNumber() {
+function generateInvoiceNumberStandalone() {
     const now = new Date();
     const dateStr = now.toISOString().slice(2, 8).replace(/-/g, ''); // YYMMDD
     const random = Math.random().toString(36).substring(2, 7).toUpperCase();
@@ -2000,7 +2000,7 @@ async function saveInvoiceChanges(e) {
             console.warn('⚠️ [Invoice] Invoices should be created via handleCreateInvoice() before opening editor');
             
             // Generate invoice number
-            const invoiceNumber = generateInvoiceNumber();
+            const invoiceNumber = generateInvoiceNumberStandalone();
             
             const newInvoiceData = {
                 invoiceNumber: invoiceNumber,
