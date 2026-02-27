@@ -12,14 +12,33 @@ const ALLOWED_ORIGINS = [
   "http://localhost:5500"
 ];
 
+function normalizeOrigin(origin) {
+  return String(origin || "").trim().replace(/\/+$/, "").toLowerCase();
+}
+
+function isAllowedOrigin(origin) {
+  const normalized = normalizeOrigin(origin);
+  if (!normalized) return false;
+
+  if (ALLOWED_ORIGINS.map(normalizeOrigin).includes(normalized)) {
+    return true;
+  }
+
+  if (/^https:\/\/[a-z0-9-]+\.github\.io$/i.test(normalized)) {
+    return true;
+  }
+
+  return false;
+}
+
 function applyCors(req, res) {
   const origin = req.get("origin") || "";
-  if (origin && ALLOWED_ORIGINS.includes(origin)) {
-    res.set("Access-Control-Allow-Origin", origin);
+  if (isAllowedOrigin(origin)) {
+    res.set("Access-Control-Allow-Origin", normalizeOrigin(origin));
     res.set("Vary", "Origin");
   }
   res.set("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-  res.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  res.set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With");
   res.set("Access-Control-Max-Age", "3600");
 }
 
