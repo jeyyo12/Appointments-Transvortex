@@ -8940,18 +8940,122 @@ function setupAppointmentFormLogic() {
             const motStatus = String(vehicle?.motStatus || 'Unknown');
             const taxStatus = String(vehicle?.taxStatus || 'Unknown');
             const motExpiry = formatDate(vehicle?.motExpiry);
+            const regValue = normalizeVrm(vehicle?.vrm || regNumberEl?.value || lookupInput?.value || '');
+            const makeModelValue = (make + ' ' + model).trim() || String(makeModelEl?.value || '').trim() || 'N/A';
+            const mileageEl = document.getElementById('mileage');
+            const mileageValue = String(mileageEl?.value || '').trim() || 'N/A';
             summaryWrap.innerHTML = `
                 <div class="vehicle-summary-head">
                     <p class="vehicle-summary-title">Vehicle Summary</p>
                     <span class="vehicle-summary-badge">Verified via DVSA</span>
                 </div>
                 <div class="vehicle-summary-grid">
-                    <div class="vehicle-summary-row"><span>Make / Model</span><strong>${(make + ' ' + model).trim() || 'N/A'}</strong></div>
-                    <div class="vehicle-summary-row"><span>MOT Status</span><span class="vehicle-mot-pill ${motClass(motStatus)}">${motStatus}</span></div>
-                    <div class="vehicle-summary-row"><span>MOT Expiry</span><strong>${motExpiry}</strong></div>
-                    <div class="vehicle-summary-row"><span>Tax Status</span><strong>${taxStatus}</strong></div>
+                    <div class="vehicle-grid">
+                        <div class="vehicle-tile editable">
+                            <span class="tile-label">Make / Model</span>
+                            <div class="editable-field">
+                                <span id="summaryMakeText" class="tile-value">${makeModelValue}</span>
+                                <input id="summaryMakeInput" class="hidden inline-input" value="${makeModelValue === 'N/A' ? '' : makeModelValue}" />
+                                <button type="button" class="edit-btn" data-target="summaryMake" aria-label="Edit Make / Model">✏️</button>
+                            </div>
+                        </div>
+                        <div class="vehicle-tile">
+                            <span class="tile-label">Registration</span>
+                            <span class="tile-value" id="summaryRegistration">${regValue || 'N/A'}</span>
+                        </div>
+                        <div class="vehicle-tile">
+                            <span class="tile-label">MOT Status</span>
+                            <span class="tile-value vehicle-mot-pill ${motClass(motStatus)}" id="summaryMotStatus">${motStatus}</span>
+                        </div>
+                        <div class="vehicle-tile">
+                            <span class="tile-label">MOT Expiry</span>
+                            <span class="tile-value" id="summaryMotExpiry">${motExpiry}</span>
+                        </div>
+                        <div class="vehicle-tile">
+                            <span class="tile-label">Tax Status</span>
+                            <span class="tile-value" id="summaryTaxStatus">${taxStatus}</span>
+                        </div>
+                        <div class="vehicle-tile editable">
+                            <span class="tile-label">Mileage</span>
+                            <div class="editable-field">
+                                <span id="summaryMileageText" class="tile-value">${mileageValue}</span>
+                                <input id="summaryMileageInput" class="hidden inline-input" value="${mileageValue === 'N/A' ? '' : mileageValue}" />
+                                <button type="button" class="edit-btn" data-target="summaryMileage" aria-label="Edit Mileage">✏️</button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             `;
+
+            bindSummaryInlineEditors();
+        }
+
+        function bindSummaryInlineEditors() {
+            if (!summaryWrap) return;
+
+            const makeText = summaryWrap.querySelector('#summaryMakeText');
+            const makeInput = summaryWrap.querySelector('#summaryMakeInput');
+            const mileageText = summaryWrap.querySelector('#summaryMileageText');
+            const mileageInput = summaryWrap.querySelector('#summaryMileageInput');
+            const mileageEl = document.getElementById('mileage');
+
+            const beginEdit = (textEl, inputEl) => {
+                if (!textEl || !inputEl) return;
+                inputEl.value = textEl.textContent === 'N/A' ? '' : String(textEl.textContent || '');
+                textEl.classList.add('hidden');
+                inputEl.classList.remove('hidden');
+                inputEl.focus();
+                inputEl.select();
+            };
+
+            const finishEdit = (textEl, inputEl, onSave) => {
+                if (!textEl || !inputEl) return;
+                const next = String(inputEl.value || '').trim();
+                textEl.textContent = next || 'N/A';
+                inputEl.classList.add('hidden');
+                textEl.classList.remove('hidden');
+                if (typeof onSave === 'function') onSave(next);
+            };
+
+            summaryWrap.querySelectorAll('.edit-btn[data-target]').forEach((button) => {
+                button.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    const target = button.dataset.target;
+                    if (target === 'summaryMake') {
+                        beginEdit(makeText, makeInput);
+                    } else if (target === 'summaryMileage') {
+                        beginEdit(mileageText, mileageInput);
+                    }
+                });
+            });
+
+            if (makeInput) {
+                makeInput.addEventListener('blur', () => finishEdit(makeText, makeInput, (value) => {
+                    if (makeModelEl) makeModelEl.value = value;
+                }));
+                makeInput.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        finishEdit(makeText, makeInput, (value) => {
+                            if (makeModelEl) makeModelEl.value = value;
+                        });
+                    }
+                });
+            }
+
+            if (mileageInput) {
+                mileageInput.addEventListener('blur', () => finishEdit(mileageText, mileageInput, (value) => {
+                    if (mileageEl) mileageEl.value = value;
+                }));
+                mileageInput.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        finishEdit(mileageText, mileageInput, (value) => {
+                            if (mileageEl) mileageEl.value = value;
+                        });
+                    }
+                });
+            }
         }
 
         function clearSummary() {

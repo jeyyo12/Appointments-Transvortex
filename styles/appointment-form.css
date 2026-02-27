@@ -2576,7 +2576,7 @@ select.form-input {
   display: flex;
   flex-direction: column;
   gap: clamp(10px, 1.8vw, 16px);
-  padding-bottom: calc(clamp(48px, 8vw, 72px) + env(safe-area-inset-bottom));
+  padding-bottom: 0;
 }
 
 .tvx-appointmentForm .tvModeToggle {

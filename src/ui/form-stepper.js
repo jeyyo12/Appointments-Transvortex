@@ -165,7 +165,7 @@
   function buildStepperFooter(form, originalActions) {
     const footer = document.createElement('div');
     footer.id        = FOOTER_ID;
-    footer.className = 'tv-stepper-footer';
+    footer.className = 'tv-stepper-footer action-bar';
 
     footer.innerHTML = `
       <button type="button" class="tv-step-btn tv-step-btn--prev" id="tvStepPrev" aria-label="Previous step" disabled>
