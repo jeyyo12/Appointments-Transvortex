@@ -8987,6 +8987,10 @@ function setupAppointmentFormLogic() {
                 return `https://europe-west2-${projectId}.cloudfunctions.net/dvsa`;
             }
 
+            if (host === '127.0.0.1' || host === 'localhost') {
+                return `https://europe-west2-${projectId}.cloudfunctions.net/dvsa`;
+            }
+
             return '/api/dvsa';
         }
 
@@ -9011,7 +9015,7 @@ function setupAppointmentFormLogic() {
 
             try {
                 const endpoint = getDvsaEndpoint();
-                const response = await fetch(endpoint, {
+                let response = await fetch(endpoint, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -9019,6 +9023,17 @@ function setupAppointmentFormLogic() {
                     },
                     body: JSON.stringify({ vrm })
                 });
+
+                if (response.status === 405) {
+                    const separator = endpoint.includes('?') ? '&' : '?';
+                    const getUrl = `${endpoint}${separator}vrm=${encodeURIComponent(vrm)}`;
+                    response = await fetch(getUrl, {
+                        method: 'GET',
+                        headers: {
+                            'Accept': 'application/json'
+                        }
+                    });
+                }
 
                 if (!response.ok) {
                     clearSummary();
@@ -9031,6 +9046,8 @@ function setupAppointmentFormLogic() {
 
                     if (response.status === 400) {
                         setStatus('error', backendMsg || 'Registration format is invalid.');
+                    } else if (response.status === 405) {
+                        setStatus('error', 'DVSA endpoint rejected this method on current host (POST/GET). Verify deployed function method support.');
                     } else if (response.status === 404) {
                         if (String(backendMsg).toLowerCase().includes('vehicle not found')) {
                             setStatus('error', 'Vehicle not found in DVSA records. Check the registration and try again.');
