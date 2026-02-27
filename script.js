@@ -1211,67 +1211,12 @@ function waitForTvHeaderSlot(timeoutMs = 1000) {
 }
 
 async function runTvSplashIntro() {
-    if (tvSplashHasRun) return;
-    tvSplashHasRun = true;
-
-    const splash = document.getElementById('tvSplash');
-    const splashGif = document.getElementById('tvSplashGif');
-    if (!splash || !splashGif) return;
-
-    const originalBodyOverflow = document.body.style.overflow;
-    splash.classList.remove('hidden');
-    splash.classList.add('show');
-    document.body.style.overflow = 'hidden';
-
-    let splashMedia = splashGif;
-    splashGif.onerror = () => {
-        splashGif.src = './Logo/icon-192.png';
-    };
-
-    await new Promise(resolve => setTimeout(resolve, 500));
-
-    const headerSlot = await waitForTvHeaderSlot(1000);
-    if (!headerSlot) {
-        splash.classList.add('hidden');
-        document.body.style.overflow = originalBodyOverflow;
-        return;
+    const splashEl = document.getElementById('tvSplash');
+    if (splashEl) {
+        splashEl.classList.add('hidden');
+        splashEl.classList.remove('show');
     }
-
-    ensureTvHeaderBrandContent(headerSlot);
-
-    const targetGif = document.getElementById('tvHeaderGif') || headerSlot;
-
-    const sourceRect = splashMedia.getBoundingClientRect();
-    const targetRect = targetGif.getBoundingClientRect();
-
-    const sourceCenterX = sourceRect.left + sourceRect.width / 2;
-    const sourceCenterY = sourceRect.top + sourceRect.height / 2;
-    const targetCenterX = targetRect.left + targetRect.width / 2;
-    const targetCenterY = targetRect.top + targetRect.height / 2;
-    const translateX = targetCenterX - sourceCenterX;
-    const translateY = targetCenterY - sourceCenterY;
-    const scale = Math.min(targetRect.width / sourceRect.width, targetRect.height / sourceRect.height);
-
-    splashMedia.style.transition = 'transform 480ms cubic-bezier(.2,.8,.2,1), opacity 480ms cubic-bezier(.2,.8,.2,1)';
-    splashMedia.style.willChange = 'transform, opacity';
-    splash.style.transition = 'opacity 480ms cubic-bezier(.2,.8,.2,1)';
-
-    requestAnimationFrame(() => {
-        splashMedia.style.transform = `translate3d(calc(-50% + ${translateX}px), calc(-50% + ${translateY}px), 0) scale(${scale})`;
-        splashMedia.style.opacity = '0.9';
-        splash.style.opacity = '0';
-    });
-
-    setTimeout(() => {
-        splash.classList.add('hidden');
-        splash.classList.remove('show');
-        splash.style.opacity = '1';
-        splashMedia.style.transition = '';
-        splashMedia.style.willChange = '';
-        splashMedia.style.transform = '';
-        splashMedia.style.opacity = '';
-        document.body.style.overflow = originalBodyOverflow;
-    }, 500);
+    document.body.style.overflow = '';
 }
 
 window.debugTvSplash = function () {
@@ -4246,6 +4191,8 @@ const notifState = {
     isOpen: false
 };
 
+window.TVX_NOTIF_DEBUG = window.TVX_NOTIF_DEBUG === true;
+
 function _notifDebug(...args) {
     if (window.TVX_NOTIF_DEBUG === true || window.ALERTS_DEBUG === true || window.TVX_DEBUG_ALERTS === true) {
         console.debug('[TVX:NOTIF]', ...args);
@@ -4296,8 +4243,7 @@ function _notifSetStore(items) {
 function _notifNormalizeRecord(raw = {}) {
     const created = raw.createdAt?.toMillis?.() || raw.createdAt || Date.now();
     const readAt = raw.readAt?.toMillis?.() || raw.readAt || null;
-    const archivedAt = raw.archivedAt?.toMillis?.() || raw.archivedAt || null;
-    const dismissedAt = raw.dismissedAt?.toMillis?.() || raw.dismissedAt || null;
+    const dismissedAt = raw.dismissedAt?.toMillis?.() || raw.dismissedAt || raw.archivedAt?.toMillis?.() || raw.archivedAt || null;
     const explicitRead = typeof raw.read === 'boolean' ? raw.read : null;
     const normalizedEntity = (raw.entity && typeof raw.entity === 'object')
         ? {
@@ -4316,13 +4262,13 @@ function _notifNormalizeRecord(raw = {}) {
         message: String(raw.message || ''),
         read: explicitRead === null ? !!readAt : explicitRead,
         readAt,
-        dismissed: !!archivedAt || !!raw.dismissed || !!raw.archived,
-        archivedAt: archivedAt || dismissedAt || null,
-        dismissedAt: dismissedAt || archivedAt || null,
+        dismissed: !!dismissedAt || !!raw.dismissed || !!raw.archived,
+        archivedAt: dismissedAt || null,
+        dismissedAt: dismissedAt || null,
         source: String(raw.source || ((raw.type || '') === 'automation' ? 'automation' : 'system')),
         entity: normalizedEntity,
         createdAt: created,
-        archived: !!archivedAt || !!raw.dismissed || !!raw.archived,
+        archived: !!dismissedAt || !!raw.dismissed || !!raw.archived,
         link: raw.link && typeof raw.link === 'object' ? raw.link : null,
         relatedAptId: normalizedEntity.appointmentId
     };
@@ -4374,19 +4320,22 @@ async function _notifSubscribeFirestore(uid) {
     try {
         const { collection, query, where, orderBy, limit, onSnapshot } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
         const notifRef = collection(db, 'users', uid, 'notifications');
-        const q = query(notifRef, where('archivedAt', '==', null), orderBy('createdAt', 'desc'), limit(TV_NOTIF_COLLECTION_LIMIT));
+        const q = query(notifRef, where('dismissedAt', '==', null), orderBy('createdAt', 'desc'), limit(TV_NOTIF_COLLECTION_LIMIT));
 
         notifState.uid = uid;
+        _notifDebug('subscribe:start', { path: `users/${uid}/notifications`, uid, limit: TV_NOTIF_COLLECTION_LIMIT });
         notifState.unsubscribe = onSnapshot(q, (snap) => {
+            _notifDebug('subscribe:snapshot', { uid, size: snap.size });
             const list = snap.docs.map(d => _notifNormalizeRecord({ id: d.id, ...d.data() }));
             _notifSetInMemory(list);
+            _renderNotifBody();
             if (typeof refreshBellBadge === 'function') refreshBellBadge();
-        }, () => {
-            _notifLoadLocalIntoMemory();
+        }, (error) => {
+            _notifDebug('subscribe:error', { uid, message: error?.message || String(error || '') });
             if (typeof refreshBellBadge === 'function') refreshBellBadge();
         });
-    } catch {
-        _notifLoadLocalIntoMemory();
+    } catch (error) {
+        _notifDebug('subscribe:setup-error', { uid, message: error?.message || String(error || '') });
     }
 }
 
@@ -4395,6 +4344,17 @@ function _notifEnsureAuthScopedStore() {
         _notifSubscribeFirestore(currentUser.uid);
     } else if (!notifState.list.length) {
         _notifLoadLocalIntoMemory();
+    }
+}
+
+async function _notifGetRemoteDoc(notificationId) {
+    if (!_notifHasFirestoreContext() || !notificationId) return null;
+    try {
+        const { doc, getDoc } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+        const snap = await getDoc(doc(db, 'users', currentUser.uid, 'notifications', notificationId));
+        return snap.exists() ? snap.data() : null;
+    } catch {
+        return null;
     }
 }
 
@@ -4415,22 +4375,26 @@ async function _notifUpsert(record, notificationId = '') {
                 severity: normalized.severity || 'info',
                 title: normalized.title || normalized.message || '',
                 message: normalized.message || normalized.title || '',
-                read: !!normalized.read,
                 readAt: normalized.read ? serverTimestamp() : null,
-                dismissed: !!normalized.dismissed,
                 dismissedAt: normalized.dismissed ? serverTimestamp() : null,
                 source: normalized.source || ((normalized.type || '') === 'automation' ? 'automation' : 'system'),
                 entity: {
                     appointmentId: normalized.entity?.appointmentId || '',
                     invoiceId: normalized.entity?.invoiceId || ''
-                }
+                },
+                sourceRef: normalized.entity?.appointmentId
+                    ? { kind: 'appointment', id: normalized.entity.appointmentId }
+                    : (normalized.entity?.invoiceId ? { kind: 'invoice', id: normalized.entity.invoiceId } : null)
             };
             if (!existing || !existing.createdAt) {
                 payload.createdAt = serverTimestamp();
             }
-            payload.archivedAt = null;
+            if (!payload.dismissedAt) payload.dismissedAt = null;
             await setDoc(doc(db, 'users', currentUser.uid, 'notifications', id), payload, { merge: true });
-        } catch {}
+            _notifDebug('write:upsert:ok', { id, uid: currentUser.uid });
+        } catch (error) {
+            _notifDebug('write:upsert:error', { id, uid: currentUser?.uid || '', message: error?.message || String(error || '') });
+        }
     } else {
         const local = _notifGetStore();
         local.unshift({
@@ -4464,8 +4428,11 @@ async function _notifPatch(notificationId, patch = {}) {
     if (Object.prototype.hasOwnProperty.call(normalizedPatch, 'archived') && !Object.prototype.hasOwnProperty.call(normalizedPatch, 'dismissed')) {
         normalizedPatch.dismissed = !!normalizedPatch.archived;
     }
-    if (Object.prototype.hasOwnProperty.call(normalizedPatch, 'dismissed') && !Object.prototype.hasOwnProperty.call(normalizedPatch, 'archivedAt')) {
-        normalizedPatch.archivedAt = normalizedPatch.dismissed ? '__SERVER_TIMESTAMP__' : null;
+    if (Object.prototype.hasOwnProperty.call(normalizedPatch, 'dismissedAt') && !Object.prototype.hasOwnProperty.call(normalizedPatch, 'dismissed')) {
+        normalizedPatch.dismissed = normalizedPatch.dismissedAt !== null;
+    }
+    if (Object.prototype.hasOwnProperty.call(normalizedPatch, 'dismissed') && !Object.prototype.hasOwnProperty.call(normalizedPatch, 'dismissedAt')) {
+        normalizedPatch.dismissedAt = normalizedPatch.dismissed ? '__SERVER_TIMESTAMP__' : null;
     }
 
     _notifSetInMemory(notifState.list.map(item => item.id === notificationId ? { ...item, ...patch } : item));
@@ -4475,19 +4442,21 @@ async function _notifPatch(notificationId, patch = {}) {
             const { doc, updateDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
             const payload = { ...normalizedPatch };
             if (Object.prototype.hasOwnProperty.call(payload, 'read')) {
-                payload.read = !!payload.read;
                 payload.readAt = payload.read ? serverTimestamp() : null;
             }
+            if (Object.prototype.hasOwnProperty.call(payload, 'dismissedAt')) {
+                payload.dismissedAt = payload.dismissedAt === '__SERVER_TIMESTAMP__' ? serverTimestamp() : payload.dismissedAt;
+            }
             if (Object.prototype.hasOwnProperty.call(payload, 'dismissed')) {
-                payload.dismissed = !!payload.dismissed;
                 payload.dismissedAt = payload.dismissed ? serverTimestamp() : null;
             }
-            if (Object.prototype.hasOwnProperty.call(payload, 'archivedAt')) {
-                payload.archivedAt = payload.archivedAt === '__SERVER_TIMESTAMP__' ? serverTimestamp() : payload.archivedAt;
-            }
             delete payload.archived;
+            delete payload.dismissed;
             await updateDoc(doc(db, 'users', currentUser.uid, 'notifications', notificationId), payload);
-        } catch {}
+            _notifDebug('write:patch:ok', { id: notificationId, patch: Object.keys(payload) });
+        } catch (error) {
+            _notifDebug('write:patch:error', { id: notificationId, message: error?.message || String(error || '') });
+        }
     } else {
         const items = _notifGetStore().map(item => item.id === notificationId
             ? {
@@ -4524,29 +4493,32 @@ async function _notifBatchPatch(ids = [], patch = {}) {
             uniqueIds.forEach((id) => {
                 const payload = { ...patch };
                 if (Object.prototype.hasOwnProperty.call(payload, 'read')) {
-                    payload.read = !!payload.read;
                     payload.readAt = payload.read ? serverTimestamp() : null;
                 }
+                if (Object.prototype.hasOwnProperty.call(payload, 'dismissedAt')) {
+                    payload.dismissedAt = payload.dismissedAt === '__SERVER_TIMESTAMP__' ? serverTimestamp() : payload.dismissedAt;
+                }
                 if (Object.prototype.hasOwnProperty.call(payload, 'dismissed')) {
-                    payload.dismissed = !!payload.dismissed;
                     payload.dismissedAt = payload.dismissed ? serverTimestamp() : null;
-                    payload.archivedAt = payload.dismissed ? serverTimestamp() : null;
                 }
                 delete payload.archived;
+                delete payload.dismissed;
                 batch.update(doc(db, 'users', currentUser.uid, 'notifications', id), payload);
             });
             await batch.commit();
             _notifDebug('firestore:batch-update', { count: uniqueIds.length, patch });
             _notifSetInMemory(notifState.list.map(item => uniqueIds.includes(item.id) ? { ...item, ...patch } : item));
             return;
-        } catch {}
+        } catch (error) {
+            _notifDebug('write:batch:error', { count: uniqueIds.length, message: error?.message || String(error || '') });
+        }
     }
 
     await Promise.all(uniqueIds.map(id => _notifPatch(id, patch)));
 }
 
 async function _notifArchiveMany(ids = []) {
-    await _notifBatchPatch(ids, { dismissed: true });
+    await _notifBatchPatch(ids, { dismissedAt: '__SERVER_TIMESTAMP__' });
 }
 
 async function syncAutomationAlertsToNotificationCenter() {
@@ -4561,7 +4533,7 @@ async function syncAutomationAlertsToNotificationCenter() {
             nextIds.add(notificationId);
             const existing = notifState.list.find(item => item.id === notificationId);
             const patchPayload = {
-                type: String(alert.type || 'system'),
+                type: 'automation',
                 severity: alert.type === 'overdue' ? 'urgent' : (alert.type === 'uninvoiced' ? 'warning' : 'info'),
                 title: alert.title || 'Automation alert',
                 message: alert.description || '',
@@ -4575,6 +4547,11 @@ async function syncAutomationAlertsToNotificationCenter() {
             if (existing) {
                 await _notifPatch(notificationId, patchPayload);
             } else {
+                const remoteDoc = await _notifGetRemoteDoc(notificationId);
+                if (remoteDoc && (remoteDoc.dismissedAt || remoteDoc.archivedAt)) {
+                    _notifDebug('sync:skip-dismissed', { id: notificationId });
+                    continue;
+                }
                 await _notifUpsert({
                     id: notificationId,
                     ...patchPayload,
@@ -4636,7 +4613,7 @@ function markRead(notificationId, read = true) {
 function getVisibleNotifications() {
     const allItems = getNotifications().filter(item => !item.dismissed);
     if (notifState.filter === 'all') return allItems;
-    return allItems.filter(item => (item.source || 'system') === notifState.filter);
+    return allItems.filter(item => (item.type || 'system') === notifState.filter);
 }
 
 function markAllRead(ids = null) {
@@ -4787,7 +4764,7 @@ function _renderNotifBody() {
     const allItems = getNotifications().filter(item => !item.dismissed);
     const items = notifState.filter === 'all'
         ? allItems
-        : allItems.filter(item => (item.source || 'system') === notifState.filter);
+        : allItems.filter(item => (item.type || 'system') === notifState.filter);
     if (items.length === 0) {
         body.innerHTML = `<div class="tv-notif-empty"><i class="fas fa-check-circle"></i><span>All clear</span></div>`;
         return;
@@ -4872,7 +4849,7 @@ function bindNotifDrawer() {
             await markAllRead(visibleUnreadIds);
             _renderNotifBody();
             refreshBellBadge();
-            _notifDebug('action:mark-all-read', { before, after: unreadCount() });
+            _notifDebug('action:mark-all-read', { ids: visibleUnreadIds, before, after: unreadCount() });
             return;
         }
 
@@ -4883,7 +4860,7 @@ function bindNotifDrawer() {
             await clearNotifications(visibleReadIds);
             _renderNotifBody();
             refreshBellBadge();
-            _notifDebug('action:clear', { before, after: getNotifications().length });
+            _notifDebug('action:clear', { ids: visibleReadIds, before, after: getNotifications().length });
             return;
         }
 
@@ -4941,7 +4918,7 @@ function bindNotifDrawer() {
             if (notifId) await markRead(notifId, !isRead);
             _renderNotifBody();
             refreshBellBadge();
-            _notifDebug('action:toggle-read', { notifId, read: !isRead, before, after: unreadCount() });
+            _notifDebug('action:toggle-read', { ids: notifId ? [notifId] : [], read: !isRead, before, after: unreadCount() });
             return;
         }
 
@@ -4950,10 +4927,11 @@ function bindNotifDrawer() {
             ? e.target.closest('[data-action="notif-dismiss"], [data-action="alert-dismiss"]')
             : e.target.closest('[data-notif-remove-id]');
         if (removeBtn) {
-            await removeNotification(removeBtn.dataset.id || removeBtn.dataset.notifRemoveId);
+            const removeId = removeBtn.dataset.id || removeBtn.dataset.notifRemoveId;
+            await removeNotification(removeId);
             _renderNotifBody();
             refreshBellBadge();
-            _notifDebug('action:dismiss', removeBtn.dataset.id || removeBtn.dataset.notifRemoveId);
+            _notifDebug('action:dismiss', { ids: removeId ? [removeId] : [] });
             return;
         }
 

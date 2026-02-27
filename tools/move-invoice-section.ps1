@@ -7,7 +7,7 @@ $ls  = $c.LastIndexOf("`n", $ci) + 1
 $ce  = $c.IndexOf('<div id="scannedInvoicesTab"', $ci)
 $block = $c.Substring($ls, $ce - $ls)
 $blockLines = $block.Split("`n").Count
-Write-Host "Block extracted: $blockLines lines"
+Write-Host ('Block extracted: {0} lines' -f $blockLines)
 
 # 2. Remove block from current position (replace with nothing)
 $withoutBlock = $c.Substring(0, $ls) + $c.Substring($ce)
@@ -17,13 +17,13 @@ $withoutBlock = $c.Substring(0, $ls) + $c.Substring($ce)
 $acctMarker = '<div id="accountingTab"'
 $acctIdx    = $withoutBlock.IndexOf($acctMarker)
 $acctFound = $acctIdx
-Write-Host "accountingTab found at index $acctFound"
+Write-Host ('accountingTab found at index {0}' -f $acctFound)
 
-# Walk back from accountingTab to find the </div> line before it
-# That </div> closes scannedInvoicesTab - we insert block before it
+# Walk back from accountingTab to find the scannedInvoicesTab closing line
+# Insert the block immediately before that closing line
 $insertPoint = $withoutBlock.LastIndexOf("`n", $acctIdx - 2) + 1
 $previewText = $withoutBlock.Substring($insertPoint, 50)
-Write-Host "Inserting before index $insertPoint, preview: $previewText"
+Write-Host ('Inserting before index {0}, preview: {1}' -f $insertPoint, $previewText)
 
 # Trim the block: remove trailing whitespace/empty lines from block before reinserting
 $trimmedBlock = $block.TrimEnd() + "`n`n"
@@ -35,4 +35,4 @@ $newContent = $withoutBlock.Substring(0, $insertPoint) + $trimmedBlock + $withou
 $enc = New-Object System.Text.UTF8Encoding $false
 [System.IO.File]::WriteAllText($f, $newContent, $enc)
 $finalLines = $newContent.Split("`n").Count
-Write-Host "Done. File written. Lines: $finalLines"
+Write-Host ('Done. File written. Lines: {0}' -f $finalLines)

@@ -156,6 +156,7 @@ img[alt*="Transvortex"],
     mix-blend-mode: normal !important;
     opacity: 1 !important;
     -webkit-filter: none !important;
+    filter: none !important;
     image-rendering: crisp-edges;
     image-rendering: -webkit-optimize-contrast;
 }
@@ -2542,4 +2543,196 @@ footer p {
         flex-direction: column;
         align-items: flex-start;
     }
+}
+
+/* ==========================================
+   RESPONSIVE DASHBOARD OVERRIDES (MINIMAL)
+   ========================================== */
+
+:root {
+    --tvx-space-2: 0.5rem;
+    --tvx-space-3: 0.75rem;
+    --tvx-space-4: 1rem;
+    --tvx-space-5: 1.25rem;
+    --tvx-space-6: 1.5rem;
+
+    --tvx-fs-sm: 0.875rem;
+    --tvx-fs-base: 1rem;
+    --tvx-fs-lg: 1.125rem;
+
+    --tvx-container-max: 1320px;
+    --tvx-container-pad: clamp(0.75rem, 1.8vw, 1.5rem);
+    --tvx-left-col-min: 32.5rem;
+    --tvx-left-col-max: 36.25rem;
+}
+
+#appointmentsTab .tvDashboard--workspaceOptimized {
+    max-width: min(96vw, var(--tvx-container-max));
+    margin-left: auto;
+    margin-right: auto;
+    padding-left: var(--tvx-container-pad);
+    padding-right: var(--tvx-container-pad);
+    gap: clamp(0.875rem, 1.6vw, 1.5rem);
+}
+
+#appointmentsTab #addAppointmentSection.tvCard--accent {
+    background: #ffffff;
+    border: 1px solid rgba(255, 122, 24, 0.42);
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+    padding: clamp(0.9rem, 1.4vw, 1.25rem);
+}
+
+#appointmentsTab #addAppointmentSection .tvCardHeader h2 {
+    font-size: clamp(1.15rem, 1.02rem + 0.45vw, 1.4rem);
+    font-weight: 800;
+    line-height: 1.2;
+    color: rgba(15, 23, 42, 0.98);
+}
+
+#appointmentsTab #addAppointmentSection .tvCardHeader p {
+    font-size: 0.95rem;
+    color: rgba(30, 41, 59, 0.86);
+}
+
+#appointmentsTab #addAppointmentSection .card.appt-card {
+    background: #ffffff;
+    border: 1px solid rgba(15, 23, 42, 0.12);
+    box-shadow: 0 6px 18px rgba(15, 23, 42, 0.07);
+    padding: clamp(0.8rem, 1.2vw, 1.05rem);
+}
+
+#appointmentsTab #addAppointmentSection .appt-card h3 {
+    font-size: clamp(1.02rem, 0.95rem + 0.25vw, 1.18rem);
+    font-weight: 800;
+    color: rgba(15, 23, 42, 0.97);
+}
+
+#appointmentsTab #addAppointmentSection .appt-label {
+    font-size: var(--tvx-fs-sm);
+    font-weight: 700;
+    color: rgba(15, 23, 42, 0.84);
+    margin-bottom: 0.35rem;
+}
+
+#appointmentsTab #addAppointmentSection .appt-input,
+#appointmentsTab #addAppointmentSection .appt-select,
+#appointmentsTab #addAppointmentSection .appt-textarea {
+    background: #ffffff;
+    color: #0f172a;
+    border: 1px solid rgba(15, 23, 42, 0.2);
+}
+
+#appointmentsTab #addAppointmentSection .appt-input::placeholder,
+#appointmentsTab #addAppointmentSection .appt-textarea::placeholder {
+    color: rgba(71, 85, 105, 0.82);
+}
+
+#appointmentsTab #addAppointmentSection .appt-form__actions button,
+#tvWorkspacePanel .action-btn {
+    min-height: 44px;
+    font-size: clamp(0.9rem, 0.86rem + 0.2vw, 1rem);
+}
+
+#appointmentsTab #addAppointmentSection .appt-form__actions button:hover,
+#tvWorkspacePanel .action-btn:hover {
+    filter: brightness(0.98);
+}
+
+#tvWorkspacePanel {
+    padding: clamp(1rem, 1.5vw, 1.5rem) clamp(0.95rem, 1.5vw, 1.25rem);
+}
+
+#workspacePanelTitle {
+    font-size: clamp(1.2rem, 1.06rem + 0.3vw, 1.45rem);
+}
+
+@media (min-width: 1025px) {
+    #appointmentsTab .tvDashboard--workspaceOptimized {
+        grid-template-columns: minmax(var(--tvx-left-col-min), var(--tvx-left-col-max)) minmax(0, 1fr) !important;
+        align-items: start;
+        column-gap: clamp(1rem, 1.9vw, 1.75rem) !important;
+    }
+
+    #appointmentsTab #addAppointmentSection {
+        width: 100%;
+        max-width: var(--tvx-left-col-max);
+    }
+
+    #appointmentsTab #tvWorkspaceStack {
+        min-width: 0;
+    }
+}
+
+@media (min-width: 769px) and (max-width: 1024px) {
+    #appointmentsTab .tvDashboard--workspaceOptimized {
+        grid-template-columns: 1fr !important;
+        max-width: min(96vw, 1100px);
+        padding-left: clamp(0.85rem, 2.4vw, 1.25rem);
+        padding-right: clamp(0.85rem, 2.4vw, 1.25rem);
+    }
+
+    #appointmentsTab #addAppointmentSection,
+    #appointmentsTab #tvWorkspaceStack {
+        width: 100%;
+        max-width: 100%;
+    }
+}
+
+@media (max-width: 768px) {
+    #appointmentsTab .tvDashboard--workspaceOptimized {
+        grid-template-columns: 1fr !important;
+        max-width: 100%;
+        padding-left: clamp(0.75rem, 2.6vw, 1rem);
+        padding-right: clamp(0.75rem, 2.6vw, 1rem);
+        gap: var(--tvx-space-3);
+    }
+
+    #appointmentsTab #addAppointmentSection,
+    #appointmentsTab #tvWorkspaceStack {
+        width: 100%;
+        max-width: 100%;
+    }
+}
+
+@media (min-width: 481px) and (max-width: 768px) {
+    #appointmentsTab #addAppointmentSection .tvCardHeader h2 {
+        font-size: clamp(1.1rem, 1rem + 0.4vw, 1.25rem);
+    }
+}
+
+@media (min-width: 360px) and (max-width: 480px) {
+    #authBar.tvHeader #tvHeaderCompanyLogo {
+        max-height: 34px !important;
+    }
+
+    #appointmentsTab .tvDashboard--workspaceOptimized {
+        max-width: 100%;
+        padding-left: 0.75rem;
+        padding-right: 0.75rem;
+        gap: var(--tvx-space-3);
+    }
+
+    #appointmentsTab #addAppointmentSection.tvCard--accent {
+        padding: clamp(0.8rem, 3.4vw, 1rem);
+    }
+
+    #appointmentsTab #addAppointmentSection .card.appt-card {
+        padding: clamp(0.75rem, 3vw, 0.95rem);
+    }
+}
+
+@media (max-width: 480px) {
+    #appointmentsTab .tvDashboard--workspaceOptimized {
+        padding-left: 0.7rem;
+        padding-right: 0.7rem;
+    }
+}
+
+/* Ensure splash/mascot intro never renders in production UI */
+#tvSplash,
+.tv-splash,
+.tv-splash-gif,
+.tv-splash-vignette {
+    display: none !important;
+    visibility: hidden !important;
 }

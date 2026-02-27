@@ -1,6 +1,6 @@
 # Wiring Audit Report
 
-_Generated: 2026-02-27T19:27:22.679Z — files scanned: 85_
+_Generated: 2026-02-27T20:16:01.474Z — files scanned: 85_
 
 > **Definition of Done:** Real broken candidates = 0 · Unmapped actions = 0 · Invoice violations = 0 · Runtime smoke test passes
 
@@ -92,10 +92,10 @@ Count: **0**  (target: 0)
 
 | File | Line | Via | Params |
 | --- | --- | --- | --- |
-| script.js | 4910 | js | invoiceId=${encodeURIComponent(invoiceId)}, mode=view |
-| script.js | 10716 | js | invoiceId=${invoiceId}, mode=edit |
-| script.js | 11030 | js | invoiceId=${invoiceId}, mode=view |
-| script.js | 11049 | js | invoiceId=${invoiceId}, mode=edit |
+| script.js | 4942 | js | invoiceId=${encodeURIComponent(invoiceId)}, mode=view |
+| script.js | 10749 | js | invoiceId=${invoiceId}, mode=edit |
+| script.js | 11063 | js | invoiceId=${invoiceId}, mode=view |
+| script.js | 11082 | js | invoiceId=${invoiceId}, mode=edit |
 | src/invoices/invoice-manager.js | 681 | js | invoiceId=${invoiceId}, mode=${mode} |
 | src/storage/storage.events.js | 132 | js | invoiceId=${targetInvoiceId}, mode=view |
 | src/storage/storage.events.js | 140 | js | invoiceId=${targetInvoiceId}, mode=view |
@@ -109,13 +109,13 @@ Count: **0**  (target: 0)
 
 | File | Line | Function |
 | --- | --- | --- |
-| script.js | 4908 | openInvoice |
-| script.js | 10541 | openInvoiceForAppointment |
-| script.js | 10546 | openInvoice |
-| script.js | 10588 | openInvoiceFromAppointment |
-| script.js | 10594 | openInvoice |
-| script.js | 10615 | openInvoice |
-| script.js | 11008 | openInvoiceFile |
+| script.js | 4940 | openInvoice |
+| script.js | 10574 | openInvoiceForAppointment |
+| script.js | 10579 | openInvoice |
+| script.js | 10621 | openInvoiceFromAppointment |
+| script.js | 10627 | openInvoice |
+| script.js | 10648 | openInvoice |
+| script.js | 11041 | openInvoiceFile |
 | src/invoice-create/invoiceCreate.flow.js | 48 | openInvoice |
 | src/invoice-create/invoiceCreate.flow.js | 150 | openInvoice |
 | src/invoices/invoice-manager.js | 676 | openInvoicePage |
@@ -129,8 +129,8 @@ Count: **0**  (target: 0)
 
 | File | Line | Function |
 | --- | --- | --- |
-| script.js | 10509 | generateInvoiceNumberStable |
-| script.js | 10577 | generateInvoiceNumberLegacy |
+| script.js | 10542 | generateInvoiceNumberStable |
+| script.js | 10610 | generateInvoiceNumberLegacy |
 | src/invoice.js | 345 | generateInvoiceNumberStandalone |
 | src/invoices/invoice-manager.js | 18 | generateInvoiceNumber |
 
@@ -419,8 +419,8 @@ Navigation to `.html` routes without query params (excluding `index.html`) that 
 
 ## Appendix C: Closest-delegation sites (data-action dispatch points)
 
-- script.js:4865 — `const action = e.target.closest('[data-action]')?.dataset.action || '';`
-- script.js:8737 — `const btn = e.target.closest('button[data-action]');`
+- script.js:4897 — `const action = e.target.closest('[data-action]')?.dataset.action || '';`
+- script.js:8770 — `const btn = e.target.closest('button[data-action]');`
 - src/core/events.js:9 — `const target = event.target.closest('[data-action]');`
 - src/invoice.js:1920 — `const actionEl = e.target.closest('[data-action]');`
 - src/utils/notifications.js:224 — `const action = e.target.closest('[data-action]')?.dataset.action;`
@@ -430,7 +430,7 @@ Navigation to `.html` routes without query params (excluding `index.html`) that 
 
 Most duplicates are benign utility names. High-risk ones are covered in Section 5.
 
-- `createInvoiceFromAppointment` — CHIPS_MODE_INTEGRATION.js:193, script.js:10604, src/invoice-create/invoiceCreate.flow.js:35
+- `createInvoiceFromAppointment` — CHIPS_MODE_INTEGRATION.js:193, script.js:10637, src/invoice-create/invoiceCreate.flow.js:35
 - `updateLiveIndicators` — index.html:5340, src/enterprise-dashboard.js:260
 - `registerServiceWorker` — pwa-init.js:46, pwa.js:9
 - `showUpdateNotification` — pwa-init.js:151, sw-update.js:82

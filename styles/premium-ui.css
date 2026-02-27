@@ -691,13 +691,25 @@
 }
 
 #authBar #tvHeaderCompanyLogo {
-    max-height: clamp(42px, 7vw, 58px);
-    max-width: clamp(200px, 35vw, 320px);
+    max-height: clamp(44px, 7.6vw, 62px);
+    max-width: clamp(210px, 38vw, 330px);
     width: auto;
     height: auto;
     object-fit: contain !important;
     display: block !important;
     min-width: 0;
+    image-rendering: -webkit-optimize-contrast;
+    image-rendering: crisp-edges;
+    transform: none !important;
+    animation: none !important;
+    transition: none !important;
+}
+
+#authBar #tvHeaderBrandSlot,
+#authBar #tvHeaderGif {
+    transform: none !important;
+    animation: none !important;
+    transition: none !important;
 }
 
 /* ===== C) CONTROLS SIZING (online + sign out) ===== */
@@ -838,6 +850,23 @@
         min-height: clamp(44px, 6.8vw, 56px);
         font-size: clamp(12px, 2.4vw, 15px);
         padding: 0 clamp(12px, 2.6vw, 18px) !important;
+    }
+}
+
+@media (max-width: 480px) {
+    #authBar,
+    #authBar.tvHeader,
+    #authBar.firebase-auth-bar.tvHeader {
+        padding: clamp(0.45rem, 2.2vw, 0.65rem) clamp(0.6rem, 3vw, 0.85rem);
+    }
+
+    #authBar .tvHeaderTop {
+        column-gap: 8px;
+    }
+
+    #authBar #tvHeaderCompanyLogo {
+        max-height: clamp(35px, 8.8vw, 42px);
+        max-width: clamp(160px, 49vw, 215px);
     }
 }
 

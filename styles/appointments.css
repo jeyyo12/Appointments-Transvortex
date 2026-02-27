@@ -347,6 +347,7 @@
     background: linear-gradient(135deg, rgba(255, 122, 24, 0.15), rgba(255, 154, 61, 0.15));
     color: #FF7A18;
     border-color: rgba(255, 122, 24, 0.25);
+}
 
 /* Overdue Chip */
 .tvOverdueChip {
@@ -737,6 +738,11 @@
 .tvCard,
 .aptRow,
 .tvCard *,
+.aptRow * {
+    min-width: 0;
+    max-width: 100%;
+}
+
 /* ===== HEADER STYLING NOW CONSOLIDATED IN premium-ui.css ===== */
 
 .tv-admin-pill{

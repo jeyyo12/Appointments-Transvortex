@@ -46,7 +46,8 @@
   }
 
   #authBar #tvHeaderCompanyLogo {
-    max-height: 28px !important;
+    max-height: clamp(34px, 8.8vw, 40px) !important;
+    width: auto !important;
   }
 
   /* Online badge — icon only on tiny screens */
