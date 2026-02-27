@@ -13,6 +13,20 @@ import { checkIsAdmin } from '../firebase/firebase.js';
 
 const logger = createLogger('StoragePage');
 
+function safeGetLocalStorage(key) {
+  try {
+    return localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+function isTvxDebugEnabled() {
+  if (typeof window === 'undefined') return false;
+  const storageDebug = safeGetLocalStorage('tvxDebug') === '1';
+  return storageDebug || window.__tvDebug === true;
+}
+
 function getDataLayerStore() {
   if (typeof window === 'undefined') return null;
   return window.Store || window._dataLayer?.store || null;
@@ -117,12 +131,14 @@ export function initInvoicesStorage() {
 
     if (!initState.initProofLogged) {
       initState.initProofLogged = true;
-      console.log('[INIT ONCE]', {
-        storageInitDone: true,
-        appInitDone: !!initState.appInitDone,
-        scriptBootstrapDone: !!initState.scriptBootstrapDone,
-        workspacePanelInitialized: !!initState.workspacePanelInitialized
-      });
+      if (isTvxDebugEnabled()) {
+        console.log('[INIT ONCE]', {
+          storageInitDone: true,
+          appInitDone: !!initState.appInitDone,
+          scriptBootstrapDone: !!initState.scriptBootstrapDone,
+          workspacePanelInitialized: !!initState.workspacePanelInitialized
+        });
+      }
     }
 
     logger.info('✅ Invoices storage initialized');

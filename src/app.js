@@ -4,7 +4,7 @@
  */
 
 import { initFirebase, setupAuthListener } from './firebase/firebase.js';
-import { createLogger } from './shared/logger.js';
+import { createLogger, setLogLevel } from './shared/logger.js';
 import { setState, getState } from './shared/state.js';
 import { byId } from './shared/dom.js';
 
@@ -14,6 +14,42 @@ import { initAllChipsModes } from './core/chips-mode.js';
 import { initializeVehicleFormatting } from './utils/input-formatters.js';
 
 const logger = createLogger('App');
+
+function safeGetLocalStorage(key) {
+  try {
+    return localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+function isTvxDebugEnabled() {
+  if (typeof window === 'undefined') return false;
+  const storageDebug = safeGetLocalStorage('tvxDebug') === '1';
+  return storageDebug || window.__tvDebug === true;
+}
+
+function configureStartupLogLevel() {
+  if (typeof window === 'undefined') return;
+
+  const host = String(window.location?.hostname || '').toLowerCase();
+  const isLocal = host === 'localhost' || host === '127.0.0.1';
+  const isProdHost = host.endsWith('.web.app') || host.endsWith('.firebaseapp.com') || host.endsWith('.github.io');
+
+  let resolvedLevel = isLocal ? 'INFO' : (isProdHost ? 'WARN' : 'INFO');
+  const override = String(safeGetLocalStorage('tvx.logLevel') || '').trim().toUpperCase();
+  if (['ERROR', 'WARN', 'INFO', 'DEBUG'].includes(override)) {
+    resolvedLevel = override;
+  }
+
+  setLogLevel(resolvedLevel);
+}
+
+/*
+Dev/runtime toggles:
+- localStorage.tvx.logLevel = ERROR|WARN|INFO|DEBUG
+- localStorage.tvxDebug = 1 (or window.__tvDebug = true)
+*/
 
 function getInitState() {
   if (typeof window === 'undefined') return {};
@@ -25,9 +61,11 @@ function getInitState() {
  * Initialize application
  */
 async function initApp() {
+  configureStartupLogLevel();
+
   const initState = getInitState();
   if (initState.appInitDone || initState.appInitRunning) {
-    logger.info('Skipping app init: already initialized or in progress');
+    logger.debug('Skipping app init: already initialized or in progress');
     return;
   }
   initState.appInitRunning = true;
@@ -36,27 +74,27 @@ async function initApp() {
   
   try {
     // 1. Initialize Firebase
-    logger.info('Step 1: Initialize Firebase');
+    logger.debug('Step 1: Initialize Firebase');
     initFirebase();
     
     // 2. Setup auth state listener
-    logger.info('Step 2: Setup auth listener');
+    logger.debug('Step 2: Setup auth listener');
     setupAuthListener(onAuthStateChanged);
 
     // 3. Setup tab navigation
-    logger.info('Step 3: Setup tab navigation');
+    logger.debug('Step 3: Setup tab navigation');
     setupTabNavigation();
 
     // 4. Initialize Chips Mode for Jobs & Parts
-    logger.info('Step 4: Initialize Chips Mode');
+    logger.debug('Step 4: Initialize Chips Mode');
     initAllChipsModes();
 
     // 5. Initialize Vehicle Section Formatting
-    logger.info('Step 5: Initialize Vehicle Section formatting');
+    logger.debug('Step 5: Initialize Vehicle Section formatting');
     initializeVehicleFormatting();
 
     // 6. Initialize feature modules
-    logger.info('Step 6: Initialize feature modules');
+    logger.debug('Step 6: Initialize feature modules');
     if (typeof window !== 'undefined') {
       window.__USE_MODULAR_STORAGE__ = true;
     }
@@ -64,7 +102,7 @@ async function initApp() {
     // Note: Invoice creation from appointments is handled via appointment detail actions
 
     // 7. Restore last active tab
-    logger.info('Step 7: Restore active tab');
+    logger.debug('Step 7: Restore active tab');
     restoreActiveTab();
     
     logger.info('✅ Application initialized successfully');
@@ -72,12 +110,14 @@ async function initApp() {
 
     if (!initState.initProofLogged) {
       initState.initProofLogged = true;
-      console.log('[INIT ONCE]', {
-        appInitDone: true,
-        scriptBootstrapDone: !!initState.scriptBootstrapDone,
-        storageInitDone: !!initState.storageInitDone,
-        workspacePanelInitialized: !!initState.workspacePanelInitialized
-      });
+      if (isTvxDebugEnabled()) {
+        console.log('[INIT ONCE]', {
+          appInitDone: true,
+          scriptBootstrapDone: !!initState.scriptBootstrapDone,
+          storageInitDone: !!initState.storageInitDone,
+          workspacePanelInitialized: !!initState.workspacePanelInitialized
+        });
+      }
     }
     
   } catch (error) {
@@ -180,7 +220,7 @@ function setupTabNavigation() {
     });
   });
   
-  logger.info('Tab navigation setup complete');
+  logger.debug('Tab navigation setup complete');
 }
 
 /**
@@ -214,7 +254,7 @@ function switchTab(tabName) {
   setState('currentTab', tabName);
   localStorage.setItem('tvx.activeTab', tabName);
   
-  logger.info('Switched to tab:', tabName);
+  logger.debug('Switched to tab:', tabName);
 }
 
 /**

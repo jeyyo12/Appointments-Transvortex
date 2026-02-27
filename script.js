@@ -4288,18 +4288,35 @@ function _notifSetStore(items) {
 function _notifNormalizeRecord(raw = {}) {
     const created = raw.createdAt?.toMillis?.() || raw.createdAt || Date.now();
     const readAt = raw.readAt?.toMillis?.() || raw.readAt || null;
+    const archivedAt = raw.archivedAt?.toMillis?.() || raw.archivedAt || null;
+    const dismissedAt = raw.dismissedAt?.toMillis?.() || raw.dismissedAt || null;
+    const explicitRead = typeof raw.read === 'boolean' ? raw.read : null;
+    const normalizedEntity = (raw.entity && typeof raw.entity === 'object')
+        ? {
+            appointmentId: raw.entity.appointmentId ? String(raw.entity.appointmentId) : '',
+            invoiceId: raw.entity.invoiceId ? String(raw.entity.invoiceId) : ''
+        }
+        : {
+            appointmentId: raw.relatedAptId ? String(raw.relatedAptId) : '',
+            invoiceId: raw.invoiceId ? String(raw.invoiceId) : ''
+        };
     return {
         id: String(raw.id || ''),
         type: String(raw.type || 'system'),
-        severity: String(raw.severity || 'info'),
+        severity: ['info', 'warning', 'urgent'].includes(String(raw.severity || 'info')) ? String(raw.severity || 'info') : 'info',
         title: String(raw.title || ''),
         message: String(raw.message || ''),
-        read: !!readAt,
+        read: explicitRead === null ? !!readAt : explicitRead,
         readAt,
+        dismissed: !!archivedAt || !!raw.dismissed || !!raw.archived,
+        archivedAt: archivedAt || dismissedAt || null,
+        dismissedAt: dismissedAt || archivedAt || null,
+        source: String(raw.source || ((raw.type || '') === 'automation' ? 'automation' : 'system')),
+        entity: normalizedEntity,
         createdAt: created,
-        archived: !!raw.archived,
+        archived: !!archivedAt || !!raw.dismissed || !!raw.archived,
         link: raw.link && typeof raw.link === 'object' ? raw.link : null,
-        relatedAptId: raw.relatedAptId ? String(raw.relatedAptId) : ''
+        relatedAptId: normalizedEntity.appointmentId
     };
 }
 
@@ -4307,7 +4324,7 @@ function _notifSetInMemory(items = []) {
     notifState.list = Array.isArray(items)
         ? items
             .map(_notifNormalizeRecord)
-            .filter(item => !item.archived)
+            .filter(item => !item.dismissed)
             .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))
             .slice(0, TV_NOTIF_COLLECTION_LIMIT)
         : [];
@@ -4323,8 +4340,13 @@ function _notifLoadLocalIntoMemory() {
         title: item.title || item.message || '',
         severity: item.severity || item.type || 'info',
         type: item.type || 'system',
+        source: item.source || ((item.type || '') === 'automation' ? 'automation' : 'system'),
+        entity: item.entity || { appointmentId: item.relatedAptId || '', invoiceId: item.invoiceId || '' },
         link: item.link || null,
-        archived: !!item.archived,
+        dismissed: !!item.dismissed || !!item.archived || !!item.archivedAt,
+        archivedAt: item.archivedAt || null,
+        dismissedAt: item.dismissed ? (item.dismissedAt || Date.now()) : null,
+        read: typeof item.read === 'boolean' ? item.read : !!item.readAt,
         readAt: item.read ? (item.readAt || Date.now()) : null
     }));
     _notifSetInMemory(local);
@@ -4344,7 +4366,7 @@ async function _notifSubscribeFirestore(uid) {
     try {
         const { collection, query, where, orderBy, limit, onSnapshot } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
         const notifRef = collection(db, 'users', uid, 'notifications');
-        const q = query(notifRef, where('archived', '==', false), orderBy('createdAt', 'desc'), limit(TV_NOTIF_COLLECTION_LIMIT));
+        const q = query(notifRef, where('archivedAt', '==', null), orderBy('createdAt', 'desc'), limit(TV_NOTIF_COLLECTION_LIMIT));
 
         notifState.uid = uid;
         notifState.unsubscribe = onSnapshot(q, (snap) => {
@@ -4371,6 +4393,7 @@ function _notifEnsureAuthScopedStore() {
 async function _notifUpsert(record, notificationId = '') {
     const normalized = _notifNormalizeRecord(record);
     const id = notificationId || normalized.id || `n_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    const existing = notifState.list.find(item => item.id === id) || null;
 
     const optimistic = { ...normalized, id };
     const next = [optimistic, ...notifState.list.filter(item => item.id !== id)];
@@ -4379,33 +4402,46 @@ async function _notifUpsert(record, notificationId = '') {
     if (_notifHasFirestoreContext()) {
         try {
             const { doc, setDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
-            await setDoc(doc(db, 'users', currentUser.uid, 'notifications', id), {
+            const payload = {
                 type: normalized.type || 'system',
                 severity: normalized.severity || 'info',
                 title: normalized.title || normalized.message || '',
                 message: normalized.message || normalized.title || '',
-                link: normalized.link || null,
-                relatedAptId: normalized.relatedAptId || '',
-                createdAt: serverTimestamp(),
+                read: !!normalized.read,
                 readAt: normalized.read ? serverTimestamp() : null,
-                archived: false
-            }, { merge: true });
+                dismissed: !!normalized.dismissed,
+                dismissedAt: normalized.dismissed ? serverTimestamp() : null,
+                source: normalized.source || ((normalized.type || '') === 'automation' ? 'automation' : 'system'),
+                entity: {
+                    appointmentId: normalized.entity?.appointmentId || '',
+                    invoiceId: normalized.entity?.invoiceId || ''
+                }
+            };
+            if (!existing || !existing.createdAt) {
+                payload.createdAt = serverTimestamp();
+            }
+            payload.archivedAt = null;
+            await setDoc(doc(db, 'users', currentUser.uid, 'notifications', id), payload, { merge: true });
         } catch {}
     } else {
         const local = _notifGetStore();
         local.unshift({
             id,
             message: normalized.message || normalized.title || '',
-            type: normalized.type || 'info',
+            type: normalized.type || 'system',
             read: !!normalized.read,
+            dismissed: !!normalized.dismissed,
+            archivedAt: normalized.dismissed ? Date.now() : null,
             createdAt: normalized.createdAt || Date.now(),
-            relatedAptId: normalized.relatedAptId || '',
-            action: '',
             title: normalized.title || normalized.message || '',
             severity: normalized.severity || 'info',
-            link: normalized.link || null,
-            archived: false,
-            readAt: normalized.read ? Date.now() : null
+            source: normalized.source || ((normalized.type || '') === 'automation' ? 'automation' : 'system'),
+            entity: {
+                appointmentId: normalized.entity?.appointmentId || normalized.relatedAptId || '',
+                invoiceId: normalized.entity?.invoiceId || ''
+            },
+            readAt: normalized.read ? Date.now() : null,
+            dismissedAt: normalized.dismissed ? Date.now() : null
         });
         _notifSetStore(local);
         _notifLoadLocalIntoMemory();
@@ -4416,29 +4452,93 @@ async function _notifUpsert(record, notificationId = '') {
 async function _notifPatch(notificationId, patch = {}) {
     if (!notificationId) return;
 
+    const normalizedPatch = { ...patch };
+    if (Object.prototype.hasOwnProperty.call(normalizedPatch, 'archived') && !Object.prototype.hasOwnProperty.call(normalizedPatch, 'dismissed')) {
+        normalizedPatch.dismissed = !!normalizedPatch.archived;
+    }
+    if (Object.prototype.hasOwnProperty.call(normalizedPatch, 'dismissed') && !Object.prototype.hasOwnProperty.call(normalizedPatch, 'archivedAt')) {
+        normalizedPatch.archivedAt = normalizedPatch.dismissed ? '__SERVER_TIMESTAMP__' : null;
+    }
+
     _notifSetInMemory(notifState.list.map(item => item.id === notificationId ? { ...item, ...patch } : item));
 
     if (_notifHasFirestoreContext()) {
         try {
             const { doc, updateDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
-            const payload = { ...patch };
+            const payload = { ...normalizedPatch };
             if (Object.prototype.hasOwnProperty.call(payload, 'read')) {
+                payload.read = !!payload.read;
                 payload.readAt = payload.read ? serverTimestamp() : null;
-                delete payload.read;
             }
+            if (Object.prototype.hasOwnProperty.call(payload, 'dismissed')) {
+                payload.dismissed = !!payload.dismissed;
+                payload.dismissedAt = payload.dismissed ? serverTimestamp() : null;
+            }
+            if (Object.prototype.hasOwnProperty.call(payload, 'archivedAt')) {
+                payload.archivedAt = payload.archivedAt === '__SERVER_TIMESTAMP__' ? serverTimestamp() : payload.archivedAt;
+            }
+            delete payload.archived;
             await updateDoc(doc(db, 'users', currentUser.uid, 'notifications', notificationId), payload);
         } catch {}
     } else {
         const items = _notifGetStore().map(item => item.id === notificationId
-            ? { ...item, ...patch, readAt: patch.read ? Date.now() : (patch.read === false ? null : item.readAt), archived: !!patch.archived || !!item.archived }
+            ? {
+                ...item,
+                ...normalizedPatch,
+                read: Object.prototype.hasOwnProperty.call(normalizedPatch, 'read') ? !!normalizedPatch.read : !!item.read,
+                readAt: Object.prototype.hasOwnProperty.call(normalizedPatch, 'read')
+                    ? (normalizedPatch.read ? Date.now() : null)
+                    : item.readAt,
+                dismissed: Object.prototype.hasOwnProperty.call(normalizedPatch, 'dismissed')
+                    ? !!normalizedPatch.dismissed
+                    : !!item.dismissed,
+                archivedAt: Object.prototype.hasOwnProperty.call(normalizedPatch, 'dismissed')
+                    ? (normalizedPatch.dismissed ? Date.now() : null)
+                    : (item.archivedAt || null),
+                dismissedAt: Object.prototype.hasOwnProperty.call(normalizedPatch, 'dismissed')
+                    ? (normalizedPatch.dismissed ? Date.now() : null)
+                    : item.dismissedAt
+            }
             : item);
-        _notifSetStore(items.filter(item => !item.archived));
+        _notifSetStore(items.filter(item => !item.dismissed));
         _notifLoadLocalIntoMemory();
     }
 }
 
+async function _notifBatchPatch(ids = [], patch = {}) {
+    const uniqueIds = Array.from(new Set((ids || []).filter(Boolean)));
+    if (uniqueIds.length === 0) return;
+
+    if (_notifHasFirestoreContext()) {
+        try {
+            const { doc, writeBatch, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+            const batch = writeBatch(db);
+            uniqueIds.forEach((id) => {
+                const payload = { ...patch };
+                if (Object.prototype.hasOwnProperty.call(payload, 'read')) {
+                    payload.read = !!payload.read;
+                    payload.readAt = payload.read ? serverTimestamp() : null;
+                }
+                if (Object.prototype.hasOwnProperty.call(payload, 'dismissed')) {
+                    payload.dismissed = !!payload.dismissed;
+                    payload.dismissedAt = payload.dismissed ? serverTimestamp() : null;
+                    payload.archivedAt = payload.dismissed ? serverTimestamp() : null;
+                }
+                delete payload.archived;
+                batch.update(doc(db, 'users', currentUser.uid, 'notifications', id), payload);
+            });
+            await batch.commit();
+            _notifDebug('firestore:batch-update', { count: uniqueIds.length, patch });
+            _notifSetInMemory(notifState.list.map(item => uniqueIds.includes(item.id) ? { ...item, ...patch } : item));
+            return;
+        } catch {}
+    }
+
+    await Promise.all(uniqueIds.map(id => _notifPatch(id, patch)));
+}
+
 async function _notifArchiveMany(ids = []) {
-    await Promise.all((ids || []).map(id => _notifPatch(id, { archived: true })));
+    await _notifBatchPatch(ids, { dismissed: true });
 }
 
 async function syncAutomationAlertsToNotificationCenter() {
@@ -4451,17 +4551,30 @@ async function syncAutomationAlertsToNotificationCenter() {
         for (const alert of alerts) {
             const notificationId = `automation_${String(alert.type || 'general')}_${String(alert.actionTarget || 'all')}`;
             nextIds.add(notificationId);
-            await _notifUpsert({
-                id: notificationId,
-                type: 'automation',
-                severity: alert.type === 'overdue' ? 'danger' : (alert.type === 'uninvoiced' ? 'warning' : 'info'),
+            const existing = notifState.list.find(item => item.id === notificationId);
+            const patchPayload = {
+                type: String(alert.type || 'system'),
+                severity: alert.type === 'overdue' ? 'urgent' : (alert.type === 'uninvoiced' ? 'warning' : 'info'),
                 title: alert.title || 'Automation alert',
                 message: alert.description || '',
-                link: { kind: 'filter', filter: alert.actionTarget || 'all' },
-                read: false,
-                archived: false,
-                createdAt: Date.now()
-            }, notificationId);
+                source: 'automation',
+                entity: {
+                    appointmentId: String(alert.appointmentId || alert.relatedAptId || ''),
+                    invoiceId: String(alert.invoiceId || '')
+                }
+            };
+
+            if (existing) {
+                await _notifPatch(notificationId, patchPayload);
+            } else {
+                await _notifUpsert({
+                    id: notificationId,
+                    ...patchPayload,
+                    read: false,
+                    dismissed: false,
+                    createdAt: Date.now()
+                }, notificationId);
+            }
         }
 
         const stale = [...notifState.automationIds].filter(id => !nextIds.has(id));
@@ -4485,8 +4598,14 @@ function addNotification(message, type = 'info', options = {}) {
         title: options.title ? String(options.title) : text,
         message: text,
         type: options.type || 'system',
-        severity: ['success', 'error', 'warning', 'info'].includes(type) ? (type === 'error' ? 'danger' : type) : 'info',
+        severity: type === 'error' ? 'urgent' : (['warning', 'info'].includes(type) ? type : 'info'),
+        source: options.source || 'manual',
+        entity: {
+            appointmentId: options.relatedAptId ? String(options.relatedAptId) : String(options.entity?.appointmentId || ''),
+            invoiceId: String(options.entity?.invoiceId || '')
+        },
         read: false,
+        dismissed: false,
         createdAt: Date.now(),
         relatedAptId: options.relatedAptId ? String(options.relatedAptId) : '',
         link: options.link && typeof options.link === 'object' ? options.link : null,
@@ -4506,19 +4625,29 @@ function markRead(notificationId, read = true) {
     return _notifPatch(notificationId, { read: !!read });
 }
 
-function markAllRead() {
-    const ids = getNotifications().filter(item => !item.read).map(item => item.id);
-    return Promise.all(ids.map(id => _notifPatch(id, { read: true })));
+function getVisibleNotifications() {
+    const allItems = getNotifications().filter(item => !item.dismissed);
+    if (notifState.filter === 'all') return allItems;
+    return allItems.filter(item => (item.source || 'system') === notifState.filter);
+}
+
+function markAllRead(ids = null) {
+    const idsToPatch = Array.isArray(ids)
+        ? ids.filter(Boolean)
+        : getNotifications().filter(item => !item.dismissed && !item.read).map(item => item.id);
+    return _notifBatchPatch(idsToPatch, { read: true });
 }
 
 function removeNotification(notificationId) {
     if (!notificationId) return;
-    return _notifPatch(notificationId, { archived: true });
+    return _notifPatch(notificationId, { dismissed: true });
 }
 
-function clearNotifications() {
-    const ids = getNotifications().filter(item => item.read).map(item => item.id);
-    return _notifArchiveMany(ids);
+function clearNotifications(ids = null) {
+    const idsToDismiss = Array.isArray(ids)
+        ? ids.filter(Boolean)
+        : getNotifications().filter(item => !item.dismissed && item.read).map(item => item.id);
+    return _notifArchiveMany(idsToDismiss);
 }
 
 function unreadCount() {
@@ -4621,18 +4750,17 @@ function refreshBellBadge() {
 function _renderNotifBody() {
     const body = document.getElementById('tvNotifBody');
     if (!body) return;
-    const allItems = getNotifications().filter(item => !item.archived);
+    const allItems = getNotifications().filter(item => !item.dismissed);
     const items = notifState.filter === 'all'
         ? allItems
-        : allItems.filter(item => item.type === notifState.filter);
+        : allItems.filter(item => (item.source || 'system') === notifState.filter);
     if (items.length === 0) {
         body.innerHTML = `<div class="tv-notif-empty"><i class="fas fa-check-circle"></i><span>All clear</span></div>`;
         return;
     }
 
     const icons = {
-        success: 'check-circle',
-        error: 'exclamation-circle',
+        urgent: 'exclamation-circle',
         warning: 'exclamation-triangle',
         info: 'info-circle'
     };
@@ -4644,7 +4772,7 @@ function _renderNotifBody() {
             <button type="button" class="tv-notif-chip ${notifState.filter === 'system' ? 'is-active' : ''}" data-action="notif-tab" data-tab="system" data-notif-filter-tab="system">System</button>
         </div>
         ${items.map(item => `
-            <div class="tv-notif-item ${item.read ? 'tv-notif-item--read' : ''}">
+            <div class="tv-notif-item ${item.read ? 'tv-notif-item--read' : ''}" data-action="notif-open" data-id="${item.id}" data-alert-apt-id="${_notifEscapeHtml(item.entity?.appointmentId || '')}" data-alert-invoice-id="${_notifEscapeHtml(item.entity?.invoiceId || '')}">
                 <span class="tv-notif-item__icon"><i class="fas fa-${icons[item.severity] || icons[item.type] || icons.info}"></i></span>
                 <div class="tv-notif-item__content">
                     <span class="tv-notif-item__label">${_notifEscapeHtml(item.title || item.message)}</span>
@@ -4652,9 +4780,9 @@ function _renderNotifBody() {
                     <span class="tv-notif-item__count">${new Date(item.createdAt || Date.now()).toLocaleString([], { hour: '2-digit', minute: '2-digit', day: '2-digit', month: 'short' })}</span>
                 </div>
                 <div class="tv-notif-item__btns">
-                    ${(item.relatedAptId || item.link?.kind === 'filter') ? `<button class="tv-notif-open" data-notif-open-id="${item.id}" data-notif-apt-id="${_notifEscapeHtml(item.relatedAptId || '')}" data-notif-link-kind="${_notifEscapeHtml(item.link?.kind || '')}" data-notif-link-filter="${_notifEscapeHtml(item.link?.filter || '')}" aria-label="Open related item">Open</button>` : ''}
-                    <button class="tv-notif-mark-read" data-notif-id="${item.id}" data-notif-read="${item.read ? '1' : '0'}" aria-label="${item.read ? 'Mark as unread' : 'Mark as read'}">${item.read ? 'Undo' : 'Read'}</button>
-                    <button class="tv-notif-dismiss" data-notif-remove-id="${item.id}" aria-label="Remove notification">×</button>
+                    ${(item.entity?.appointmentId || item.entity?.invoiceId) ? `<button type="button" class="tv-notif-open" data-action="notif-open" data-id="${item.id}" data-notif-open-id="${item.id}" data-notif-apt-id="${_notifEscapeHtml(item.entity?.appointmentId || '')}" data-alert-invoice-id="${_notifEscapeHtml(item.entity?.invoiceId || '')}" aria-label="Open related item">Open</button>` : ''}
+                    <button type="button" class="tv-notif-mark-read" data-action="${item.read ? 'notif-undo' : 'notif-read'}" data-id="${item.id}" data-notif-id="${item.id}" data-notif-read="${item.read ? '1' : '0'}" aria-label="${item.read ? 'Mark as unread' : 'Mark as read'}">${item.read ? 'Undo' : 'Read'}</button>
+                    <button type="button" class="tv-notif-dismiss" data-action="notif-dismiss" data-id="${item.id}" data-notif-remove-id="${item.id}" aria-label="Remove notification">×</button>
                 </div>
             </div>
         `).join('')}
@@ -4705,8 +4833,9 @@ function bindNotifDrawer() {
         // Header actions
         const markAllBtn = action === 'notif-mark-all' ? e.target : e.target.closest('[data-notif-mark-all]');
         if (markAllBtn) {
+            const visibleUnreadIds = getVisibleNotifications().filter(item => !item.read).map(item => item.id);
             const before = unreadCount();
-            await markAllRead();
+            await markAllRead(visibleUnreadIds);
             _renderNotifBody();
             refreshBellBadge();
             _notifDebug('action:mark-all-read', { before, after: unreadCount() });
@@ -4715,8 +4844,9 @@ function bindNotifDrawer() {
 
         const clearBtn = action === 'notif-clear' ? e.target : e.target.closest('[data-notif-clear]');
         if (clearBtn) {
+            const visibleReadIds = getVisibleNotifications().filter(item => item.read).map(item => item.id);
             const before = getNotifications().length;
-            await clearNotifications();
+            await clearNotifications(visibleReadIds);
             _renderNotifBody();
             refreshBellBadge();
             _notifDebug('action:clear', { before, after: getNotifications().length });
@@ -4724,23 +4854,29 @@ function bindNotifDrawer() {
         }
 
         // Open related appointment
-        const openBtn = e.target.closest('.tv-notif-open');
+        const openBtn = (action === 'notif-open' || action === 'alert-open') ? e.target.closest('[data-action="notif-open"], [data-action="alert-open"]') : e.target.closest('.tv-notif-open');
         if (openBtn) {
-            const notifId = openBtn.dataset.notifOpenId;
-            const aptId = openBtn.dataset.notifAptId;
+            const notifId = openBtn.dataset.id || openBtn.dataset.notifOpenId;
+            const aptId = openBtn.dataset.alertAptId || openBtn.dataset.notifAptId;
+            const invoiceId = openBtn.dataset.alertInvoiceId || '';
             const linkKind = openBtn.dataset.notifLinkKind;
             const linkFilter = openBtn.dataset.notifLinkFilter;
             if (notifId) await markRead(notifId, true);
-            setAlertsOpenState(false);
             if (aptId) {
                 const allFilterBtn = document.querySelector('.apts-filter-btn[data-filter="all"]');
                 if (allFilterBtn) allFilterBtn.click();
                 setTimeout(() => highlightAndScrollToAppointment(aptId), 120);
+            } else if (invoiceId) {
+                if (typeof window.openInvoice === 'function') {
+                    window.openInvoice(invoiceId);
+                } else {
+                    window.open(`invoice.html?invoiceId=${encodeURIComponent(invoiceId)}&mode=view`, '_blank');
+                }
             } else if (linkKind === 'filter' && linkFilter) {
                 window._dataLayer?.applyFilter?.(linkFilter);
             }
             refreshBellBadge();
-            _notifDebug('action:open', { notifId, aptId, linkKind, linkFilter });
+            _notifDebug('action:open', { notifId, aptId, invoiceId, linkKind, linkFilter });
             return;
         }
 
@@ -4755,10 +4891,12 @@ function bindNotifDrawer() {
         }
 
         // Mark read / undo
-        const markReadBtn = e.target.closest('.tv-notif-mark-read');
+        const markReadBtn = (action === 'notif-read' || action === 'notif-undo' || action === 'alert-toggle-read')
+            ? e.target.closest('[data-action="notif-read"], [data-action="notif-undo"], [data-action="alert-toggle-read"]')
+            : e.target.closest('.tv-notif-mark-read');
         if (markReadBtn) {
-            const notifId = markReadBtn.dataset.notifId;
-            const isRead = markReadBtn.dataset.notifRead === '1';
+            const notifId = markReadBtn.dataset.id || markReadBtn.dataset.notifId;
+            const isRead = action === 'notif-read' ? false : (action === 'notif-undo' ? true : markReadBtn.dataset.notifRead === '1');
             const before = unreadCount();
             if (notifId) await markRead(notifId, !isRead);
             _renderNotifBody();
@@ -4768,12 +4906,14 @@ function bindNotifDrawer() {
         }
 
         // Remove persisted notification
-        const removeBtn = e.target.closest('[data-notif-remove-id]');
+        const removeBtn = (action === 'notif-dismiss' || action === 'alert-dismiss')
+            ? e.target.closest('[data-action="notif-dismiss"], [data-action="alert-dismiss"]')
+            : e.target.closest('[data-notif-remove-id]');
         if (removeBtn) {
-            await removeNotification(removeBtn.dataset.notifRemoveId);
+            await removeNotification(removeBtn.dataset.id || removeBtn.dataset.notifRemoveId);
             _renderNotifBody();
             refreshBellBadge();
-            _notifDebug('action:dismiss', removeBtn.dataset.notifRemoveId);
+            _notifDebug('action:dismiss', removeBtn.dataset.id || removeBtn.dataset.notifRemoveId);
             return;
         }
 
@@ -4807,9 +4947,9 @@ function bindNotifDrawer() {
             return;
         }
         // Close
-        if (e.target.closest('[data-notif-close]')) {
+        if (e.target.closest('[data-notif-close]') || action === 'alerts-close') {
             setAlertsOpenState(false);
-            _notifDebug('drawer:close:button');
+            _notifDebug('drawer:close:x');
         }
     });
 

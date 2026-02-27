@@ -1,6 +1,6 @@
 # Wiring Audit Report
 
-_Generated: 2026-02-27T18:19:14.131Z — files scanned: 85_
+_Generated: 2026-02-27T18:51:23.533Z — files scanned: 85_
 
 > **Definition of Done:** Real broken candidates = 0 · Unmapped actions = 0 · Invoice violations = 0 · Runtime smoke test passes
 
@@ -15,7 +15,7 @@ _Generated: 2026-02-27T18:19:14.131Z — files scanned: 85_
 | 🔁 High-risk duplicate functions (informational) | 0 | — | ℹ️ Review if needed |
 | Wiring completeness estimate | ~100% | 100% |  |
 
-**Total controls:** 82  |  **unique data-action values:** 23  |  **inline onclick:** 44  |  **window.* exports:** 138
+**Total controls:** 86  |  **unique data-action values:** 26  |  **inline onclick:** 44  |  **window.* exports:** 138
 
 
 ## 2. REAL Issues — Fix These (ranked by impact)
@@ -92,9 +92,10 @@ Count: **0**  (target: 0)
 
 | File | Line | Via | Params |
 | --- | --- | --- | --- |
-| script.js | 10512 | js | invoiceId=${invoiceId}, mode=edit |
-| script.js | 10826 | js | invoiceId=${invoiceId}, mode=view |
-| script.js | 10845 | js | invoiceId=${invoiceId}, mode=edit |
+| script.js | 4873 | js | invoiceId=${encodeURIComponent(invoiceId)}, mode=view |
+| script.js | 10652 | js | invoiceId=${invoiceId}, mode=edit |
+| script.js | 10966 | js | invoiceId=${invoiceId}, mode=view |
+| script.js | 10985 | js | invoiceId=${invoiceId}, mode=edit |
 | src/invoices/invoice-manager.js | 681 | js | invoiceId=${invoiceId}, mode=${mode} |
 | src/storage/storage.events.js | 132 | js | invoiceId=${targetInvoiceId}, mode=view |
 | src/storage/storage.events.js | 140 | js | invoiceId=${targetInvoiceId}, mode=view |
@@ -108,12 +109,13 @@ Count: **0**  (target: 0)
 
 | File | Line | Function |
 | --- | --- | --- |
-| script.js | 10337 | openInvoiceForAppointment |
-| script.js | 10342 | openInvoice |
-| script.js | 10384 | openInvoiceFromAppointment |
-| script.js | 10390 | openInvoice |
-| script.js | 10411 | openInvoice |
-| script.js | 10804 | openInvoiceFile |
+| script.js | 4871 | openInvoice |
+| script.js | 10477 | openInvoiceForAppointment |
+| script.js | 10482 | openInvoice |
+| script.js | 10524 | openInvoiceFromAppointment |
+| script.js | 10530 | openInvoice |
+| script.js | 10551 | openInvoice |
+| script.js | 10944 | openInvoiceFile |
 | src/invoice-create/invoiceCreate.flow.js | 48 | openInvoice |
 | src/invoice-create/invoiceCreate.flow.js | 150 | openInvoice |
 | src/invoices/invoice-manager.js | 676 | openInvoicePage |
@@ -127,8 +129,8 @@ Count: **0**  (target: 0)
 
 | File | Line | Function |
 | --- | --- | --- |
-| script.js | 10305 | generateInvoiceNumberStable |
-| script.js | 10373 | generateInvoiceNumberLegacy |
+| script.js | 10445 | generateInvoiceNumberStable |
+| script.js | 10513 | generateInvoiceNumberLegacy |
 | src/invoice.js | 345 | generateInvoiceNumberStandalone |
 | src/invoices/invoice-manager.js | 18 | generateInvoiceNumber |
 
@@ -224,14 +226,14 @@ Patterns that may trigger unexpected jump/scroll behavior (`href="#..."`, `locat
 
 | File | Line | Kind | Snippet |
 | --- | --- | --- | --- |
-| script.js | 4792 | scroll-into-view | `if (firstCard) firstCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });` |
-| script.js | 4924 | scroll-into-view | `aptRow.scrollIntoView({` |
-| script.js | 5222 | scroll-into-view | `activeTabBtn.scrollIntoView({` |
-| script.js | 5499 | scroll-to | `window.scrollTo(0, this.scrollLockY);` |
-| script.js | 5553 | scroll-into-view | `selected.scrollIntoView({ block: 'center', behavior: 'smooth' });` |
-| script.js | 5567 | scroll-into-view | `selected.scrollIntoView({ block: 'center', behavior: 'smooth' });` |
-| script.js | 5888 | scroll-into-view | `activeTabBtn.scrollIntoView({` |
-| script.js | 9947 | location-hash | `if (!fromPopState && location.hash === '#appointments') {` |
+| script.js | 4932 | scroll-into-view | `if (firstCard) firstCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });` |
+| script.js | 5064 | scroll-into-view | `aptRow.scrollIntoView({` |
+| script.js | 5362 | scroll-into-view | `activeTabBtn.scrollIntoView({` |
+| script.js | 5639 | scroll-to | `window.scrollTo(0, this.scrollLockY);` |
+| script.js | 5693 | scroll-into-view | `selected.scrollIntoView({ block: 'center', behavior: 'smooth' });` |
+| script.js | 5707 | scroll-into-view | `selected.scrollIntoView({ block: 'center', behavior: 'smooth' });` |
+| script.js | 6028 | scroll-into-view | `activeTabBtn.scrollIntoView({` |
+| script.js | 10087 | location-hash | `if (!fromPopState && location.hash === '#appointments') {` |
 | src/core/chips-mode.js | 603 | scroll-into-view | `rowEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });` |
 | src/enterprise-dashboard.js | 389 | scroll-into-view | `firstApt.scrollIntoView({ behavior: 'smooth', block: 'nearest' });` |
 | src/header/header-search.js | 153 | scroll-into-view | `appointmentsTab.scrollIntoView({ behavior: 'smooth' });` |
@@ -254,6 +256,7 @@ Navigation to `.html` routes without query params (excluding `index.html`) that 
 | notif-tab | 3 |
 | toggle-paid | 3 |
 | confirm | 3 |
+| notif-open | 2 |
 | invoice | 2 |
 | notif-mark-all | 1 |
 | notif-clear | 1 |
@@ -263,6 +266,8 @@ Navigation to `.html` routes without query params (excluding `index.html`) that 
 | clear-payment | 1 |
 | save-draft | 1 |
 | cancel-edit | 1 |
+| ${item.read ?  | 1 |
+| notif-dismiss | 1 |
 | complete-job | 1 |
 | start-job | 1 |
 | call | 1 |
@@ -330,6 +335,7 @@ Navigation to `.html` routes without query params (excluding `index.html`) that 
 | window.markAllRead | script.js | no | no |
 | window.clearNotifications | script.js | no | no |
 | window.unreadCount | script.js | no | no |
+| window.openInvoice | script.js | no | no |
 | window.toggleNotifDrawer | script.js | no | no |
 | window.refreshBellBadge | script.js | no | no |
 | window.createAppointmentCard | script.js | no | no |
@@ -348,7 +354,6 @@ Navigation to `.html` routes without query params (excluding `index.html`) that 
 | window.enterEditMode | script.js, src/workspace/workspace-controller.js | no | no |
 | window.showNotification | script.js, src/workspace/workspace-controller.js | no | no |
 | window.getOrCreateInvoiceForAppointment | script.js, src/workspace/workspace-controller.js | no | no |
-| window.openInvoice | script.js | no | no |
 | window.getAppointmentAmountGBP | script.js | no | no |
 | window.callUsedOnce | script.js, src/workspace/workspace-controller.js | no | no |
 | window.__TVX_UI_V2 | script.js | no | no |
@@ -418,10 +423,9 @@ Navigation to `.html` routes without query params (excluding `index.html`) that 
 
 ## Appendix C: Closest-delegation sites (data-action dispatch points)
 
-- script.js:4703 — `const action = e.target.closest('[data-action]')?.dataset.action || '';`
-- script.js:8551 — `const btn = e.target.closest('button[data-action]');`
-- src/core/events.js:9 — `const target = event.target.closest('[data-action][data-id]');`
-- src/core/events.js:12 — `const noId = event.target.closest('[data-action]:not([data-id])');`
+- script.js:4831 — `const action = e.target.closest('[data-action]')?.dataset.action || '';`
+- script.js:8691 — `const btn = e.target.closest('button[data-action]');`
+- src/core/events.js:9 — `const target = event.target.closest('[data-action]');`
 - src/invoice.js:1920 — `const actionEl = e.target.closest('[data-action]');`
 - src/utils/notifications.js:212 — `const action = e.target.closest('[data-action]')?.dataset.action;`
 - src/workspace/workspace-controller.js:387 — `const button = e.target.closest('[data-action]');`
@@ -430,7 +434,7 @@ Navigation to `.html` routes without query params (excluding `index.html`) that 
 
 Most duplicates are benign utility names. High-risk ones are covered in Section 5.
 
-- `createInvoiceFromAppointment` — CHIPS_MODE_INTEGRATION.js:193, script.js:10400, src/invoice-create/invoiceCreate.flow.js:35
+- `createInvoiceFromAppointment` — CHIPS_MODE_INTEGRATION.js:193, script.js:10540, src/invoice-create/invoiceCreate.flow.js:35
 - `updateLiveIndicators` — index.html:5340, src/enterprise-dashboard.js:260
 - `registerServiceWorker` — pwa-init.js:46, pwa.js:9
 - `showUpdateNotification` — pwa-init.js:151, sw-update.js:82
