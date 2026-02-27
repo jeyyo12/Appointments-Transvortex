@@ -4339,13 +4339,13 @@
                                         <div class="loc-field-group">
                                             <label class="appt-label loc-field-label">Service Type</label>
                                             <div class="loc-choice-row" role="radiogroup" aria-label="Service Type" id="serviceLocationBtns">
-                                                <button type="button" class="loc-choice-btn" data-loc-value="garage"
+                                                <button type="button" class="loc-choice-btn" data-action="set-service-location" data-loc-value="garage"
                                                         aria-pressed="false" aria-label="At Garage">
                                                     <span class="loc-choice-icon"><i class="fas fa-warehouse"></i></span>
                                                     <span class="loc-choice-text">At Garage</span>
                                                     <span class="loc-choice-check" aria-hidden="true"><i class="fas fa-check-circle"></i></span>
                                                 </button>
-                                                <button type="button" class="loc-choice-btn" data-loc-value="client"
+                                                <button type="button" class="loc-choice-btn" data-action="set-service-location" data-loc-value="client"
                                                         aria-pressed="false" aria-label="At Client">
                                                     <span class="loc-choice-icon"><i class="fas fa-house-user"></i></span>
                                                     <span class="loc-choice-text">At Client</span>
@@ -4361,25 +4361,25 @@
                                                 <span class="loc-field-optional">Optional</span>
                                             </div>
                                             <div class="loc-contact-chips" role="radiogroup" aria-label="Contact Preference" id="contactPrefBtns">
-                                                <button type="button" class="loc-chip-btn" data-contact-value="phone"
+                                                <button type="button" class="loc-chip-btn" data-action="set-contact-pref" data-contact-value="phone"
                                                         aria-pressed="false" title="Phone call">
                                                     <i class="fas fa-phone loc-chip-icon"></i>
                                                     <span>Phone</span>
                                                     <i class="fas fa-check loc-chip-check" aria-hidden="true"></i>
                                                 </button>
-                                                <button type="button" class="loc-chip-btn" data-contact-value="sms"
+                                                <button type="button" class="loc-chip-btn" data-action="set-contact-pref" data-contact-value="sms"
                                                         aria-pressed="false" title="SMS text message">
                                                     <i class="fas fa-comment-sms loc-chip-icon"></i>
                                                     <span>SMS</span>
                                                     <i class="fas fa-check loc-chip-check" aria-hidden="true"></i>
                                                 </button>
-                                                <button type="button" class="loc-chip-btn" data-contact-value="whatsapp"
+                                                <button type="button" class="loc-chip-btn" data-action="set-contact-pref" data-contact-value="whatsapp"
                                                         aria-pressed="false" title="WhatsApp message">
                                                     <i class="fab fa-whatsapp loc-chip-icon"></i>
                                                     <span>WhatsApp</span>
                                                     <i class="fas fa-check loc-chip-check" aria-hidden="true"></i>
                                                 </button>
-                                                <button type="button" class="loc-chip-btn" data-contact-value="email"
+                                                <button type="button" class="loc-chip-btn" data-action="set-contact-pref" data-contact-value="email"
                                                         aria-pressed="false" title="Email">
                                                     <i class="fas fa-envelope loc-chip-icon"></i>
                                                     <span>Email</span>
@@ -4779,10 +4779,10 @@
                             <h2><i class="fas fa-file-invoice-dollar"></i> Invoices Storage</h2>
                             <p style="font-size: 0.9rem; color: var(--tv-text-secondary); margin-top: 0.25rem;">View and manage all created invoices</p>
                         </div>
-                        <button id="cleanupInvoicesBtn" class="tvBtn tvBtn--secondary tvBtn--sm tvInvoicesStorage__action" title="Cleanup duplicate invoices">
+                        <button id="cleanupInvoicesBtn" class="tvBtn tvBtn--secondary tvBtn--sm tvInvoicesStorage__action" data-action="cleanup-duplicates" title="Cleanup duplicate invoices">
                             <i class="fas fa-broom"></i> <span class="tvHideMobile">Cleanup Duplicates</span>
                         </button>
-                        <button id="refreshInvoicesButton" class="tvBtn tvBtn--secondary tvBtn--sm tvInvoicesStorage__action" title="Refresh invoices list">
+                        <button id="refreshInvoicesButton" class="tvBtn tvBtn--secondary tvBtn--sm tvInvoicesStorage__action" data-action="refresh-invoices" title="Refresh invoices list">
                             <i class="fas fa-sync-alt"></i> <span class="tvHideMobile">Refresh</span>
                         </button>
                     </div>
@@ -5078,10 +5078,10 @@
 
             <!-- Footer with buttons -->
             <div class="time-picker-footer">
-                <button type="button" class="btn-time-now">Acum</button>
+                <button type="button" class="btn-time-now" data-action="time-now">Acum</button>
                 <div class="time-picker-actions">
-                    <button type="button" class="btn-time-cancel">Anuleaza</button>
-                    <button type="button" class="btn-time-ok">OK</button>
+                    <button type="button" class="btn-time-cancel" data-action="time-cancel">Anuleaza</button>
+                    <button type="button" class="btn-time-ok" data-action="time-ok">OK</button>
                 </div>
             </div>
         </div>

@@ -353,6 +353,7 @@ function initKpiFilterButtons() {
  * Apply KPI filter and update UI
  */
 async function applyKpiFilter(filterId, cardElement) {
+  window.__TVX_USER_NAV = true;
   const previousFilter = enterpriseDashboard.kpiFilterState.activeFilter;
   enterpriseDashboard.kpiFilterState.activeFilter = filterId;
   
@@ -385,10 +386,19 @@ async function applyKpiFilter(filterId, cardElement) {
   // Auto-scroll to first result
   if (filteredList.length > 0) {
     const firstApt = document.querySelector('#appointmentsList .app-card');
-    if (firstApt) {
-      firstApt.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-    }
+      if (firstApt) {
+        const isUserNav = !!window.__TVX_USER_NAV;
+        if (window.TVX_SCROLL_DEBUG === true) {
+          console.debug('[TVX:SCROLL]', 'enterprise:appointments-tab-restore', { isUserNav });
+        }
+        if (isUserNav) {
+          firstApt.scrollIntoView?.({ behavior: 'auto', block: 'nearest' });
+        }
+      }
   }
+  setTimeout(() => {
+    window.__TVX_USER_NAV = false;
+  }, 0);
 }
 
 /**

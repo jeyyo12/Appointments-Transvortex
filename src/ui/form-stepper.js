@@ -78,8 +78,8 @@
     stepperFooter   = buildStepperFooter(form, originalActions);
 
     // Wire navigation
-    $id('tvStepNext')?.addEventListener('click', () => goToStep(currentStep + 1));
-    $id('tvStepPrev')?.addEventListener('click', () => goToStep(currentStep - 1));
+    $id('tvStepNext')?.addEventListener('click', () => goToStep(currentStep + 1, { userInitiated: true }));
+    $id('tvStepPrev')?.addEventListener('click', () => goToStep(currentStep - 1, { userInitiated: true }));
     $id('tvStepSave')?.addEventListener('click', () => {
       const btn = $id('submitAppointmentBtn');
       if (btn) btn.click();
@@ -96,7 +96,7 @@
     // Mark as saved when form resets (successful submit)
     form.addEventListener('tvFormReset', () => {
       _updateSaveStatus('Saved ✓', 'tv-step-save-status--saved');
-      goToStep(0);
+      goToStep(0, { userInitiated: false });
       setTimeout(() => _updateSaveStatus('Not saved', ''), 4000);
     });
 
@@ -111,7 +111,7 @@
     if (editBanner) {
       new MutationObserver(() => {
         if (editBanner.style.display !== 'none' && editBanner.style.display !== '') {
-          goToStep(0);
+          goToStep(0, { userInitiated: false });
         }
       }).observe(editBanner, { attributes: true, attributeFilter: ['style'] });
     }
@@ -193,7 +193,7 @@
 
   /* ─────────────────── Step logic ────────────────────────── */
 
-  function goToStep(step) {
+  function goToStep(step, opts = {}) {
     step = Math.max(0, Math.min(STEP_DEFS.length - 1, step));
     currentStep = step;
 
@@ -262,8 +262,18 @@
     if (nextBtn) nextBtn.style.display = isLast  ? 'none' : '';
     if (saveBtn) saveBtn.style.display = isLast  ? ''     : 'none';
 
-    // Scroll panel into view smoothly
-    stepperHeader?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    // Scroll panel into view (smooth only for explicit user actions)
+    if (stepperHeader) {
+      const fromUser = opts.userInitiated === true;
+      const isUserNav = !!window.__TVX_USER_NAV;
+      if (window.TVX_SCROLL_DEBUG === true) {
+        console.debug('[TVX:SCROLL]', 'stepper:header', { fromUser, isUserNav });
+      }
+      if (!fromUser || !isUserNav) {
+        return;
+      }
+      stepperHeader.scrollIntoView?.({ behavior: 'auto', block: 'start' });
+    }
   }
 
   /* ─────────────────── Responsive switch ─────────────────── */

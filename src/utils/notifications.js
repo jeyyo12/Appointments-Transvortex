@@ -155,8 +155,9 @@ function getNotificationIcon(type) {
 /**
  * Highlight and scroll to an appointment in the list
  * @param {string} appointmentId - Appointment ID
+ * @param {{ userInitiated?: boolean }} [opts] - Scroll behavior options
  */
-export function highlightAndScrollToAppointment(appointmentId) {
+export function highlightAndScrollToAppointment(appointmentId, opts = {}) {
   const aptRow = document.querySelector(`.aptRow[data-apt-id="${appointmentId}"]`);
   
   if (!aptRow) {
@@ -167,12 +168,23 @@ export function highlightAndScrollToAppointment(appointmentId) {
   // Add highlight class
   aptRow.classList.add('tvHighlight');
   
-  // Scroll to appointment (smooth scroll, centered)
-  aptRow.scrollIntoView({
-    behavior: 'smooth',
-    block: 'center',
-    inline: 'nearest'
-  });
+  // Scroll to appointment (smooth only for explicit user actions)
+  const isUserNav = !!window.__TVX_USER_NAV;
+  const fromUser = opts.userInitiated === true || isUserNav;
+  if (window.TVX_SCROLL_DEBUG === true) {
+    console.debug('[TVX:SCROLL]', 'utils-notifications:appointment-highlight', {
+      appointmentId,
+      fromUser,
+      isUserNav,
+    });
+  }
+  if (fromUser) {
+    aptRow.scrollIntoView?.({
+      behavior: 'auto',
+      block: 'center',
+      inline: 'nearest'
+    });
+  }
   
   // Remove highlight after animation
   setTimeout(() => {

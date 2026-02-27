@@ -600,7 +600,13 @@ function scrollRowIntoListView(listEl, rowEl) {
   const rowOutOfView = rowRect.bottom > listRect.bottom || rowRect.top < listRect.top;
 
   if (rowOutOfView) {
-    rowEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    const isUserNav = !!window.__TVX_USER_NAV;
+    if (window.TVX_SCROLL_DEBUG === true) {
+      console.debug('[TVX:SCROLL]', 'chips:row-into-view', { isUserNav });
+    }
+    if (isUserNav) {
+      rowEl.scrollIntoView?.({ behavior: 'auto', block: 'nearest' });
+    }
   }
 }
 

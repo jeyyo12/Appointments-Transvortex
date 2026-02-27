@@ -118,6 +118,14 @@ window.__tvInitFlags = window.__tvInitFlags || {
 window.__tvInit = window.__tvInit || {};
 // ==========================================================================
 
+function isTvxDebugEnabled() {
+    try {
+        return localStorage.getItem('tvxDebug') === '1' || window.__tvDebug === true;
+    } catch {
+        return window.__tvDebug === true;
+    }
+}
+
 function isUiV2Enabled() {
     try {
         const params = new URLSearchParams(window.location.search || '');
@@ -4668,6 +4676,32 @@ function _notifSetDismissMap(map) {
     try { localStorage.setItem(TV_NOTIF_DISMISS_KEY, JSON.stringify(map)); } catch {}
 }
 
+function _scrollDebug(reason, details = {}) {
+    if (window.TVX_SCROLL_DEBUG === true) {
+        console.debug('[TVX:SCROLL]', reason, details);
+    }
+}
+
+function _withUserNav(fn, reason = '') {
+    window.__TVX_USER_NAV = true;
+    if (window.TVX_SCROLL_DEBUG === true) {
+        console.debug('[TVX:SCROLL]', 'user-nav:start', { reason });
+    }
+    try {
+        return fn();
+    } finally {
+        setTimeout(() => {
+            window.__TVX_USER_NAV = false;
+            _scrollDebug('user-nav:end', { reason });
+        }, 0);
+    }
+}
+
+function _isUserInitiatedScroll() {
+    const isUserNav = !!window.__TVX_USER_NAV;
+    return isUserNav;
+}
+
 /** Compute alert buckets from the global appointments array */
 function computeAlerts(apts) {
     if (!Array.isArray(apts) || apts.length === 0) return [];
@@ -4863,17 +4897,23 @@ function bindNotifDrawer() {
             const linkFilter = openBtn.dataset.notifLinkFilter;
             if (notifId) await markRead(notifId, true);
             if (aptId) {
-                const allFilterBtn = document.querySelector('.apts-filter-btn[data-filter="all"]');
-                if (allFilterBtn) allFilterBtn.click();
-                setTimeout(() => highlightAndScrollToAppointment(aptId), 120);
+                _withUserNav(() => {
+                    const allFilterBtn = document.querySelector('.apts-filter-btn[data-filter="all"]');
+                    if (allFilterBtn) allFilterBtn.click();
+                    setTimeout(() => highlightAndScrollToAppointment(aptId, { userInitiated: true }), 120);
+                }, 'notif-open-appointment');
             } else if (invoiceId) {
-                if (typeof window.openInvoice === 'function') {
-                    window.openInvoice(invoiceId);
-                } else {
-                    window.open(`invoice.html?invoiceId=${encodeURIComponent(invoiceId)}&mode=view`, '_blank');
-                }
+                _withUserNav(() => {
+                    if (typeof window.openInvoice === 'function') {
+                        window.openInvoice(invoiceId);
+                    } else {
+                        window.open(`invoice.html?invoiceId=${encodeURIComponent(invoiceId)}&mode=view`, '_blank');
+                    }
+                }, 'notif-open-invoice');
             } else if (linkKind === 'filter' && linkFilter) {
-                window._dataLayer?.applyFilter?.(linkFilter);
+                _withUserNav(() => {
+                    window._dataLayer?.applyFilter?.(linkFilter);
+                }, 'notif-open-filter');
             }
             refreshBellBadge();
             _notifDebug('action:open', { notifId, aptId, invoiceId, linkKind, linkFilter });
@@ -4929,7 +4969,13 @@ function bindNotifDrawer() {
             // Scroll to first card without jump
             setTimeout(() => {
                 const firstCard = document.querySelector('.apt-card');
-                if (firstCard) firstCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                if (firstCard) {
+                    _withUserNav(() => {
+                        const isUserNav = !!window.__TVX_USER_NAV;
+                        _scrollDebug('notif:view:first-card', { isUserNav });
+                        firstCard.scrollIntoView?.({ behavior: 'auto', block: 'nearest' });
+                    }, 'notif-view');
+                }
             }, 120);
             return;
         }
@@ -5049,7 +5095,8 @@ function showToast(message, type = 'success', options = {}) {
 // ==========================================
 // HIGHLIGHT AND SCROLL TO APPOINTMENT
 // ==========================================
-function highlightAndScrollToAppointment(appointmentId) {
+function highlightAndScrollToAppointment(appointmentId, options = {}) {
+    const userInitiated = options.userInitiated === true || !!window.__TVX_USER_NAV;
     const aptRow = document.querySelector(`.aptRow[data-apt-id="${appointmentId}"]`);
     
     if (!aptRow) {
@@ -5061,8 +5108,9 @@ function highlightAndScrollToAppointment(appointmentId) {
     aptRow.classList.add('tvHighlight');
     
     // Scroll to appointment (smooth scroll, centered)
-    aptRow.scrollIntoView({
-        behavior: 'smooth',
+    _scrollDebug('highlight:appointment', { appointmentId, userInitiated });
+    aptRow.scrollIntoView?.({
+        behavior: 'auto',
         block: 'center',
         inline: 'nearest'
     });
@@ -5355,17 +5403,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     document.body.style.overflow = '';
     
-    // Scroll active tab into view on page load (mobile-friendly)
-    setTimeout(() => {
-        const activeTabBtn = document.querySelector('.tab-btn.active');
-        if (activeTabBtn) {
-            activeTabBtn.scrollIntoView({ 
-                behavior: 'smooth', 
-                inline: 'center', 
-                block: 'nearest' 
-            });
-        }
-    }, 300);
+    _scrollDebug('init:active-tab-scroll', { skipped: true, reason: 'startup' });
     
     // Initialize PWA features (if pwa.js is loaded)
     if (typeof window.initPWA === 'function') {
@@ -5380,12 +5418,14 @@ document.addEventListener('DOMContentLoaded', () => {
     initState.scriptBootstrapDone = true;
     if (!initState.initProofLogged) {
         initState.initProofLogged = true;
-        console.log('[INIT ONCE]', {
-            scriptBootstrapDone: true,
-            appInitDone: !!initState.appInitDone,
-            storageInitDone: !!initState.storageInitDone,
-            workspacePanelInitialized: !!initState.workspacePanelInitialized
-        });
+        if (isTvxDebugEnabled()) {
+            console.log('[INIT ONCE]', {
+                scriptBootstrapDone: true,
+                appInitDone: !!initState.appInitDone,
+                storageInitDone: !!initState.storageInitDone,
+                workspacePanelInitialized: !!initState.workspacePanelInitialized
+            });
+        }
     }
     
     // Deleted: bindStatsPopupButtons - removed per user request (no popups on stat cards)
@@ -5636,7 +5676,8 @@ const TimePicker = {
         
         // Restore scroll position
         if (this.scrollLockY) {
-            window.scrollTo(0, this.scrollLockY);
+            _scrollDebug('timepicker:unlock-scroll', { y: this.scrollLockY });
+            window.scroll?.(0, this.scrollLockY);
         }
     },
     
@@ -5660,7 +5701,7 @@ const TimePicker = {
             item.className = 'time-item';
             item.textContent = h.toString().padStart(2, '0');
             item.dataset.value = h;
-            item.addEventListener('click', () => this.selectHour(h));
+            item.addEventListener('click', () => this.selectHour(h, true));
             hourScroll.appendChild(item);
         }
     },
@@ -5676,12 +5717,12 @@ const TimePicker = {
             item.className = 'time-item';
             item.textContent = m.toString().padStart(2, '0');
             item.dataset.value = m;
-            item.addEventListener('click', () => this.selectMinute(m));
+            item.addEventListener('click', () => this.selectMinute(m, true));
             minuteScroll.appendChild(item);
         }
     },
     
-    selectHour(hour) {
+    selectHour(hour, userInitiated = false) {
         this.selectedHour = hour;
         // Update UI
         document.querySelectorAll('#hourScroll .time-item').forEach(item => {
@@ -5690,12 +5731,13 @@ const TimePicker = {
         // Auto-scroll to center
         const selected = document.querySelector('#hourScroll .time-item.selected');
         if (selected) {
-            selected.scrollIntoView({ block: 'center', behavior: 'smooth' });
+            _scrollDebug('timepicker:hour-scroll', { hour, userInitiated });
+            selected.scrollIntoView?.({ block: 'center', behavior: 'auto' });
         }
         this.updateSelectedTime(this.selectedHour, this.selectedMinute);
     },
     
-    selectMinute(minute) {
+    selectMinute(minute, userInitiated = false) {
         this.selectedMinute = minute;
         // Update UI
         document.querySelectorAll('#minuteScroll .time-item').forEach(item => {
@@ -5704,7 +5746,8 @@ const TimePicker = {
         // Auto-scroll to center
         const selected = document.querySelector('#minuteScroll .time-item.selected');
         if (selected) {
-            selected.scrollIntoView({ block: 'center', behavior: 'smooth' });
+            _scrollDebug('timepicker:minute-scroll', { minute, userInitiated });
+            selected.scrollIntoView?.({ block: 'center', behavior: 'auto' });
         }
         this.updateSelectedTime(this.selectedHour, this.selectedMinute);
     },
@@ -6025,11 +6068,14 @@ function switchTab(tabName) {
         
         // Scroll active tab into view (mobile-friendly)
         setTimeout(() => {
-            activeTabBtn.scrollIntoView({ 
-                behavior: 'smooth', 
-                inline: 'center', 
-                block: 'nearest' 
-            });
+            if (_isUserInitiatedScroll()) {
+                _scrollDebug('tabs:active-scroll', { tabName, isUserNav: true });
+                activeTabBtn.scrollIntoView?.({ 
+                    behavior: 'auto', 
+                    inline: 'center', 
+                    block: 'nearest' 
+                });
+            }
         }, 50);
     }
     
@@ -6459,7 +6505,7 @@ async function handleAddAppointment(e) {
             setTimeout(() => {
                 const targetId = editingAppointmentId || (e.target.lastInsertRowid);
                 if (targetId && targetId !== '') {
-                    highlightAndScrollToAppointment(targetId);
+                    highlightAndScrollToAppointment(targetId, { userInitiated: true });
                 }
             }, 300);
         }
@@ -10049,7 +10095,18 @@ function openModal(id) {
 
     document.body.classList.add('modal-open');
 
-    history.pushState({ tvModal: 'appointments' }, '', location.pathname + location.search + '#appointments');
+    const existingHash = (() => {
+        try {
+            return new URL(window.location.href).hash;
+        } catch {
+            return '';
+        }
+    })();
+    if (existingHash !== '#appointments') {
+        const keepY = window.scrollY || document.documentElement.scrollTop || 0;
+        history.pushState({ tvModal: 'appointments' }, '', location.pathname + location.search + '#appointments');
+        _scrollDebug('modal:hash-restore-scroll', { y: keepY, skipped: true });
+    }
 
     appointmentsModalState.escHandler = (e) => {
         if (e.key === 'Escape') closeModal(id);
@@ -10084,7 +10141,14 @@ function closeModal(id, { fromPopState = false } = {}) {
         appointmentsModalState.popHandler = null;
     }
 
-    if (!fromPopState && location.hash === '#appointments') {
+    const currentHash = (() => {
+        try {
+            return new URL(window.location.href).hash;
+        } catch {
+            return '';
+        }
+    })();
+    if (!fromPopState && currentHash === '#appointments') {
         history.back();
     }
 

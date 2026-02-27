@@ -147,8 +147,9 @@ self.addEventListener('fetch', event => {
 
   // NETWORK-FIRST for same-origin JavaScript (prevents stale app/module wiring)
   if (event.request.destination === 'script' || url.pathname.endsWith('.js')) {
+    const freshScriptRequest = new Request(event.request, { cache: 'no-store' });
     event.respondWith(
-      fetch(event.request)
+      fetch(freshScriptRequest)
         .then(response => {
           if (response && response.status === 200) {
             const copy = response.clone();

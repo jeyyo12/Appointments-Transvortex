@@ -34,9 +34,7 @@ function configureStartupLogLevel() {
 
   const host = String(window.location?.hostname || '').toLowerCase();
   const isLocal = host === 'localhost' || host === '127.0.0.1';
-  const isProdHost = host.endsWith('.web.app') || host.endsWith('.firebaseapp.com') || host.endsWith('.github.io');
-
-  let resolvedLevel = isLocal ? 'INFO' : (isProdHost ? 'WARN' : 'INFO');
+  let resolvedLevel = isLocal ? 'INFO' : 'WARN';
   const override = String(safeGetLocalStorage('tvx.logLevel') || '').trim().toUpperCase();
   if (['ERROR', 'WARN', 'INFO', 'DEBUG'].includes(override)) {
     resolvedLevel = override;
@@ -50,6 +48,8 @@ Dev/runtime toggles:
 - localStorage.tvx.logLevel = ERROR|WARN|INFO|DEBUG
 - localStorage.tvxDebug = 1 (or window.__tvDebug = true)
 */
+
+configureStartupLogLevel();
 
 function getInitState() {
   if (typeof window === 'undefined') return {};
@@ -69,8 +69,6 @@ async function initApp() {
     window.__TVX_APP_STARTED = true;
   }
 
-  configureStartupLogLevel();
-
   const initState = getInitState();
   if (initState.appInitDone || initState.appInitRunning) {
     logger.debug('Skipping app init: already initialized or in progress');
@@ -78,7 +76,7 @@ async function initApp() {
   }
   initState.appInitRunning = true;
 
-  logger.info('🚀 Initializing Transvortex application...');
+  logger.debug('🚀 Initializing Transvortex application...');
   
   try {
     // 1. Initialize Firebase
@@ -113,7 +111,7 @@ async function initApp() {
     logger.debug('Step 7: Restore active tab');
     restoreActiveTab();
     
-    logger.info('✅ Application initialized successfully');
+    logger.debug('✅ Application initialized successfully');
     initState.appInitDone = true;
 
     if (!initState.initProofLogged) {

@@ -141,6 +141,8 @@ class HeaderSearchFilters {
       return;
     }
 
+    window.__TVX_USER_NAV = true;
+
     // Update appointments list with filtered data
     window.filteredAppointments = filtered;
     if (typeof window.renderAppointments === 'function') {
@@ -149,9 +151,18 @@ class HeaderSearchFilters {
 
     // Scroll to appointments section
     const appointmentsTab = document.getElementById('appointmentsTab');
-    if (appointmentsTab) {
-      appointmentsTab.scrollIntoView({ behavior: 'smooth' });
+        if (appointmentsTab) {
+          const isUserNav = !!window.__TVX_USER_NAV;
+          if (window.TVX_SCROLL_DEBUG === true) {
+            console.debug('[TVX:SCROLL]', 'header-search:appointments-tab', { isUserNav });
+          }
+          if (isUserNav) {
+            appointmentsTab.scrollIntoView?.({ behavior: 'auto', block: 'center' });
+          }
     }
+    setTimeout(() => {
+      window.__TVX_USER_NAV = false;
+    }, 0);
   }
 
   /**

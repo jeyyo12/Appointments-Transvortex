@@ -701,6 +701,14 @@ window.markInvoicePaid = async function(invoiceId) {
  * Called on page load
  */
 window.initWorkspacePanel = function() {
+  const isTvxDebugEnabled = () => {
+    try {
+      return localStorage.getItem('tvxDebug') === '1' || window.__tvDebug === true;
+    } catch {
+      return window.__tvDebug === true;
+    }
+  };
+
   const initState = window.__tvInit = window.__tvInit || {};
   if (initState.workspacePanelInitialized || initState.workspacePanelInitializing) {
     return;
@@ -718,12 +726,14 @@ window.initWorkspacePanel = function() {
 
     if (!initState.initProofLogged) {
       initState.initProofLogged = true;
-      console.log('[INIT ONCE]', {
-        workspacePanelInitialized: true,
-        appInitDone: !!initState.appInitDone,
-        scriptBootstrapDone: !!initState.scriptBootstrapDone,
-        storageInitDone: !!initState.storageInitDone
-      });
+      if (isTvxDebugEnabled()) {
+        console.log('[INIT ONCE]', {
+          workspacePanelInitialized: true,
+          appInitDone: !!initState.appInitDone,
+          scriptBootstrapDone: !!initState.scriptBootstrapDone,
+          storageInitDone: !!initState.storageInitDone
+        });
+      }
     }
   } finally {
     initState.workspacePanelInitializing = false;
