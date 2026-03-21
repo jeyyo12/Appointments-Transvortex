@@ -3027,13 +3027,34 @@ function ensureTesseractLoaded() {
     return new Promise((resolve, reject) => {
         const script = document.createElement('script');
         script.id = 'tesseractCdnScript';
-        script.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
         script.async = true;
+
+        const scriptSources = [
+            './vendor/tesseract/tesseract.min.js',
+            'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js',
+            'https://unpkg.com/tesseract.js@5/dist/tesseract.min.js'
+        ];
+
+        let sourceIndex = 0;
+        const tryNextSource = () => {
+            if (sourceIndex >= scriptSources.length) {
+                reject(new Error('Failed to load OCR engine'));
+                return;
+            }
+            script.src = scriptSources[sourceIndex++];
+        };
+
         script.onload = () => resolve(window.Tesseract);
-        script.onerror = () => reject(new Error('Failed to load OCR engine'));
+        script.onerror = () => tryNextSource();
         document.head.appendChild(script);
+        tryNextSource();
     });
 }
+
+const TESSERACT_RUNTIME_OPTIONS = {
+    workerPath: './vendor/tesseract/worker.min.js',
+    corePath: './vendor/tesseract-core/tesseract-core.wasm.js'
+};
 
 async function loadBlobFromUrl(url) {
     const response = await fetch(url, { mode: 'cors' });
@@ -3597,6 +3618,7 @@ function applySharpenFilter(imageData) {
 
 async function runOcrWithRetry(tesseract, objectUrl, scanId) {
     let result = await tesseract.recognize(objectUrl, 'eng', {
+        ...TESSERACT_RUNTIME_OPTIONS,
         logger: (message) => {
             if (message?.status === 'recognizing text') {
                 const percent = Math.round((message.progress || 0) * 100);
@@ -3609,6 +3631,7 @@ async function runOcrWithRetry(tesseract, objectUrl, scanId) {
     if (lines < 15) {
         setScanOcrProgress(scanId, { percent: 50, text: 'Retrying with enhanced preprocessing…' });
         result = await tesseract.recognize(objectUrl, 'eng', {
+            ...TESSERACT_RUNTIME_OPTIONS,
             logger: (message) => {
                 if (message?.status === 'recognizing text') {
                     const percent = 50 + Math.round((message.progress || 0) * 50);
