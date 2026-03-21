@@ -47,10 +47,48 @@ export function normalizeAppointmentMileage(apt) {
  */
 export function parseVehicleField(vehicleStr) {
   if (!vehicleStr) return { make: '', plate: '' };
-  const parts = vehicleStr.split('•').map(p => p.trim());
+
+  if (Array.isArray(vehicleStr)) {
+    return {
+      make: String(vehicleStr[0] ?? '').trim(),
+      plate: String(vehicleStr[1] ?? '').trim().toUpperCase()
+    };
+  }
+
+  if (typeof vehicleStr === 'object') {
+    const make = String(
+      vehicleStr.vehicleMakeModel ??
+      vehicleStr.makeModel ??
+      vehicleStr.make ??
+      vehicleStr.model ??
+      ''
+    ).trim();
+    const plate = String(
+      vehicleStr.registrationPlate ??
+      vehicleStr.regPlate ??
+      vehicleStr.regNumber ??
+      vehicleStr.plate ??
+      ''
+    ).trim().toUpperCase();
+    if (make || plate) return { make, plate };
+    return { make: '', plate: '' };
+  }
+
+  const normalizedInput = String(vehicleStr).trim();
+  if (!normalizedInput) return { make: '', plate: '' };
+
+  if (normalizedInput.includes('•')) {
+    const parts = normalizedInput.split('•').map(p => p.trim());
+    return {
+      make: parts[0] || '',
+      plate: (parts[1] || '').toUpperCase()
+    };
+  }
+
+  const split = splitVehicleAndReg(normalizedInput);
   return {
-    make: parts[0] || '',
-    plate: parts[1] || ''
+    make: split.vehicleMakeModel || normalizedInput,
+    plate: (split.regPlate || '').toUpperCase()
   };
 }
 
