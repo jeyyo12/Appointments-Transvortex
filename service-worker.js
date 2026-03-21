@@ -178,7 +178,8 @@ self.addEventListener('fetch', event => {
               });
             }
             return response;
-          });
+          })
+          .catch(() => cached || caches.match('./offline.html'));
         
         // Return cached, or wait for network
         return cached || fetchPromise;

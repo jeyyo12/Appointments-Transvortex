@@ -1,0 +1,39 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // App collections used across dashboard, invoices, and presets.
+    // Keep this aligned with client auth: signed-in users can read/write.
+    match /appointments/{docId} {
+      allow read, write: if request.auth != null;
+    }
+
+    match /invoices/{docId} {
+      allow read, write: if request.auth != null;
+    }
+
+    match /scannedInvoices/{docId} {
+      allow read, write: if request.auth != null;
+    }
+
+    match /presets_jobs/{docId} {
+      allow read, write: if request.auth != null;
+    }
+
+    match /presets_parts/{docId} {
+      allow read, write: if request.auth != null;
+    }
+
+    match /invoiceCatalog/{docId} {
+      allow read, write: if request.auth != null;
+    }
+
+    match /invoices_archive/{docId} {
+      allow read, write: if request.auth != null;
+    }
+
+    // Default deny for unknown collections/documents.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
